@@ -35,10 +35,9 @@ describe('prefetchImageUris', () => {
       { limit: 10 }
     );
 
-    expect(prefetch).toHaveBeenCalledWith(
-      ['https://a/1.webp', 'https://a/2.webp'],
-      { cachePolicy: 'memory-disk' }
-    );
+    expect(prefetch).toHaveBeenCalledWith(['https://a/1.webp', 'https://a/2.webp'], {
+      cachePolicy: 'memory-disk',
+    });
     expect(markSessionImageLoaded).toHaveBeenCalledTimes(2);
   });
 
@@ -72,7 +71,9 @@ describe('prefetchCatalogArt', () => {
     await Promise.resolve();
 
     const batches = prefetch.mock.calls.map((call) => call[0] as string[]);
-    expect(batches.some((batch) => batch.includes('https://a/1.webp?w=160'))).toBe(true);
+    expect(batches.some((batch) => batch.includes('https://a/1.webp?w=160'))).toBe(
+      true
+    );
     expect(batches.some((batch) => batch.includes('https://a/1.webp'))).toBe(true);
   });
 });

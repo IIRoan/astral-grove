@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 import { QueryClient } from '@tanstack/react-query';
-import { collectionQueryKeys, deckQueryKeys, wishlistQueryKeys } from '@/src/api/queryKeys';
+import {
+  collectionQueryKeys,
+  deckQueryKeys,
+  wishlistQueryKeys,
+} from '@/src/api/queryKeys';
 
 const hydrateCatalogIndex = mock(async () => undefined);
 const prefetchCatalogIndex = mock(async () => undefined);

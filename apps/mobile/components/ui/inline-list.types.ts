@@ -25,13 +25,10 @@ export type InlineListItemAddonProps = React.ComponentProps<typeof View> &
   };
 
 export type InlineListItemAddonChild =
-  | React.ReactElement<InlineListItemAddonProps>
-  | null
-  | false;
+  React.ReactElement<InlineListItemAddonProps> | null | false;
 
 export type InlineListItemAddonChildren =
-  | InlineListItemAddonChild
-  | InlineListItemAddonChild[];
+  InlineListItemAddonChild | InlineListItemAddonChild[];
 
 export type InlineListItemAddonAlign = NonNullable<
   VariantProps<typeof inlineListItemAddonVariants>['align']

@@ -4,7 +4,10 @@ import { CatalogCollectionPillNav } from '@/components/catalog/CatalogCollection
 import { CatalogFilterTrigger } from '@/components/catalog/FilterSheet';
 import { CatalogSimpleAddToggle } from '@/components/catalog/CatalogSimpleAddToggle';
 import { SortTrigger } from '@/components/catalog/SortSheet';
-import type { CatalogCollectionFilter, CatalogFilters } from '@/constants/catalogFilters';
+import type {
+  CatalogCollectionFilter,
+  CatalogFilters,
+} from '@/constants/catalogFilters';
 import type { CatalogSort } from '@/constants/catalogSort';
 import { useMobileLayout } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
@@ -88,7 +91,9 @@ export function CatalogActionBar({
   }
 
   return (
-    <View className={cn('w-full flex-row items-center justify-between gap-3', className)}>
+    <View
+      className={cn('w-full flex-row items-center justify-between gap-3', className)}
+    >
       <View className="min-w-0 flex-1">{leading ?? null}</View>
       {renderActionControls()}
     </View>

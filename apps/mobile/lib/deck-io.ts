@@ -1,8 +1,4 @@
-import {
-  addCardToDeck,
-  createEmptyDeck,
-  sectionForCardType,
-} from '@/lib/deck-card';
+import { addCardToDeck, createEmptyDeck, sectionForCardType } from '@/lib/deck-card';
 import { mapPool } from '@/lib/asyncPool';
 import {
   importDeckCode,

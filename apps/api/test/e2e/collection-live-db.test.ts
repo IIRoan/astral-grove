@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import {
   CollectionLiveEvent,
   CollectionQuantitiesResponse,
@@ -137,12 +144,10 @@ class LiveEventSession {
               JSON.parse(dataLine.slice(5).trimStart())
             );
             if (parsed.success) this.events.push(parsed.data);
-          } catch {
-          }
+          } catch {}
         }
       }
-    } catch {
-    }
+    } catch {}
   }
 
   async waitFor(
@@ -170,8 +175,7 @@ class LiveEventSession {
     this.controller.abort();
     try {
       await this.reader?.cancel();
-    } catch {
-    }
+    } catch {}
     await this.pump?.catch(() => undefined);
   }
 }
@@ -191,13 +195,15 @@ describe('collection live SSE e2e', () => {
     const ready = session.events.find((e) => e.type === 'ready');
     expect(ready?.type).toBe('ready');
     if (ready?.type === 'ready') {
-      expect(ready.collectionId).toBe(await collectionIdForUser(
-        (
-          await (
-            await authFetch('/api/auth/get-session', { cookie: cookieStranger })
-          ).json()
-        ).user.id as string
-      ));
+      expect(ready.collectionId).toBe(
+        await collectionIdForUser(
+          (
+            await (
+              await authFetch('/api/auth/get-session', { cookie: cookieStranger })
+            ).json()
+          ).user.id as string
+        )
+      );
     }
 
     const addRes = await authFetch('/api/v1/collection/OGN-301/add', {

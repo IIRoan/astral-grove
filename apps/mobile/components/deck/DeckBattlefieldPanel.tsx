@@ -13,7 +13,10 @@ import { isCardTournamentIllegal } from '@/lib/card-legality';
 import type { DeckEntry, DeckState } from '@/lib/deck-types';
 import { openCard, type CardOpenSource } from '@/utils/cardNavigation';
 import { hapticPress } from '@/utils/haptics';
-import { OPERATE_CTA_FILL_CLASS, OPERATE_CTA_ICON_CLASS } from '@/constants/operateType';
+import {
+  OPERATE_CTA_FILL_CLASS,
+  OPERATE_CTA_ICON_CLASS,
+} from '@/constants/operateType';
 import { cn } from '@/lib/utils';
 
 interface DeckBattlefieldPanelProps {
@@ -122,17 +125,15 @@ function BattlefieldSlot({
         />
       </View>
 
-      <Text className="px-0.5 text-[11px] font-normal text-foreground" numberOfLines={1}>
+      <Text
+        className="px-0.5 text-[11px] font-normal text-foreground"
+        numberOfLines={1}
+      >
         {card.name}
       </Text>
 
       {readOnly ? null : (
-        <DeckQtyControl
-          count={1}
-          name={card.name}
-          single
-          onRemove={removeOne}
-        />
+        <DeckQtyControl count={1} name={card.name} single onRemove={removeOne} />
       )}
     </View>
   );
@@ -181,8 +182,13 @@ export function DeckBattlefieldPanel({
               onAdd();
             }}
           >
-            <PlusIcon className={cn('size-3.5', OPERATE_CTA_ICON_CLASS)} weight="bold" />
-            <Text className="text-[12px] font-medium tracking-tight text-cta-foreground">Add</Text>
+            <PlusIcon
+              className={cn('size-3.5', OPERATE_CTA_ICON_CLASS)}
+              weight="bold"
+            />
+            <Text className="text-[12px] font-medium tracking-tight text-cta-foreground">
+              Add
+            </Text>
           </Pressable>
         ) : null}
       </View>

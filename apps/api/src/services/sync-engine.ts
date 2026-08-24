@@ -49,22 +49,27 @@ export class SyncEngine {
         localVariantCount > 0 &&
         (catalogPrintTotal <= 0 || localVariantCount >= catalogPrintTotal);
 
-      if (
-        existing?.contentHash === fingerprint &&
-        catalogLooksComplete
-      ) {
+      if (existing?.contentHash === fingerprint && catalogLooksComplete) {
         console.log(
           `[sync] Catalog unchanged (hash=${fingerprint}, variants=${String(localVariantCount)}), skipping card upsert — image mirroring will not run`
         );
         await this.setSyncStatus('catalog', 'idle', {
           contentHash: fingerprint,
-          rowCount: Math.max(existing.rowCount ?? 0, catalogPrintTotal, localVariantCount),
+          rowCount: Math.max(
+            existing.rowCount ?? 0,
+            catalogPrintTotal,
+            localVariantCount
+          ),
           lastSuccessAt: existing.lastSuccessAt ?? now,
         });
         return {
           changed: false,
           pages: 0,
-          variantCount: Math.max(existing.rowCount ?? 0, catalogPrintTotal, localVariantCount),
+          variantCount: Math.max(
+            existing.rowCount ?? 0,
+            catalogPrintTotal,
+            localVariantCount
+          ),
           hash: fingerprint,
         };
       }
@@ -150,7 +155,12 @@ export class SyncEngine {
         `[sync] Catalog sync complete: ${String(syncedCardIds.size)} logical cards, ${String(pages)} pages, ${String(syncedVariantRows)} printings`
       );
 
-      return { changed: true, pages, variantCount: syncedVariantRows, hash: contentHash };
+      return {
+        changed: true,
+        pages,
+        variantCount: syncedVariantRows,
+        hash: contentHash,
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await this.setSyncStatus('catalog', 'failed', { lastError: message });

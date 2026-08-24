@@ -6,7 +6,9 @@ export type HoldResultsSearchState = {
   focused: boolean;
 };
 
-export function createHoldResultsSearchState(committed: string): HoldResultsSearchState {
+export function createHoldResultsSearchState(
+  committed: string
+): HoldResultsSearchState {
   return { draft: committed, holdingFrom: null, focused: false };
 }
 

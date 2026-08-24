@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useId, useRef, useState, type ReactElement } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactElement,
+} from 'react';
 import { Platform, useWindowDimensions, View } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import { Portal } from '@/components/ui/portal';
@@ -29,7 +36,10 @@ type HoverTooltipProps = {
   className?: string;
 };
 
-function estimateTooltipSize(hasDescription: boolean): { width: number; height: number } {
+function estimateTooltipSize(hasDescription: boolean): {
+  width: number;
+  height: number;
+} {
   return {
     width: hasDescription ? 208 : 112,
     height: hasDescription ? 48 : 28,
@@ -192,9 +202,7 @@ export function HoverTooltip({
     if (side === 'right') {
       const preferRight = anchor.x + anchor.width + GAP;
       const fitsRight = preferRight + tip.width <= windowWidth - EDGE_PAD;
-      left = fitsRight
-        ? preferRight
-        : Math.max(EDGE_PAD, anchor.x - tip.width - GAP);
+      left = fitsRight ? preferRight : Math.max(EDGE_PAD, anchor.x - tip.width - GAP);
       placement = fitsRight ? 'right' : 'left';
       top = Math.max(
         EDGE_PAD,

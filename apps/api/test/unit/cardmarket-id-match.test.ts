@@ -7,7 +7,11 @@ import {
 } from '../../src/lib/cardmarket-id-match.js';
 import type { CardmarketProduct } from '../../src/upstream/cardmarket-products.js';
 
-function product(idProduct: number, name: string, idExpansion = 6587): CardmarketProduct {
+function product(
+  idProduct: number,
+  name: string,
+  idExpansion = 6587
+): CardmarketProduct {
   return {
     idProduct,
     name,
@@ -37,7 +41,10 @@ describe('matchVariantsToProducts', () => {
 
   test('leaves unsigned premium on mid-tier when Cardmarket has an extra signed SKU', () => {
     const matches = matchVariantsToProducts(
-      [variant('VEN-139', 'Standard'), variant('VEN-189', 'Overnumbered', 'Overnumbered')],
+      [
+        variant('VEN-139', 'Standard'),
+        variant('VEN-189', 'Overnumbered', 'Overnumbered'),
+      ],
       [
         product(898093, 'Akali, Rogue Assassin'),
         product(898141, 'Akali, Rogue Assassin'),
@@ -83,7 +90,10 @@ describe('matchVariantsToProducts', () => {
 
   test('uses product id ordering when price ranks are absent', () => {
     const matches = matchVariantsToProducts(
-      [variant('VEN-139', 'Standard'), variant('VEN-189', 'Overnumbered', 'Overnumbered')],
+      [
+        variant('VEN-139', 'Standard'),
+        variant('VEN-189', 'Overnumbered', 'Overnumbered'),
+      ],
       [
         product(898093, 'Akali, Rogue Assassin'),
         product(898141, 'Akali, Rogue Assassin'),

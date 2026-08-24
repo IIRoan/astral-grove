@@ -45,7 +45,11 @@ describe('getSearchGroupVariants', () => {
       variantLabel: 'Release Event Promo',
       variantType: 'promo',
     },
-    { variantNumber: 'OGN-302', variantLabel: 'Overnumbered', variantType: 'overnumbered' },
+    {
+      variantNumber: 'OGN-302',
+      variantLabel: 'Overnumbered',
+      variantType: 'overnumbered',
+    },
     {
       variantNumber: 'OGN-302*',
       variantLabel: 'Overnumbered Signed',
@@ -227,7 +231,13 @@ describe('groupCardListItems', () => {
             variantNumber: 'OGN-302',
             variantLabel: 'Overnumbered',
             isFoil: false,
-            priceEur: { currency: 'EUR', low: 10, market: 12, avg7d: 12, isFoil: false },
+            priceEur: {
+              currency: 'EUR',
+              low: 10,
+              market: 12,
+              avg7d: 12,
+              isFoil: false,
+            },
           },
         ],
         isBanned: false,
@@ -239,14 +249,26 @@ describe('groupCardListItems', () => {
       'OGN-253-Release',
       'OGN-302',
     ]);
-    expect(grouped.find((row) => row.variantNumber === 'OGN-253')?.printings).toHaveLength(2);
+    expect(
+      grouped.find((row) => row.variantNumber === 'OGN-253')?.printings
+    ).toHaveLength(2);
   });
 });
 
 describe('getVariantFamiliesFromPrintings', () => {
   const daringPoroPrintings = [
-    { variantNumber: 'OGN-210', variantLabel: 'Standard', isFoil: false, priceEur: null },
-    { variantNumber: 'OGN-210-Foil', variantLabel: 'Standard', isFoil: true, priceEur: null },
+    {
+      variantNumber: 'OGN-210',
+      variantLabel: 'Standard',
+      isFoil: false,
+      priceEur: null,
+    },
+    {
+      variantNumber: 'OGN-210-Foil',
+      variantLabel: 'Standard',
+      isFoil: true,
+      priceEur: null,
+    },
     {
       variantNumber: 'OGN-210-Nexus',
       variantLabel: 'Nexus Night Promo',
@@ -291,7 +313,13 @@ describe('formatListPrice / totalOwnedForCard', () => {
         variantNumber: 'OGN-015',
         variantLabel: 'Standard',
         isFoil: false,
-        priceEur: { currency: 'EUR', low: 0.05, market: 0.1, avg7d: 0.1, isFoil: false },
+        priceEur: {
+          currency: 'EUR',
+          low: 0.05,
+          market: 0.1,
+          avg7d: 0.1,
+          isFoil: false,
+        },
       },
       {
         variantNumber: 'OGN-015-Foil',
@@ -320,7 +348,9 @@ describe('formatListPrice / totalOwnedForCard', () => {
       ],
     });
     expect(formatListPrice(standardOnly)).toBe('€2.00');
-    expect(formatPrintingPrice(standardOnly.printings[0]?.priceEur ?? null)).toBe('€2.00');
+    expect(formatPrintingPrice(standardOnly.printings[0]?.priceEur ?? null)).toBe(
+      '€2.00'
+    );
   });
 
   test('totalOwnedForCard sums only printings on the scoped row', () => {
@@ -412,7 +442,9 @@ describe('expandVariantFinishPrintings', () => {
       },
     ]);
     expect(printings.map((p) => p.variantNumber)).toEqual(['OGN-015', 'OGN-015-Foil']);
-    expect(printings.every((p) => p.variantNumber !== 'OGN-015' || !p.isFoil)).toBe(true);
+    expect(printings.every((p) => p.variantNumber !== 'OGN-015' || !p.isFoil)).toBe(
+      true
+    );
   });
 });
 

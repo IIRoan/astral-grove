@@ -62,11 +62,11 @@ function buildApp(env: Env): AppContext {
   const wishlistService = new WishlistService(db, imageStore);
   const upstreamDeckWriteExtraHeader =
     env.UPSTREAM_DECK_WRITE_EXTRA_HEADER_NAME &&
-      env.UPSTREAM_DECK_WRITE_EXTRA_HEADER_VALUE
+    env.UPSTREAM_DECK_WRITE_EXTRA_HEADER_VALUE
       ? {
-        name: env.UPSTREAM_DECK_WRITE_EXTRA_HEADER_NAME,
-        value: env.UPSTREAM_DECK_WRITE_EXTRA_HEADER_VALUE,
-      }
+          name: env.UPSTREAM_DECK_WRITE_EXTRA_HEADER_NAME,
+          value: env.UPSTREAM_DECK_WRITE_EXTRA_HEADER_VALUE,
+        }
       : undefined;
 
   const deckService = new DeckService(db, pa, cardCache, upstreamDeckWriteExtraHeader);

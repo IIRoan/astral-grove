@@ -51,7 +51,8 @@ export function useCollectionRemove() {
       if (!sheet) return;
       const item = sheet.items.find(
         (row) =>
-          row.variantNumber === selection.variantNumber && row.isFoil === selection.isFoil
+          row.variantNumber === selection.variantNumber &&
+          row.isFoil === selection.isFoil
       );
       if (!item) return;
       closeSheet();

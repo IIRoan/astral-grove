@@ -64,7 +64,9 @@ export function ConfirmDialog({
             <AppSheetTitle>{title}</AppSheetTitle>
           </AppSheetHeader>
           <AppSheetBody className="gap-3 pb-4">
-            <Text className="text-sm leading-5 text-muted-foreground">{description}</Text>
+            <Text className="text-sm leading-5 text-muted-foreground">
+              {description}
+            </Text>
             <View className="gap-2 pt-1">
               <Button
                 variant={destructive ? 'destructive' : 'default'}

@@ -5,7 +5,11 @@ import { DeckBuilderCanvas } from '@/components/deck/DeckBuilderCanvas';
 import { DeckFormatPickerSheet } from '@/components/deck/DeckFormatPickerSheet';
 import { DeckImportLoadingOverlay } from '@/components/deck/DeckImportLoadingOverlay';
 import { LegendPicker } from '@/components/deck/LegendPicker';
-import { ScreenLayout, ScreenLayoutBody, useScreenLayout } from '@/components/shell/ScreenLayout';
+import {
+  ScreenLayout,
+  ScreenLayoutBody,
+  useScreenLayout,
+} from '@/components/shell/ScreenLayout';
 import { Text } from '@/components/ui/text';
 import { Button, ButtonText } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -137,7 +141,9 @@ export default function DeckEditorScreen() {
         onOpenChange={setArchiveImportOpen}
         title="Import deck"
         description={
-          deck ? `Choose a format for “${deck.name}”.` : 'Choose a format for this deck.'
+          deck
+            ? `Choose a format for “${deck.name}”.`
+            : 'Choose a format for this deck.'
         }
         confirmLabel="Import deck"
         onConfirm={async (format) => {

@@ -81,7 +81,9 @@ export function CatalogFilterNamedChipPanel({
 }) {
   if (options.length === 0 && emptyMessage) {
     return (
-      <Text className="py-6 text-center text-sm text-archive-subtle">{emptyMessage}</Text>
+      <Text className="py-6 text-center text-sm text-archive-subtle">
+        {emptyMessage}
+      </Text>
     );
   }
 

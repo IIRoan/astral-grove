@@ -6,10 +6,7 @@ export const CDN_BASE_URL = 'https://cdn.piltoverarchive.com';
 
 export function hasS3Config(env: Env): boolean {
   return Boolean(
-    env.S3_ACCESS_KEY_ID &&
-    env.S3_SECRET_ACCESS_KEY &&
-    env.S3_BUCKET &&
-    env.S3_ENDPOINT
+    env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_BUCKET && env.S3_ENDPOINT
   );
 }
 
@@ -94,8 +91,7 @@ export function rewriteImageUrl(env: Env, url: string): string {
   try {
     const key = objectKeyFromUrl(url);
     if (isSafeImageKey(key)) return apiImageUrl(env, key);
-  } catch {
-  }
+  } catch {}
 
   return url;
 }

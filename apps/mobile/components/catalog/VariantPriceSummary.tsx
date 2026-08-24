@@ -24,7 +24,9 @@ export function VariantPriceSummary({
   const showLabel = !hideLabel && label !== 'Standard';
 
   return (
-    <View className={`mt-2 flex-row flex-wrap items-center gap-x-2 gap-y-1 ${className ?? ''}`}>
+    <View
+      className={`mt-2 flex-row flex-wrap items-center gap-x-2 gap-y-1 ${className ?? ''}`}
+    >
       {showLabel ? (
         <>
           <Text className={DETAIL_PRINTING_LABEL_CLASS}>{label}</Text>

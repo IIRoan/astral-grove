@@ -162,9 +162,7 @@ export function mergeSetStats(
     const foilOwned = stats?.foilVariants.size ?? 0;
     const resolvedTotal = Math.max(total, owned);
     const foilTotal =
-      foilCount != null
-        ? Math.max(foilCount, foilOwned)
-        : Math.max(foilOwned, 0);
+      foilCount != null ? Math.max(foilCount, foilOwned) : Math.max(foilOwned, 0);
     // When foil totals are unknown, keep a single shared denominator so bars stay comparable.
     const knownSplit = foilCount != null;
     const nonFoilTotal = knownSplit

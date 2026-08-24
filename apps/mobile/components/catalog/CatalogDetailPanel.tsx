@@ -3,10 +3,7 @@ import type { CardListItem } from '@riftbound/contracts';
 import { CatalogDetailPanelBody } from '@/components/catalog/CatalogDetailPanelBody';
 import { CatalogDetailPanelSkeleton } from '@/components/catalog/CatalogDetailPanelSkeleton';
 import { useCardDetail } from '@/hooks/useCardDetail';
-import {
-  useCollection,
-  useCollectionOwnership,
-} from '@/hooks/useCollection';
+import { useCollection, useCollectionOwnership } from '@/hooks/useCollection';
 import {
   collectVariantNumbers,
   ownershipMapFromCollection,
@@ -14,9 +11,7 @@ import {
 } from '@/utils/collectionOwnership';
 import type { WishlistPriceItem } from '@/hooks/useWishlistPrices';
 import { useVariantPriceHistory } from '@/hooks/useVariantPriceHistory';
-import {
-  isFoilVariant,
-} from '@/utils/variants';
+import { isFoilVariant } from '@/utils/variants';
 
 interface CatalogDetailPanelProps {
   variantNumber: string;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { DeckSyncService } from '../../src/services/deck-sync.js';
 
-    const upstreamListFixture = {
+const upstreamListFixture = {
   data: [
     {
       id: 'deck-alpha',
@@ -82,11 +82,7 @@ function createDeckSyncForTest() {
     }),
   };
 
-  const deckSync = new DeckSyncService(
-    {} as never,
-    pa as never,
-    cardCache as never
-  );
+  const deckSync = new DeckSyncService({} as never, pa as never, cardCache as never);
 
   return {
     deckSync,
@@ -106,7 +102,9 @@ describe('DeckSyncService.listImportedDeckSummaries', () => {
     expect(metrics().detailCalls).toBe(0);
     expect(items.items).toHaveLength(2);
     expect(items.items.map((item) => item.id)).toEqual(['deck-alpha', 'deck-beta']);
-    expect(items.items.every((item) => item.source === 'imported' && item.readOnly)).toBe(true);
+    expect(
+      items.items.every((item) => item.source === 'imported' && item.readOnly)
+    ).toBe(true);
     expect(items.items[0]?.legend?.variantNumber).toBe('OGS-019');
     expect(items.items[0]?.mainDeck).toEqual([]);
     expect(items.items[0]?.authorName).toBe('Test Author');
@@ -143,11 +141,7 @@ describe('DeckSyncService.listImportedDeckSummaries', () => {
         },
       }),
     };
-    const testSync = new DeckSyncService(
-      {} as never,
-      pa as never,
-      cardCache as never
-    );
+    const testSync = new DeckSyncService({} as never, pa as never, cardCache as never);
 
     const result = await testSync.listImportedDeckSummaries({
       skipIds: new Set(),
@@ -170,9 +164,9 @@ describe('DeckSyncService.listImportedDeckSummaries', () => {
     let detailCalls = 0;
     const syncInternals = deckSync as unknown as {
       getUpstreamDeckDetail: (deckId: string) => Promise<{ id: string }>;
-      transformUpstreamDeckDetailToStoredDeckPayload: (
-        upstream: { id: string }
-      ) => Promise<{
+      transformUpstreamDeckDetailToStoredDeckPayload: (upstream: {
+        id: string;
+      }) => Promise<{
         champion: null;
         legend: null;
         mainDeck: Array<{ card: { name: string }; count: number }>;
@@ -211,7 +205,9 @@ describe('DeckSyncService.listImportedDeckSummaries', () => {
     const syncInternals = deckSync as unknown as {
       cardCache: { getByVariantNumber: (variantNumber: string) => Promise<unknown> };
     };
-    const base = syncInternals.cardCache.getByVariantNumber.bind(syncInternals.cardCache);
+    const base = syncInternals.cardCache.getByVariantNumber.bind(
+      syncInternals.cardCache
+    );
     syncInternals.cardCache.getByVariantNumber = async (variantNumber: string) => {
       legendLookups += 1;
       return base(variantNumber);

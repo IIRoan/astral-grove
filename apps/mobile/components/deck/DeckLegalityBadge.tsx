@@ -5,6 +5,11 @@ interface DeckLegalityBadgeProps {
   compact?: boolean;
 }
 
-export function DeckLegalityBadge({ isLegal, compact = false }: DeckLegalityBadgeProps) {
-  return <StatusKeywordBadge status={isLegal ? 'legal' : 'illegal'} compact={compact} />;
+export function DeckLegalityBadge({
+  isLegal,
+  compact = false,
+}: DeckLegalityBadgeProps) {
+  return (
+    <StatusKeywordBadge status={isLegal ? 'legal' : 'illegal'} compact={compact} />
+  );
 }

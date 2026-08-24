@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import {
   CardDetailResponse,
   CardsListResponse,
@@ -39,7 +46,9 @@ afterAll(async () => {
 
 describe('mobile search workflow', () => {
   test('search → quantities → detail mirrors the app data path', async () => {
-    const searchRes = await authFetch('/api/v1/cards?q=vi&limit=40&page=1&sortBy=name&dir=asc');
+    const searchRes = await authFetch(
+      '/api/v1/cards?q=vi&limit=40&page=1&sortBy=name&dir=asc'
+    );
     expect(searchRes.status).toBe(200);
     const search = CardsListResponse.parse(await searchRes.json());
     expect(search.data.length).toBeGreaterThan(0);

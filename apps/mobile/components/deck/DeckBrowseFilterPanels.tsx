@@ -42,7 +42,12 @@ export function DeckBrowseFilterSegmentPanel({
   const { isLoading: setOptionsLoading, setOptions } = useDeckBrowseFilterOptions();
 
   const legendsQuery = useQuery({
-    queryKey: cardQueryKeys.search(debouncedLegendQuery || 'type:legend', 50, 'name', 'asc'),
+    queryKey: cardQueryKeys.search(
+      debouncedLegendQuery || 'type:legend',
+      50,
+      'name',
+      'asc'
+    ),
     queryFn: () =>
       api.listCards({
         q: debouncedLegendQuery || undefined,
@@ -124,7 +129,9 @@ export function DeckBrowseFilterSegmentPanel({
                   key={name}
                   label={name}
                   active={filters.legend === name}
-                  onPress={() => update({ legend: filters.legend === name ? undefined : name })}
+                  onPress={() =>
+                    update({ legend: filters.legend === name ? undefined : name })
+                  }
                 />
               ))}
             </FilterChipGrid>
@@ -134,7 +141,9 @@ export function DeckBrowseFilterSegmentPanel({
                 key={name}
                 label={name}
                 active={filters.legend === name}
-                onPress={() => update({ legend: filters.legend === name ? undefined : name })}
+                onPress={() =>
+                  update({ legend: filters.legend === name ? undefined : name })
+                }
                 compact={compact}
               />
             ))
@@ -197,12 +206,16 @@ export function DeckBrowseFilterSegmentPanel({
             <FilterOptionChip
               label="Legal"
               active={filters.isLegal === true}
-              onPress={() => update({ isLegal: filters.isLegal === true ? undefined : true })}
+              onPress={() =>
+                update({ isLegal: filters.isLegal === true ? undefined : true })
+              }
             />
             <FilterOptionChip
               label="Not legal"
               active={filters.isLegal === false}
-              onPress={() => update({ isLegal: filters.isLegal === false ? undefined : false })}
+              onPress={() =>
+                update({ isLegal: filters.isLegal === false ? undefined : false })
+              }
             />
           </FilterChipGrid>
         );
@@ -220,14 +233,18 @@ export function DeckBrowseFilterSegmentPanel({
             label="Legal only"
             subtitle="Tournament-legal decklists"
             active={filters.isLegal === true}
-            onPress={() => update({ isLegal: filters.isLegal === true ? undefined : true })}
+            onPress={() =>
+              update({ isLegal: filters.isLegal === true ? undefined : true })
+            }
             compact={compact}
           />
           <FilterToggleRow
             label="Not legal"
             subtitle="Contains banned or restricted cards"
             active={filters.isLegal === false}
-            onPress={() => update({ isLegal: filters.isLegal === false ? undefined : false })}
+            onPress={() =>
+              update({ isLegal: filters.isLegal === false ? undefined : false })
+            }
             compact={compact}
           />
         </View>

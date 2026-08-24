@@ -32,7 +32,9 @@ export function collectionEntryToCardListItem(
   };
 }
 
-export function groupCollectionByVariant(entries: CollectionEntry[]): CollectionEntry[] {
+export function groupCollectionByVariant(
+  entries: CollectionEntry[]
+): CollectionEntry[] {
   const map = new Map<string, CollectionEntry>();
 
   for (const entry of entries) {

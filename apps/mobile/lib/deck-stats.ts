@@ -351,11 +351,11 @@ export function computeDeckStats(
     cardCount === 0
       ? []
       : ENERGY_BANDS.map((band) => ({
-        key: band.key,
-        label: band.label,
-        count: bandCounts.get(band.key) ?? 0,
-        kind: 'mix' as const,
-      }));
+          key: band.key,
+          label: band.label,
+          count: bandCounts.get(band.key) ?? 0,
+          kind: 'mix' as const,
+        }));
 
   const copyCounts = new Map<string, number>();
   for (const count of nameCounts.values()) {

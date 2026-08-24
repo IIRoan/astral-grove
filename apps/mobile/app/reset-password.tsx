@@ -35,7 +35,9 @@ function ResetPasswordMessage({
   return (
     <View className="gap-5">
       <View className="gap-2">
-        <Text className="text-xl font-semibold tracking-tight text-foreground">{title}</Text>
+        <Text className="text-xl font-semibold tracking-tight text-foreground">
+          {title}
+        </Text>
         <Text className="text-sm leading-5 text-muted-foreground">{body}</Text>
       </View>
       <Button size="lg" onPress={onAction}>
@@ -49,7 +51,11 @@ function ResetPasswordMessage({
 export default function ResetPasswordScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const params = useLocalSearchParams<{ token?: string; email?: string; error?: string }>();
+  const params = useLocalSearchParams<{
+    token?: string;
+    email?: string;
+    error?: string;
+  }>();
   const parsed = parsePasswordResetSearchParams(params);
   const [attemptedAppOpen, setAttemptedAppOpen] = useState(false);
 

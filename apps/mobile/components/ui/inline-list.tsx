@@ -77,8 +77,7 @@ const renderItemsWithSeparators = (children: React.ReactNode) => {
     }
 
     const itemChild = child as React.ReactElement<InlineListItemProps>;
-    const showSeparator =
-      itemChild.props.showSeparator ?? index !== lastItemIndex;
+    const showSeparator = itemChild.props.showSeparator ?? index !== lastItemIndex;
 
     return cloneElement(itemChild, { showSeparator });
   });
@@ -156,19 +155,14 @@ export const InlineListItem = ({
   ...props
 }: InlineListItemProps) => {
   const { startAddons, endAddons } = useInlineListItemAddons(children);
-  const content = useMemo(
-    () => parseInlineListItemContent(children),
-    [children]
-  );
+  const content = useMemo(() => parseInlineListItemContent(children), [children]);
 
   const rowClassName = cn(inlineListItemVariants({ variant }), className);
 
   const rowContent = (
     <>
       {startAddons}
-      <View className="min-w-0 flex-1 flex-col justify-center gap-1">
-        {content}
-      </View>
+      <View className="min-w-0 flex-1 flex-col justify-center gap-1">{content}</View>
       {endAddons}
     </>
   );

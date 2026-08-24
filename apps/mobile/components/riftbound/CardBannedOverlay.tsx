@@ -10,10 +10,7 @@ export function CardBannedOverlay({
   className?: string;
 }) {
   return (
-    <View
-      pointerEvents="none"
-      className={cn('absolute left-1 top-1 z-10', className)}
-    >
+    <View pointerEvents="none" className={cn('absolute left-1 top-1 z-10', className)}>
       <StatusKeywordBadge status="illegal" compact={compact} />
     </View>
   );

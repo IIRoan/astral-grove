@@ -1,7 +1,11 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 import type { CollectionEntry } from '@/services/collectionService';
 import { fetchCardDetailsByVariant } from '@/lib/batchCardsIndex';
-import { formatMarketTrend, pickVariantDisplayPrice, toPriceEurSummary } from '@/utils/variants';
+import {
+  formatMarketTrend,
+  pickVariantDisplayPrice,
+  toPriceEurSummary,
+} from '@/utils/variants';
 import { collectionQueryKeys } from '@/src/api/queryKeys';
 
 const INSIGHTS_STALE_MS = 5 * 60 * 1000;
@@ -19,7 +23,10 @@ export async function computeCollectionInsights(collection: CollectionEntry[]) {
   ].sort();
 
   if (variantNumbers.length === 0) {
-    return { estimatedValue: 0, movers: [] as { entry: CollectionEntry; trend: string }[] };
+    return {
+      estimatedValue: 0,
+      movers: [] as { entry: CollectionEntry; trend: string }[],
+    };
   }
 
   const detailByVariant = await fetchCardDetailsByVariant(variantNumbers);

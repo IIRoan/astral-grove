@@ -14,5 +14,11 @@
     "uniwind-types.d.ts",
     "types/**/*.d.ts"
   ],
-  "exclude": ["**/*.test.ts", "**/*.test.tsx", "test/**", "e2e/**", "playwright.config.ts"]
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "test/**",
+    "e2e/**",
+    "playwright.config.ts"
+  ]
 }

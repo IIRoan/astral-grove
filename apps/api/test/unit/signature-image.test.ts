@@ -7,9 +7,9 @@ import { CDN_BASE_URL } from '../../src/lib/s3.js';
 
 describe('isPiltoverArchiveImageUrl', () => {
   test('accepts PA CDN hosts', () => {
-    expect(isPiltoverArchiveImageUrl('https://cdn.piltoverarchive.com/cards/VEN-189.webp')).toBe(
-      true
-    );
+    expect(
+      isPiltoverArchiveImageUrl('https://cdn.piltoverarchive.com/cards/VEN-189.webp')
+    ).toBe(true);
     expect(
       isPiltoverArchiveImageUrl('https://images.piltoverarchive.com/cards/VEN-189.webp')
     ).toBe(true);
@@ -27,7 +27,8 @@ describe('resolveSignedOvernumberedImageUrl', () => {
     const hit = `${CDN_BASE_URL}/cards/VEN-189S.webp`;
     const seen: string[] = [];
     globalThis.fetch = (async (input: RequestInfo | URL) => {
-      const url = typeof input === 'string' || input instanceof URL ? String(input) : input.url;
+      const url =
+        typeof input === 'string' || input instanceof URL ? String(input) : input.url;
       seen.push(url);
       if (url === hit) {
         return new Response(null, {
@@ -49,7 +50,8 @@ describe('resolveSignedOvernumberedImageUrl', () => {
 
   test('returns null when no PA signed asset exists', async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async () => new Response(null, { status: 404 })) as typeof fetch;
+    globalThis.fetch = (async () =>
+      new Response(null, { status: 404 })) as typeof fetch;
 
     try {
       const url = await resolveSignedOvernumberedImageUrl('Akali', 'VEN-189*');

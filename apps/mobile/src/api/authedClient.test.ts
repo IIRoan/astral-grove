@@ -25,7 +25,8 @@ beforeEach(() => {
   defaultFetch.mockClear();
 });
 
-const { authedFetch, authedFetchText, RemoteApiError } = await import('@/src/api/authedClient');
+const { authedFetch, authedFetchText, RemoteApiError } =
+  await import('@/src/api/authedClient');
 
 describe('authedFetch', () => {
   test('attaches session cookie on native runtimes', async () => {
@@ -41,7 +42,9 @@ describe('authedFetch', () => {
       return new Response('nope', { status: 401 });
     }) as typeof fetch;
 
-    await expect(authedFetch('/api/v1/wishlist')).rejects.toBeInstanceOf(RemoteApiError);
+    await expect(authedFetch('/api/v1/wishlist')).rejects.toBeInstanceOf(
+      RemoteApiError
+    );
   });
 });
 
@@ -51,7 +54,9 @@ describe('authedFetchText', () => {
       return new Response('a,b,c', { status: 200 });
     }) as typeof fetch;
 
-    const csv = await authedFetchText('/api/v1/collection/export', { accept: 'text/csv' });
+    const csv = await authedFetchText('/api/v1/collection/export', {
+      accept: 'text/csv',
+    });
     expect(csv).toBe('a,b,c');
   });
 });

@@ -41,9 +41,9 @@ describe('collectFilterIconUris', () => {
       ],
     });
 
-    expect(
-      uris.some((uri) => uri.endsWith('/api/v1/images/colors/fury.webp'))
-    ).toBe(true);
+    expect(uris.some((uri) => uri.endsWith('/api/v1/images/colors/fury.webp'))).toBe(
+      true
+    );
   });
 
   test('deduplicates URIs', () => {
@@ -64,7 +64,9 @@ describe('collectFilterIconUris', () => {
       ],
     });
 
-    const remoteMatches = uris.filter((uri) => uri.endsWith('/api/v1/images/colors/fury.webp'));
+    const remoteMatches = uris.filter((uri) =>
+      uri.endsWith('/api/v1/images/colors/fury.webp')
+    );
     expect(remoteMatches).toHaveLength(1);
   });
 });

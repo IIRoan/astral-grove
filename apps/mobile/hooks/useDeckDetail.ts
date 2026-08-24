@@ -31,13 +31,15 @@ export function useDeckDetail(deckId: string | undefined) {
     staleTime: 5_000,
     initialData: () => {
       if (!deckId) return undefined;
-      return queryClient.getQueryData<DeckState | null>(deckQueryKeys.detail(deckId)) ?? undefined;
+      return (
+        queryClient.getQueryData<DeckState | null>(deckQueryKeys.detail(deckId)) ??
+        undefined
+      );
     },
   });
 
-  const { deck: deckWithLegality, isRefreshing: isRefreshingLegality } = useDeckLiveLegality(
-    query.data ?? null
-  );
+  const { deck: deckWithLegality, isRefreshing: isRefreshingLegality } =
+    useDeckLiveLegality(query.data ?? null);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,7 +55,8 @@ export function useDeckDetail(deckId: string | undefined) {
     (input: PersistInput, options?: PersistOptions) => {
       if (!deckId) return;
       const previous =
-        queryClient.getQueryData<DeckState | null>(deckQueryKeys.detail(deckId)) ?? null;
+        queryClient.getQueryData<DeckState | null>(deckQueryKeys.detail(deckId)) ??
+        null;
       if (!previous || previous.readOnly) return;
       const next = typeof input === 'function' ? input(previous) : input;
       setDeckDetailCache(queryClient, next);

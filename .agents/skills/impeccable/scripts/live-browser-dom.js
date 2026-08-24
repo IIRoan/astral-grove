@@ -21,7 +21,9 @@
     const tagsToSkip = skipTags || new Set();
 
     function own(el) {
-      return el && (el.id?.startsWith(prefix) || el.closest?.('[id^="' + prefix + '"]'));
+      return (
+        el && (el.id?.startsWith(prefix) || el.closest?.('[id^="' + prefix + '"]'))
+      );
     }
 
     function pickable(el) {
@@ -49,10 +51,14 @@
       const r = el.getBoundingClientRect();
       if (!rectIsUsableAnchor(r)) return null;
       const rect = {
-        x: r.x, y: r.y,
-        top: r.top, left: r.left,
-        right: r.right, bottom: r.bottom,
-        width: r.width, height: r.height,
+        x: r.x,
+        y: r.y,
+        top: r.top,
+        left: r.left,
+        right: r.right,
+        bottom: r.bottom,
+        width: r.width,
+        height: r.height,
       };
       return {
         __impeccableFrozenAnchor: true,
@@ -66,7 +72,10 @@
 
     function id8() {
       if (crypto?.randomUUID) return crypto.randomUUID().replace(/-/g, '').slice(0, 8);
-      return (Math.random().toString(16).slice(2) + Date.now().toString(16)).slice(0, 8);
+      return (Math.random().toString(16).slice(2) + Date.now().toString(16)).slice(
+        0,
+        8
+      );
     }
 
     function cssId(id) {
@@ -107,7 +116,8 @@
 
     function activeElementDeep() {
       let active = doc.activeElement;
-      while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+      while (active?.shadowRoot?.activeElement)
+        active = active.shadowRoot.activeElement;
       return active;
     }
 

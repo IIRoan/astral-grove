@@ -37,7 +37,9 @@ export class VariantResolver {
   }
 
   async loadLookupMap(variantNumbers: string[]): Promise<Map<string, string>> {
-    const unique = [...new Set(variantNumbers.map(normalizeVariantNumber).filter(Boolean))];
+    const unique = [
+      ...new Set(variantNumbers.map(normalizeVariantNumber).filter(Boolean)),
+    ];
     const lookup = new Map<string, string>();
 
     if (unique.length === 0) return lookup;
@@ -68,8 +70,7 @@ export class VariantResolver {
           for (const variant of logical.variants) {
             this.addToLookup(lookup, variant.variantNumber);
           }
-        } catch {
-        }
+        } catch {}
       }
     }
 

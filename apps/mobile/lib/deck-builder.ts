@@ -22,12 +22,25 @@ export type DeckGridCell = DeckGridCardCell | DeckGridAddCell | DeckGridEmptyCel
 
 export type BattlefieldSlot = DeckEntry | null;
 
-export function getLegendRuneDomains(legend: Pick<DeckCard, 'colors'>): [string, string] {
+export function getLegendRuneDomains(
+  legend: Pick<DeckCard, 'colors'>
+): [string, string] {
   return contractLegendRuneDomains(legend);
 }
 
 /** Domains shown in the rune panel — up to 3 for Pre-Rift, legend pair for Constructed. */
-export function getDeckRuneDomains(deck: Pick<DeckState, 'format' | 'legend' | 'runes' | 'mainDeck' | 'champion' | 'battlefields' | 'sideboard'>): string[] {
+export function getDeckRuneDomains(
+  deck: Pick<
+    DeckState,
+    | 'format'
+    | 'legend'
+    | 'runes'
+    | 'mainDeck'
+    | 'champion'
+    | 'battlefields'
+    | 'sideboard'
+  >
+): string[] {
   const domains: string[] = [];
   const seen = new Set<string>();
   const isPreRift = deck.format === 'pre-rift';

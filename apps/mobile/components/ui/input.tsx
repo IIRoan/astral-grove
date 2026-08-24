@@ -7,11 +7,7 @@ import {
   useEffect,
   useMemo,
 } from 'react';
-import {
-  Pressable,
-  TextInput as RNTextInput,
-  View,
-} from 'react-native';
+import { Pressable, TextInput as RNTextInput, View } from 'react-native';
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -74,7 +70,10 @@ export const Input = ({ className, disabled, style, ...props }: InputProps) => {
   return (
     <RNTextInput
       className={merged}
-      style={[{ ...fontStyle, fontFamily: fontStyle.fontFamily ?? DEFAULT_SANS }, style]}
+      style={[
+        { ...fontStyle, fontFamily: fontStyle.fontFamily ?? DEFAULT_SANS },
+        style,
+      ]}
       editable={!disabled}
       placeholderTextColorClassName="accent-muted-foreground"
       {...props}
@@ -161,9 +160,7 @@ export const InputPressable = ({
 };
 
 export const InputAddon = ({ align, className, ...props }: InputAddonProps) => {
-  return (
-    <View className={cn(inputAddonVariants({ align }), className)} {...props} />
-  );
+  return <View className={cn(inputAddonVariants({ align }), className)} {...props} />;
 };
 
 export const InputAddonIcon = ({
@@ -174,9 +171,7 @@ export const InputAddonIcon = ({
 
   if (!child) {
     if (__DEV__) {
-      throw new Error(
-        'InputAddonIcon expects a single React element as children'
-      );
+      throw new Error('InputAddonIcon expects a single React element as children');
     }
     return null;
   }

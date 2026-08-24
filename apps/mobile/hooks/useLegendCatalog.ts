@@ -12,7 +12,12 @@ import {
   shouldShowLegendCatalogLoading,
 } from '@/lib/legend-catalog';
 import { api } from '@/src/api/client';
-import { useInfiniteQuery, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const legendListQueryOptions = (search: string) => ({
@@ -35,7 +40,9 @@ const legendListQueryOptions = (search: string) => ({
 
 /** Warm the default legend page so the picker opens from cache. */
 export function prefetchPlayLegendCatalog(queryClient: QueryClient): Promise<void> {
-  return queryClient.prefetchInfiniteQuery(legendListQueryOptions('')).then(() => undefined);
+  return queryClient
+    .prefetchInfiniteQuery(legendListQueryOptions(''))
+    .then(() => undefined);
 }
 
 /** Legend catalog search: browse grouping, list art first, deferred hydrate, previous-result placeholders. */

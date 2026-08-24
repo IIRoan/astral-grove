@@ -1,11 +1,9 @@
-import { useCallback, useState } from "react";
-import { View, type BlurEvent, type FocusEvent } from "react-native";
-import {
-  INPUT_TEXTAREA_SHELL_CLASS,
-} from "@/constants/catalogToolbar";
-import { cn } from "@/lib/utils";
-import { Input } from "./input";
-import type { InputProps } from "./input.types";
+import { useCallback, useState } from 'react';
+import { View, type BlurEvent, type FocusEvent } from 'react-native';
+import { INPUT_TEXTAREA_SHELL_CLASS } from '@/constants/catalogToolbar';
+import { cn } from '@/lib/utils';
+import { Input } from './input';
+import type { InputProps } from './input.types';
 
 export type TextareaInputProps = InputProps & {
   onFocus?: (e: FocusEvent) => void;
@@ -45,11 +43,11 @@ export const TextareaInput = ({
     <View
       className={cn(
         INPUT_TEXTAREA_SHELL_CLASS,
-        "border",
-        !invalid && !isFocused && "border-border",
-        !invalid && isFocused && "border-ring/50",
-        invalid && "border-destructive",
-        disabled && "opacity-50",
+        'border',
+        !invalid && !isFocused && 'border-border',
+        !invalid && isFocused && 'border-ring/50',
+        invalid && 'border-destructive',
+        disabled && 'opacity-50',
         className
       )}
     >

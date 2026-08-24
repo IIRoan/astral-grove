@@ -24,7 +24,12 @@ async function paImageExists(url: string): Promise<boolean> {
     const bytes = new Uint8Array(buf);
     if (bytes[0] === 0xff && bytes[1] === 0xd8) return true;
     if (bytes[0] === 0x89 && bytes[1] === 0x50) return true;
-    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+    if (
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46
+    ) {
       return true;
     }
     return false;

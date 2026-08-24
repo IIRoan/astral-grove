@@ -10,6 +10,7 @@ import {
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { HoverTooltip } from '@/components/ui/hover-tooltip';
 import { Text } from '@/components/ui/text';
+import { UserBlobatar } from '@/components/ui/user-blobatar';
 import { FACTORY_RADIUS_CONTROL_CLASS } from '@/constants/factoryShape';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { TAB_SCENE } from '@/lib/motion';
@@ -135,7 +136,7 @@ export function SideRail() {
   };
 
   const userName = session?.user?.name ?? '';
-  const userInitial = userName.charAt(0).toUpperCase() || '?';
+  const userId = session?.user?.id;
 
   return (
     <View
@@ -181,7 +182,12 @@ export function SideRail() {
           {NAV_ITEMS.map(({ id, href, label, description, icon: Icon }) => {
             const isActive = active === id;
             return (
-              <HoverTooltip key={id} label={label} description={description} side="right">
+              <HoverTooltip
+                key={id}
+                label={label}
+                description={description}
+                side="right"
+              >
                 <PressableScale
                   accessibilityRole="tab"
                   accessibilityState={{ selected: isActive }}
@@ -190,7 +196,10 @@ export function SideRail() {
                     void hapticPress();
                     router.push(href as '/(tabs)/search');
                   }}
-                  className={cn('size-9 items-center justify-center', FACTORY_RADIUS_CONTROL_CLASS)}
+                  className={cn(
+                    'size-9 items-center justify-center',
+                    FACTORY_RADIUS_CONTROL_CLASS
+                  )}
                   contentClassName="items-center justify-center"
                   depth={0.92}
                 >
@@ -217,9 +226,9 @@ export function SideRail() {
             <PressableScale
               accessibilityLabel={`Account: ${userName}. Open settings`}
               className={cn(
-                'size-9 items-center justify-center',
+                'size-9 items-center justify-center overflow-hidden',
                 FACTORY_RADIUS_CONTROL_CLASS,
-                active === 'settings' && 'bg-card-panel'
+                active === 'settings' && 'border border-border'
               )}
               contentClassName="items-center justify-center"
               onPress={() => {
@@ -227,20 +236,26 @@ export function SideRail() {
                 router.push('/(tabs)/settings');
               }}
             >
-              <Text
-                className={cn(
-                  'font-mono text-xs font-normal',
-                  active === 'settings' ? 'text-foreground' : 'text-muted-foreground'
-                )}
-              >
-                {userInitial}
-              </Text>
+              {userId ? (
+                <UserBlobatar userId={userId} title={userName || 'Account'} size={36} />
+              ) : (
+                <Text className="font-mono text-xs font-normal text-muted-foreground">
+                  ?
+                </Text>
+              )}
             </PressableScale>
           </HoverTooltip>
-          <HoverTooltip label="Sign out" description="Sign out of The Astral Grove" side="right">
+          <HoverTooltip
+            label="Sign out"
+            description="Sign out of The Astral Grove"
+            side="right"
+          >
             <PressableScale
               accessibilityLabel="Sign out"
-              className={cn('size-9 items-center justify-center', FACTORY_RADIUS_CONTROL_CLASS)}
+              className={cn(
+                'size-9 items-center justify-center',
+                FACTORY_RADIUS_CONTROL_CLASS
+              )}
               contentClassName="items-center justify-center"
               onPress={() => {
                 void hapticPress();

@@ -5,11 +5,8 @@ import { createMemoryAsyncStorage } from '../test/memory-async-storage';
 const memoryStorage = createMemoryAsyncStorage();
 memoryStorage.install();
 
-const {
-  clearPersistedOwnedDecks,
-  persistOwnedDecks,
-  readPersistedOwnedDecks,
-} = await import('./deckCacheService');
+const { clearPersistedOwnedDecks, persistOwnedDecks, readPersistedOwnedDecks } =
+  await import('./deckCacheService');
 
 beforeEach(async () => {
   memoryStorage.clear();
@@ -50,7 +47,10 @@ describe('deckCacheService', () => {
       cachedAt: Date.now() - 25 * 60 * 60 * 1000,
       decks: [],
     };
-    memoryStorage.store.set('riftbound_owned_decks_cache', JSON.stringify(expiredPayload));
+    memoryStorage.store.set(
+      'riftbound_owned_decks_cache',
+      JSON.stringify(expiredPayload)
+    );
 
     expect(await readPersistedOwnedDecks()).toBeNull();
     expect(memoryStorage.store.has('riftbound_owned_decks_cache')).toBe(false);

@@ -49,7 +49,9 @@ export function EmailVerificationForm({
   const verify = async (nextOtp: string) => {
     const code = normalizeVerificationOtp(nextOtp);
     if (!isCompleteVerificationOtp(code)) {
-      setError(`Enter the ${String(EMAIL_VERIFICATION_OTP_LENGTH)}-digit code from your email`);
+      setError(
+        `Enter the ${String(EMAIL_VERIFICATION_OTP_LENGTH)}-digit code from your email`
+      );
       return;
     }
     Keyboard.dismiss();
@@ -130,9 +132,10 @@ export function EmailVerificationForm({
             </>
           ) : (
             <>
-              We sent a verification link and a {String(EMAIL_VERIFICATION_OTP_LENGTH)}-digit code
-              to <Text className="font-medium text-foreground">{normalizedEmail}</Text>. Open the
-              link, or enter the code below.
+              We sent a verification link and a {String(EMAIL_VERIFICATION_OTP_LENGTH)}
+              -digit code to{' '}
+              <Text className="font-medium text-foreground">{normalizedEmail}</Text>.
+              Open the link, or enter the code below.
             </>
           )}
         </Text>
@@ -143,7 +146,9 @@ export function EmailVerificationForm({
         <TextInput
           value={otp}
           onChangeText={(value) => {
-            setOtp(normalizeVerificationOtp(value).slice(0, EMAIL_VERIFICATION_OTP_LENGTH));
+            setOtp(
+              normalizeVerificationOtp(value).slice(0, EMAIL_VERIFICATION_OTP_LENGTH)
+            );
             setError(null);
           }}
           disabled={busy}
@@ -180,7 +185,10 @@ export function EmailVerificationForm({
       ) : null}
 
       {resendNote ? (
-        <Text className="mt-3 text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+        <Text
+          className="mt-3 text-sm text-muted-foreground"
+          accessibilityLiveRegion="polite"
+        >
           {resendNote}
         </Text>
       ) : null}
@@ -210,7 +218,12 @@ export function EmailVerificationForm({
           <ButtonText>Resend email</ButtonText>
         </Button>
         {onChangeEmail ? (
-          <Button variant="ghost" size="sm" disabled={busy || resendBusy} onPress={onChangeEmail}>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={busy || resendBusy}
+            onPress={onChangeEmail}
+          >
             <ButtonText>Use a different email</ButtonText>
           </Button>
         ) : null}

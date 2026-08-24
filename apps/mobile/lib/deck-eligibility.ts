@@ -7,10 +7,7 @@ import {
   sharesLegendChampionTag,
 } from '@riftbound/contracts';
 import { cardHasType, sectionForCardType } from '@/lib/deck-card';
-import {
-  battlefieldPerNameLimit,
-  battlefieldsAtCapacity,
-} from '@/lib/deck-limits';
+import { battlefieldPerNameLimit, battlefieldsAtCapacity } from '@/lib/deck-limits';
 import { compactMap } from '@/lib/iteration';
 
 export type CardEligibilityResult = {
@@ -262,7 +259,11 @@ export function isCardEligibleForSection(args: {
       };
     }
   } else {
-    const sectionsWithDomainFilter: DeckSectionKey[] = ['mainDeck', 'runes', 'sideboard'];
+    const sectionsWithDomainFilter: DeckSectionKey[] = [
+      'mainDeck',
+      'runes',
+      'sideboard',
+    ];
     if (sectionsWithDomainFilter.includes(section) && identity.allowedDomains) {
       if (!domainIdentityMatch(candidateCard.colors, identity.allowedDomains)) {
         return { eligible: false, reason: 'Card does not match deck domain identity.' };
@@ -314,7 +315,10 @@ export function isCardEligibleForSection(args: {
               reason: 'Legend domain identity would conflict with existing Champion.',
             };
           }
-          if (rules.requireChampionTagMatch && !matchesLegendChampionTag(champion, candidateCard)) {
+          if (
+            rules.requireChampionTagMatch &&
+            !matchesLegendChampionTag(champion, candidateCard)
+          ) {
             return {
               eligible: false,
               reason: 'Legend champion tags would conflict with existing Champion.',
@@ -347,7 +351,8 @@ export function isCardEligibleForSection(args: {
           if (!validateEntryDomain(entry.card)) {
             return {
               eligible: false,
-              reason: 'Legend domain identity would conflict with existing Battlefields.',
+              reason:
+                'Legend domain identity would conflict with existing Battlefields.',
             };
           }
         }

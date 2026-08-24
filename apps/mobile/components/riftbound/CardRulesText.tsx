@@ -32,7 +32,10 @@ function InlineAssetIcon({
   label: string;
 }) {
   return (
-    <View className="mx-0.5 items-center justify-center" style={{ width: size, height: size }}>
+    <View
+      className="mx-0.5 items-center justify-center"
+      style={{ width: size, height: size }}
+    >
       <Image
         source={source}
         style={{ width: size, height: size }}
@@ -170,12 +173,22 @@ function RulesPartView({
   reminderClass: string;
 }) {
   if (part.type === 'text') {
-    return <ReminderText value={part.value} textClass={textClass} reminderClass={reminderClass} />;
+    return (
+      <ReminderText
+        value={part.value}
+        textClass={textClass}
+        reminderClass={reminderClass}
+      />
+    );
   }
 
   if (part.type === 'keyword') {
     return (
-      <KeywordBadge label={part.display} keywordBase={part.keywordBase} compact={compact} />
+      <KeywordBadge
+        label={part.display}
+        keywordBase={part.keywordBase}
+        compact={compact}
+      />
     );
   }
 
@@ -214,7 +227,9 @@ function RulesPartView({
 
   return (
     <Text className={cn(textClass, 'shrink')}>
-      <RNText className={cn('font-bold', compact ? 'text-[10px]' : 'text-xs')}>{display}</RNText>
+      <RNText className={cn('font-bold', compact ? 'text-[10px]' : 'text-xs')}>
+        {display}
+      </RNText>
     </Text>
   );
 }
@@ -242,7 +257,12 @@ function KeywordBannerCluster({
           }
           if (cost.type === 'rune') {
             return (
-              <KeywordBannerCostIcon key={key} source={runeIcon} size={size} label="Rune" />
+              <KeywordBannerCostIcon
+                key={key}
+                source={runeIcon}
+                size={size}
+                label="Rune"
+              />
             );
           }
           if (cost.type === 'domain') {
@@ -369,12 +389,16 @@ export function CardRulesText({
     <View
       style={[
         style,
-        numberOfLines ? { maxHeight: numberOfLines * lineHeight, overflow: 'hidden' } : undefined,
+        numberOfLines
+          ? { maxHeight: numberOfLines * lineHeight, overflow: 'hidden' }
+          : undefined,
       ]}
     >
       {paragraphs.map((paragraph, paragraphIndex) => {
         if (!paragraph) {
-          return paragraphIndex > 0 ? <View key={paragraphIndex} className="h-1" /> : null;
+          return paragraphIndex > 0 ? (
+            <View key={paragraphIndex} className="h-1" />
+          ) : null;
         }
 
         const segments = groupParagraphSegments(parseCardRules(paragraph));

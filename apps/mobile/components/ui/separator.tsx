@@ -1,13 +1,12 @@
-import { cva, type VariantProps } from "class-variance-authority";
-import { View } from "react-native";
+import { cva, type VariantProps } from 'class-variance-authority';
+import { View } from 'react-native';
 
 export const Separator = ({
   className,
   orientation,
   thickness,
   ...props
-}: React.ComponentProps<typeof View> &
-  VariantProps<typeof separatorVariants>) => {
+}: React.ComponentProps<typeof View> & VariantProps<typeof separatorVariants>) => {
   return (
     <View
       className={separatorVariants({ className, orientation, thickness })}
@@ -17,41 +16,41 @@ export const Separator = ({
   );
 };
 
-const separatorVariants = cva("h-10 bg-border", {
+const separatorVariants = cva('h-10 bg-border', {
   variants: {
     thickness: {
-      thin: "",
-      thick: "",
+      thin: '',
+      thick: '',
     },
     orientation: {
-      horizontal: "w-full",
-      vertical: "h-full",
+      horizontal: 'w-full',
+      vertical: 'h-full',
     },
   },
   compoundVariants: [
     {
-      orientation: "horizontal",
-      thickness: "thin",
-      class: "h-hairline",
+      orientation: 'horizontal',
+      thickness: 'thin',
+      class: 'h-hairline',
     },
     {
-      orientation: "horizontal",
-      thickness: "thick",
-      class: "h-1",
+      orientation: 'horizontal',
+      thickness: 'thick',
+      class: 'h-1',
     },
     {
-      orientation: "vertical",
-      thickness: "thin",
-      class: "w-hairline",
+      orientation: 'vertical',
+      thickness: 'thin',
+      class: 'w-hairline',
     },
     {
-      orientation: "vertical",
-      thickness: "thick",
-      class: "w-1",
+      orientation: 'vertical',
+      thickness: 'thick',
+      class: 'w-1',
     },
   ],
   defaultVariants: {
-    orientation: "horizontal",
-    thickness: "thin",
+    orientation: 'horizontal',
+    thickness: 'thin',
   },
 });

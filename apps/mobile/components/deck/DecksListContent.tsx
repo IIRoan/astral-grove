@@ -82,7 +82,9 @@ export function DecksListContent({
   const { isLoading, isFetching: _isFetching, isError } = queryStatus;
   const { showCreate, showImport, showSubNav } = emptyActions;
   const showBlockingLoader = isLoading && decks.length === 0;
-  const subNavSpacer = showSubNav ? <View style={{ height: DECKS_SUB_NAV_CLEARANCE }} /> : null;
+  const subNavSpacer = showSubNav ? (
+    <View style={{ height: DECKS_SUB_NAV_CLEARANCE }} />
+  ) : null;
 
   if (showBlockingLoader) {
     return (
@@ -100,7 +102,8 @@ export function DecksListContent({
           <EmptyHeader>
             <EmptyTitle>Could not load decks</EmptyTitle>
             <EmptyDescription>
-              The deck list timed out or the server returned an error. Try again in a moment.
+              The deck list timed out or the server returned an error. Try again in a
+              moment.
             </EmptyDescription>
           </EmptyHeader>
           <Button onPress={() => void refetch()}>

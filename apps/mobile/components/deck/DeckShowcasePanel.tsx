@@ -43,8 +43,7 @@ export function DeckShowcasePanel({
     measuredWidth: hasWidth ? contentWidth : null,
     fillAvailable: true,
   });
-  const runesBeside =
-    !isMobile && hasWidth && contentWidth >= RUNES_BESIDE_MIN_WIDTH;
+  const runesBeside = !isMobile && hasWidth && contentWidth >= RUNES_BESIDE_MIN_WIDTH;
   const identityTileWidth = computeShowcaseIdentityTileWidth(contentWidth, runesBeside);
   const sideCount = getSectionCount(deck, 'sideboard');
 

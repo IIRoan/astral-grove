@@ -31,8 +31,7 @@ export function computePriceStats(points: DailyPricePoint[]) {
     trendValues.length > 0
       ? trendValues.reduce((sum, value) => sum + value, 0) / trendValues.length
       : null;
-  const listingLow =
-    sorted.length > 0 ? sorted[sorted.length - 1]!.lowPrice : null;
+  const listingLow = sorted.length > 0 ? sorted[sorted.length - 1]!.lowPrice : null;
   const { changePercent, trend } = computeTrend(currentPrice, baselinePrice);
 
   return {

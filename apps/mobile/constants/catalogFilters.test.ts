@@ -26,8 +26,18 @@ const sampleCard = {
   cardmarketId: null,
   priceEur: null,
   printings: [
-    { variantNumber: 'OGN-001', variantLabel: 'Standard', isFoil: false, priceEur: null },
-    { variantNumber: 'OGN-001*', variantLabel: 'Standard', isFoil: true, priceEur: null },
+    {
+      variantNumber: 'OGN-001',
+      variantLabel: 'Standard',
+      isFoil: false,
+      priceEur: null,
+    },
+    {
+      variantNumber: 'OGN-001*',
+      variantLabel: 'Standard',
+      isFoil: true,
+      priceEur: null,
+    },
   ],
   isBanned: false,
 };
@@ -40,15 +50,25 @@ const dualColorLegend = {
 
 describe('matchesCatalogFilters', () => {
   test('default filters pass every row', () => {
-    expect(matchesCatalogFilters(sampleCard, DEFAULT_CATALOG_FILTERS, new Map())).toBe(true);
+    expect(matchesCatalogFilters(sampleCard, DEFAULT_CATALOG_FILTERS, new Map())).toBe(
+      true
+    );
   });
 
   test('color filter includes cards with extra domains', () => {
     expect(
-      matchesCatalogFilters(sampleCard, { ...DEFAULT_CATALOG_FILTERS, colors: ['Fury'] }, new Map())
+      matchesCatalogFilters(
+        sampleCard,
+        { ...DEFAULT_CATALOG_FILTERS, colors: ['Fury'] },
+        new Map()
+      )
     ).toBe(true);
     expect(
-      matchesCatalogFilters(sampleCard, { ...DEFAULT_CATALOG_FILTERS, colors: ['Calm'] }, new Map())
+      matchesCatalogFilters(
+        sampleCard,
+        { ...DEFAULT_CATALOG_FILTERS, colors: ['Calm'] },
+        new Map()
+      )
     ).toBe(false);
     expect(
       matchesCatalogFilters(
@@ -73,35 +93,57 @@ describe('matchesCatalogFilters', () => {
     const colorless = { ...sampleCard, colors: [] };
     const identity = { ...DEFAULT_CATALOG_FILTERS, colors: ['Mind', 'Order'] };
 
-    expect(matchesCatalogFilters(mindOnly, identity, new Map(), { colorMode: 'within' })).toBe(
-      true
-    );
-    expect(matchesCatalogFilters(mindOrder, identity, new Map(), { colorMode: 'within' })).toBe(
-      true
-    );
-    expect(matchesCatalogFilters(colorless, identity, new Map(), { colorMode: 'within' })).toBe(
-      true
-    );
-    expect(matchesCatalogFilters(fury, identity, new Map(), { colorMode: 'within' })).toBe(false);
+    expect(
+      matchesCatalogFilters(mindOnly, identity, new Map(), { colorMode: 'within' })
+    ).toBe(true);
+    expect(
+      matchesCatalogFilters(mindOrder, identity, new Map(), { colorMode: 'within' })
+    ).toBe(true);
+    expect(
+      matchesCatalogFilters(colorless, identity, new Map(), { colorMode: 'within' })
+    ).toBe(true);
+    expect(
+      matchesCatalogFilters(fury, identity, new Map(), { colorMode: 'within' })
+    ).toBe(false);
     // Default search mode still requires all selected colors.
     expect(matchesCatalogFilters(mindOnly, identity, new Map())).toBe(false);
   });
 
   test('type, rarity, and stat filters use exact match', () => {
     expect(
-      matchesCatalogFilters(sampleCard, { ...DEFAULT_CATALOG_FILTERS, types: ['Unit'] }, new Map())
+      matchesCatalogFilters(
+        sampleCard,
+        { ...DEFAULT_CATALOG_FILTERS, types: ['Unit'] },
+        new Map()
+      )
     ).toBe(true);
     expect(
-      matchesCatalogFilters(sampleCard, { ...DEFAULT_CATALOG_FILTERS, types: ['Spell'] }, new Map())
+      matchesCatalogFilters(
+        sampleCard,
+        { ...DEFAULT_CATALOG_FILTERS, types: ['Spell'] },
+        new Map()
+      )
     ).toBe(false);
     expect(
-      matchesCatalogFilters(sampleCard, { ...DEFAULT_CATALOG_FILTERS, rarities: ['Rare'] }, new Map())
+      matchesCatalogFilters(
+        sampleCard,
+        { ...DEFAULT_CATALOG_FILTERS, rarities: ['Rare'] },
+        new Map()
+      )
     ).toBe(true);
     expect(
-      matchesCatalogFilters(sampleCard, { ...DEFAULT_CATALOG_FILTERS, energy: 3 }, new Map())
+      matchesCatalogFilters(
+        sampleCard,
+        { ...DEFAULT_CATALOG_FILTERS, energy: 3 },
+        new Map()
+      )
     ).toBe(true);
     expect(
-      matchesCatalogFilters(sampleCard, { ...DEFAULT_CATALOG_FILTERS, energy: 4 }, new Map())
+      matchesCatalogFilters(
+        sampleCard,
+        { ...DEFAULT_CATALOG_FILTERS, energy: 4 },
+        new Map()
+      )
     ).toBe(false);
   });
 
@@ -111,7 +153,11 @@ describe('matchesCatalogFilters', () => {
       ['OGN-001*', { quantity: 2 }],
     ]);
     expect(
-      matchesCatalogFilters(sampleCard, { ...DEFAULT_CATALOG_FILTERS, collection: 'owned' }, collection)
+      matchesCatalogFilters(
+        sampleCard,
+        { ...DEFAULT_CATALOG_FILTERS, collection: 'owned' },
+        collection
+      )
     ).toBe(true);
   });
 
@@ -153,12 +199,12 @@ describe('matchesCatalogFilters', () => {
 
 describe('simple add preference', () => {
   test('sanitize coerces simpleAdd to a boolean', () => {
-    expect(sanitizeCatalogFilters({ ...DEFAULT_CATALOG_FILTERS, simpleAdd: true }).simpleAdd).toBe(
-      true
-    );
-    expect(sanitizeCatalogFilters({ ...DEFAULT_CATALOG_FILTERS, simpleAdd: false }).simpleAdd).toBe(
-      false
-    );
+    expect(
+      sanitizeCatalogFilters({ ...DEFAULT_CATALOG_FILTERS, simpleAdd: true }).simpleAdd
+    ).toBe(true);
+    expect(
+      sanitizeCatalogFilters({ ...DEFAULT_CATALOG_FILTERS, simpleAdd: false }).simpleAdd
+    ).toBe(false);
   });
 
   test('simple add is a toolbar preference, not an active filter', () => {

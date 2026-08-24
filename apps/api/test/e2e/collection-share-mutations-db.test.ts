@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import {
   CollectionItemResponse,
   CollectionListResponse,
@@ -106,7 +113,9 @@ describe('shared collection add/remove mutations', () => {
       body: JSON.stringify({ delta: 2 }),
     });
     expect(addByPartner.status).toBe(200);
-    expect(CollectionItemResponse.parse(await addByPartner.json()).data?.quantity).toBe(2);
+    expect(CollectionItemResponse.parse(await addByPartner.json()).data?.quantity).toBe(
+      2
+    );
 
     const ownerSeesAdd = await quantitiesFor(cookieOwner, ['OGN-308']);
     expect(ownerSeesAdd.get('OGN-308')).toBe(2);
@@ -117,7 +126,9 @@ describe('shared collection add/remove mutations', () => {
       body: JSON.stringify({ delta: 3 }),
     });
     expect(addByOwner.status).toBe(200);
-    expect(CollectionItemResponse.parse(await addByOwner.json()).data?.quantity).toBe(5);
+    expect(CollectionItemResponse.parse(await addByOwner.json()).data?.quantity).toBe(
+      5
+    );
 
     const partnerSeesSum = await quantitiesFor(cookiePartner, ['OGN-308']);
     expect(partnerSeesSum.get('OGN-308')).toBe(5);
@@ -128,7 +139,9 @@ describe('shared collection add/remove mutations', () => {
       body: JSON.stringify({ delta: 2 }),
     });
     expect(removeByPartner.status).toBe(200);
-    expect(CollectionItemResponse.parse(await removeByPartner.json()).data?.quantity).toBe(3);
+    expect(
+      CollectionItemResponse.parse(await removeByPartner.json()).data?.quantity
+    ).toBe(3);
 
     const ownerSeesRemove = await quantitiesFor(cookieOwner, ['OGN-308']);
     expect(ownerSeesRemove.get('OGN-308')).toBe(3);
@@ -144,7 +157,9 @@ describe('shared collection add/remove mutations', () => {
       await (await authFetch('/api/v1/collection', { cookie: cookiePartner })).json()
     );
     expect(
-      partnerList.data.some((item) => item.variantNumber === 'OGN-309' && item.quantity === 7)
+      partnerList.data.some(
+        (item) => item.variantNumber === 'OGN-309' && item.quantity === 7
+      )
     ).toBe(true);
 
     const deleteByPartner = await authFetch('/api/v1/collection/OGN-309', {
@@ -174,7 +189,9 @@ describe('shared collection add/remove mutations', () => {
 
   test('concurrent adds from both members both apply when the stack is missing', async () => {
     let status = CollectionShareStatusResponse.parse(
-      await (await authFetch('/api/v1/collection/share', { cookie: cookieOwner })).json()
+      await (
+        await authFetch('/api/v1/collection/share', { cookie: cookieOwner })
+      ).json()
     );
     if (!status.data.shared) {
       await pairCollections();
@@ -185,7 +202,9 @@ describe('shared collection add/remove mutations', () => {
       method: 'DELETE',
       cookie: cookieOwner,
     });
-    expect((await quantitiesFor(cookieOwner, [variantNumber])).get(variantNumber)).toBe(0);
+    expect((await quantitiesFor(cookieOwner, [variantNumber])).get(variantNumber)).toBe(
+      0
+    );
 
     const [ownerRes, partnerRes] = await Promise.all([
       authFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/add`, {
@@ -202,13 +221,17 @@ describe('shared collection add/remove mutations', () => {
     expect(ownerRes.status).toBe(200);
     expect(partnerRes.status).toBe(200);
 
-    const finalQty = (await quantitiesFor(cookieOwner, [variantNumber])).get(variantNumber);
+    const finalQty = (await quantitiesFor(cookieOwner, [variantNumber])).get(
+      variantNumber
+    );
     expect(finalQty).toBe(2);
   });
 
   test('concurrent adds from both members both apply when the stack already exists', async () => {
     let status = CollectionShareStatusResponse.parse(
-      await (await authFetch('/api/v1/collection/share', { cookie: cookieOwner })).json()
+      await (
+        await authFetch('/api/v1/collection/share', { cookie: cookieOwner })
+      ).json()
     );
     if (!status.data.shared) {
       await pairCollections();
@@ -220,7 +243,9 @@ describe('shared collection add/remove mutations', () => {
       cookie: cookieOwner,
       body: JSON.stringify({ variantNumber, quantity: 5 }),
     });
-    expect((await quantitiesFor(cookieOwner, [variantNumber])).get(variantNumber)).toBe(5);
+    expect((await quantitiesFor(cookieOwner, [variantNumber])).get(variantNumber)).toBe(
+      5
+    );
 
     const [ownerRes, partnerRes] = await Promise.all([
       authFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/add`, {
@@ -237,13 +262,17 @@ describe('shared collection add/remove mutations', () => {
     expect(ownerRes.status).toBe(200);
     expect(partnerRes.status).toBe(200);
 
-    const finalQty = (await quantitiesFor(cookieOwner, [variantNumber])).get(variantNumber);
+    const finalQty = (await quantitiesFor(cookieOwner, [variantNumber])).get(
+      variantNumber
+    );
     expect(finalQty).toBe(7);
   });
 
   test('concurrent removes from both members both apply', async () => {
     let status = CollectionShareStatusResponse.parse(
-      await (await authFetch('/api/v1/collection/share', { cookie: cookieOwner })).json()
+      await (
+        await authFetch('/api/v1/collection/share', { cookie: cookieOwner })
+      ).json()
     );
     if (!status.data.shared) {
       await pairCollections();
@@ -255,7 +284,9 @@ describe('shared collection add/remove mutations', () => {
       cookie: cookieOwner,
       body: JSON.stringify({ variantNumber, quantity: 5 }),
     });
-    expect((await quantitiesFor(cookieOwner, [variantNumber])).get(variantNumber)).toBe(5);
+    expect((await quantitiesFor(cookieOwner, [variantNumber])).get(variantNumber)).toBe(
+      5
+    );
 
     const [ownerRes, partnerRes] = await Promise.all([
       authFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/remove`, {
@@ -272,18 +303,24 @@ describe('shared collection add/remove mutations', () => {
     expect(ownerRes.status).toBe(200);
     expect(partnerRes.status).toBe(200);
 
-    const finalQty = (await quantitiesFor(cookieOwner, [variantNumber])).get(variantNumber);
+    const finalQty = (await quantitiesFor(cookieOwner, [variantNumber])).get(
+      variantNumber
+    );
     expect(finalQty).toBe(3);
   });
 
   test('after leave, partner mutations no longer affect the remaining member', async () => {
     let status = CollectionShareStatusResponse.parse(
-      await (await authFetch('/api/v1/collection/share', { cookie: cookieOwner })).json()
+      await (
+        await authFetch('/api/v1/collection/share', { cookie: cookieOwner })
+      ).json()
     );
     if (!status.data.shared) {
       await pairCollections();
       status = CollectionShareStatusResponse.parse(
-        await (await authFetch('/api/v1/collection/share', { cookie: cookieOwner })).json()
+        await (
+          await authFetch('/api/v1/collection/share', { cookie: cookieOwner })
+        ).json()
       );
     }
     expect(status.data.shared).toBe(true);

@@ -5,10 +5,7 @@ import { CardTile } from '@/components/cards/CardTile';
 import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
 import { Text } from '@/components/ui/text';
 import type { CollectionEntry } from '@/services/collectionService';
-import {
-  filterCollection,
-  sortCollection,
-} from '@/services/collectionService';
+import { filterCollection, sortCollection } from '@/services/collectionService';
 import {
   buildCollectionByVariant,
   collectionEntryToCardListItem,
@@ -20,7 +17,9 @@ import { cn } from '@/lib/utils';
 
 type SortMode = 'recent' | 'name' | 'set';
 
-type OwnershipMap = NonNullable<React.ComponentProps<typeof CardTile>['collectionByVariant']>;
+type OwnershipMap = NonNullable<
+  React.ComponentProps<typeof CardTile>['collectionByVariant']
+>;
 
 const CollectionRow = memo(function CollectionRow({
   item,
@@ -79,10 +78,7 @@ export function CollectionCardList({
 }: Props) {
   const [sortBy, setSortBy] = useState<SortMode>('recent');
 
-  const groupedEntries = useMemo(
-    () => groupCollectionByVariant(entries),
-    [entries]
-  );
+  const groupedEntries = useMemo(() => groupCollectionByVariant(entries), [entries]);
 
   const rowsByVariant = useMemo(() => {
     const map = new Map<string, CollectionEntry[]>();
@@ -178,7 +174,9 @@ export function CollectionCardList({
       ListEmptyComponent={
         !isLoading ? (
           <Text className="py-8 text-center text-sm text-muted-foreground">
-            {query.trim() ? 'No cards match your search.' : 'No cards in your collection yet.'}
+            {query.trim()
+              ? 'No cards match your search.'
+              : 'No cards in your collection yet.'}
           </Text>
         ) : null
       }

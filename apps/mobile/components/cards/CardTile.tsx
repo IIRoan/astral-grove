@@ -132,8 +132,7 @@ function CardTileInner({
   const onAdd = useCallback(
     (selectionId?: string) => {
       void hapticPress();
-      const selection =
-        resolvePrintingSelection(selectionId, printings) ??
+      const selection = resolvePrintingSelection(selectionId, printings) ??
         resolveQuickAddSelection(printings) ?? {
           variantNumber: card.variantNumber,
           isFoil: false,

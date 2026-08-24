@@ -66,7 +66,7 @@ function RootNav() {
   }, [bootReady]);
 
   if (!bootReady) {
-        return <AppLoadingScreen />;
+    return <AppLoadingScreen />;
   }
 
   return (

@@ -15,17 +15,14 @@ export const inlineListItemVariants = cva(
   }
 );
 
-export const inlineListItemAddonVariants = cva(
-  'shrink-0 items-center justify-center',
-  {
-    variants: {
-      align: {
-        'inline-start': '',
-        'inline-end': '',
-      },
+export const inlineListItemAddonVariants = cva('shrink-0 items-center justify-center', {
+  variants: {
+    align: {
+      'inline-start': '',
+      'inline-end': '',
     },
-    defaultVariants: {
-      align: 'inline-start',
-    },
-  }
-);
+  },
+  defaultVariants: {
+    align: 'inline-start',
+  },
+});

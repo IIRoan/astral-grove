@@ -92,12 +92,14 @@ export function ResetPasswordForm({
           {normalizedEmail ? (
             <>
               Resetting{' '}
-              <Text className="font-medium text-foreground">{normalizedEmail}</Text>. Use at least{' '}
-              {String(MIN_PASSWORD_LENGTH)} characters with lower, upper, and a number.
+              <Text className="font-medium text-foreground">{normalizedEmail}</Text>.
+              Use at least {String(MIN_PASSWORD_LENGTH)} characters with lower, upper,
+              and a number.
             </>
           ) : (
             <>
-              Use at least {String(MIN_PASSWORD_LENGTH)} characters with lower, upper, and a number.
+              Use at least {String(MIN_PASSWORD_LENGTH)} characters with lower, upper,
+              and a number.
             </>
           )}
         </Text>

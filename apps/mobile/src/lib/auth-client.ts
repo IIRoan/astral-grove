@@ -34,12 +34,12 @@ export const authClient = createAuthClient({
     ...(isWeb
       ? []
       : [
-        expoClient({
-          scheme: nativeAuthScheme(),
-          storagePrefix: 'astral-grove',
-          storage: secureStorage,
-        }),
-      ]),
+          expoClient({
+            scheme: nativeAuthScheme(),
+            storagePrefix: 'astral-grove',
+            storage: secureStorage,
+          }),
+        ]),
   ],
 });
 

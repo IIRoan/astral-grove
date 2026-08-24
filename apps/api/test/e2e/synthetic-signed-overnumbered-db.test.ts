@@ -1,5 +1,9 @@
 import { afterAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
-import { CardDetailResponse, CardsListResponse, type PaLogicalCard } from '@riftbound/contracts';
+import {
+  CardDetailResponse,
+  CardsListResponse,
+  type PaLogicalCard,
+} from '@riftbound/contracts';
 import { eq, inArray } from 'drizzle-orm';
 import { cards, variants } from '../../src/db/schema.js';
 import { buildSyntheticSignedOvernumbered } from '../../src/lib/synthetic-signed-overnumbered.js';
@@ -61,7 +65,13 @@ async function cleanupFixture(): Promise<void> {
   const { db, cardCache } = getContext();
   await db
     .delete(variants)
-    .where(inArray(variants.id, [PARENT_VARIANT_ID, SYNTHETIC_VARIANT_ID, PA_SIGNED_VARIANT_ID]));
+    .where(
+      inArray(variants.id, [
+        PARENT_VARIANT_ID,
+        SYNTHETIC_VARIANT_ID,
+        PA_SIGNED_VARIANT_ID,
+      ])
+    );
   await db.delete(variants).where(eq(variants.variantNumber, SIGNED_VN));
   await db.delete(variants).where(eq(variants.variantNumber, PARENT_VN));
   await db.delete(cards).where(eq(cards.id, CARD_ID));
@@ -133,14 +143,19 @@ describe('synthetic Overnumbered Signed (DB)', () => {
 
     const fromSigned = await cardCache.getByVariantNumber(SIGNED_VN);
     expect(fromSigned.source).toBe('cache');
-    expect(fromSigned.detail.variants.some((row) => row.variantNumber === SIGNED_VN)).toBe(true);
+    expect(
+      fromSigned.detail.variants.some((row) => row.variantNumber === SIGNED_VN)
+    ).toBe(true);
 
     const httpDetail = CardDetailResponse.parse(
       await apiJson<unknown>(`/api/v1/cards/${encodeURIComponent(SIGNED_VN)}`)
     );
-    expect(httpDetail.data.variants.some((row) => row.variantNumber === SIGNED_VN)).toBe(true);
     expect(
-      httpDetail.data.variants.find((row) => row.variantNumber === SIGNED_VN)?.variantLabel
+      httpDetail.data.variants.some((row) => row.variantNumber === SIGNED_VN)
+    ).toBe(true);
+    expect(
+      httpDetail.data.variants.find((row) => row.variantNumber === SIGNED_VN)
+        ?.variantLabel
     ).toBe('Overnumbered Signed');
 
     const search = CardsListResponse.parse(
@@ -219,7 +234,9 @@ describe('synthetic Overnumbered Signed (DB)', () => {
     // Local PK stays — collection FKs use variant_number; rewriting id is unnecessary.
     expect(rows[0]?.id).toBe(SYNTHETIC_VARIANT_ID);
     expect(rows[0]?.cardmarketId).toBe(898999);
-    expect(rows[0]?.imageUrl).toBe('https://cdn.piltoverarchive.com/cards/ZYS-189s.webp');
+    expect(rows[0]?.imageUrl).toBe(
+      'https://cdn.piltoverarchive.com/cards/ZYS-189s.webp'
+    );
     expect((rows[0]?.upstreamRaw as { id?: string }).id).toBe(PA_SIGNED_VARIANT_ID);
 
     const duplicatePaId = await db

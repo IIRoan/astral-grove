@@ -87,11 +87,14 @@ function DeckDescriptionEditor({
           onChangeText={descriptionDraft.onChangeText}
           onFocus={descriptionDraft.onFocus}
           onBlur={descriptionDraft.onBlur}
-          placeholder={'# Matchup guide\n\n**Game plan**\n- Keep pressure early\n- [Guide](https://…)'}
+          placeholder={
+            '# Matchup guide\n\n**Game plan**\n- Keep pressure early\n- [Guide](https://…)'
+          }
           className={cn(fill ? 'min-h-0 flex-1' : 'min-h-32')}
         />
         <Text className="text-[11px] leading-4 text-muted-foreground">
-          Markdown supported. Links must be http(s) or mailto — HTML and images are ignored.
+          Markdown supported. Links must be http(s) or mailto — HTML and images are
+          ignored.
         </Text>
       </>
     ) : trimmed ? (
@@ -122,9 +125,12 @@ function DeckDescriptionEditor({
         <View className="size-10 items-center justify-center rounded-[3px] bg-muted">
           <ThemedIcon icon={EyeIcon} size={18} color="muted-foreground" />
         </View>
-        <Text className="text-[14px] font-normal text-foreground">Nothing to preview</Text>
+        <Text className="text-[14px] font-normal text-foreground">
+          Nothing to preview
+        </Text>
         <Text className="max-w-xs text-center text-[12px] leading-5 text-muted-foreground">
-          Switch to Write and add markdown — headings, lists, and bold will show up here.
+          Switch to Write and add markdown — headings, lists, and bold will show up
+          here.
         </Text>
       </View>
     );
@@ -135,7 +141,9 @@ function DeckDescriptionEditor({
         <View className="min-w-0 flex-1 gap-0.5">
           <Text className="text-[15px] font-normal text-foreground">Description</Text>
           <Text className="text-[12px] text-muted-foreground">
-            {mode === 'write' ? 'Edit markdown source' : 'How your description will look'}
+            {mode === 'write'
+              ? 'Edit markdown source'
+              : 'How your description will look'}
           </Text>
         </View>
         <ModeToggle mode={mode} onChange={setMode} />

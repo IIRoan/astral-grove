@@ -30,7 +30,7 @@ describe('buildCardTypesCondition', () => {
     expect(condition).toBeDefined();
     const sqlText = sqlFragmentText(condition);
     expect(sqlText).toContain('string_to_array');
-    expect(sqlText).toContain("&& ARRAY[");
+    expect(sqlText).toContain('&& ARRAY[');
     expect(sqlText).not.toContain(' in (');
   });
 

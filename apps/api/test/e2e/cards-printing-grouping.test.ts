@@ -19,14 +19,16 @@ describe('cards printing grouping', () => {
       )
     ).toBe(true);
     expect(
-      standard!.printings.some((printing) => printing.variantNumber === 'OGN-253-Release')
+      standard!.printings.some(
+        (printing) => printing.variantNumber === 'OGN-253-Release'
+      )
     ).toBe(false);
 
     const promo = parsed.data.find((card) => card.variantNumber === 'OGN-253-Release');
     if (promo) {
-      expect(promo.printings.every((printing) => printing.variantNumber.includes('Release'))).toBe(
-        true
-      );
+      expect(
+        promo.printings.every((printing) => printing.variantNumber.includes('Release'))
+      ).toBe(true);
     }
   });
 
@@ -52,8 +54,8 @@ describe('cards printing grouping', () => {
     const parsed = CardDetailResponse.parse(json);
     const numbers = parsed.data.variants.map((variant) => variant.variantNumber);
     expect(numbers).toContain('OGN-253');
-    expect(numbers.some((value) => value.includes('Release') || value.includes('302'))).toBe(
-      true
-    );
+    expect(
+      numbers.some((value) => value.includes('Release') || value.includes('302'))
+    ).toBe(true);
   });
 });

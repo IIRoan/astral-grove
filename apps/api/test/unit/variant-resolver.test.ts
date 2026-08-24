@@ -1,5 +1,8 @@
 import { describe, expect, mock, test } from 'bun:test';
-import { normalizeVariantNumber, VariantResolver } from '../../src/services/variant-resolver.js';
+import {
+  normalizeVariantNumber,
+  VariantResolver,
+} from '../../src/services/variant-resolver.js';
 import type { Database } from '../../src/db/client.js';
 import type { CardCacheService } from '../../src/services/card-cache.js';
 import type { PaClient } from '../../src/upstream/pa-client.js';
@@ -23,7 +26,9 @@ describe('VariantResolver', () => {
     const resolver = new VariantResolver(
       db,
       { upsertFromUpstream: mock(async () => {}) } as unknown as CardCacheService,
-      { batchCards: mock(async () => ({ data: [], notFound: [] })) } as unknown as PaClient
+      {
+        batchCards: mock(async () => ({ data: [], notFound: [] })),
+      } as unknown as PaClient
     );
 
     const lookup = await resolver.loadLookupMap(['ogn-001']);

@@ -1,10 +1,10 @@
-import { useMemo } from "react";
+import { useMemo } from 'react';
 import {
   useWindowDimensions,
   type LayoutRectangle,
   type ScaledSize,
-} from "react-native";
-import type { EdgeInsets } from "react-native-safe-area-context";
+} from 'react-native';
+import type { EdgeInsets } from 'react-native-safe-area-context';
 
 type LayoutPosition = {
   pageX: number;
@@ -14,18 +14,18 @@ type LayoutPosition = {
 };
 
 type UseRelativePositionArgs = {
-  align?: "start" | "center" | "end";
+  align?: 'start' | 'center' | 'end';
   avoidCollisions?: boolean;
   contentLayout: LayoutRectangle | null;
   alignOffset?: number;
   insets?: EdgeInsets;
-  side?: "top" | "bottom" | "left" | "right";
+  side?: 'top' | 'bottom' | 'left' | 'right';
   sideOffset?: number;
   triggerPosition: LayoutPosition | null;
 };
 
 type PositionStyle = {
-  position: "absolute";
+  position: 'absolute';
   top?: number;
   left?: number;
   maxWidth?: number;
@@ -34,7 +34,7 @@ type PositionStyle = {
 };
 
 type SidePositionParams = {
-  side: "top" | "bottom" | "left" | "right";
+  side: 'top' | 'bottom' | 'left' | 'right';
   triggerPosition: LayoutPosition;
   contentLayout: LayoutRectangle;
   sideOffset: number;
@@ -53,7 +53,7 @@ function getVerticalSidePosition({
   avoidCollisions,
   dimensions,
 }: {
-  side: "top" | "bottom";
+  side: 'top' | 'bottom';
   triggerPosition: LayoutPosition;
   contentLayout: LayoutRectangle;
   sideOffset: number;
@@ -63,16 +63,15 @@ function getVerticalSidePosition({
   dimensions: ScaledSize;
 }): { top?: number } {
   const positionTop = triggerPosition.pageY - sideOffset - contentLayout.height;
-  const positionBottom =
-    triggerPosition.pageY + triggerPosition.height + sideOffset;
+  const positionBottom = triggerPosition.pageY + triggerPosition.height + sideOffset;
 
   if (!avoidCollisions) {
     return {
-      top: side === "top" ? positionTop : positionBottom,
+      top: side === 'top' ? positionTop : positionBottom,
     };
   }
 
-  if (side === "top") {
+  if (side === 'top') {
     return {
       top: Math.min(
         Math.max(insetTop, positionTop),
@@ -109,7 +108,7 @@ function getHorizontalSidePosition({
   avoidCollisions,
   dimensions,
 }: {
-  side: "left" | "right";
+  side: 'left' | 'right';
   triggerPosition: LayoutPosition;
   contentLayout: LayoutRectangle;
   sideOffset: number;
@@ -122,19 +121,18 @@ function getHorizontalSidePosition({
   const contentWidth = Math.min(contentLayout.width, maxContentWidth);
 
   const positionLeft = triggerPosition.pageX - sideOffset - contentWidth;
-  const positionRight =
-    triggerPosition.pageX + triggerPosition.width + sideOffset;
+  const positionRight = triggerPosition.pageX + triggerPosition.width + sideOffset;
 
   if (!avoidCollisions) {
     return {
-      left: side === "left" ? positionLeft : positionRight,
+      left: side === 'left' ? positionLeft : positionRight,
     };
   }
 
   const minLeft = insetLeft;
   const maxLeft = dimensions.width - insetRight - contentWidth;
 
-  if (side === "left") {
+  if (side === 'left') {
     return {
       left: Math.max(minLeft, Math.min(maxLeft, positionLeft)),
     };
@@ -146,7 +144,7 @@ function getHorizontalSidePosition({
 }
 
 function getSidePosition({
-  side = "bottom",
+  side = 'bottom',
   triggerPosition,
   contentLayout,
   sideOffset = 0,
@@ -159,7 +157,7 @@ function getSidePosition({
   const insetLeft = insets?.left ?? 0;
   const insetRight = insets?.right ?? 0;
 
-  if (side === "top" || side === "bottom") {
+  if (side === 'top' || side === 'bottom') {
     return getVerticalSidePosition({
       side,
       triggerPosition,
@@ -185,7 +183,7 @@ function getSidePosition({
 }
 
 type HorizontalAlignParams = {
-  align: "start" | "center" | "end";
+  align: 'start' | 'center' | 'end';
   triggerPageX: number;
   triggerWidth: number;
   contentWidth: number;
@@ -206,13 +204,13 @@ function getHorizontalAlignPosition({
   dimensions,
 }: HorizontalAlignParams): number {
   let left = 0;
-  if (align === "start") {
+  if (align === 'start') {
     left = triggerPageX;
   }
-  if (align === "center") {
+  if (align === 'center') {
     left = triggerPageX + triggerWidth / 2 - contentWidth / 2;
   }
-  if (align === "end") {
+  if (align === 'end') {
     left = triggerPageX + triggerWidth - contentWidth;
   }
   return Math.max(
@@ -222,7 +220,7 @@ function getHorizontalAlignPosition({
 }
 
 type VerticalAlignParams = {
-  align: "start" | "center" | "end";
+  align: 'start' | 'center' | 'end';
   triggerPageY: number;
   triggerHeight: number;
   contentHeight: number;
@@ -243,13 +241,13 @@ function getVerticalAlignPosition({
   dimensions,
 }: VerticalAlignParams): number {
   let top = 0;
-  if (align === "start") {
+  if (align === 'start') {
     top = triggerPageY;
   }
-  if (align === "center") {
+  if (align === 'center') {
     top = triggerPageY + triggerHeight / 2 - contentHeight / 2;
   }
-  if (align === "end") {
+  if (align === 'end') {
     top = triggerPageY + triggerHeight - contentHeight;
   }
   return Math.max(
@@ -259,13 +257,13 @@ function getVerticalAlignPosition({
 }
 
 type AlignPositionParams = {
-  align: "start" | "center" | "end";
+  align: 'start' | 'center' | 'end';
   avoidCollisions: boolean;
   triggerPosition: LayoutPosition;
   contentLayout: LayoutRectangle;
   alignOffset: number;
   insets?: EdgeInsets;
-  side: "top" | "bottom" | "left" | "right";
+  side: 'top' | 'bottom' | 'left' | 'right';
   dimensions: ScaledSize;
 };
 
@@ -291,10 +289,7 @@ function adjustHorizontalCollision({
   if (spaceRight >= contentWidth) {
     return dimensions.width - insetRight - contentWidth;
   }
-  return Math.max(
-    insetLeft,
-    (dimensions.width - contentWidth - insetRight) / 2
-  );
+  return Math.max(insetLeft, (dimensions.width - contentWidth - insetRight) / 2);
 }
 
 function getHorizontalAlignWithCollision({
@@ -307,7 +302,7 @@ function getHorizontalAlignWithCollision({
   avoidCollisions,
   dimensions,
 }: {
-  align: "start" | "center" | "end";
+  align: 'start' | 'center' | 'end';
   triggerPosition: LayoutPosition;
   contentWidth: number;
   alignOffset: number;
@@ -358,8 +353,7 @@ function adjustVerticalCollision({
   dimensions: ScaledSize;
 }): number {
   const spaceTop = idealTop - insetTop;
-  const spaceBottom =
-    dimensions.height - insetBottom - (idealTop + contentHeight);
+  const spaceBottom = dimensions.height - insetBottom - (idealTop + contentHeight);
 
   if (spaceTop > spaceBottom && spaceTop >= contentHeight) {
     return insetTop;
@@ -367,10 +361,7 @@ function adjustVerticalCollision({
   if (spaceBottom >= contentHeight) {
     return dimensions.height - insetBottom - contentHeight;
   }
-  return Math.max(
-    insetTop,
-    (dimensions.height - contentHeight - insetBottom) / 2
-  );
+  return Math.max(insetTop, (dimensions.height - contentHeight - insetBottom) / 2);
 }
 
 function getVerticalAlignWithCollision({
@@ -383,7 +374,7 @@ function getVerticalAlignWithCollision({
   avoidCollisions,
   dimensions,
 }: {
-  verticalAlign: "start" | "center" | "end";
+  verticalAlign: 'start' | 'center' | 'end';
   triggerPosition: LayoutPosition;
   contentHeight: number;
   alignOffset: number;
@@ -431,13 +422,13 @@ function getVerticalAlignWithCollision({
 }
 
 function getAlignPosition({
-  align = "start",
+  align = 'start',
   avoidCollisions = true,
   triggerPosition,
   contentLayout,
   alignOffset = 0,
   insets,
-  side = "bottom",
+  side = 'bottom',
   dimensions,
 }: AlignPositionParams): {
   top?: number;
@@ -450,7 +441,7 @@ function getAlignPosition({
   const insetLeft = insets?.left ?? 0;
   const insetRight = insets?.right ?? 0;
 
-  if (side === "top" || side === "bottom") {
+  if (side === 'top' || side === 'bottom') {
     const maxContentWidth = dimensions.width - insetLeft - insetRight;
     const contentWidth = Math.min(contentLayout.width, maxContentWidth);
 
@@ -469,9 +460,7 @@ function getAlignPosition({
   }
 
   const verticalAlign =
-    (side === "left" || side === "right") && align === "start"
-      ? "center"
-      : align;
+    (side === 'left' || side === 'right') && align === 'start' ? 'center' : align;
 
   const maxContentHeight = dimensions.height - insetTop - insetBottom;
   const maxContentWidth = dimensions.width - insetLeft - insetRight;
@@ -498,9 +487,9 @@ function getEstimatedPosition({
   sideOffset,
   alignOffset,
 }: {
-  align: "start" | "center" | "end";
+  align: 'start' | 'center' | 'end';
   triggerPosition: LayoutPosition;
-  side: "top" | "bottom" | "left" | "right";
+  side: 'top' | 'bottom' | 'left' | 'right';
   sideOffset: number;
   alignOffset: number;
 }): { top: number; left: number } {
@@ -510,34 +499,30 @@ function getEstimatedPosition({
   let top = 0;
   let left = 0;
 
-  if (side === "top" || side === "bottom") {
+  if (side === 'top' || side === 'bottom') {
     top =
-      side === "top"
+      side === 'top'
         ? triggerPosition.pageY - sideOffset - estimatedHeight
         : triggerPosition.pageY + triggerPosition.height + sideOffset;
 
-    if (align === "start") {
+    if (align === 'start') {
       left = triggerPosition.pageX;
-    } else if (align === "center") {
-      left =
-        triggerPosition.pageX + triggerPosition.width / 2 - estimatedWidth / 2;
+    } else if (align === 'center') {
+      left = triggerPosition.pageX + triggerPosition.width / 2 - estimatedWidth / 2;
     } else {
       left = triggerPosition.pageX + triggerPosition.width - estimatedWidth;
     }
     left += alignOffset;
   } else {
     left =
-      side === "left"
+      side === 'left'
         ? triggerPosition.pageX - sideOffset - estimatedWidth
         : triggerPosition.pageX + triggerPosition.width + sideOffset;
 
-    if (align === "start") {
+    if (align === 'start') {
       top = triggerPosition.pageY;
-    } else if (align === "center") {
-      top =
-        triggerPosition.pageY +
-        triggerPosition.height / 2 -
-        estimatedHeight / 2;
+    } else if (align === 'center') {
+      top = triggerPosition.pageY + triggerPosition.height / 2 - estimatedHeight / 2;
     } else {
       top = triggerPosition.pageY + triggerPosition.height - estimatedHeight;
     }
@@ -548,13 +533,13 @@ function getEstimatedPosition({
 }
 
 export function useRelativePosition({
-  align = "start",
+  align = 'start',
   avoidCollisions = true,
   triggerPosition,
   contentLayout,
   alignOffset = 0,
   insets,
-  side = "bottom",
+  side = 'bottom',
   sideOffset = 0,
 }: UseRelativePositionArgs): PositionStyle {
   const { width, height, scale, fontScale } = useWindowDimensions();
@@ -566,7 +551,7 @@ export function useRelativePosition({
   return useMemo(() => {
     if (!triggerPosition) {
       return {
-        position: "absolute",
+        position: 'absolute',
         opacity: 0,
         top: -9999,
         left: -9999,
@@ -575,7 +560,7 @@ export function useRelativePosition({
 
     if (!contentLayout) {
       return {
-        position: "absolute",
+        position: 'absolute',
         ...getEstimatedPosition({
           align,
           triggerPosition,

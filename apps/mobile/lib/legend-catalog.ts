@@ -1,4 +1,8 @@
-import { deckCardFromDetail, deckCardFromListItem, isLegendCard } from '@/lib/deck-card';
+import {
+  deckCardFromDetail,
+  deckCardFromListItem,
+  isLegendCard,
+} from '@/lib/deck-card';
 import type { DeckCard } from '@/lib/deck-types';
 import { groupCardListItems, normalizeCardListItems } from '@/utils/variants';
 import type { CardDetail, CardListItem } from '@riftbound/contracts';
@@ -31,7 +35,9 @@ export function playLegendListQueryKey(
   ] as const;
 }
 
-export function playLegendDetailsQueryKey(variantNumbers: readonly string[]): readonly unknown[] {
+export function playLegendDetailsQueryKey(
+  variantNumbers: readonly string[]
+): readonly unknown[] {
   return [PLAY_LEGEND_DETAILS_ROOT, [...variantNumbers].sort().join(',')] as const;
 }
 

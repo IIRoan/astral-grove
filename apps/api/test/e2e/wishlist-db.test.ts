@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import { WishlistListResponse, WishlistItemResponse } from '@riftbound/contracts';
 import { and, eq } from 'drizzle-orm';
 import { authFetch, cleanupTestUsers, signUpTestUser } from './helpers/auth.js';
@@ -33,16 +40,19 @@ describe('wishlist database workflows', () => {
   test('PUT /wishlist creates a row in Postgres with card metadata joins', async () => {
     const variantNumber = 'OGN-001';
 
-    const putRes = await authFetch(`/api/v1/wishlist/${encodeURIComponent(variantNumber)}`, {
-      method: 'PUT',
-      cookie: cookieHeader,
-      body: JSON.stringify({
-        variantNumber,
-        priority: 2,
-        targetPriceCents: 199,
-        notes: 'Need for deck',
-      }),
-    });
+    const putRes = await authFetch(
+      `/api/v1/wishlist/${encodeURIComponent(variantNumber)}`,
+      {
+        method: 'PUT',
+        cookie: cookieHeader,
+        body: JSON.stringify({
+          variantNumber,
+          priority: 2,
+          targetPriceCents: 199,
+          notes: 'Need for deck',
+        }),
+      }
+    );
     expect(putRes.status).toBe(200);
     const body = WishlistItemResponse.parse(await putRes.json());
     expect(body.data.variantNumber).toBe(variantNumber);
@@ -59,7 +69,10 @@ describe('wishlist database workflows', () => {
       })
       .from(wishlistItems)
       .where(
-        and(eq(wishlistItems.userId, userId), eq(wishlistItems.variantNumber, variantNumber))
+        and(
+          eq(wishlistItems.userId, userId),
+          eq(wishlistItems.variantNumber, variantNumber)
+        )
       );
 
     expect(row).toEqual({
@@ -99,7 +112,10 @@ describe('wishlist database workflows', () => {
       })
       .from(wishlistItems)
       .where(
-        and(eq(wishlistItems.userId, userId), eq(wishlistItems.variantNumber, variantNumber))
+        and(
+          eq(wishlistItems.userId, userId),
+          eq(wishlistItems.variantNumber, variantNumber)
+        )
       );
 
     expect(rows).toHaveLength(1);
@@ -158,7 +174,10 @@ describe('wishlist database workflows', () => {
       .select({ variantNumber: wishlistItems.variantNumber })
       .from(wishlistItems)
       .where(
-        and(eq(wishlistItems.userId, userId), eq(wishlistItems.variantNumber, variantNumber))
+        and(
+          eq(wishlistItems.userId, userId),
+          eq(wishlistItems.variantNumber, variantNumber)
+        )
       );
     expect(rows).toHaveLength(0);
 

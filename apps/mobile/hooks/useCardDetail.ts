@@ -72,8 +72,7 @@ export function useCardDetail(
     queryFn: async () => {
       // Prefer an already-warmed detail (from scroll prefetch or press ensure).
       const cached = queryClient.getQueryData(cardQueryKeys.detail(variantNumber)) as
-        | Awaited<ReturnType<typeof api.getCard>>
-        | undefined;
+        Awaited<ReturnType<typeof api.getCard>> | undefined;
       if (isHydratedDetail(cached)) return cached;
 
       // Flush batch prefetch without awaiting — waiting delayed rules text behind unrelated work.

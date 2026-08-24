@@ -28,30 +28,42 @@ test.describe('search collection foil / standard', () => {
     await addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await pickPrinting(page, FOIL_CARD.foilId);
 
-    await expect(removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
-    await expect(addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toHaveCount(0);
+    await expect(
+      removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
+    await expect(
+      addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toHaveCount(0);
 
     // Foil-only: − should not open a printing menu — it targets the owned foil.
     await removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await expect(printingOption(page, FOIL_CARD.foilId)).toHaveCount(0);
     await expect(printingOption(page, FOIL_CARD.standardId)).toHaveCount(0);
 
-    await expect(addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
+    await expect(
+      addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
   });
 
   test('add standard from search, then remove it', async ({ page }) => {
     await addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await pickPrinting(page, FOIL_CARD.standardId);
 
-    await expect(removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
+    await expect(
+      removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
     await removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
-    await expect(addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
+    await expect(
+      addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
   });
 
   test('when both printings are owned, remove opens a picker', async ({ page }) => {
     await addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await pickPrinting(page, FOIL_CARD.standardId);
-    await expect(addOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
+    await expect(
+      addOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
 
     await addOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await pickPrinting(page, FOIL_CARD.foilId);
@@ -62,7 +74,11 @@ test.describe('search collection foil / standard', () => {
 
     await pickPrinting(page, FOIL_CARD.foilId);
     // Still own standard — stepper stays; Add button does not return.
-    await expect(removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
-    await expect(addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toHaveCount(0);
+    await expect(
+      removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
+    await expect(
+      addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toHaveCount(0);
   });
 });

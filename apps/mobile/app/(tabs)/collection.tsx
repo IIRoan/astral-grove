@@ -15,7 +15,11 @@ import {
   CollectionImportExportToolbar,
 } from '@/components/collection/CollectionImportExportActions';
 import { SharedCollectionBanner } from '@/components/collection/SharedCollectionBanner';
-import { ScreenLayout, ScreenLayoutBody, useScreenLayout } from '@/components/shell/ScreenLayout';
+import {
+  ScreenLayout,
+  ScreenLayoutBody,
+  useScreenLayout,
+} from '@/components/shell/ScreenLayout';
 import { SearchInput } from '@/components/ui/search-input';
 import { Text } from '@/components/ui/text';
 import { Button, ButtonText } from '@/components/ui/button';
@@ -97,11 +101,12 @@ function CollectionScreenBody() {
     [collection, apiTypes]
   );
 
-  const completion =
-    catalogCardTotal > 0 ? (uniqueCards / catalogCardTotal) * 100 : 0;
+  const completion = catalogCardTotal > 0 ? (uniqueCards / catalogCardTotal) * 100 : 0;
   const estimatedValue = insightsQuery.data?.estimatedValue ?? 0;
   const valueLabel =
-    insightsQuery.isLoading && collection.length > 0 ? '…' : `€${estimatedValue.toFixed(2)}`;
+    insightsQuery.isLoading && collection.length > 0
+      ? '…'
+      : `€${estimatedValue.toFixed(2)}`;
 
   const dashboardHeader = (
     <View className="pb-6">
@@ -174,7 +179,9 @@ function CollectionScreenBody() {
 
       <View className="mb-8 gap-2">
         <View className="flex-row items-center justify-between gap-3">
-          <Text className="text-sm font-medium text-muted-foreground">Your collection</Text>
+          <Text className="text-sm font-medium text-muted-foreground">
+            Your collection
+          </Text>
           <CollectionImportExportToolbar disabled={isLoading} />
         </View>
         <SearchInput

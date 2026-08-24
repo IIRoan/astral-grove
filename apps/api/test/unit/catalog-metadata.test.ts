@@ -93,7 +93,10 @@ function createService(options?: ServiceOptions) {
 
   (
     service as unknown as {
-      runProbe: (baseFilters: FilterSnapshot, fingerprint: string) => Promise<FilterSnapshot>;
+      runProbe: (
+        baseFilters: FilterSnapshot,
+        fingerprint: string
+      ) => Promise<FilterSnapshot>;
     }
   ).runProbe = async () => {
     probeCalls += 1;
@@ -135,7 +138,9 @@ describe('CatalogMetadataService', () => {
   test('getFiltersSnapshot returns cached enriched snapshot without probing', async () => {
     const { service, getProbeCalls } = createService({
       latestSnapshot: enrichedFilters,
-      syncStateRows: [{ key: 'catalog', contentHash: matchingFingerprint, rowCount: 1396 }],
+      syncStateRows: [
+        { key: 'catalog', contentHash: matchingFingerprint, rowCount: 1396 },
+      ],
     });
 
     const snapshot = await service.getFiltersSnapshot();

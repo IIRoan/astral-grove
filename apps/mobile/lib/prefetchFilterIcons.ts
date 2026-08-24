@@ -10,7 +10,12 @@ function bundledAssetUri(source: ImageSourcePropType): string | null {
   if (typeof source === 'number') {
     return Asset.fromModule(source).uri;
   }
-  if (typeof source === 'object' && source && 'uri' in source && typeof source.uri === 'string') {
+  if (
+    typeof source === 'object' &&
+    source &&
+    'uri' in source &&
+    typeof source.uri === 'string'
+  ) {
     return source.uri;
   }
   return null;

@@ -66,7 +66,9 @@ describe('createSafeMarkdownIt', () => {
 
   test('renders normalized compact headings', () => {
     const md = createSafeMarkdownIt();
-    const html = md.render(prepareMarkdownSource('#Hitt helloooooooo\n\n**bold** body'));
+    const html = md.render(
+      prepareMarkdownSource('#Hitt helloooooooo\n\n**bold** body')
+    );
     expect(html).toContain('<h1>');
     expect(html).toContain('Hitt helloooooooo');
     expect(html).not.toContain('#Hitt');

@@ -31,7 +31,9 @@ describe('iconDefaults', () => {
   });
 
   test('strips width/height so Phosphor size owns metrics', () => {
-    expect(iconStyleWithoutBoxSize({ width: 14, height: 14, color: '#abc', opacity: 1 })).toEqual({
+    expect(
+      iconStyleWithoutBoxSize({ width: 14, height: 14, color: '#abc', opacity: 1 })
+    ).toEqual({
       color: '#abc',
       opacity: 1,
     });

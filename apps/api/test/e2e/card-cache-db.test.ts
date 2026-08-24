@@ -45,19 +45,25 @@ describe('card cache database integrity', () => {
 describe('card cache service reads', () => {
   test('getByVariantNumber serves from Postgres cache', async () => {
     const { cardCache } = getContext();
-    const list = CardsListResponse.parse(await apiJson<unknown>('/api/v1/cards?limit=1'));
+    const list = CardsListResponse.parse(
+      await apiJson<unknown>('/api/v1/cards?limit=1')
+    );
     const variantNumber = list.data[0]?.variantNumber;
     expect(variantNumber).toBeTruthy();
 
     const cached = await cardCache.getByVariantNumber(variantNumber!);
     expect(cached.source).toBe('cache');
-    expect(cached.detail.variants.some((v) => v.variantNumber === variantNumber)).toBe(true);
+    expect(cached.detail.variants.some((v) => v.variantNumber === variantNumber)).toBe(
+      true
+    );
     expect(cached.contentHash.length).toBeGreaterThan(0);
   });
 
   test('batchGet resolves cached variants without upstream', async () => {
     const { cardCache } = getContext();
-    const list = CardsListResponse.parse(await apiJson<unknown>('/api/v1/cards?limit=5'));
+    const list = CardsListResponse.parse(
+      await apiJson<unknown>('/api/v1/cards?limit=5')
+    );
     const variantNumbers = list.data.map((row) => row.variantNumber);
 
     const batch = await cardCache.batchGet(variantNumbers);
@@ -70,7 +76,9 @@ describe('card cache service reads', () => {
     const { cardCache } = getContext();
     const [serviceIndex, httpIndex] = await Promise.all([
       cardCache.listIndex(),
-      apiJson<unknown>('/api/v1/cards/index').then((json) => CatalogIndexResponse.parse(json)),
+      apiJson<unknown>('/api/v1/cards/index').then((json) =>
+        CatalogIndexResponse.parse(json)
+      ),
     ]);
 
     expect(serviceIndex.total).toBe(httpIndex.meta.total);
@@ -91,9 +99,9 @@ describe('card cache service reads', () => {
 
     const [serviceResult, httpList] = await Promise.all([
       cardCache.search(query),
-      apiJson<unknown>(
-        '/api/v1/cards?q=vi&limit=20&page=1&sortBy=name&dir=asc'
-      ).then((json) => CardsListResponse.parse(json)),
+      apiJson<unknown>('/api/v1/cards?q=vi&limit=20&page=1&sortBy=name&dir=asc').then(
+        (json) => CardsListResponse.parse(json)
+      ),
     ]);
 
     expect(serviceResult.total).toBe(httpList.meta.pagination.total);

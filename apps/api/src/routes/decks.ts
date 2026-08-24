@@ -1,5 +1,10 @@
 import { Elysia } from 'elysia';
-import { DeckDetailResponse, DeckListResponse, DeckUpsertRequest, DecksListQuery } from '@riftbound/contracts';
+import {
+  DeckDetailResponse,
+  DeckListResponse,
+  DeckUpsertRequest,
+  DecksListQuery,
+} from '@riftbound/contracts';
 import type { Auth } from '../auth.js';
 import { logActionFailure } from '../lib/logger.js';
 import { parseRequest } from '../lib/request-validation.js';
@@ -73,94 +78,118 @@ export function createDecksRoutes(decks: DeckService, auth: Auth) {
         throw error;
       }
     })
-    .post('/:id/import', { detail: { tags: ['decks'] } }, async ({ request, set, params }) => {
-      const user = await getSessionUser(auth, request.headers);
-      if (!user) {
-        set.status = 401;
-        return unauthorized();
-      }
-      try {
-        const saved = await decks.importFromUpstream(user.id, params.id);
-        if (!saved) {
-          set.status = 404;
-          return { error: 'Deck not found' };
+    .post(
+      '/:id/import',
+      { detail: { tags: ['decks'] } },
+      async ({ request, set, params }) => {
+        const user = await getSessionUser(auth, request.headers);
+        if (!user) {
+          set.status = 401;
+          return unauthorized();
         }
-        return DeckDetailResponse.parse({ data: saved });
-      } catch (error) {
-        logActionFailure('decks.import', error, { userId: user.id, deckId: params.id });
-        if (isMissingDecksTableError(error)) {
-          set.status = 503;
-          return {
-            error: 'DECKS_STORAGE_UNAVAILABLE',
-            message: 'Deck storage is not migrated yet. Run database migrations.',
-          };
+        try {
+          const saved = await decks.importFromUpstream(user.id, params.id);
+          if (!saved) {
+            set.status = 404;
+            return { error: 'Deck not found' };
+          }
+          return DeckDetailResponse.parse({ data: saved });
+        } catch (error) {
+          logActionFailure('decks.import', error, {
+            userId: user.id,
+            deckId: params.id,
+          });
+          if (isMissingDecksTableError(error)) {
+            set.status = 503;
+            return {
+              error: 'DECKS_STORAGE_UNAVAILABLE',
+              message: 'Deck storage is not migrated yet. Run database migrations.',
+            };
+          }
+          throw error;
         }
-        throw error;
       }
-    })
-    .put('/:id', { detail: { tags: ['decks'] } }, async ({ request, set, params, body }) => {
-      const user = await getSessionUser(auth, request.headers);
-      if (!user) {
-        set.status = 401;
-        return unauthorized();
-      }
-      const parsed = parseRequest(DeckUpsertRequest, { ...(body as object), id: params.id });
-      if (parsed.id !== params.id) {
-        set.status = 400;
-        return { error: 'Deck id mismatch' };
-      }
-      try {
-        const saved = await decks.upsert(user.id, parsed);
-        return DeckDetailResponse.parse({ data: saved });
-      } catch (error) {
-        if (error instanceof DeckReadOnlyError) {
-          set.status = 403;
-          return {
-            error: 'DECK_READ_ONLY',
-            message: 'Imported Piltover Archive decks are read-only',
-          };
+    )
+    .put(
+      '/:id',
+      { detail: { tags: ['decks'] } },
+      async ({ request, set, params, body }) => {
+        const user = await getSessionUser(auth, request.headers);
+        if (!user) {
+          set.status = 401;
+          return unauthorized();
         }
-        logActionFailure('decks.upsert', error, { userId: user.id, deckId: params.id });
-        if (isMissingDecksTableError(error)) {
-          set.status = 503;
-          return {
-            error: 'DECKS_STORAGE_UNAVAILABLE',
-            message: 'Deck storage is not migrated yet. Run database migrations.',
-          };
+        const parsed = parseRequest(DeckUpsertRequest, {
+          ...(body as object),
+          id: params.id,
+        });
+        if (parsed.id !== params.id) {
+          set.status = 400;
+          return { error: 'Deck id mismatch' };
         }
-        throw error;
+        try {
+          const saved = await decks.upsert(user.id, parsed);
+          return DeckDetailResponse.parse({ data: saved });
+        } catch (error) {
+          if (error instanceof DeckReadOnlyError) {
+            set.status = 403;
+            return {
+              error: 'DECK_READ_ONLY',
+              message: 'Imported Piltover Archive decks are read-only',
+            };
+          }
+          logActionFailure('decks.upsert', error, {
+            userId: user.id,
+            deckId: params.id,
+          });
+          if (isMissingDecksTableError(error)) {
+            set.status = 503;
+            return {
+              error: 'DECKS_STORAGE_UNAVAILABLE',
+              message: 'Deck storage is not migrated yet. Run database migrations.',
+            };
+          }
+          throw error;
+        }
       }
-    })
-    .delete('/:id', { detail: { tags: ['decks'] } }, async ({ request, set, params }) => {
-      const user = await getSessionUser(auth, request.headers);
-      if (!user) {
-        set.status = 401;
-        return unauthorized();
+    )
+    .delete(
+      '/:id',
+      { detail: { tags: ['decks'] } },
+      async ({ request, set, params }) => {
+        const user = await getSessionUser(auth, request.headers);
+        if (!user) {
+          set.status = 401;
+          return unauthorized();
+        }
+        try {
+          const deleted = await decks.delete(user.id, params.id);
+          if (!deleted) {
+            set.status = 404;
+            return { error: 'Deck not found' };
+          }
+          return { data: { id: params.id } };
+        } catch (error) {
+          if (error instanceof DeckReadOnlyError) {
+            set.status = 403;
+            return {
+              error: 'DECK_READ_ONLY',
+              message: 'Imported Piltover Archive decks are read-only',
+            };
+          }
+          logActionFailure('decks.delete', error, {
+            userId: user.id,
+            deckId: params.id,
+          });
+          if (isMissingDecksTableError(error)) {
+            set.status = 503;
+            return {
+              error: 'DECKS_STORAGE_UNAVAILABLE',
+              message: 'Deck storage is not migrated yet. Run database migrations.',
+            };
+          }
+          throw error;
+        }
       }
-      try {
-        const deleted = await decks.delete(user.id, params.id);
-        if (!deleted) {
-          set.status = 404;
-          return { error: 'Deck not found' };
-        }
-        return { data: { id: params.id } };
-      } catch (error) {
-        if (error instanceof DeckReadOnlyError) {
-          set.status = 403;
-          return {
-            error: 'DECK_READ_ONLY',
-            message: 'Imported Piltover Archive decks are read-only',
-          };
-        }
-        logActionFailure('decks.delete', error, { userId: user.id, deckId: params.id });
-        if (isMissingDecksTableError(error)) {
-          set.status = 503;
-          return {
-            error: 'DECKS_STORAGE_UNAVAILABLE',
-            message: 'Deck storage is not migrated yet. Run database migrations.',
-          };
-        }
-        throw error;
-      }
-    });
+    );
 }

@@ -56,7 +56,9 @@ type EmailConfig = {
 };
 
 export function isEmailConfigured(env: Env): boolean {
-  return Boolean(env.STALWART_JMAP_USERNAME && env.STALWART_JMAP_PASSWORD && env.EMAIL_FROM);
+  return Boolean(
+    env.STALWART_JMAP_USERNAME && env.STALWART_JMAP_PASSWORD && env.EMAIL_FROM
+  );
 }
 
 export function jmapBaseUrl(env: Env): string {
@@ -75,15 +77,24 @@ export function pickMailbox(
   );
 }
 
-export function pickIdentity(identities: JmapIdentity[], fromEmail: string): JmapIdentity | null {
+export function pickIdentity(
+  identities: JmapIdentity[],
+  fromEmail: string
+): JmapIdentity | null {
   const needle = fromEmail.trim().toLowerCase();
   return (
-    identities.find((identity) => identity.email?.trim().toLowerCase() === needle) ?? null
+    identities.find((identity) => identity.email?.trim().toLowerCase() === needle) ??
+    null
   );
 }
 
 function requireConfig(env: Env): EmailConfig {
-  if (!isEmailConfigured(env) || !env.STALWART_JMAP_USERNAME || !env.STALWART_JMAP_PASSWORD || !env.EMAIL_FROM) {
+  if (
+    !isEmailConfigured(env) ||
+    !env.STALWART_JMAP_USERNAME ||
+    !env.STALWART_JMAP_PASSWORD ||
+    !env.EMAIL_FROM
+  ) {
     throw new Error('Email sending is not configured');
   }
   return {
@@ -137,12 +148,20 @@ function assertJmapSuccess(envelope: JmapEnvelope, context: string): void {
 
   for (const [methodName, result] of responses) {
     if (methodName === 'error' || methodName.endsWith('/error')) {
-      throw new Error(formatJmapError(methodName === 'error' ? context : methodName, result));
+      throw new Error(
+        formatJmapError(methodName === 'error' ? context : methodName, result)
+      );
     }
     const patchError =
-      firstPatchError(result.notCreated as Record<string, JmapMethodError> | undefined) ??
-      firstPatchError(result.notUpdated as Record<string, JmapMethodError> | undefined) ??
-      firstPatchError(result.notDestroyed as Record<string, JmapMethodError> | undefined);
+      firstPatchError(
+        result.notCreated as Record<string, JmapMethodError> | undefined
+      ) ??
+      firstPatchError(
+        result.notUpdated as Record<string, JmapMethodError> | undefined
+      ) ??
+      firstPatchError(
+        result.notDestroyed as Record<string, JmapMethodError> | undefined
+      );
     if (patchError) {
       throw new Error(formatJmapError(methodName, patchError));
     }
@@ -153,7 +172,11 @@ async function readHttpError(response: Response): Promise<string> {
   const raw = await response.text();
   if (!raw) return '';
   try {
-    const parsed = JSON.parse(raw) as { detail?: string; message?: string; error?: string };
+    const parsed = JSON.parse(raw) as {
+      detail?: string;
+      message?: string;
+      error?: string;
+    };
     return parsed.detail || parsed.message || parsed.error || raw.slice(0, 200);
   } catch {
     return raw.slice(0, 200);
@@ -250,7 +273,10 @@ function methodResult<T>(envelope: JmapEnvelope, method: string): T {
   return match[1] as T;
 }
 
-function primaryAccountId(sessionAccounts: JmapSession, capability: string): string | undefined {
+function primaryAccountId(
+  sessionAccounts: JmapSession,
+  capability: string
+): string | undefined {
   return sessionAccounts.primaryAccounts?.[capability];
 }
 
@@ -270,8 +296,10 @@ async function loadSendContext(
   ]);
   assertJmapSuccess(envelope, 'Stalwart mailbox lookup');
 
-  const mailboxes = methodResult<{ list?: JmapMailbox[] }>(envelope, 'Mailbox/get').list ?? [];
-  const identities = methodResult<{ list?: JmapIdentity[] }>(envelope, 'Identity/get').list ?? [];
+  const mailboxes =
+    methodResult<{ list?: JmapMailbox[] }>(envelope, 'Mailbox/get').list ?? [];
+  const identities =
+    methodResult<{ list?: JmapIdentity[] }>(envelope, 'Identity/get').list ?? [];
   const drafts = pickMailbox(mailboxes, 'drafts');
   if (!drafts) {
     throw new Error('Stalwart mailbox has no Drafts folder');

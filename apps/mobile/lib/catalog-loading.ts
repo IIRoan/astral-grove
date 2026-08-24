@@ -45,8 +45,7 @@ export function resolveCatalogDisplayItems<T>({
 }: CatalogDisplayItemsInput<T>): T[] {
   if (!hasSearchInput) return browseItems;
   if (searchPending) return [];
-  const waitingForFirstPage =
-    searchItemsLength === 0 && (isLoading || isFetching);
+  const waitingForFirstPage = searchItemsLength === 0 && (isLoading || isFetching);
   if (waitingForFirstPage) return [];
   return searchItems;
 }

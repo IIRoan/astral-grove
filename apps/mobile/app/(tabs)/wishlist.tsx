@@ -1,4 +1,9 @@
-import { BookmarkIcon, ChevronDownIcon, ChevronUpIcon, ThemedIcon } from '@/components/icons';
+import {
+  BookmarkIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ThemedIcon,
+} from '@/components/icons';
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { Keyboard, Pressable, View } from 'react-native';
@@ -18,10 +23,7 @@ import { Text } from '@/components/ui/text';
 import { WishlistPriceHistoryPanel } from '@/components/wishlist/WishlistPriceHistoryPanel';
 import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
 import { useMobileLayout } from '@/hooks/useBreakpoint';
-import {
-  useWishlistPrices,
-  type WishlistPriceItem,
-} from '@/hooks/useWishlistPrices';
+import { useWishlistPrices, type WishlistPriceItem } from '@/hooks/useWishlistPrices';
 import { cn } from '@/lib/utils';
 import { openCard } from '@/utils/cardNavigation';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
@@ -110,7 +112,10 @@ function WishlistCardThumb({
   if (!uri) {
     return (
       <View
-        className={cn('items-center justify-center bg-card-panel', CARD_ART_RADIUS_CLASS)}
+        className={cn(
+          'items-center justify-center bg-card-panel',
+          CARD_ART_RADIUS_CLASS
+        )}
         style={size}
       >
         <ThemedIcon icon={BookmarkIcon} size={16} color="muted-foreground" />
@@ -120,7 +125,10 @@ function WishlistCardThumb({
 
   return (
     <View
-      className={cn('overflow-hidden border border-border/60 bg-card-panel', CARD_ART_RADIUS_CLASS)}
+      className={cn(
+        'overflow-hidden border border-border/60 bg-card-panel',
+        CARD_ART_RADIUS_CLASS
+      )}
       style={size}
     >
       <CardArtImage
@@ -176,7 +184,10 @@ const WishlistRow = memo(function WishlistRow({
           <Text className="text-[15px] font-medium text-foreground" numberOfLines={1}>
             {item.name}
           </Text>
-          <Text className="mt-0.5 font-mono text-[11px] text-muted-foreground" numberOfLines={1}>
+          <Text
+            className="mt-0.5 font-mono text-[11px] text-muted-foreground"
+            numberOfLines={1}
+          >
             {item.variantNumber}
             {item.belowTarget ? ' · at target' : ''}
           </Text>
@@ -217,7 +228,10 @@ const WishlistRow = memo(function WishlistRow({
                 size={EXPANDED_THUMB}
               />
               <View className="min-w-0 flex-1 gap-1">
-                <Text className="text-[15px] font-semibold text-foreground" numberOfLines={2}>
+                <Text
+                  className="text-[15px] font-semibold text-foreground"
+                  numberOfLines={2}
+                >
                   {item.name}
                 </Text>
                 <Text className="font-mono text-[11px] text-muted-foreground">
@@ -231,7 +245,12 @@ const WishlistRow = memo(function WishlistRow({
             </Pressable>
           ) : null}
           <WishlistPriceHistoryPanel item={item} />
-          <Button size="sm" variant="outline" className="self-start" onPress={handleOpen}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="self-start"
+            onPress={handleOpen}
+          >
             <ButtonText>Open card</ButtonText>
           </Button>
         </View>
@@ -245,7 +264,10 @@ function WishlistLoadingSkeleton({ compact }: { compact: boolean }) {
     <SkeletonGroup>
       <View className="gap-0">
         {Array.from({ length: 8 }).map((_, index) => (
-          <View key={index} className="flex-row items-center gap-3 border-b border-border py-3">
+          <View
+            key={index}
+            className="flex-row items-center gap-3 border-b border-border py-3"
+          >
             <Skeleton className="h-14 w-10 shrink-0 rounded-[3px]" />
             <View className="min-w-0 flex-1 gap-2">
               <Skeleton className="h-4 w-2/3 rounded" />
@@ -272,7 +294,11 @@ function WishlistScreenBody() {
   const items = wishlist.data ?? EMPTY_WISHLIST_ITEMS;
 
   const filtered = useMemo(
-    () => sortItems(items.filter((item) => matchesQuery(item, query)), sort),
+    () =>
+      sortItems(
+        items.filter((item) => matchesQuery(item, query)),
+        sort
+      ),
     [items, query, sort]
   );
 
@@ -312,7 +338,9 @@ function WishlistScreenBody() {
   const listHeader = (
     <View className="gap-4 pb-2">
       <View>
-        <Text className="text-xl font-semibold tracking-tight text-foreground">Wishlist</Text>
+        <Text className="text-xl font-semibold tracking-tight text-foreground">
+          Wishlist
+        </Text>
         <Text className="mt-1 text-sm text-muted-foreground">
           {items.length === 0
             ? 'Track cards you want and watch Cardmarket trend prices.'
@@ -404,8 +432,8 @@ function WishlistScreenBody() {
                 No wishlist cards yet
               </Text>
               <Text className="max-w-md text-sm leading-6 text-muted-foreground">
-                Save a printing from the catalog. Your list stays compact so you can scan prices
-                quickly, then expand a row when you want history.
+                Save a printing from the catalog. Your list stays compact so you can
+                scan prices quickly, then expand a row when you want history.
               </Text>
               <Button
                 className="mt-2 self-start"

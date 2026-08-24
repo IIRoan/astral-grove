@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import type { CollectionShareAcceptMode } from '@riftbound/contracts';
 import { collectionSharePollInterval } from '@/hooks/collectionLiveSync';
 import {

@@ -45,8 +45,14 @@ describe('getLegendRuneDomains', () => {
 describe('countRunesForDomain', () => {
   test('sums rune copies matching domain color', () => {
     const runes = new Map<string, DeckEntry>([
-      [mockCard('Fury Rune', ['Fury']).name, mockEntry(mockCard('Fury Rune', ['Fury']), 7)],
-      [mockCard('Chaos Rune', ['Chaos']).name, mockEntry(mockCard('Chaos Rune', ['Chaos']), 5)],
+      [
+        mockCard('Fury Rune', ['Fury']).name,
+        mockEntry(mockCard('Fury Rune', ['Fury']), 7),
+      ],
+      [
+        mockCard('Chaos Rune', ['Chaos']).name,
+        mockEntry(mockCard('Chaos Rune', ['Chaos']), 5),
+      ],
     ]);
 
     expect(countRunesForDomain(runes, 'Fury')).toBe(7);
@@ -87,7 +93,10 @@ describe('buildDeckGridRows', () => {
       mockEntry(mockCard('D'), 1),
     ];
 
-    const rows = buildDeckGridRows(entries, { columns: DECK_GRID_COLUMNS, includeAdd: true });
+    const rows = buildDeckGridRows(entries, {
+      columns: DECK_GRID_COLUMNS,
+      includeAdd: true,
+    });
     const flat: DeckGridCell[] = rows.flat();
 
     expect(rows).toHaveLength(2);
@@ -96,7 +105,10 @@ describe('buildDeckGridRows', () => {
   });
 
   test('shows only add placeholder when empty', () => {
-    const rows = buildDeckGridRows([], { columns: DECK_GRID_COLUMNS, includeAdd: true });
+    const rows = buildDeckGridRows([], {
+      columns: DECK_GRID_COLUMNS,
+      includeAdd: true,
+    });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toEqual([{ kind: 'add' }]);
   });

@@ -20,7 +20,7 @@ export class PaApiError extends Error {
 }
 
 export class PaClient {
-  constructor(private readonly env: Env) { }
+  constructor(private readonly env: Env) {}
 
   private async request<T>(
     path: string,
@@ -118,7 +118,10 @@ export class PaClient {
     });
   }
 
-  createOrUpsertDeck(payload: unknown, extraHeaders?: Record<string, string>): Promise<unknown> {
+  createOrUpsertDeck(
+    payload: unknown,
+    extraHeaders?: Record<string, string>
+  ): Promise<unknown> {
     return this.request('/v1/decks', {
       method: 'POST',
       body: JSON.stringify(payload),

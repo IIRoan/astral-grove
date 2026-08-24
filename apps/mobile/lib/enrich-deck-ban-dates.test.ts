@@ -22,11 +22,8 @@ mock.module('@/src/api/client', () => ({
   api: { batchCards },
 }));
 
-const {
-  fetchBanDatesByVariant,
-  mergeBanDatesIntoDeck,
-  syncDeckLegalityFields,
-} = await import('@/lib/enrich-deck-ban-dates');
+const { fetchBanDatesByVariant, mergeBanDatesIntoDeck, syncDeckLegalityFields } =
+  await import('@/lib/enrich-deck-ban-dates');
 
 function deckCard(name: string, banEffectiveDate: string | null = null): DeckCard {
   return {
@@ -76,9 +73,7 @@ describe('fetchBanDatesByVariant', () => {
 describe('mergeBanDatesIntoDeck', () => {
   test('overwrites stale null ban dates from catalog', () => {
     const deck = emptyDeck({
-      mainDeck: new Map([
-        ['Banned', { card: deckCard('Banned', null), count: 1 }],
-      ]),
+      mainDeck: new Map([['Banned', { card: deckCard('Banned', null), count: 1 }]]),
     });
     const banByVariant = new Map([['OGN-001', '2020-01-01T00:00:00.000Z']]);
     const merged = mergeBanDatesIntoDeck(deck, banByVariant);
@@ -92,10 +87,7 @@ describe('syncDeckLegalityFields', () => {
     const deck = emptyDeck({
       source: 'owned',
       mainDeck: new Map([
-        [
-          'Banned',
-          { card: deckCard('Banned', '2020-01-01T00:00:00.000Z'), count: 1 },
-        ],
+        ['Banned', { card: deckCard('Banned', '2020-01-01T00:00:00.000Z'), count: 1 }],
       ]),
     });
     const synced = syncDeckLegalityFields(deck);

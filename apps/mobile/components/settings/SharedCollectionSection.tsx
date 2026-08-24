@@ -4,6 +4,7 @@ import { AuthSlabCorners } from '@/components/auth/AuthArtifacts';
 import { Button, ButtonText } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast.api';
 import { Text } from '@/components/ui/text';
+import { UserBlobatar } from '@/components/ui/user-blobatar';
 import {
   useCollectionShareMutations,
   useCollectionShareStatus,
@@ -49,7 +50,10 @@ export function SharedCollectionSection({ className }: SharedCollectionSectionPr
   const pendingUrl = pendingInvite?.url;
   const invitePending = Boolean(pendingInvite);
   const busy =
-    createInvite.isPending || revokeInvite.isPending || leave.isPending || statusQuery.isLoading;
+    createInvite.isPending ||
+    revokeInvite.isPending ||
+    leave.isPending ||
+    statusQuery.isLoading;
 
   const onCopyOrCreate = () => {
     if (pendingUrl) {
@@ -67,7 +71,9 @@ export function SharedCollectionSection({ className }: SharedCollectionSectionPr
       },
       onError: (error) => {
         const message =
-          error instanceof RemoteApiError ? error.body || error.message : 'Could not create invite';
+          error instanceof RemoteApiError
+            ? error.body || error.message
+            : 'Could not create invite';
         Alert.alert('Invite failed', message);
       },
     });
@@ -110,13 +116,14 @@ export function SharedCollectionSection({ className }: SharedCollectionSectionPr
           className
         )}
       >
-        <Text className="text-sm text-muted-foreground">Could not load share status.</Text>
+        <Text className="text-sm text-muted-foreground">
+          Could not load share status.
+        </Text>
       </View>
     );
   }
 
   if (status?.shared && status.partner) {
-    const initial = status.partner.name?.charAt(0).toUpperCase() || '?';
     return (
       <View
         className={cn(
@@ -127,9 +134,12 @@ export function SharedCollectionSection({ className }: SharedCollectionSectionPr
         <AuthSlabCorners />
         <View className="min-h-0 flex-1 flex-row items-stretch">
           <View className="w-[76px] items-center justify-center border-r border-border bg-background py-6">
-            <View className="size-12 items-center justify-center rounded-[3px] border border-border bg-card-panel">
-              <Text className="font-mono text-xl font-normal text-foreground">{initial}</Text>
-            </View>
+            <UserBlobatar
+              userId={status.partner.userId}
+              title={status.partner.name}
+              size={48}
+              framed
+            />
           </View>
           <View className="min-w-0 flex-1 justify-between gap-4 px-4 py-4">
             <View className="gap-1">
@@ -139,7 +149,10 @@ export function SharedCollectionSection({ className }: SharedCollectionSectionPr
               >
                 {status.partner.name}
               </Text>
-              <Text className="font-mono text-[12px] text-muted-foreground" numberOfLines={1}>
+              <Text
+                className="font-mono text-[12px] text-muted-foreground"
+                numberOfLines={1}
+              >
                 {status.partner.email}
               </Text>
               <Text className="mt-1 text-sm text-muted-foreground">
@@ -169,7 +182,9 @@ export function SharedCollectionSection({ className }: SharedCollectionSectionPr
     >
       <AuthSlabCorners />
       <View className="gap-1">
-        <Text className="text-lg font-normal tracking-tight text-foreground">Invite a partner</Text>
+        <Text className="text-lg font-normal tracking-tight text-foreground">
+          Invite a partner
+        </Text>
         <Text className="text-sm text-muted-foreground">
           One shared collection. Decks and wishlists stay personal.
         </Text>
@@ -188,11 +203,17 @@ export function SharedCollectionSection({ className }: SharedCollectionSectionPr
             </View>
           ) : (
             <Text className="text-sm text-muted-foreground">
-              An invite is pending. Create a new link to copy it again — that replaces the old one.
+              An invite is pending. Create a new link to copy it again — that replaces
+              the old one.
             </Text>
           )}
           <View className="flex-row items-center gap-3">
-            <Button size="sm" disabled={busy} onPress={onCopyOrCreate} className="flex-1">
+            <Button
+              size="sm"
+              disabled={busy}
+              onPress={onCopyOrCreate}
+              className="flex-1"
+            >
               <ButtonText>{pendingUrl ? 'Copy link' : 'Create new link'}</ButtonText>
             </Button>
             <Pressable
@@ -207,7 +228,9 @@ export function SharedCollectionSection({ className }: SharedCollectionSectionPr
         </View>
       ) : (
         <Button disabled={busy} onPress={onCopyOrCreate} className="self-start">
-          <ButtonText>{createInvite.isPending ? 'Creating…' : 'Create invite link'}</ButtonText>
+          <ButtonText>
+            {createInvite.isPending ? 'Creating…' : 'Create invite link'}
+          </ButtonText>
         </Button>
       )}
     </View>

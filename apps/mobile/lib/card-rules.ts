@@ -1,4 +1,10 @@
-import { isDomainKeyword, isRuneToken, isStatKeyword, isTapToken, parseKeywordToken } from '@/lib/card-keywords';
+import {
+  isDomainKeyword,
+  isRuneToken,
+  isStatKeyword,
+  isTapToken,
+  parseKeywordToken,
+} from '@/lib/card-keywords';
 
 export type CardRulesPart =
   | { type: 'text'; value: string }
@@ -255,7 +261,12 @@ export function groupInlineSegments(parts: CardRulesPart[]): InlineSegment[] {
 export function isInlineIconPart(
   part: CardRulesPart
 ): part is Extract<CardRulesPart, { type: 'might' | 'tap' | 'rune' | 'domain' }> {
-  return part.type === 'might' || part.type === 'tap' || part.type === 'rune' || part.type === 'domain';
+  return (
+    part.type === 'might' ||
+    part.type === 'tap' ||
+    part.type === 'rune' ||
+    part.type === 'domain'
+  );
 }
 
 export type ParagraphSegment =

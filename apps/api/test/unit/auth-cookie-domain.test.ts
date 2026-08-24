@@ -23,9 +23,9 @@ function env(overrides: Partial<Env>): Env {
 
 describe('resolveAuthCookieDomain', () => {
   test('uses explicit AUTH_COOKIE_DOMAIN when set', () => {
-    expect(
-      resolveAuthCookieDomain(env({ AUTH_COOKIE_DOMAIN: 'example.com' }))
-    ).toBe('example.com');
+    expect(resolveAuthCookieDomain(env({ AUTH_COOKIE_DOMAIN: 'example.com' }))).toBe(
+      'example.com'
+    );
   });
 
   test('derives shared parent from API and trusted frontend origins', () => {

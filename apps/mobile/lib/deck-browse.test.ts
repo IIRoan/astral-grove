@@ -54,7 +54,9 @@ describe('formatDeckRelativeTime', () => {
     const now = Date.parse('2026-04-01T00:00:00.000Z');
     expect(formatDeckRelativeTime(now - 5 * 60_000, now)).toBe('5m ago');
     expect(formatDeckRelativeTime(now - 9 * 24 * 60 * 60_000, now)).toBe('9d ago');
-    expect(formatDeckRelativeTime(now - 40 * 24 * 60 * 60_000, now)).toBe('about 1 month ago');
+    expect(formatDeckRelativeTime(now - 40 * 24 * 60 * 60_000, now)).toBe(
+      'about 1 month ago'
+    );
   });
 });
 
@@ -67,7 +69,9 @@ describe('deckBrowseSummaryLine', () => {
   });
 
   test('returns null for owned decks', () => {
-    expect(deckBrowseSummaryLine(browseDeck({ source: 'owned', readOnly: false }))).toBeNull();
+    expect(
+      deckBrowseSummaryLine(browseDeck({ source: 'owned', readOnly: false }))
+    ).toBeNull();
   });
 });
 
@@ -88,7 +92,9 @@ describe('isCardBannedInDeck', () => {
 
 describe('deckHasBannedCards', () => {
   test('detects banned card lists', () => {
-    expect(deckHasBannedCards(browseDeck({ bannedCardNames: ['Obelisk of Power'] }))).toBe(true);
+    expect(
+      deckHasBannedCards(browseDeck({ bannedCardNames: ['Obelisk of Power'] }))
+    ).toBe(true);
     expect(deckHasBannedCards(browseDeck({ bannedCardNames: [] }))).toBe(false);
   });
 
@@ -120,7 +126,9 @@ describe('deckHasBannedCards', () => {
 
 describe('deckBrowseFilterSegmentActive', () => {
   test('tracks active state per segment', () => {
-    expect(deckBrowseFilterSegmentActive('legends', DEFAULT_DECK_BROWSE_FILTERS)).toBe(false);
+    expect(deckBrowseFilterSegmentActive('legends', DEFAULT_DECK_BROWSE_FILTERS)).toBe(
+      false
+    );
     expect(
       deckBrowseFilterSegmentActive('legends', {
         ...DEFAULT_DECK_BROWSE_FILTERS,

@@ -17,7 +17,10 @@ export function DeckBuilderImportedBanner({
   return (
     <View className="flex-row items-center gap-2 border-b border-border pb-2.5">
       <StatusKeywordBadge status="imported" compact />
-      <Text className="min-w-0 flex-1 text-[12px] text-muted-foreground" numberOfLines={1}>
+      <Text
+        className="min-w-0 flex-1 text-[12px] text-muted-foreground"
+        numberOfLines={1}
+      >
         View only · from Piltover Archive
       </Text>
       {onImportToMyDecks ? (

@@ -25,7 +25,11 @@ describe('resolveDeckSharePayload', () => {
   test('builds an Astral Grove link for the deck id', () => {
     const deck = createEmptyDeck('Test');
     deck.id = 'deck_abc';
-    const result = resolveDeckSharePayload(deck, 'link', 'https://riftbounddev.roan.dev');
+    const result = resolveDeckSharePayload(
+      deck,
+      'link',
+      'https://riftbounddev.roan.dev'
+    );
     expect(result).toEqual({
       ok: true,
       value: 'https://riftbounddev.roan.dev/decks/deck_abc',

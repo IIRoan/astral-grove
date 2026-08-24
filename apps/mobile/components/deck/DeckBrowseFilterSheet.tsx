@@ -2,7 +2,10 @@ import { SlidersHorizontalIcon } from '@/components/icons';
 import { useCallback, useMemo } from 'react';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import { Pressable, View } from 'react-native';
-import { CatalogToolbarBadgeDot, CatalogToolbarButton } from '@/components/catalog/CatalogToolbarButton';
+import {
+  CatalogToolbarBadgeDot,
+  CatalogToolbarButton,
+} from '@/components/catalog/CatalogToolbarButton';
 import { DeckBrowseFilterSegmentPanel } from '@/components/deck/DeckBrowseFilterPanels';
 import {
   FilterAccordionGroup,
@@ -54,7 +57,10 @@ export function DeckBrowseFilterSheet({
   const activeCount = countDeckBrowseFilters(filters);
   const { setNameByCode } = useDeckBrowseFilterOptions();
   const accordionKey = visible ? 'open' : 'closed';
-  const defaultOpen = useMemo(() => defaultOpenSegments(filters), [filters, accordionKey]);
+  const defaultOpen = useMemo(
+    () => defaultOpenSegments(filters),
+    [filters, accordionKey]
+  );
 
   return (
     <MobileFilterSheet

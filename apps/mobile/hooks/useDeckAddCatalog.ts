@@ -32,7 +32,10 @@ export function useDeckAddCatalog(
   options?: { enabled?: boolean }
 ) {
   const hookEnabled = options?.enabled !== false;
-  const sectionMeta = useMemo(() => getDeckAddSectionMeta(section, deck), [section, deck]);
+  const sectionMeta = useMemo(
+    () => getDeckAddSectionMeta(section, deck),
+    [section, deck]
+  );
 
   const legendHydrationQuery = useQuery({
     queryKey: ['deck-add-legend-hydrate', deck.legend?.variantNumber],
@@ -62,7 +65,9 @@ export function useDeckAddCatalog(
     hookEnabled && (!sectionMeta.requiresLegend || Boolean(resolvedDeck.legend));
 
   const ownedFilterActive = filters.collection === 'owned';
-  const { data: collectionEntries = [] } = useCollection({ enabled: ownedFilterActive });
+  const { data: collectionEntries = [] } = useCollection({
+    enabled: ownedFilterActive,
+  });
 
   const collectionByVariant = useMemo(() => {
     if (!ownedFilterActive) return new Map<string, { quantity: number }>();

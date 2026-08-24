@@ -20,7 +20,10 @@ export function buildPasswordResetLink(input: {
   return `${base}/reset-password?${params.toString()}`;
 }
 
-export function buildPasswordResetDeepLink(input: { token: string; email: string }): string {
+export function buildPasswordResetDeepLink(input: {
+  token: string;
+  email: string;
+}): string {
   const params = new URLSearchParams({
     token: input.token.trim(),
     email: input.email.trim().toLowerCase(),

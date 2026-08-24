@@ -39,7 +39,9 @@ export function CardAttributeRow({
       <Text className="w-12 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </Text>
-      <View className="min-w-0 flex-1 flex-row flex-wrap items-center gap-2">{children}</View>
+      <View className="min-w-0 flex-1 flex-row flex-wrap items-center gap-2">
+        {children}
+      </View>
     </View>
   );
 }

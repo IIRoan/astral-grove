@@ -94,7 +94,13 @@ export function DeckImportExportSheet({
             createdAt: now,
             updatedAt: now,
           }
-        : { ...imported, id: deck.id, name: deck.name, createdAt: deck.createdAt, format };
+        : {
+            ...imported,
+            id: deck.id,
+            name: deck.name,
+            createdAt: deck.createdAt,
+            format,
+          };
 
       await Promise.resolve(onImport(payload));
 
@@ -183,13 +189,19 @@ export function DeckImportExportSheet({
                   onPress={() => void handlePickFile()}
                 >
                   <ThemedIcon icon={UploadIcon} size={15} color="foreground" />
-                  <Text className="text-[13px] font-medium text-foreground">Choose text file</Text>
+                  <Text className="text-[13px] font-medium text-foreground">
+                    Choose text file
+                  </Text>
                 </Pressable>
               </View>
 
               <Text className="text-[12px] leading-4 text-muted-foreground">
-                Supports Piltover Archive deck codes, section headers, or flat lines like{' '}
-                <Text className="font-mono text-[11px] text-foreground">3 Card Name (SET-123)</Text>.
+                Supports Piltover Archive deck codes, section headers, or flat lines
+                like{' '}
+                <Text className="font-mono text-[11px] text-foreground">
+                  3 Card Name (SET-123)
+                </Text>
+                .
               </Text>
             </AppSheetBody>
             <AppSheetFooter>

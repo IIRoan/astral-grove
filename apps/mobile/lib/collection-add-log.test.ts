@@ -41,9 +41,7 @@ describe('formatCollectionLogWhat', () => {
     expect(formatCollectionLogWhat(2, 3, null, false)).toBe(
       'Added 2 Standard copies · now 3'
     );
-    expect(formatCollectionLogWhat(1, 1, null, true)).toBe(
-      'Added 1 Foil copy · now 1'
-    );
+    expect(formatCollectionLogWhat(1, 1, null, true)).toBe('Added 1 Foil copy · now 1');
     expect(formatCollectionLogWhat(-1, 0, null, true)).toBe('Removed last Foil copy');
   });
 

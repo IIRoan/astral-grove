@@ -42,9 +42,6 @@ export function changeFocusedTextDraftState(
 }
 
 /** Notify parent only when the draft string actually changed (skip clamp/same-string no-ops). */
-export function shouldCommitFocusedTextDraft(
-  previous: string,
-  next: string
-): boolean {
+export function shouldCommitFocusedTextDraft(previous: string, next: string): boolean {
   return previous !== next;
 }

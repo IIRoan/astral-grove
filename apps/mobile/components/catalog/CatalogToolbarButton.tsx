@@ -43,7 +43,11 @@ export function CatalogToolbarButton({
         onPress={onPress}
         accessibilityLabel={accessibilityLabel}
       >
-        <ThemedIcon icon={icon} size={mobile ? 18 : 16} color={catalogToolbarIconColor(tone)} />
+        <ThemedIcon
+          icon={icon}
+          size={mobile ? 18 : 16}
+          color={catalogToolbarIconColor(tone)}
+        />
         <Text
           className={cn(
             'shrink text-[13px] font-normal leading-none',
@@ -75,5 +79,7 @@ export function CatalogToolbarButton({
 }
 
 export function CatalogToolbarBadgeDot() {
-  return <View className="absolute right-2 top-2 size-1.5 rounded-full bg-foreground" />;
+  return (
+    <View className="absolute right-2 top-2 size-1.5 rounded-full bg-foreground" />
+  );
 }

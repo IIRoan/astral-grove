@@ -63,8 +63,7 @@ async function cleanupTestUsers(): Promise<void> {
       await db.delete(accountTable).where(eq(accountTable.userId, u.id));
       await db.delete(userTable).where(eq(userTable.id, u.id));
     }
-  } catch {
-  }
+  } catch {}
 }
 
 beforeAll(async () => {

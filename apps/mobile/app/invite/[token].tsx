@@ -58,7 +58,9 @@ export default function CollectionInviteLinkingScreen() {
     return (
       <ScreenLayout>
         <ScreenHeader title="Join collection" />
-        <Text className="mt-4 text-sm text-muted-foreground">Missing invite token.</Text>
+        <Text className="mt-4 text-sm text-muted-foreground">
+          Missing invite token.
+        </Text>
       </ScreenLayout>
     );
   }

@@ -1,9 +1,6 @@
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
-import {
-  getKeywordBadgeClassName,
-  getKeywordInkClassName,
-} from '@/lib/card-keywords';
+import { getKeywordBadgeClassName, getKeywordInkClassName } from '@/lib/card-keywords';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 

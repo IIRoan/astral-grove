@@ -1,11 +1,22 @@
-import { ThemedIcon, CircleCheckIcon, MinusIcon, PlusIcon, TrashIcon } from '@/components/icons';
+import {
+  ThemedIcon,
+  CircleCheckIcon,
+  MinusIcon,
+  PlusIcon,
+  TrashIcon,
+} from '@/components/icons';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Badge, BadgeIcon, BadgeText } from '@/components/ui/badge';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Stack } from '@/components/ui/stack';
 import { Text } from '@/components/ui/text';
-import { OPERATE_CTA_FILL_CLASS, OPERATE_CTA_ICON_CLASS, OPERATE_CTA_LABEL_CLASS, OPERATE_CTA_SPINNER_CLASS } from '@/constants/operateType';
+import {
+  OPERATE_CTA_FILL_CLASS,
+  OPERATE_CTA_ICON_CLASS,
+  OPERATE_CTA_LABEL_CLASS,
+  OPERATE_CTA_SPINNER_CLASS,
+} from '@/constants/operateType';
 import { useMobileLayout } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
 import { hapticPress } from '@/utils/haptics';
@@ -57,7 +68,10 @@ export function CollectionAddButton({
           <ActivityIndicator size="small" className={OPERATE_CTA_SPINNER_CLASS} />
         ) : (
           <>
-            <PlusIcon className={cn('size-3.5', OPERATE_CTA_ICON_CLASS)} weight="bold" />
+            <PlusIcon
+              className={cn('size-3.5', OPERATE_CTA_ICON_CLASS)}
+              weight="bold"
+            />
             <Text className={OPERATE_CTA_LABEL_CLASS}>Add</Text>
           </>
         )}
@@ -238,7 +252,9 @@ export function CollectionQtyControls({
         <ButtonIcon>
           <ThemedIcon icon={TrashIcon} size={15} color="muted-foreground" />
         </ButtonIcon>
-        <ButtonText className="text-muted-foreground">Remove from collection</ButtonText>
+        <ButtonText className="text-muted-foreground">
+          Remove from collection
+        </ButtonText>
       </Button>
     </Stack>
   );

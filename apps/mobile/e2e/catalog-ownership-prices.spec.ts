@@ -30,27 +30,39 @@ test.describe('catalog ownership on list + detail', () => {
     await pickPrinting(page, FOIL_CARD.standardId);
 
     await expect(tile.getByText('Owned ×1')).toBeVisible({ timeout: 30_000 });
-    await expect(removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
+    await expect(
+      removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
   });
 
-  test('grid tile swaps Add for owned stepper immediately after add', async ({ page }) => {
+  test('grid tile swaps Add for owned stepper immediately after add', async ({
+    page,
+  }) => {
     await page.getByLabel('Grid view', { exact: true }).click();
     await searchForCard(page, FOIL_CARD.query, FOIL_CARD.name);
 
     const tile = cardTile(page, FOIL_CARD.name, FOIL_CARD.standardId);
-    await expect(addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
+    await expect(
+      addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
 
     await addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await pickPrinting(page, FOIL_CARD.standardId);
 
-    await expect(removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible({
+    await expect(
+      removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible({
       timeout: 30_000,
     });
-    await expect(addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toHaveCount(0);
+    await expect(
+      addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toHaveCount(0);
     await expect(tile.getByText('1', { exact: true })).toBeVisible();
   });
 
-  test('detail owned qty updates when incrementing from the list stepper', async ({ page }) => {
+  test('detail owned qty updates when incrementing from the list stepper', async ({
+    page,
+  }) => {
     await addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await pickPrinting(page, FOIL_CARD.standardId);
     await expect(
@@ -72,16 +84,22 @@ test.describe('catalog ownership on list + detail', () => {
     await expect(page.getByRole('button', { name: /Wishlist/ })).toBeVisible();
   });
 
-  test('opening detail keeps collection controls for the active printing', async ({ page }) => {
+  test('opening detail keeps collection controls for the active printing', async ({
+    page,
+  }) => {
     await addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await pickPrinting(page, FOIL_CARD.standardId);
 
     await cardTile(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await expect(detailWishlistButton(page)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(FOIL_CARD.standardId, { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByText(FOIL_CARD.standardId, { exact: true }).first()
+    ).toBeVisible();
 
     // Std + foil: detail lists finishes with steppers instead of a single CTA.
-    await expect(page.getByText(FOIL_CARD.foilId, { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByText(FOIL_CARD.foilId, { exact: true }).first()
+    ).toBeVisible();
     await expect(
       page.getByLabel(new RegExp(`Add .*${FOIL_CARD.name}`)).first()
     ).toBeVisible();
@@ -126,13 +144,17 @@ test.describe('catalog price scoping', () => {
     await expect(page.getByText(MULTI_FAMILY_CARD.promoLabel).first()).toBeVisible();
   });
 
-  test('foil card detail shows a single active market price summary', async ({ page }) => {
+  test('foil card detail shows a single active market price summary', async ({
+    page,
+  }) => {
     await searchForCard(page, FOIL_CARD.query, FOIL_CARD.name);
     await cardTile(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await expect(detailWishlistButton(page)).toBeVisible({ timeout: 30_000 });
 
     // Active printing price uses €…; unrelated promo codes should not appear.
     await expect(page.getByText(/€\d/).first()).toBeVisible();
-    await expect(page.getByText(MULTI_FAMILY_CARD.promoId, { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText(MULTI_FAMILY_CARD.promoId, { exact: true })
+    ).toHaveCount(0);
   });
 });

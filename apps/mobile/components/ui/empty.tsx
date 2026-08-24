@@ -7,10 +7,7 @@ import { Text } from './text';
 type EmptyMediaProps = React.ComponentProps<typeof View> &
   VariantProps<typeof emptyMediaVariants>;
 
-export const Empty = ({
-  className,
-  ...props
-}: React.ComponentProps<typeof View>) => {
+export const Empty = ({ className, ...props }: React.ComponentProps<typeof View>) => {
   return (
     <View
       className={cn(

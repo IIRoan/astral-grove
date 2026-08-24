@@ -19,7 +19,9 @@ describe('computeMaxCappedGridColumns', () => {
     const columns = computeMaxCappedGridColumns(available, gap, maxTileWidth);
     expect(columns).toBe(2);
     expect(tileWidthFor(available, columns)).toBeLessThanOrEqual(maxTileWidth);
-    expect(tileWidthFor(available, columns)).toBeGreaterThanOrEqual(GRID_TILE_MIN_WIDTH);
+    expect(tileWidthFor(available, columns)).toBeGreaterThanOrEqual(
+      GRID_TILE_MIN_WIDTH
+    );
   });
 
   test('medium cards keep phone catalogs around 3 columns', () => {
@@ -55,8 +57,8 @@ describe('computeMaxCappedGridColumns', () => {
   });
 
   test('does not drop below two columns on very narrow widths', () => {
-    expect(computeMaxCappedGridColumns(200, gap, resolveGridTileMaxWidth('large'))).toBe(
-      2
-    );
+    expect(
+      computeMaxCappedGridColumns(200, gap, resolveGridTileMaxWidth('large'))
+    ).toBe(2);
   });
 });

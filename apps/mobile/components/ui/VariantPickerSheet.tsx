@@ -64,11 +64,15 @@ export function VariantPickerSheet({
                 >
                   <InlineListItemTitle>{option.label}</InlineListItemTitle>
                   {option.subtitle ? (
-                    <InlineListItemDescription>{option.subtitle}</InlineListItemDescription>
+                    <InlineListItemDescription>
+                      {option.subtitle}
+                    </InlineListItemDescription>
                   ) : null}
                   {option.price ? (
                     <InlineListItemAddon align="inline-end">
-                      <Text className="text-[15px] font-bold text-success">{option.price}</Text>
+                      <Text className="text-[15px] font-bold text-success">
+                        {option.price}
+                      </Text>
                     </InlineListItemAddon>
                   ) : null}
                 </InlineListItem>

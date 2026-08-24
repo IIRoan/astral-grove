@@ -1,5 +1,8 @@
 import { join } from 'node:path';
-import { parseBunTestOutput, printTestSummary } from '../../../scripts/lib/test-summary.mjs';
+import {
+  parseBunTestOutput,
+  printTestSummary,
+} from '../../../scripts/lib/test-summary.mjs';
 
 const apiRoot = join(import.meta.dir, '..');
 

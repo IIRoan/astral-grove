@@ -1,9 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import {
-  addCardToDeck,
-  createEmptyDeck,
-  deckCardFromDetail,
-} from '@/lib/deck-card';
+import { addCardToDeck, createEmptyDeck, deckCardFromDetail } from '@/lib/deck-card';
 import { validateDeck, deckOwnershipBorderClass } from '@/lib/deck-validation';
 import type { DeckCard } from '@/lib/deck-types';
 
@@ -154,9 +150,9 @@ describe('validateDeck', () => {
     deck = addCardToDeck(deck, furyRune, { section: 'runes', count: 12 });
 
     const messages = validateDeck(deck);
-    expect(messages.some((m) => m.message.includes('Fury Rune') && m.message.includes('max'))).toBe(
-      false
-    );
+    expect(
+      messages.some((m) => m.message.includes('Fury Rune') && m.message.includes('max'))
+    ).toBe(false);
   });
 
   test('requires exactly 12 runes and 3 battlefields', () => {

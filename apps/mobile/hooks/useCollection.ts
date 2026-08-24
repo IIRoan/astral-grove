@@ -401,10 +401,10 @@ function entrySeedFromListCard(
     (isFoil === undefined
       ? undefined
       : printings.find(
-        (item) =>
-          variantNumbersMatch(item.variantNumber, variantNumber) &&
-          item.isFoil === isFoil
-      )) ??
+          (item) =>
+            variantNumbersMatch(item.variantNumber, variantNumber) &&
+            item.isFoil === isFoil
+        )) ??
     printings.find((item) => variantNumbersMatch(item.variantNumber, variantNumber)) ??
     printings[0];
   if (!printing) return null;
@@ -489,10 +489,10 @@ export function useCollectionMutations() {
         (vars.isFoil === undefined
           ? undefined
           : printings.find(
-            (p) =>
-              variantNumbersMatch(p.variantNumber, variantNumber) &&
-              p.isFoil === vars.isFoil
-          )) ??
+              (p) =>
+                variantNumbersMatch(p.variantNumber, variantNumber) &&
+                p.isFoil === vars.isFoil
+            )) ??
         printings.find((p) => variantNumbersMatch(p.variantNumber, variantNumber)) ??
         printings[0];
       const isFoil = vars.isFoil ?? printing?.isFoil ?? false;
@@ -596,11 +596,7 @@ export function useCollectionMutations() {
     onMutate: (vars) => {
       const isFoil = vars.isFoil ?? false;
       const context = beginCollectionMutation(queryClient, vars.variantNumber);
-      const previousQuantity = currentQuantity(
-        queryClient,
-        vars.variantNumber,
-        isFoil
-      );
+      const previousQuantity = currentQuantity(queryClient, vars.variantNumber, isFoil);
       applyCollectionQuantity(
         queryClient,
         vars.variantNumber,
@@ -643,11 +639,7 @@ export function useCollectionMutations() {
     onMutate: (vars) => {
       const isFoil = vars.isFoil ?? false;
       const context = beginCollectionMutation(queryClient, vars.variantNumber);
-      const previousQuantity = currentQuantity(
-        queryClient,
-        vars.variantNumber,
-        isFoil
-      );
+      const previousQuantity = currentQuantity(queryClient, vars.variantNumber, isFoil);
       const nextQuantity = previousQuantity + vars.delta;
       applyCollectionQuantity(
         queryClient,

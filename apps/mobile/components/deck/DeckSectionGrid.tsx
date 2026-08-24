@@ -57,7 +57,9 @@ function DeckGridRow({
     <View className="flex-row" style={{ gap, marginBottom: gap }}>
       {row.map((cell) => {
         if (cell.kind === 'add') {
-          return <DeckCardSlot key="add" variant="add" tileWidth={tileWidth} onAdd={onAdd} />;
+          return (
+            <DeckCardSlot key="add" variant="add" tileWidth={tileWidth} onAdd={onAdd} />
+          );
         }
 
         if (cell.kind !== 'card') {

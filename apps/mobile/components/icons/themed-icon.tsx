@@ -2,10 +2,7 @@ import type { IconWeight } from 'phosphor-react-native';
 import { useCSSVariable } from 'uniwind';
 import type { AppIcon } from '@/components/icons/styled-icon.types';
 import { appIconWeightForSize, iconPixelSize } from '@/lib/iconDefaults';
-import {
-  THEME_ICON_COLOR_VARS,
-  type ThemedIconColor,
-} from '@/lib/themeIconTokens';
+import { THEME_ICON_COLOR_VARS, type ThemedIconColor } from '@/lib/themeIconTokens';
 
 export type { ThemedIconColor } from '@/lib/themeIconTokens';
 

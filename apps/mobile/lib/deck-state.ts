@@ -9,11 +9,14 @@ export function applyDeckStateIfNewerToCache(
   incoming: DeckState | null
 ): void {
   if (!incoming) return;
-  queryClient.setQueryData<DeckState | null>(deckQueryKeys.detail(deckId), (current) => {
-    if (!current || current.id !== incoming.id) return incoming;
-    if (incoming.updatedAt > current.updatedAt) return incoming;
-    return current;
-  });
+  queryClient.setQueryData<DeckState | null>(
+    deckQueryKeys.detail(deckId),
+    (current) => {
+      if (!current || current.id !== incoming.id) return incoming;
+      if (incoming.updatedAt > current.updatedAt) return incoming;
+      return current;
+    }
+  );
 }
 
 export function setDeckDetailCache(queryClient: QueryClient, deck: DeckState): void {

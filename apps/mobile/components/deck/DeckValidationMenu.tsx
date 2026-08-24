@@ -95,9 +95,13 @@ export function DeckValidationMenu({
           )}
         />
         {showLabel ? (
-          <Text className={cn('text-[12px] font-normal', tone.ink)}>{headline.label}</Text>
+          <Text className={cn('text-[12px] font-normal', tone.ink)}>
+            {headline.label}
+          </Text>
         ) : (
-          <Text className={cn('font-mono text-[12px] font-normal tabular-nums', tone.ink)}>
+          <Text
+            className={cn('font-mono text-[12px] font-normal tabular-nums', tone.ink)}
+          >
             {messages.length}
           </Text>
         )}
@@ -118,7 +122,9 @@ export function DeckValidationMenu({
           )}
         >
           <View className="border-b border-border px-3 py-2.5">
-            <Text className="text-[13px] font-normal text-foreground">{headline.label}</Text>
+            <Text className="text-[13px] font-normal text-foreground">
+              {headline.label}
+            </Text>
             <Text className="mt-0.5 text-[12px] text-muted-foreground">
               Fix these before the list is tournament-ready.
             </Text>
@@ -135,8 +141,12 @@ export function DeckValidationMenu({
                     index < messages.length - 1 && 'border-b border-border/60'
                   )}
                 >
-                  <View className={cn('mt-1.5 size-1.5 shrink-0 rounded-[3px]', row.dot)} />
-                  <Text className={cn('min-w-0 flex-1 text-[13px] leading-snug', row.text)}>
+                  <View
+                    className={cn('mt-1.5 size-1.5 shrink-0 rounded-[3px]', row.dot)}
+                  />
+                  <Text
+                    className={cn('min-w-0 flex-1 text-[13px] leading-snug', row.text)}
+                  >
                     {message.message}
                   </Text>
                 </View>

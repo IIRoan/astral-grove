@@ -15,7 +15,8 @@ import {
 import type { CardDetail, CardListItem } from '@riftbound/contracts';
 
 function listItem(
-  overrides: Partial<CardListItem> & Pick<CardListItem, 'name' | 'variantNumber' | 'cardId'>
+  overrides: Partial<CardListItem> &
+    Pick<CardListItem, 'name' | 'variantNumber' | 'cardId'>
 ): CardListItem {
   return {
     type: 'Legend',
@@ -52,7 +53,9 @@ describe('legend catalog cache policy', () => {
   });
 
   test('defers detail hydrate after list paint', () => {
-    expect(PLAY_LEGEND_DETAIL_DEFER_MS).toBeGreaterThanOrEqual(PLAY_LEGEND_SEARCH_DEBOUNCE_MS);
+    expect(PLAY_LEGEND_DETAIL_DEFER_MS).toBeGreaterThanOrEqual(
+      PLAY_LEGEND_SEARCH_DEBOUNCE_MS
+    );
     expect(PLAY_LEGEND_DETAIL_DEFER_MS).toBeLessThanOrEqual(300);
   });
 
@@ -136,7 +139,10 @@ describe('groupLegendListItems', () => {
       }),
     ]);
 
-    expect(grouped.map((row) => row.variantNumber).sort()).toEqual(['OGN-280', 'OGN-280a']);
+    expect(grouped.map((row) => row.variantNumber).sort()).toEqual([
+      'OGN-280',
+      'OGN-280a',
+    ]);
   });
 });
 

@@ -48,18 +48,22 @@ export function createCardsRoutes(cards: CardCacheService, env: Env) {
         },
       };
     })
-    .get('/:variantNumber', { detail: { tags: ['cards'] } }, async ({ params, query, request }) => {
-      const refresh =
-        query.refresh === 'true' &&
-        isAdminAuthorization(env, request.headers.get('authorization'));
-      const result = await cards.getByVariantNumber(params.variantNumber, {
-        refresh,
-      });
-      return {
-        data: result.detail,
-        meta: { source: result.source, contentHash: result.contentHash },
-      };
-    })
+    .get(
+      '/:variantNumber',
+      { detail: { tags: ['cards'] } },
+      async ({ params, query, request }) => {
+        const refresh =
+          query.refresh === 'true' &&
+          isAdminAuthorization(env, request.headers.get('authorization'));
+        const result = await cards.getByVariantNumber(params.variantNumber, {
+          refresh,
+        });
+        return {
+          data: result.detail,
+          meta: { source: result.source, contentHash: result.contentHash },
+        };
+      }
+    )
     .post('/batch', { detail: { tags: ['cards'] } }, async ({ body }) => {
       const { variantNumbers } = parseRequest(CardsBatchRequest, body);
       const result = await cards.batchGet(variantNumbers);

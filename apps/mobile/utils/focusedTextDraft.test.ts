@@ -17,7 +17,9 @@ describe('focusedTextDraft', () => {
   });
 
   test('ignores external sync while focused so caret-stable drafts survive persist', () => {
-    const focused = focusFocusedTextDraftState(createFocusedTextDraftState('Hello World'));
+    const focused = focusFocusedTextDraftState(
+      createFocusedTextDraftState('Hello World')
+    );
     const midEdit = changeFocusedTextDraftState(focused, 'Hello Wrld');
 
     // Parent re-renders with a stale or alternate store value mid-keystroke.

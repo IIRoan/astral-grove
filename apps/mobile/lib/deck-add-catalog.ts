@@ -15,10 +15,7 @@ import {
   isLegendCard,
 } from '@/lib/deck-card';
 import { BATTLEFIELD_MAX, battlefieldsAtCapacity } from '@/lib/deck-limits';
-import {
-  getDeckIdentity,
-  isCardEligibleForSection,
-} from '@/lib/deck-eligibility';
+import { getDeckIdentity, isCardEligibleForSection } from '@/lib/deck-eligibility';
 import type { DeckCard, DeckSectionKey, DeckState } from '@/lib/deck-types';
 import {
   catalogFiltersQueryKey,
@@ -72,10 +69,11 @@ export function getDeckAddSectionMeta(
           deck.format === 'pre-rift'
             ? 'Any champion unit'
             : deck.legend
-              ? `Champion units for ${deck.legend.name}${legendChampionTags(deck.legend).length
-                ? ` · ${legendChampionTags(deck.legend).join(', ')}`
-                : ''
-              }`
+              ? `Champion units for ${deck.legend.name}${
+                  legendChampionTags(deck.legend).length
+                    ? ` · ${legendChampionTags(deck.legend).join(', ')}`
+                    : ''
+                }`
               : 'Choose a Legend first',
         requiresLegend: deck.format !== 'pre-rift',
         limit: 80,
@@ -149,10 +147,7 @@ export function defaultDeckAddCatalogFilters(
 ): CatalogFilters {
   const legendColors = deck.legend?.colors ? [...deck.legend.colors].sort() : [];
   // Pre-Rift starts open across domains; Constructed locks to legend colors when known.
-  const colorFilter =
-    deck.format === 'pre-rift'
-      ? []
-      : legendColors;
+  const colorFilter = deck.format === 'pre-rift' ? [] : legendColors;
 
   switch (section) {
     case 'mainDeck':
@@ -303,10 +298,7 @@ function detailMapFromBatch(details: CardDetail[]): Map<string, CardDetail> {
   return map;
 }
 
-function matchesDeckAddSectionType(
-  card: DeckCard,
-  section: DeckSectionKey
-): boolean {
+function matchesDeckAddSectionType(card: DeckCard, section: DeckSectionKey): boolean {
   if (section === 'champion') return isChampionUnit(card);
   if (section === 'legend') return isLegendCard(card);
   // Sideboard uses the same type pool as main deck (units/gear/spells).
@@ -314,7 +306,10 @@ function matchesDeckAddSectionType(
   return cardMatchesSectionType(card, section);
 }
 
-function cardFromListItemForSection(item: CardListItem, section: DeckSectionKey): DeckCard {
+function cardFromListItemForSection(
+  item: CardListItem,
+  section: DeckSectionKey
+): DeckCard {
   const card = deckCardFromListItem(item);
   if (section === 'champion') {
     return { ...card, super: 'Champion' };
@@ -322,7 +317,10 @@ function cardFromListItemForSection(item: CardListItem, section: DeckSectionKey)
   return card;
 }
 
-function matchesSectionFromListItem(item: CardListItem, section: DeckSectionKey): boolean {
+function matchesSectionFromListItem(
+  item: CardListItem,
+  section: DeckSectionKey
+): boolean {
   switch (section) {
     case 'legend':
       return cardHasType(item, 'legend');
@@ -367,17 +365,10 @@ export function buildDeckAddCandidates(args: {
       : cardFromListItemForSection(item, section);
 
     if (!matchesDeckAddSectionType(card, section)) continue;
-    if (
-      (section === 'mainDeck' || section === 'sideboard') &&
-      isChampionUnit(card)
-    ) {
+    if ((section === 'mainDeck' || section === 'sideboard') && isChampionUnit(card)) {
       continue;
     }
-    if (
-      section === 'sideboard' &&
-      card.isSignature &&
-      deck?.format !== 'pre-rift'
-    ) {
+    if (section === 'sideboard' && card.isSignature && deck?.format !== 'pre-rift') {
       continue;
     }
 
@@ -442,9 +433,7 @@ export function describeDeckAddEmptyState(args: {
     }
     return {
       title: 'No cards found',
-      description: search
-        ? `No cards match "${search}".`
-        : meta.placeholder,
+      description: search ? `No cards match "${search}".` : meta.placeholder,
     };
   }
 
@@ -523,7 +512,8 @@ export function filterEligibleDeckAddCards(
   candidates: DeckCard[]
 ): DeckCard[] {
   if (!deckFormatRestrictsPicker(deck.format)) return candidates;
-  return candidates.filter((candidate) =>
-    isCardEligibleForSection({ deck, section, candidateCard: candidate }).eligible
+  return candidates.filter(
+    (candidate) =>
+      isCardEligibleForSection({ deck, section, candidateCard: candidate }).eligible
   );
 }

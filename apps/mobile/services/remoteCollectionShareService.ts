@@ -13,8 +13,14 @@ import {
 import { authedFetch, parseOrThrow } from '@/src/api/authedClient';
 
 export async function fetchCollectionShareStatus(): Promise<CollectionShareStatus> {
-  const res = await authedFetch<{ data: CollectionShareStatus }>('/api/v1/collection/share');
-  return parseOrThrow('collection.share.status.parse', CollectionShareStatusResponse, res).data;
+  const res = await authedFetch<{ data: CollectionShareStatus }>(
+    '/api/v1/collection/share'
+  );
+  return parseOrThrow(
+    'collection.share.status.parse',
+    CollectionShareStatusResponse,
+    res
+  ).data;
 }
 
 export async function createCollectionShareInvite(): Promise<{
@@ -25,8 +31,11 @@ export async function createCollectionShareInvite(): Promise<{
   const res = await authedFetch<{ data: unknown }>('/api/v1/collection/share/invite', {
     method: 'POST',
   });
-  return parseOrThrow('collection.share.invite.parse', CollectionShareInviteCreateResponse, res)
-    .data;
+  return parseOrThrow(
+    'collection.share.invite.parse',
+    CollectionShareInviteCreateResponse,
+    res
+  ).data;
 }
 
 export async function revokeCollectionShareInvite(): Promise<void> {
@@ -57,12 +66,17 @@ export async function acceptCollectionShareInvite(
       body: { mode },
     }
   );
-  return parseOrThrow('collection.share.accept.parse', CollectionShareAcceptResponse, res).data;
+  return parseOrThrow(
+    'collection.share.accept.parse',
+    CollectionShareAcceptResponse,
+    res
+  ).data;
 }
 
 export async function leaveCollectionShare(): Promise<CollectionShareStatus> {
   const res = await authedFetch<{ data: unknown }>('/api/v1/collection/share/leave', {
     method: 'POST',
   });
-  return parseOrThrow('collection.share.leave.parse', CollectionShareLeaveResponse, res).data;
+  return parseOrThrow('collection.share.leave.parse', CollectionShareLeaveResponse, res)
+    .data;
 }

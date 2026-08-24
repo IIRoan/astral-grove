@@ -1,5 +1,9 @@
 import type { CardDetail, CardListItem, DeckFormat } from '@riftbound/contracts';
-import { cardHasAnyType, getDeckRules, isUnresolvedDeckVariant } from '@riftbound/contracts';
+import {
+  cardHasAnyType,
+  getDeckRules,
+  isUnresolvedDeckVariant,
+} from '@riftbound/contracts';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { findVariantByNumber } from '@/utils/variants';
 import type {

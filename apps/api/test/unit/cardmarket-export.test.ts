@@ -56,7 +56,9 @@ describe('fetchCardmarketPriceGuide', () => {
   });
 
   test('throws when Cardmarket responds with an error', async () => {
-    globalThis.fetch = mock(async () => new Response('nope', { status: 503 })) as typeof fetch;
+    globalThis.fetch = mock(
+      async () => new Response('nope', { status: 503 })
+    ) as typeof fetch;
     await expect(fetchCardmarketPriceGuide(22)).rejects.toThrow(
       'Cardmarket price guide download failed'
     );

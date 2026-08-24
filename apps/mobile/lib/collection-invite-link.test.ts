@@ -29,7 +29,9 @@ describe('collection invite link helpers', () => {
       )
     ).toBe(true);
     expect(
-      isLikelyMobileUserAgent('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36')
+      isLikelyMobileUserAgent(
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36'
+      )
     ).toBe(true);
     expect(
       isLikelyMobileUserAgent(

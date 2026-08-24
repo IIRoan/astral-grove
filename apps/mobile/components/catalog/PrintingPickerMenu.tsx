@@ -46,14 +46,19 @@ function PrintingMenuItems({
                 onOpenChange(false);
               }}
             >
-            <View className="min-w-0 flex-1 flex-row items-center gap-2">
-              <Text className="text-[13px] font-normal text-foreground" numberOfLines={1}>
-                {option.label}
-              </Text>
-            </View>
-            {option.price ? (
-              <Text className="font-mono text-xs text-muted-foreground">{option.price}</Text>
-            ) : null}
+              <View className="min-w-0 flex-1 flex-row items-center gap-2">
+                <Text
+                  className="text-[13px] font-normal text-foreground"
+                  numberOfLines={1}
+                >
+                  {option.label}
+                </Text>
+              </View>
+              {option.price ? (
+                <Text className="font-mono text-xs text-muted-foreground">
+                  {option.price}
+                </Text>
+              ) : null}
             </Pressable>
           </PopoverClose>
         );

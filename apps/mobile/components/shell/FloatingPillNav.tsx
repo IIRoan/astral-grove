@@ -79,14 +79,7 @@ export function PillNav<T extends string>({
       duration: PILL_MOTION_MS,
       easing: PILL_EASING,
     });
-  }, [
-    activeIndex,
-    indicatorWidth,
-    indicatorX,
-    reduceMotion,
-    segmentCount,
-    trackWidth,
-  ]);
+  }, [activeIndex, indicatorWidth, indicatorX, reduceMotion, segmentCount, trackWidth]);
 
   const indicatorStyle = useAnimatedStyle(() => ({
     width: indicatorWidth.value,
@@ -140,7 +133,10 @@ export function PillNav<T extends string>({
                       'h-full min-w-0 flex-row items-center gap-1.5 rounded-[3px] px-3',
                       fill ? 'flex-1' : 'shrink-0'
                     )
-                : cn('gap-0.5 rounded-[3px] px-4 py-2', fill ? 'min-w-0 flex-1' : 'min-w-[5.5rem]')
+                : cn(
+                    'gap-0.5 rounded-[3px] px-4 py-2',
+                    fill ? 'min-w-0 flex-1' : 'min-w-[5.5rem]'
+                  )
             )}
             onPress={() => {
               if (active) return;

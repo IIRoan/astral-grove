@@ -49,7 +49,9 @@ describe('deck-rules routes', () => {
   const { app } = createApp(env());
 
   test('GET /api/v1/deck-rules returns canonical rules', async () => {
-    const response = await app.handle(new Request('http://localhost/api/v1/deck-rules'));
+    const response = await app.handle(
+      new Request('http://localhost/api/v1/deck-rules')
+    );
     expect(response.status).toBe(200);
 
     const body = await response.json();
@@ -76,15 +78,20 @@ describe('deck-rules routes', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.hasErrors).toBe(true);
-    expect(body.data.messages.some((m: { code: string }) => m.code === 'missing_legend')).toBe(
-      true
-    );
+    expect(
+      body.data.messages.some((m: { code: string }) => m.code === 'missing_legend')
+    ).toBe(true);
   });
 
   test('POST /api/v1/deck-rules/validate accepts a minimal legal shell', async () => {
     const legend = deckCard({ cardId: 'legend-1', variantNumber: 'OGN-001' });
     const champion = deckCard({ cardId: 'champion-1', variantNumber: 'OGN-002' });
-    const mainCard = deckCard({ cardId: 'main-1', variantNumber: 'OGN-010', super: null, tags: [] });
+    const mainCard = deckCard({
+      cardId: 'main-1',
+      variantNumber: 'OGN-010',
+      super: null,
+      tags: [],
+    });
 
     const response = await app.handle(
       new Request('http://localhost/api/v1/deck-rules/validate', {
@@ -108,9 +115,15 @@ describe('deck-rules routes', () => {
             )
           ),
           battlefields: [
-            deckEntry(deckCard({ cardId: 'bf-1', variantNumber: 'BF-001', type: 'Battlefield' })),
-            deckEntry(deckCard({ cardId: 'bf-2', variantNumber: 'BF-002', type: 'Battlefield' })),
-            deckEntry(deckCard({ cardId: 'bf-3', variantNumber: 'BF-003', type: 'Battlefield' })),
+            deckEntry(
+              deckCard({ cardId: 'bf-1', variantNumber: 'BF-001', type: 'Battlefield' })
+            ),
+            deckEntry(
+              deckCard({ cardId: 'bf-2', variantNumber: 'BF-002', type: 'Battlefield' })
+            ),
+            deckEntry(
+              deckCard({ cardId: 'bf-3', variantNumber: 'BF-003', type: 'Battlefield' })
+            ),
           ],
           sideboard: [],
         }),

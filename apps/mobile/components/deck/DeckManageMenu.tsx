@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { ThemedIcon, CopyIcon, EllipsisVerticalIcon, TrashIcon } from '@/components/icons';
+import {
+  ThemedIcon,
+  CopyIcon,
+  EllipsisVerticalIcon,
+  TrashIcon,
+} from '@/components/icons';
 import {
   Popover,
   PopoverClose,
@@ -63,7 +68,9 @@ export function DeckManageMenu({
             sideOffset={4}
             className="z-50 min-w-[11.5rem] overflow-hidden rounded-[3px] border border-border bg-popover p-1 shadow-none"
           >
-            <Text className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Manage</Text>
+            <Text className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+              Manage
+            </Text>
 
             {onDuplicate ? (
               <PopoverClose asChild>

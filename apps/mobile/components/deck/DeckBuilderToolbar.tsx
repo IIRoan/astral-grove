@@ -1,4 +1,13 @@
-import { ThemedIcon, ChevronLeftIcon, DownloadIcon, InfoIcon, ListIcon, MenuIcon, PencilIcon, SlidersHorizontalIcon } from '@/components/icons';
+import {
+  ThemedIcon,
+  ChevronLeftIcon,
+  DownloadIcon,
+  InfoIcon,
+  ListIcon,
+  MenuIcon,
+  PencilIcon,
+  SlidersHorizontalIcon,
+} from '@/components/icons';
 import { Pressable, View } from 'react-native';
 import { DeckFormatBadge } from '@/components/deck/DeckFormatBadge';
 import { DeckManageMenu } from '@/components/deck/DeckManageMenu';
@@ -111,11 +120,7 @@ export function DeckBuilderToolbar({
           className={cn(TOOLBAR_CONTROL, infoDrawerOpen && 'border-foreground')}
           onPress={onToggleInfoDrawer}
         >
-          <ThemedIcon
-            icon={MenuIcon}
-            size={18}
-            color="foreground"
-          />
+          <ThemedIcon icon={MenuIcon} size={18} color="foreground" />
         </Pressable>
       ) : null}
     </>
@@ -176,13 +181,18 @@ export function DeckBuilderToolbar({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Open filters"
-      className={cn(TOOLBAR_CONTROL, 'relative', filterActive && 'border-foreground bg-card-panel')}
+      className={cn(
+        TOOLBAR_CONTROL,
+        'relative',
+        filterActive && 'border-foreground bg-card-panel'
+      )}
       onPress={() => {
         hapticPress();
         onOpenCatalogFilters();
       }}
     >
-      <ThemedIcon icon={SlidersHorizontalIcon}
+      <ThemedIcon
+        icon={SlidersHorizontalIcon}
         size={18}
         color={filterActive ? 'foreground' : 'muted-foreground'}
       />

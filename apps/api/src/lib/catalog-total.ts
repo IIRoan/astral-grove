@@ -1,6 +1,8 @@
 import type { FilterSnapshot } from '@riftbound/contracts';
 
-export function sumVariantTypeCounts(snapshot: Pick<FilterSnapshot, 'variants'>): number {
+export function sumVariantTypeCounts(
+  snapshot: Pick<FilterSnapshot, 'variants'>
+): number {
   return (snapshot.variants ?? []).reduce((sum, entry) => sum + entry.count, 0);
 }
 

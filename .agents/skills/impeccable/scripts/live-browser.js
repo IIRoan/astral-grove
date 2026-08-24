@@ -36,51 +36,67 @@
   // not a washed theme-adjusted one. These mirror the kit's picker
   // colors in site/styles/kinpaku-kit.css; keep them in sync by hand.
   const C = {
-    brand:     'oklch(84% 0.19 80.46)',         // kinpaku gold
-    brandHov:  'oklch(86% 0.07 84)',            // kinpaku-pale (hover lift)
-    brandSoft: 'oklch(84% 0.19 80.46 / 0.18)',  // kinpaku-dim
-    ink:       'oklch(4% 0.004 95)',            // lacquer-deep
-    ash:       'oklch(55% 0.018 82)',           // warm muted text
-    paper:     'oklch(98% 0.005 95 / 0.92)',    // light overlay on user pages
-    paperSolid:'oklch(98% 0.005 95)',
-    mist:      'oklch(90% 0.008 82 / 0.6)',     // light hairline
-    white:     'oklch(99% 0 0)',
+    brand: 'oklch(84% 0.19 80.46)', // kinpaku gold
+    brandHov: 'oklch(86% 0.07 84)', // kinpaku-pale (hover lift)
+    brandSoft: 'oklch(84% 0.19 80.46 / 0.18)', // kinpaku-dim
+    ink: 'oklch(4% 0.004 95)', // lacquer-deep
+    ash: 'oklch(55% 0.018 82)', // warm muted text
+    paper: 'oklch(98% 0.005 95 / 0.92)', // light overlay on user pages
+    paperSolid: 'oklch(98% 0.005 95)',
+    mist: 'oklch(90% 0.008 82 / 0.6)', // light hairline
+    white: 'oklch(99% 0 0)',
   };
   // Picker bar chrome - mirrors .live-demo-gbar / .live-demo-ctx in kinpaku-kit.css.
   // Quiet neutral elevation: no gold halo ring (gold is reserved for the brand
   // mark and the active control, not the container outline).
-  const PICKER_SHADOW =
-    '0 16px 36px -12px oklch(0% 0 0 / 0.6)';
+  const PICKER_SHADOW = '0 16px 36px -12px oklch(0% 0 0 / 0.6)';
   const FONT = 'system-ui, -apple-system, sans-serif';
   const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
   // z-index: detect overlays use 99999, so our UI must be above them
   const Z = { highlight: 100001, bar: 100005, picker: 100007, toast: 100010 };
   const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'; // ease-out-quint
   const PREFIX = 'impeccable-live';
-  const IMPECCABLE_COMMAND = (window.__IMPECCABLE_COMMAND_PREFIX__ || '/') + 'impeccable';
+  const IMPECCABLE_COMMAND =
+    (window.__IMPECCABLE_COMMAND_PREFIX__ || '/') + 'impeccable';
   const PICK_CURSOR_STYLE_ID = PREFIX + '-pick-cursor-style';
   const MANUAL_APPLY_STATE_TTL_MS = 15 * 60 * 1000;
-  const sessionState = window.__IMPECCABLE_LIVE_SESSION__?.createLiveBrowserSessionState({
-    prefix: PREFIX,
-    storage: localStorage,
-    idFactory: () => crypto.randomUUID().replace(/-/g, '').slice(0, 8),
-  });
+  const sessionState =
+    window.__IMPECCABLE_LIVE_SESSION__?.createLiveBrowserSessionState({
+      prefix: PREFIX,
+      storage: localStorage,
+      idFactory: () => crypto.randomUUID().replace(/-/g, '').slice(0, 8),
+    });
   if (!sessionState) {
-    console.error('[impeccable] live-browser-session.js was not loaded. Live mode cannot start safely.');
+    console.error(
+      '[impeccable] live-browser-session.js was not loaded. Live mode cannot start safely.'
+    );
     window.__IMPECCABLE_LIVE_INIT__ = false;
     return;
   }
   const HIGHLIGHT_TRANSITION =
-    'top 140ms ' + EASE +
-    ', left 140ms ' + EASE +
-    ', width 140ms ' + EASE +
-    ', height 140ms ' + EASE +
+    'top 140ms ' +
+    EASE +
+    ', left 140ms ' +
+    EASE +
+    ', width 140ms ' +
+    EASE +
+    ', height 140ms ' +
+    EASE +
     ', opacity 150ms ease';
   const TOOLTIP_TRANSITION =
     'top 140ms ' + EASE + ', left 140ms ' + EASE + ', opacity 150ms ease';
 
   const SKIP_TAGS = new Set([
-    'html', 'head', 'body', 'script', 'style', 'link', 'meta', 'noscript', 'br', 'wbr',
+    'html',
+    'head',
+    'body',
+    'script',
+    'style',
+    'link',
+    'meta',
+    'noscript',
+    'br',
+    'wbr',
   ]);
 
   // Command vocabulary (values + labels + icons) comes from the canonical source,
@@ -89,7 +105,9 @@
   // the token/port above, so it is always present here). The icons stack above
   // each chip label and recolor to C.brand when selected (strokes use
   // currentColor). ACTIONS drives the picker grid; ICONS maps value -> svg.
-  const VOCAB = Array.isArray(window.__IMPECCABLE_VOCAB__) ? window.__IMPECCABLE_VOCAB__ : [];
+  const VOCAB = Array.isArray(window.__IMPECCABLE_VOCAB__)
+    ? window.__IMPECCABLE_VOCAB__
+    : [];
   const ICONS = {};
   const ACTIONS = VOCAB.map((c) => {
     ICONS[c.value] = c.icon;
@@ -98,22 +116,68 @@
 
   const LIVE_CHROME_MOUNT_CONTRACT = ['root', 'transport', 'state', 'actions'];
   const LIVE_UI_SURFACES = [
-    { key: 'global-bottom-bar', ids: [PREFIX + '-global-bar', PREFIX + '-global-bar-brand', PREFIX + '-pick-toggle', PREFIX + '-insert-toggle', PREFIX + '-detect-toggle', PREFIX + '-detect-badge', PREFIX + '-design-toggle', PREFIX + '-page-chat', PREFIX + '-page-chat-input', PREFIX + '-page-chat-voice'] },
+    {
+      key: 'global-bottom-bar',
+      ids: [
+        PREFIX + '-global-bar',
+        PREFIX + '-global-bar-brand',
+        PREFIX + '-pick-toggle',
+        PREFIX + '-insert-toggle',
+        PREFIX + '-detect-toggle',
+        PREFIX + '-detect-badge',
+        PREFIX + '-design-toggle',
+        PREFIX + '-page-chat',
+        PREFIX + '-page-chat-input',
+        PREFIX + '-page-chat-voice',
+      ],
+    },
     { key: 'pending-copy-edit-dock', ids: [PREFIX + '-pending-dock'] },
-    { key: 'element-selection-chrome', ids: [PREFIX + '-highlight', PREFIX + '-tooltip', PREFIX + '-bar', PREFIX + '-selection-pill', PREFIX + '-input', PREFIX + '-configure-voice', PREFIX + '-configure-bar-tooltip'] },
+    {
+      key: 'element-selection-chrome',
+      ids: [
+        PREFIX + '-highlight',
+        PREFIX + '-tooltip',
+        PREFIX + '-bar',
+        PREFIX + '-selection-pill',
+        PREFIX + '-input',
+        PREFIX + '-configure-voice',
+        PREFIX + '-configure-bar-tooltip',
+      ],
+    },
     { key: 'action-picker', ids: [PREFIX + '-picker'] },
     { key: 'edit-chrome', ids: [PREFIX + '-edit-badge'] },
     { key: 'generating-row', ids: [PREFIX + '-bar', PREFIX + '-shader'] },
     { key: 'variant-cycling-row', ids: [PREFIX + '-bar', PREFIX + '-params-panel'] },
     { key: 'variant-params-panel', ids: [PREFIX + '-params-panel'] },
     { key: 'saving-confirmed-rows', ids: [PREFIX + '-bar'] },
-    { key: 'insert-mode-chrome', ids: [PREFIX + '-insert-line', PREFIX + '-insert-placeholder', PREFIX + '-placeholder-resize', PREFIX + '-insert-input', PREFIX + '-insert-voice', PREFIX + '-insert-create', PREFIX + '-insert-create-tooltip'] },
-    { key: 'annotation-chrome', ids: [PREFIX + '-annot', PREFIX + '-annot-svg', PREFIX + '-annot-pins', PREFIX + '-annot-clear'] },
+    {
+      key: 'insert-mode-chrome',
+      ids: [
+        PREFIX + '-insert-line',
+        PREFIX + '-insert-placeholder',
+        PREFIX + '-placeholder-resize',
+        PREFIX + '-insert-input',
+        PREFIX + '-insert-voice',
+        PREFIX + '-insert-create',
+        PREFIX + '-insert-create-tooltip',
+      ],
+    },
+    {
+      key: 'annotation-chrome',
+      ids: [
+        PREFIX + '-annot',
+        PREFIX + '-annot-svg',
+        PREFIX + '-annot-pins',
+        PREFIX + '-annot-clear',
+      ],
+    },
     { key: 'design-system-panel', ids: [PREFIX + '-design-host'] },
     { key: 'toasts-and-errors', ids: [PREFIX + '-toast'] },
     { key: 'css-isolation-boundary', ids: [PREFIX + '-root'] },
   ];
-  const LIVE_UI_COMPONENT_IDS = [...new Set(LIVE_UI_SURFACES.flatMap((surface) => surface.ids))];
+  const LIVE_UI_COMPONENT_IDS = [
+    ...new Set(LIVE_UI_SURFACES.flatMap((surface) => surface.ids)),
+  ];
 
   //
   // State
@@ -202,9 +266,15 @@
   // (Previously: saveSession wrote scrollY alongside state, so every call
   // during resume overwrote the pre-reload value with whatever the browser
   // had landed on, typically 0.)
-  function writeScrollY(y) { sessionState.writeScrollY(y); }
-  function readScrollY() { return sessionState.readScrollY(); }
-  function clearScrollY() { sessionState.clearScrollY(); }
+  function writeScrollY(y) {
+    sessionState.writeScrollY(y);
+  }
+  function readScrollY() {
+    return sessionState.readScrollY();
+  }
+  function clearScrollY() {
+    sessionState.clearScrollY();
+  }
 
   // Pre-empt the browser: apply manual scroll restoration and jump to the
   // saved scrollY at script-parse time. Retries on fonts.ready and load
@@ -248,7 +318,9 @@
     document,
   });
   if (!domHelpers) {
-    console.error('[impeccable] live-browser-dom.js was not loaded. Live mode cannot start safely.');
+    console.error(
+      '[impeccable] live-browser-dom.js was not loaded. Live mode cannot start safely.'
+    );
     window.__IMPECCABLE_LIVE_INIT__ = false;
     return;
   }
@@ -295,11 +367,13 @@
       mountedSvelteVariant: svelteComponentSession?.mountedVariant || 0,
       pickActive,
       pendingApplyInFlight,
-      hoveredElement: hoveredElement ? {
-        tag: hoveredElement.tagName,
-        classes: hoveredElement.className,
-        pickable: pickable(hoveredElement),
-      } : null,
+      hoveredElement: hoveredElement
+        ? {
+            tag: hoveredElement.tagName,
+            classes: hoveredElement.className,
+            pickable: pickable(hoveredElement),
+          }
+        : null,
       pendingSvelteComponentRetry: !!pendingSvelteComponentRetryObserver,
       recoveryWaitingForAnchor,
       evtSourceReadyState: evtSource ? evtSource.readyState : null,
@@ -314,11 +388,19 @@
     highlightEl = document.createElement('div');
     highlightEl.id = PREFIX + '-highlight';
     Object.assign(highlightEl.style, {
-      position: 'fixed', top: '0', left: '0', width: '0', height: '0',
-      border: '2px solid ' + C.brand, borderRadius: '3px',
-      pointerEvents: 'none', zIndex: Z.highlight, boxSizing: 'border-box',
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '0',
+      height: '0',
+      border: '2px solid ' + C.brand,
+      borderRadius: '3px',
+      pointerEvents: 'none',
+      zIndex: Z.highlight,
+      boxSizing: 'border-box',
       transition: HIGHLIGHT_TRANSITION,
-      display: 'none', opacity: '0',
+      display: 'none',
+      opacity: '0',
     });
     uiAppend(highlightEl);
 
@@ -326,11 +408,17 @@
     tooltipEl.id = PREFIX + '-tooltip';
     Object.assign(tooltipEl.style, {
       position: 'fixed',
-      background: C.ink, color: C.white,
-      fontFamily: MONO, fontSize: '10px', fontWeight: '500',
-      padding: '2px 6px', borderRadius: '3px',
-      zIndex: Z.highlight + 1, pointerEvents: 'none',
-      whiteSpace: 'nowrap', display: 'none',
+      background: C.ink,
+      color: C.white,
+      fontFamily: MONO,
+      fontSize: '10px',
+      fontWeight: '500',
+      padding: '2px 6px',
+      borderRadius: '3px',
+      zIndex: Z.highlight + 1,
+      pointerEvents: 'none',
+      whiteSpace: 'nowrap',
+      display: 'none',
       letterSpacing: '0.02em',
       transition: TOOLTIP_TRANSITION,
     });
@@ -352,11 +440,14 @@
     if (!el || !highlightEl) return;
     if (el.hasAttribute?.('data-impeccable-insert-placeholder')) return;
     const r = el.getBoundingClientRect();
-    const top = (r.top - 2) + 'px', left = (r.left - 2) + 'px';
-    const width = (r.width + 4) + 'px', height = (r.height + 4) + 'px';
+    const top = r.top - 2 + 'px',
+      left = r.left - 2 + 'px';
+    const width = r.width + 4 + 'px',
+      height = r.height + 4 + 'px';
     const showTagTooltip = shouldShowHighlightTagTooltip();
 
-    const hiWasHidden = highlightEl.style.display === 'none' || highlightEl.style.opacity === '0';
+    const hiWasHidden =
+      highlightEl.style.display === 'none' || highlightEl.style.opacity === '0';
     if (hiWasHidden) {
       // Snap to first target without animating from (0,0), then fade in.
       highlightEl.style.transition = 'none';
@@ -365,7 +456,14 @@
       highlightEl.style.transition = HIGHLIGHT_TRANSITION;
       highlightEl.style.opacity = '1';
     } else {
-      Object.assign(highlightEl.style, { top, left, width, height, display: 'block', opacity: '1' });
+      Object.assign(highlightEl.style, {
+        top,
+        left,
+        width,
+        height,
+        display: 'block',
+        opacity: '1',
+      });
     }
 
     if (!showTagTooltip) {
@@ -384,13 +482,24 @@
       tooltipEl.style.transition = TOOLTIP_TRANSITION;
       tooltipEl.style.opacity = '1';
     } else {
-      Object.assign(tooltipEl.style, { top: tipY, left: tipX, display: 'block', opacity: '1' });
+      Object.assign(tooltipEl.style, {
+        top: tipY,
+        left: tipX,
+        display: 'block',
+        opacity: '1',
+      });
     }
   }
 
   function hideHighlight() {
-    if (highlightEl) { highlightEl.style.opacity = '0'; highlightEl.style.display = 'none'; }
-    if (tooltipEl) { tooltipEl.style.opacity = '0'; tooltipEl.style.display = 'none'; }
+    if (highlightEl) {
+      highlightEl.style.opacity = '0';
+      highlightEl.style.display = 'none';
+    }
+    if (tooltipEl) {
+      tooltipEl.style.opacity = '0';
+      tooltipEl.style.display = 'none';
+    }
   }
 
   //
@@ -403,8 +512,8 @@
   // correlate directly with the captured PNG.
   //
 
-  const DRAG_THRESHOLD = 5;       // px - below this, treat pointerup as a click
-  const PIN_DBL_CLICK_MS = 300;   // two clicks on the same pin within this delete it
+  const DRAG_THRESHOLD = 5; // px - below this, treat pointerup as a click
+  const PIN_DBL_CLICK_MS = 300; // two clicks on the same pin within this delete it
   let annotOverlayEl = null;
   let annotSvgEl = null;
   let annotPinsEl = null;
@@ -415,7 +524,7 @@
   //   { kind: 'new',   x0, y0, moved, strokeEl, strokePoints }   creating a stroke/pin
   //   { kind: 'pin',   idx, startPointer, startPin, moved }     dragging an existing pin
   let annotPointer = null;
-  let annotEditing = null;        // { idx, input, wrapEl }
+  let annotEditing = null; // { idx, input, wrapEl }
   let annotLastPinClick = { idx: -1, time: 0 }; // for click-click-to-delete
   let placeholderResizeLayerEl = null;
   let placeholderResizeDrag = null;
@@ -424,27 +533,39 @@
     annotOverlayEl = document.createElement('div');
     annotOverlayEl.id = PREFIX + '-annot';
     Object.assign(annotOverlayEl.style, {
-      position: 'fixed', top: '0', left: '0', width: '0', height: '0',
-      pointerEvents: 'auto', zIndex: Z.highlight + 2,
-      display: 'none', overflow: 'visible',
-      cursor: 'crosshair', touchAction: 'none',
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '0',
+      height: '0',
+      pointerEvents: 'auto',
+      zIndex: Z.highlight + 2,
+      display: 'none',
+      overflow: 'visible',
+      cursor: 'crosshair',
+      touchAction: 'none',
     });
 
     annotSvgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     annotSvgEl.id = PREFIX + '-annot-svg';
     Object.assign(annotSvgEl.style, {
-      position: 'absolute', top: '0', left: '0',
-      width: '100%', height: '100%',
+      position: 'absolute',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
       // The SVG itself doesn't absorb clicks; individual hit-paths opt-in via
       // pointer-events=stroke so gaps still fall through to the overlay.
-      pointerEvents: 'none', overflow: 'visible',
+      pointerEvents: 'none',
+      overflow: 'visible',
     });
     annotOverlayEl.appendChild(annotSvgEl);
 
     annotPinsEl = document.createElement('div');
     annotPinsEl.id = PREFIX + '-annot-pins';
     Object.assign(annotPinsEl.style, {
-      position: 'absolute', inset: '0',
+      position: 'absolute',
+      inset: '0',
       pointerEvents: 'none',
     });
     annotOverlayEl.appendChild(annotPinsEl);
@@ -454,13 +575,22 @@
     annotClearChipEl.dataset.annotClear = 'true';
     annotClearChipEl.textContent = 'Clear';
     Object.assign(annotClearChipEl.style, {
-      position: 'absolute', top: '8px', right: '8px',
-      background: C.ink, color: C.white,
-      fontFamily: FONT, fontSize: '10px', fontWeight: '500',
-      letterSpacing: '0.08em', textTransform: 'uppercase',
-      padding: '5px 12px', borderRadius: '999px',
-      cursor: 'pointer', pointerEvents: 'auto',
-      display: 'none', userSelect: 'none',
+      position: 'absolute',
+      top: '8px',
+      right: '8px',
+      background: C.ink,
+      color: C.white,
+      fontFamily: FONT,
+      fontSize: '10px',
+      fontWeight: '500',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      padding: '5px 12px',
+      borderRadius: '999px',
+      cursor: 'pointer',
+      pointerEvents: 'auto',
+      display: 'none',
+      userSelect: 'none',
       boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
     });
     annotOverlayEl.appendChild(annotClearChipEl);
@@ -516,8 +646,10 @@
     if (!annotOverlayEl || !el) return;
     const r = el.getBoundingClientRect();
     Object.assign(annotOverlayEl.style, {
-      top: r.top + 'px', left: r.left + 'px',
-      width: r.width + 'px', height: r.height + 'px',
+      top: r.top + 'px',
+      left: r.left + 'px',
+      width: r.width + 'px',
+      height: r.height + 'px',
     });
     annotSvgEl.setAttribute('viewBox', '0 0 ' + r.width + ' ' + r.height);
     syncPlaceholderResizeHandles();
@@ -526,7 +658,8 @@
   function clearAnnotations() {
     annotState.comments = [];
     annotState.strokes = [];
-    if (annotSvgEl) while (annotSvgEl.firstChild) annotSvgEl.removeChild(annotSvgEl.firstChild);
+    if (annotSvgEl)
+      while (annotSvgEl.firstChild) annotSvgEl.removeChild(annotSvgEl.firstChild);
     if (annotPinsEl) annotPinsEl.innerHTML = '';
     annotPointer = null;
     annotEditing = null;
@@ -573,7 +706,8 @@
     if (!annotActive) return;
 
     // 0) Insert placeholder edge resize - wins over draw / pins.
-    const resizeEdge = e.target.closest?.('[data-impeccable-placeholder-resize]')?.dataset.impeccablePlaceholderResize;
+    const resizeEdge = e.target.closest?.('[data-impeccable-placeholder-resize]')
+      ?.dataset.impeccablePlaceholderResize;
     if (resizeEdge && configureKind === 'insert' && placeholderElement) {
       startPlaceholderEdgeResize(resizeEdge, e);
       return;
@@ -585,7 +719,8 @@
       clearAnnotations();
       renderAllPins();
       redrawStrokes();
-      e.stopPropagation(); e.preventDefault();
+      e.stopPropagation();
+      e.preventDefault();
       return;
     }
 
@@ -597,7 +732,8 @@
         annotState.strokes.splice(idx, 1);
         redrawStrokes();
       }
-      e.stopPropagation(); e.preventDefault();
+      e.stopPropagation();
+      e.preventDefault();
       return;
     }
 
@@ -608,12 +744,16 @@
       if (!Number.isInteger(idx)) return;
       // Double-click (two pointerdowns on the same pin within window) → delete.
       const now = Date.now();
-      if (annotLastPinClick.idx === idx && now - annotLastPinClick.time < PIN_DBL_CLICK_MS) {
+      if (
+        annotLastPinClick.idx === idx &&
+        now - annotLastPinClick.time < PIN_DBL_CLICK_MS
+      ) {
         if (annotEditing && annotEditing.idx === idx) annotEditing = null;
         annotState.comments.splice(idx, 1);
         annotLastPinClick = { idx: -1, time: 0 };
         renderAllPins();
-        e.stopPropagation(); e.preventDefault();
+        e.stopPropagation();
+        e.preventDefault();
         return;
       }
       annotLastPinClick = { idx, time: now };
@@ -625,26 +765,41 @@
       const p = localCoords(e);
       const pin = annotState.comments[idx];
       annotPointer = {
-        kind: 'pin', idx,
+        kind: 'pin',
+        idx,
         startPointer: p,
         startPin: { x: pin.x, y: pin.y },
         moved: false,
       };
-      try { annotOverlayEl.setPointerCapture(e.pointerId); } catch {}
-      e.stopPropagation(); e.preventDefault();
+      try {
+        annotOverlayEl.setPointerCapture(e.pointerId);
+      } catch {}
+      e.stopPropagation();
+      e.preventDefault();
       return;
     }
 
     // 4) Empty area → commit any open edit, then start new annotation
     if (annotEditing) {
       finalizeEditingPin();
-      e.stopPropagation(); e.preventDefault();
+      e.stopPropagation();
+      e.preventDefault();
       return;
     }
     const p = localCoords(e);
-    annotPointer = { kind: 'new', x0: p.x, y0: p.y, moved: false, strokeEl: null, strokePoints: null };
-    try { annotOverlayEl.setPointerCapture(e.pointerId); } catch {}
-    e.stopPropagation(); e.preventDefault();
+    annotPointer = {
+      kind: 'new',
+      x0: p.x,
+      y0: p.y,
+      moved: false,
+      strokeEl: null,
+      strokePoints: null,
+    };
+    try {
+      annotOverlayEl.setPointerCapture(e.pointerId);
+    } catch {}
+    e.stopPropagation();
+    e.preventDefault();
   }
 
   function onAnnotMove(e) {
@@ -657,7 +812,7 @@
         d.edge,
         e.clientX - d.startX,
         e.clientY - d.startY,
-        d.parentWidth,
+        d.parentWidth
       );
       applyPlaceholderDimensions(next);
       e.stopPropagation();
@@ -675,7 +830,10 @@
         annotPointer.moved = true;
       }
       const pin = annotState.comments[annotPointer.idx];
-      if (!pin) { annotPointer = null; return; }
+      if (!pin) {
+        annotPointer = null;
+        return;
+      }
       pin.x = annotPointer.startPin.x + dx;
       pin.y = annotPointer.startPin.y + dy;
       renderAllPins();
@@ -684,7 +842,8 @@
     }
 
     // kind === 'new'
-    const dx = p.x - annotPointer.x0, dy = p.y - annotPointer.y0;
+    const dx = p.x - annotPointer.x0,
+      dy = p.y - annotPointer.y0;
     if (!annotPointer.moved) {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       annotPointer.moved = true;
@@ -715,7 +874,9 @@
 
   function onAnnotUp(e) {
     if (placeholderResizeDrag) {
-      try { annotOverlayEl.releasePointerCapture(e.pointerId); } catch {}
+      try {
+        annotOverlayEl.releasePointerCapture(e.pointerId);
+      } catch {}
       placeholderResizeDrag = null;
       e.stopPropagation();
       return;
@@ -725,7 +886,9 @@
     if (annotPointer.kind === 'pin') {
       const wasDrag = annotPointer.moved;
       const idx = annotPointer.idx;
-      try { annotOverlayEl.releasePointerCapture(e.pointerId); } catch {}
+      try {
+        annotOverlayEl.releasePointerCapture(e.pointerId);
+      } catch {}
       annotPointer = null;
       if (wasDrag) {
         // A drag is an intentional reposition; a follow-up click shouldn't be
@@ -750,7 +913,9 @@
       renderAllPins();
       beginEditPin(idx);
     }
-    try { annotOverlayEl.releasePointerCapture(e.pointerId); } catch {}
+    try {
+      annotOverlayEl.releasePointerCapture(e.pointerId);
+    } catch {}
     annotPointer = null;
     if (configureKind === 'insert') syncInsertCreateButton();
     e.stopPropagation();
@@ -770,16 +935,22 @@
     if (interactive) wrap.dataset.annotPin = String(idx);
     Object.assign(wrap.style, {
       position: 'absolute',
-      left: (comment.x - 7) + 'px', top: (comment.y - 7) + 'px',
+      left: comment.x - 7 + 'px',
+      top: comment.y - 7 + 'px',
       pointerEvents: interactive ? 'auto' : 'none',
-      display: 'flex', alignItems: 'flex-start', gap: '6px',
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '6px',
       cursor: interactive ? 'grab' : 'default',
       touchAction: 'none',
     });
     const dot = document.createElement('div');
     Object.assign(dot.style, {
-      width: '14px', height: '14px', borderRadius: '50%',
-      background: C.brand, border: '2px solid ' + C.white,
+      width: '14px',
+      height: '14px',
+      borderRadius: '50%',
+      background: C.brand,
+      border: '2px solid ' + C.white,
       boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
       flexShrink: '0',
     });
@@ -789,11 +960,17 @@
       const bubble = document.createElement('div');
       bubble.textContent = comment.text;
       Object.assign(bubble.style, {
-        background: C.ink, color: C.white,
-        fontFamily: FONT, fontSize: '12px', lineHeight: '1.4',
-        padding: '4px 8px', borderRadius: '3px',
-        marginTop: '-2px', maxWidth: '220px',
-        pointerEvents: 'none', whiteSpace: 'pre-wrap',
+        background: C.ink,
+        color: C.white,
+        fontFamily: FONT,
+        fontSize: '12px',
+        lineHeight: '1.4',
+        padding: '4px 8px',
+        borderRadius: '3px',
+        marginTop: '-2px',
+        maxWidth: '220px',
+        pointerEvents: 'none',
+        whiteSpace: 'pre-wrap',
         wordBreak: 'break-word',
       });
       wrap.appendChild(bubble);
@@ -805,17 +982,23 @@
     const wrapEl = annotPinsEl.querySelector('[data-annot-pin="' + idx + '"]');
     if (!wrapEl) return;
     // Strip any existing bubble (but keep the dot)
-    wrapEl.querySelectorAll('div:not(:first-child)').forEach(n => n.remove());
+    wrapEl.querySelectorAll('div:not(:first-child)').forEach((n) => n.remove());
     const input = document.createElement('input');
     input.type = 'text';
     input.placeholder = 'Note…';
     Object.assign(input.style, {
-      background: C.ink, color: C.white,
-      fontFamily: FONT, fontSize: '12px', lineHeight: '1.4',
-      padding: '4px 8px', borderRadius: '3px',
+      background: C.ink,
+      color: C.white,
+      fontFamily: FONT,
+      fontSize: '12px',
+      lineHeight: '1.4',
+      padding: '4px 8px',
+      borderRadius: '3px',
       border: '1px solid ' + C.brand,
-      outline: 'none', marginTop: '-2px',
-      width: '220px', pointerEvents: 'auto',
+      outline: 'none',
+      marginTop: '-2px',
+      width: '220px',
+      pointerEvents: 'auto',
     });
     const originalText = annotState.comments[idx].text || '';
     input.value = originalText;
@@ -828,18 +1011,20 @@
       if (annotEditing && annotEditing.input === input) finalizeEditingPin();
     });
     // Stop clicks/pointerdowns inside the input from bubbling to the overlay
-    ['pointerdown', 'click'].forEach(ev => {
-      input.addEventListener(ev, e => e.stopPropagation());
+    ['pointerdown', 'click'].forEach((ev) => {
+      input.addEventListener(ev, (e) => e.stopPropagation());
     });
     setTimeout(() => input.focus(), 0);
   }
 
   function onAnnotInputKey(e) {
     if (e.key === 'Enter') {
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
       finalizeEditingPin();
     } else if (e.key === 'Escape') {
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
       cancelEditingPin();
     } else {
       // Keep arrows / backspace from hitting global handlers
@@ -881,16 +1066,24 @@
     if (comments.length === 0 && strokes.length === 0) return null;
     const wrap = document.createElement('div');
     Object.assign(wrap.style, {
-      position: 'absolute', top: '0', left: '0',
-      width: rect.width + 'px', height: rect.height + 'px',
-      pointerEvents: 'none', overflow: 'visible',
+      position: 'absolute',
+      top: '0',
+      left: '0',
+      width: rect.width + 'px',
+      height: rect.height + 'px',
+      pointerEvents: 'none',
+      overflow: 'visible',
     });
     if (strokes.length > 0) {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('viewBox', '0 0 ' + rect.width + ' ' + rect.height);
       Object.assign(svg.style, {
-        position: 'absolute', top: '0', left: '0',
-        width: '100%', height: '100%', overflow: 'visible',
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        overflow: 'visible',
       });
       for (const s of strokes) {
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -918,10 +1111,16 @@
   function stripManualEditRuntimeState(root) {
     if (!root || root.nodeType !== 1) return;
     unwrapMixedContentTextNodes(root);
-    const nodes = [root, ...root.querySelectorAll('[data-impeccable-editable], [data-impeccable-original-text], [data-impeccable-text-wrap]')];
+    const nodes = [
+      root,
+      ...root.querySelectorAll(
+        '[data-impeccable-editable], [data-impeccable-original-text], [data-impeccable-text-wrap]'
+      ),
+    ];
     for (const node of nodes) {
-      const runtimeEditable = node.hasAttribute('data-impeccable-editable')
-        || node.hasAttribute('data-impeccable-original-text');
+      const runtimeEditable =
+        node.hasAttribute('data-impeccable-editable') ||
+        node.hasAttribute('data-impeccable-original-text');
       node.removeAttribute('data-impeccable-editable');
       node.removeAttribute('data-impeccable-original-text');
       node.removeAttribute('data-impeccable-text-wrap');
@@ -952,48 +1151,68 @@
     for (const sheet of document.styleSheets) {
       try {
         for (const rule of sheet.cssRules) {
-          if (rule.style) for (let i = 0; i < rule.style.length; i++) {
-            const p = rule.style[i];
-            if (p.startsWith('--') && !props[p]) {
-              const v = cs.getPropertyValue(p).trim();
-              if (v) props[p] = v;
+          if (rule.style)
+            for (let i = 0; i < rule.style.length; i++) {
+              const p = rule.style[i];
+              if (p.startsWith('--') && !props[p]) {
+                const v = cs.getPropertyValue(p).trim();
+                if (v) props[p] = v;
+              }
             }
-          }
         }
-      } catch { /* cross-origin */ }
+      } catch {
+        /* cross-origin */
+      }
     }
     return {
-      tagName: el.tagName.toLowerCase(), id: el.id || null,
+      tagName: el.tagName.toLowerCase(),
+      id: el.id || null,
       classes: [...el.classList],
       textContent: (el.textContent || '').slice(0, 500),
       outerHTML: sanitizedContextOuterHTML(el, 10000),
       computedStyles: {
-        'font-family': cs.fontFamily, 'font-size': cs.fontSize,
-        'font-weight': cs.fontWeight, 'line-height': cs.lineHeight,
-        'color': cs.color, 'background': cs.background,
+        'font-family': cs.fontFamily,
+        'font-size': cs.fontSize,
+        'font-weight': cs.fontWeight,
+        'line-height': cs.lineHeight,
+        color: cs.color,
+        background: cs.background,
         'background-color': cs.backgroundColor,
-        'padding': cs.padding, 'margin': cs.margin,
-        'display': cs.display, 'position': cs.position,
-        'gap': cs.gap, 'border-radius': cs.borderRadius,
+        padding: cs.padding,
+        margin: cs.margin,
+        display: cs.display,
+        position: cs.position,
+        gap: cs.gap,
+        'border-radius': cs.borderRadius,
         'box-shadow': cs.boxShadow,
       },
       cssCustomProperties: props,
       parentContext: el.parentElement
-        ? '<' + el.parentElement.tagName.toLowerCase()
-          + (el.parentElement.id ? ' id="' + el.parentElement.id + '"' : '')
-          + (el.parentElement.className ? ' class="' + el.parentElement.className + '"' : '')
-          + '>'
+        ? '<' +
+          el.parentElement.tagName.toLowerCase() +
+          (el.parentElement.id ? ' id="' + el.parentElement.id + '"' : '') +
+          (el.parentElement.className
+            ? ' class="' + el.parentElement.className + '"'
+            : '') +
+          '>'
         : null,
       boundingRect: { width: Math.round(r.width), height: Math.round(r.height) },
     };
   }
 
-  const MANUAL_CONTEXT_SKIP = { script: 1, style: 1, template: 1, noscript: 1, svg: 1, code: 1, pre: 1 };
+  const MANUAL_CONTEXT_SKIP = {
+    script: 1,
+    style: 1,
+    template: 1,
+    noscript: 1,
+    svg: 1,
+    code: 1,
+    pre: 1,
+  };
 
   function contextElementForManualEdit(selectedEl, rows, ops) {
     if (!selectedEl) return selectedEl;
-    const leafOnly =
-      rows && rows.length === 1 && rows[0] && rows[0].el === selectedEl;
+    const leafOnly = rows && rows.length === 1 && rows[0] && rows[0].el === selectedEl;
     if (!leafOnly) return selectedEl;
 
     const editedTexts = new Set();
@@ -1005,7 +1224,12 @@
 
     let cur = selectedEl.parentElement;
     let depth = 0;
-    while (cur && cur !== document.body && cur !== document.documentElement && depth < 4) {
+    while (
+      cur &&
+      cur !== document.body &&
+      cur !== document.documentElement &&
+      depth < 4
+    ) {
       if (own(cur)) break;
       if (isUsefulManualEditContext(cur, selectedEl, editedTexts)) return cur;
       cur = cur.parentElement;
@@ -1016,7 +1240,12 @@
 
   function isUsefulManualEditContext(candidate, leafEl, editedTexts) {
     if (!candidate || !candidate.contains(leafEl)) return false;
-    if (!candidate.id && candidate.classList.length === 0 && candidate.children.length < 2) return false;
+    if (
+      !candidate.id &&
+      candidate.classList.length === 0 &&
+      candidate.children.length < 2
+    )
+      return false;
     return collectManualContextPieces(candidate, editedTexts).length > 0;
   }
 
@@ -1051,7 +1280,9 @@
   }
 
   function normalizeManualContextText(value) {
-    return String(value || '').replace(/\s+/g, ' ').trim();
+    return String(value || '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   //
@@ -1067,8 +1298,10 @@
   // the Tune popover opens below the bar, a downward shadow lands on the
   // dark popover and reads as a bright ghost line. We swap to UP-only while
   // tune is open below so the popover's top edge is clean.
-  const BAR_SHADOW_DEFAULT = '0 4px 20px oklch(0% 0 0 / 0.08), 0 1px 3px oklch(0% 0 0 / 0.06)';
-  const BAR_SHADOW_UP = '0 -4px 20px oklch(0% 0 0 / 0.08), 0 -1px 3px oklch(0% 0 0 / 0.06)';
+  const BAR_SHADOW_DEFAULT =
+    '0 4px 20px oklch(0% 0 0 / 0.08), 0 1px 3px oklch(0% 0 0 / 0.06)';
+  const BAR_SHADOW_UP =
+    '0 -4px 20px oklch(0% 0 0 / 0.08), 0 -1px 3px oklch(0% 0 0 / 0.06)';
   const BAR_SHADOW_DOWN = BAR_SHADOW_DEFAULT;
 
   function initBar() {
@@ -1076,18 +1309,24 @@
     barEl = document.createElement('div');
     barEl.id = PREFIX + '-bar';
     Object.assign(barEl.style, {
-      position: 'fixed', zIndex: Z.bar,
-      display: 'none', opacity: '0',
+      position: 'fixed',
+      zIndex: Z.bar,
+      display: 'none',
+      opacity: '0',
       transform: 'translateY(6px)',
       transition: 'opacity 0.25s ' + EASE + ', transform 0.3s ' + EASE,
       background: BP.surface,
       border: '1px solid ' + BP.border,
       borderRadius: '8px',
       boxShadow: BP.shadow,
-      transition: 'box-shadow 0.2s ease, opacity 0.25s ' + EASE + ', transform 0.3s ' + EASE,
-      fontFamily: FONT, fontSize: '13px', color: BP.text,
+      transition:
+        'box-shadow 0.2s ease, opacity 0.25s ' + EASE + ', transform 0.3s ' + EASE,
+      fontFamily: FONT,
+      fontSize: '13px',
+      color: BP.text,
       padding: '5px',
-      maxWidth: '560px', minWidth: '340px',
+      maxWidth: '560px',
+      minWidth: '340px',
     });
     uiAppend(barEl);
     defangOutsideHandlers(barEl);
@@ -1105,9 +1344,10 @@
     // stacking a duplicate toast in the same slot.
     if (recoveryWaitingForAnchor) {
       const barRect = globalBarEl?.getBoundingClientRect();
-      const reserve = barRect && barRect.height > 0
-        ? Math.max(GLOBAL_BAR_RESERVE, window.innerHeight - barRect.top + 12)
-        : GLOBAL_BAR_RESERVE;
+      const reserve =
+        barRect && barRect.height > 0
+          ? Math.max(GLOBAL_BAR_RESERVE, window.innerHeight - barRect.top + 12)
+          : GLOBAL_BAR_RESERVE;
       const top = window.innerHeight - barH - reserve;
       const left = Math.max(GAP, (window.innerWidth - barW) / 2);
       Object.assign(barEl.style, { top: top + 'px', left: left + 'px' });
@@ -1143,7 +1383,9 @@
     if (mode === 'cycling' && !ensureCyclingRenderable('show-bar')) return;
     barEl.innerHTML = '';
     if (mode === 'configure') {
-      barEl.appendChild(configureKind === 'insert' ? buildInsertConfigureRow() : buildConfigureRow());
+      barEl.appendChild(
+        configureKind === 'insert' ? buildInsertConfigureRow() : buildConfigureRow()
+      );
       if (configureKind === 'insert') syncInsertCreateButton();
       applyConfigureBarChrome();
     } else {
@@ -1170,7 +1412,10 @@
     barEl.style.opacity = '0';
     barEl.style.transform = instant ? 'translateY(0)' : 'translateY(6px)';
     if (instant) barEl.style.display = 'none';
-    else setTimeout(() => { if (barEl && hideSeq === barHideSeq) barEl.style.display = 'none'; }, 250);
+    else
+      setTimeout(() => {
+        if (barEl && hideSeq === barHideSeq) barEl.style.display = 'none';
+      }, 250);
     hideActionPicker();
     closeTunePopover();
     hideConfigureBarTooltip();
@@ -1183,7 +1428,9 @@
     if (mode === 'cycling' && !ensureCyclingRenderable('update-bar')) return;
     barEl.innerHTML = '';
     if (mode === 'configure') {
-      barEl.appendChild(configureKind === 'insert' ? buildInsertConfigureRow() : buildConfigureRow());
+      barEl.appendChild(
+        configureKind === 'insert' ? buildInsertConfigureRow() : buildConfigureRow()
+      );
       if (configureKind === 'insert') syncInsertCreateButton();
       applyConfigureBarChrome();
     } else {
@@ -1248,7 +1495,9 @@
     surface.dataset.voiceListening = listening ? 'true' : 'false';
     surface.style.borderColor = listening
       ? BP.patinaSoft
-      : (focused ? BP.accentSoft : BP.border);
+      : focused
+        ? BP.accentSoft
+        : BP.border;
     surface.style.boxShadow = BP.shadow;
   }
 
@@ -1268,9 +1517,13 @@
 
   function configureInputFieldStyle(extra = {}) {
     return {
-      flex: '1', minWidth: '0', width: '100%',
-      padding: '0', margin: '0',
-      border: 'none', background: 'transparent',
+      flex: '1',
+      minWidth: '0',
+      width: '100%',
+      padding: '0',
+      margin: '0',
+      border: 'none',
+      background: 'transparent',
       boxSizing: 'border-box',
       height: CONFIGURE_ROW_TRACK_H,
       color: CONFIGURE_PILL_TEXT,
@@ -1283,8 +1536,12 @@
 
   function configureInputShellStyle() {
     return {
-      display: 'flex', alignItems: 'center', gap: '6px',
-      flex: '1', minWidth: '0', height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      flex: '1',
+      minWidth: '0',
+      height: '100%',
       padding: '0 6px 0 ' + CONFIGURE_BAR_INSET,
     };
   }
@@ -1292,8 +1549,12 @@
   function configureSelectionPillStyle(extra = {}) {
     const P = configureBarPalette();
     return {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      gap: '2px', height: 'auto', flexShrink: '0',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '2px',
+      height: 'auto',
+      flexShrink: '0',
       padding: CONFIGURE_SELECTION_PILL_PAD,
       boxSizing: 'border-box',
       border: CONFIGURE_SELECTION_PILL_BORDER,
@@ -1304,7 +1565,9 @@
       transition: 'background 0.15s ease, color 0.15s ease, border-color 0.15s ease',
       whiteSpace: 'nowrap',
       ...configureRowTextMetrics({
-        fontFamily: MONO, fontWeight: '600', letterSpacing: '-0.01em',
+        fontFamily: MONO,
+        fontWeight: '600',
+        letterSpacing: '-0.01em',
       }),
       ...extra,
     };
@@ -1313,14 +1576,20 @@
   function configureModifierPillStyle(extra = {}) {
     const P = configureBarPalette();
     return {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      gap: '2px', height: 'auto', minHeight: CONFIGURE_ROW_TRACK_H,
-      padding: CONFIGURE_PILL_PAD_Y + ' 8px', flexShrink: '0',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '2px',
+      height: 'auto',
+      minHeight: CONFIGURE_ROW_TRACK_H,
+      padding: CONFIGURE_PILL_PAD_Y + ' 8px',
+      flexShrink: '0',
       boxSizing: 'border-box',
       border: '1px solid transparent',
       borderRadius: CONFIGURE_PILL_RADIUS,
       background: 'transparent',
-      color: P.textDim, cursor: 'pointer',
+      color: P.textDim,
+      cursor: 'pointer',
       transition: 'background 0.15s ease, color 0.15s ease, border-color 0.15s ease',
       whiteSpace: 'nowrap',
       ...configureRowTextMetrics(),
@@ -1331,13 +1600,20 @@
   function configureInlineControlStyle(extra = {}) {
     const P = configureBarPalette();
     return {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      gap: '2px', height: CONFIGURE_ROW_TRACK_H, flexShrink: '0',
-      padding: '0', margin: '0',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '2px',
+      height: CONFIGURE_ROW_TRACK_H,
+      flexShrink: '0',
+      padding: '0',
+      margin: '0',
       boxSizing: 'border-box',
-      border: 'none', borderRadius: '0',
+      border: 'none',
+      borderRadius: '0',
       background: 'transparent',
-      color: P.textDim, cursor: 'pointer',
+      color: P.textDim,
+      cursor: 'pointer',
       transition: 'color 0.12s ease, background 0.12s ease',
       whiteSpace: 'nowrap',
       ...configureRowTextMetrics(),
@@ -1412,7 +1688,10 @@
     const r = anchor.getBoundingClientRect();
     const tipW = tip.offsetWidth;
     const tipH = tip.offsetHeight;
-    const left = Math.max(8, Math.min(window.innerWidth - tipW - 8, r.left + r.width / 2 - tipW / 2));
+    const left = Math.max(
+      8,
+      Math.min(window.innerWidth - tipW - 8, r.left + r.width / 2 - tipW / 2)
+    );
     const top = Math.max(8, r.top - tipH - 8);
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
@@ -1437,7 +1716,8 @@
     while (node && node.nodeType === 1 && node !== document.body) {
       let part = node.tagName.toLowerCase();
       if (node.id) part += '#' + node.id;
-      else if (node.classList?.length) part += '.' + [...node.classList].slice(0, 2).join('.');
+      else if (node.classList?.length)
+        part += '.' + [...node.classList].slice(0, 2).join('.');
       parts.unshift(part);
       node = node.parentElement;
       if (parts.length >= maxDepth) break;
@@ -1475,8 +1755,10 @@
     pill.style.flexShrink = '0';
 
     const faceStack = el('span', {
-      display: 'grid', placeItems: 'center',
-      width: '100%', minWidth: '1.25em',
+      display: 'grid',
+      placeItems: 'center',
+      width: '100%',
+      minWidth: '1.25em',
       lineHeight: CONFIGURE_ROW_TRACK_H,
     });
     const tagFace = el('span', {
@@ -1501,7 +1783,10 @@
       clearFace.style.opacity = armed ? '1' : '0';
       pill.style.background = armed ? P.toggleActive : 'transparent';
       pill.style.border = CONFIGURE_SELECTION_PILL_BORDER;
-      pill.setAttribute('aria-label', armed ? 'Clear selection' : 'Selected element: ' + tag);
+      pill.setAttribute(
+        'aria-label',
+        armed ? 'Clear selection' : 'Selected element: ' + tag
+      );
     };
     const arm = () => {
       if (controlsLocked) {
@@ -1521,7 +1806,10 @@
     pill.addEventListener('blur', disarm);
     pill.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (controlsLocked) { showManualApplyBusyToast(); return; }
+      if (controlsLocked) {
+        showManualApplyBusyToast();
+        return;
+      }
       removeConfigureSelection();
     });
     return pill;
@@ -1544,8 +1832,10 @@
     const label = document.createElement('span');
     label.textContent = actionLabel();
     const caret = el('span', {
-      fontSize: '10px', lineHeight: '1',
-      marginLeft: '2px', pointerEvents: 'none',
+      fontSize: '10px',
+      lineHeight: '1',
+      marginLeft: '2px',
+      pointerEvents: 'none',
       color: 'inherit',
     });
     caret.textContent = '\u25BE';
@@ -1570,9 +1860,14 @@
   }
 
   function buildConfigureCountControl({ controlsLocked, onClick }) {
-    const count = el('button', configureInlineControlStyle({
-      fontFamily: MONO, fontWeight: '600', letterSpacing: '0',
-    }));
+    const count = el(
+      'button',
+      configureInlineControlStyle({
+        fontFamily: MONO,
+        fontWeight: '600',
+        letterSpacing: '0',
+      })
+    );
     count.textContent = '\u00D7' + selectedCount;
     count.disabled = controlsLocked;
     count.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
@@ -1585,13 +1880,21 @@
 
   function buildConfigureVoiceButton({ id, controlsLocked, onClick }) {
     const voiceBtn = el('button', {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       boxSizing: 'border-box',
-      width: CONFIGURE_BAR_H, height: '100%', flexShrink: '0',
-      padding: '0', margin: '0',
-      border: 'none', borderRight: '1px solid ' + BP.hairline,
-      borderRadius: '0', background: 'transparent',
-      color: BP.textDim, cursor: 'pointer',
+      width: CONFIGURE_BAR_H,
+      height: '100%',
+      flexShrink: '0',
+      padding: '0',
+      margin: '0',
+      border: 'none',
+      borderRight: '1px solid ' + BP.hairline,
+      borderRadius: '0',
+      background: 'transparent',
+      color: BP.textDim,
+      cursor: 'pointer',
       transition: 'color 0.12s ease, background 0.12s ease',
     });
     voiceBtn.id = id;
@@ -1608,13 +1911,20 @@
 
   function buildConfigureTrailingCluster(controls, voiceBtn, submitBtn) {
     const cluster = el('div', {
-      display: 'inline-flex', alignItems: 'stretch', flexShrink: '0',
-      height: '100%', borderLeft: '1px solid ' + BP.hairline,
+      display: 'inline-flex',
+      alignItems: 'stretch',
+      flexShrink: '0',
+      height: '100%',
+      borderLeft: '1px solid ' + BP.hairline,
     });
     if (controls.length) {
       const controlsWrap = el('div', {
-        display: 'inline-flex', alignItems: 'center', gap: '8px',
-        padding: '0 10px', flexShrink: '0', height: '100%',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '0 10px',
+        flexShrink: '0',
+        height: '100%',
       });
       controls.forEach((control) => controlsWrap.appendChild(control));
       cluster.appendChild(controlsWrap);
@@ -1627,12 +1937,19 @@
 
   function buildConfigureSubmitButton({ controlsLocked, onClick, ariaLabel }) {
     const btn = el('button', {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      boxSizing: 'border-box', width: CONFIGURE_BAR_H, height: CONFIGURE_BAR_H,
-      padding: '0', flexShrink: '0',
-      border: 'none', borderLeft: '1px solid ' + BP.hairline,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxSizing: 'border-box',
+      width: CONFIGURE_BAR_H,
+      height: CONFIGURE_BAR_H,
+      padding: '0',
+      flexShrink: '0',
+      border: 'none',
+      borderLeft: '1px solid ' + BP.hairline,
       borderRadius: '0',
-      background: BP.accent, color: C.ink,
+      background: BP.accent,
+      color: C.ink,
       cursor: controlsLocked ? 'not-allowed' : 'pointer',
       transition: 'filter 0.12s ease, transform 0.1s ease',
     });
@@ -1642,10 +1959,14 @@
     btn.disabled = controlsLocked;
     btn.style.opacity = controlsLocked ? '0.58' : '1';
     if (controlsLocked) btn.title = 'Apply is still running';
-    btn.addEventListener('mouseenter', () => { if (!controlsLocked) btn.style.filter = 'brightness(1.1)'; });
-    btn.addEventListener('mouseleave', () => btn.style.filter = 'none');
-    btn.addEventListener('mousedown', () => { if (!controlsLocked) btn.style.transform = 'scale(0.97)'; });
-    btn.addEventListener('mouseup', () => btn.style.transform = 'scale(1)');
+    btn.addEventListener('mouseenter', () => {
+      if (!controlsLocked) btn.style.filter = 'brightness(1.1)';
+    });
+    btn.addEventListener('mouseleave', () => (btn.style.filter = 'none'));
+    btn.addEventListener('mousedown', () => {
+      if (!controlsLocked) btn.style.transform = 'scale(0.97)';
+    });
+    btn.addEventListener('mouseup', () => (btn.style.transform = 'scale(1)'));
     btn.addEventListener('click', onClick);
     return btn;
   }
@@ -1702,7 +2023,9 @@
 
   function groupSiblingRows(siblings, rowThreshold) {
     rowThreshold = rowThreshold ?? 8;
-    const sorted = [...siblings].sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left);
+    const sorted = [...siblings].sort(
+      (a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left
+    );
     const rows = [];
     for (const entry of sorted) {
       let placed = false;
@@ -1751,12 +2074,20 @@
           anchor: b.el,
           position: 'before',
           axis: 'row',
-          line: { axis: 'row', left: (aRight + bLeft) / 2, top, width: 0, height: span },
+          line: {
+            axis: 'row',
+            left: (aRight + bLeft) / 2,
+            top,
+            width: 0,
+            height: span,
+          },
         };
       }
     }
 
-    const sortedCol = [...siblings].sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left);
+    const sortedCol = [...siblings].sort(
+      (a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left
+    );
     for (let i = 0; i < sortedCol.length - 1; i++) {
       const a = sortedCol[i];
       const b = sortedCol[i + 1];
@@ -1775,7 +2106,13 @@
         anchor: b.el,
         position: 'before',
         axis: 'column',
-        line: { axis: 'column', top: (gapTop + gapBottom) / 2, left: overlapLeft, width: overlap, height: 0 },
+        line: {
+          axis: 'column',
+          top: (gapTop + gapBottom) / 2,
+          left: overlapLeft,
+          width: overlap,
+          height: 0,
+        },
       };
     }
     return null;
@@ -1808,9 +2145,10 @@
     const w = Number.isFinite(parentWidth) ? parentWidth : 0;
     if (axis === 'row') {
       if (display.includes('flex')) {
-        const flex = anchorFlex && anchorFlex !== 'none' && anchorFlex !== '0 1 auto'
-          ? anchorFlex
-          : '1 1 0';
+        const flex =
+          anchorFlex && anchorFlex !== 'none' && anchorFlex !== '0 1 auto'
+            ? anchorFlex
+            : '1 1 0';
         return { kind: 'flex', flex, minWidth: 0 };
       }
       if (display === 'grid' || display === 'inline-grid') return { kind: 'auto' };
@@ -1858,9 +2196,9 @@
   function canCreateInsert({ prompt, comments, strokes }) {
     const hasPrompt = typeof prompt === 'string' && prompt.trim().length > 0;
     const hasComments = Array.isArray(comments) && comments.length > 0;
-    const hasStrokes = Array.isArray(strokes) && strokes.some(
-      (s) => Array.isArray(s?.points) && s.points.length >= 2,
-    );
+    const hasStrokes =
+      Array.isArray(strokes) &&
+      strokes.some((s) => Array.isArray(s?.points) && s.points.length >= 2);
     return hasPrompt || hasComments || hasStrokes;
   }
 
@@ -1901,7 +2239,8 @@
     }
     const clamped = clampPlaceholderSize(base.width, base.height, parentWidth);
     if (edge === 'w') base.marginLeft = start.marginLeft + start.width - clamped.width;
-    else if (edge === 'n') base.marginTop = start.marginTop + start.height - clamped.height;
+    else if (edge === 'n')
+      base.marginTop = start.marginTop + start.height - clamped.height;
     return {
       width: clamped.width,
       height: clamped.height,
@@ -1992,9 +2331,15 @@
       (document.head || document.documentElement).appendChild(style);
     }
     style.textContent =
-      '* { cursor: ' + cursor + ' !important; }\n'
-      + '[id^="' + PREFIX + '"],\n'
-      + '[id^="' + PREFIX + '"] * { cursor: revert !important; }';
+      '* { cursor: ' +
+      cursor +
+      ' !important; }\n' +
+      '[id^="' +
+      PREFIX +
+      '"],\n' +
+      '[id^="' +
+      PREFIX +
+      '"] * { cursor: revert !important; }';
   }
 
   /** Page-level cursor while pick or insert mode is targeting page elements. */
@@ -2021,14 +2366,21 @@
 
   /** Element used to position the floating bar / shader during a session. */
   function resolveBarAnchor() {
-    if (svelteComponentSession?.sessionId === currentSessionId && (state === 'GENERATING' || state === 'CYCLING')) {
+    if (
+      svelteComponentSession?.sessionId === currentSessionId &&
+      (state === 'GENERATING' || state === 'CYCLING')
+    ) {
       const anchor = resolveSvelteComponentAnchor();
       if (anchor) return anchor;
     }
     if (currentSessionId && (state === 'GENERATING' || state === 'CYCLING')) {
-      const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+      const wrapper = document.querySelector(
+        '[data-impeccable-variants="' + currentSessionId + '"]'
+      );
       if (wrapper) {
-        const variantCount = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])').length;
+        const variantCount = wrapper.querySelectorAll(
+          '[data-impeccable-variant]:not([data-impeccable-variant="original"])'
+        ).length;
         if (variantCount > 0 && visibleVariant > 0) {
           const visEl = pickVariantContent(wrapper, visibleVariant);
           if (visEl) return visEl;
@@ -2036,13 +2388,17 @@
         if (state === 'GENERATING') {
           const ph = ensureInsertPlaceholder();
           if (ph) return ph;
-          if (insertAnchorElement && document.body.contains(insertAnchorElement)) return insertAnchorElement;
+          if (insertAnchorElement && document.body.contains(insertAnchorElement))
+            return insertAnchorElement;
         }
       }
     }
-    if (selectedElement && document.body.contains(selectedElement)) return selectedElement;
-    if (placeholderElement && document.body.contains(placeholderElement)) return placeholderElement;
-    if (insertAnchorElement && document.body.contains(insertAnchorElement)) return insertAnchorElement;
+    if (selectedElement && document.body.contains(selectedElement))
+      return selectedElement;
+    if (placeholderElement && document.body.contains(placeholderElement))
+      return placeholderElement;
+    if (insertAnchorElement && document.body.contains(insertAnchorElement))
+      return insertAnchorElement;
     return null;
   }
 
@@ -2079,7 +2435,8 @@
   }
 
   function findInsertAnchorInDom() {
-    if (insertAnchorElement && document.body.contains(insertAnchorElement)) return insertAnchorElement;
+    if (insertAnchorElement && document.body.contains(insertAnchorElement))
+      return insertAnchorElement;
     const snap = insertPlaceholderSnapshot;
     if (!snap) return null;
     const tag = (snap.anchorTag || 'div').toLowerCase();
@@ -2089,7 +2446,8 @@
     const candidates = document.querySelectorAll(sel);
     for (const candidate of candidates) {
       if (own(candidate)) continue;
-      if (needle && !(candidate.textContent || '').includes(needle.slice(0, 40))) continue;
+      if (needle && !(candidate.textContent || '').includes(needle.slice(0, 40)))
+        continue;
       return candidate;
     }
     return null;
@@ -2097,23 +2455,31 @@
 
   function isInsertGeneratingSession() {
     if (state !== 'GENERATING' || !currentSessionId) return false;
-    const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+    const wrapper = document.querySelector(
+      '[data-impeccable-variants="' + currentSessionId + '"]'
+    );
     return !!wrapper && wrapper.dataset.impeccableMode === 'insert';
   }
 
   /** Recreate the dotted placeholder if Astro/Vite HMR removed it mid-generation. */
   function ensureInsertPlaceholder() {
     if (!isInsertGeneratingSession()) return placeholderElement;
-    const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
-    const variantCount = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])').length;
+    const wrapper = document.querySelector(
+      '[data-impeccable-variants="' + currentSessionId + '"]'
+    );
+    const variantCount = wrapper.querySelectorAll(
+      '[data-impeccable-variant]:not([data-impeccable-variant="original"])'
+    ).length;
     if (variantCount > 0) return placeholderElement;
-    if (placeholderElement && document.body.contains(placeholderElement)) return placeholderElement;
+    if (placeholderElement && document.body.contains(placeholderElement))
+      return placeholderElement;
 
     const anchor = findInsertAnchorInDom();
     if (!anchor) return null;
 
     insertAnchorElement = anchor;
-    const position = insertPlaceholderSnapshot?.position || insertAnchorPosition || 'before';
+    const position =
+      insertPlaceholderSnapshot?.position || insertAnchorPosition || 'before';
     const axis = insertPlaceholderSnapshot?.layoutAxis || insertAnchorLayoutAxis;
     const ph = createInsertPlaceholder(anchor, position, axis);
     if (!ph) return null;
@@ -2179,7 +2545,11 @@
 
   function syncPlaceholderResizeHandles() {
     if (!placeholderResizeLayerEl) return;
-    const show = configureKind === 'insert' && annotActive && !!placeholderElement && state === 'CONFIGURING';
+    const show =
+      configureKind === 'insert' &&
+      annotActive &&
+      !!placeholderElement &&
+      state === 'CONFIGURING';
     placeholderResizeLayerEl.style.display = show ? 'block' : 'none';
     if (!show) {
       placeholderResizeLayerEl.innerHTML = '';
@@ -2202,10 +2572,13 @@
         marginLeft: parseFloat(ph.style.marginLeft) || 0,
         marginTop: parseFloat(ph.style.marginTop) || 0,
       },
-      parentWidth: ph.parentNode?.getBoundingClientRect().width || PLACEHOLDER_MIN_WIDTH,
+      parentWidth:
+        ph.parentNode?.getBoundingClientRect().width || PLACEHOLDER_MIN_WIDTH,
       pointerId: e.pointerId,
     };
-    try { annotOverlayEl.setPointerCapture(e.pointerId); } catch {}
+    try {
+      annotOverlayEl.setPointerCapture(e.pointerId);
+    } catch {}
     e.stopPropagation();
     e.preventDefault();
   }
@@ -2293,7 +2666,10 @@
     const r = anchor.getBoundingClientRect();
     const tipW = tip.offsetWidth;
     const tipH = tip.offsetHeight;
-    const left = Math.max(8, Math.min(window.innerWidth - tipW - 8, r.left + r.width / 2 - tipW / 2));
+    const left = Math.max(
+      8,
+      Math.min(window.innerWidth - tipW - 8, r.left + r.width / 2 - tipW / 2)
+    );
     const top = Math.max(8, r.top - tipH - 8);
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
@@ -2344,18 +2720,51 @@
     s.id = PREFIX + '-configure-input-style';
     s.textContent =
       '@keyframes impeccable-configure-voice-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }' +
-      '#' + PREFIX + '-input, #' + PREFIX + '-insert-input { box-sizing: border-box; height: ' + CONFIGURE_ROW_TRACK_H + '; line-height: ' + CONFIGURE_ROW_TRACK_H + '; padding: 0; margin: 0; caret-color: ' + CONFIGURE_PILL_TEXT + '; }' +
-      '#' + PREFIX + '-input::placeholder, #' + PREFIX + '-insert-input::placeholder { color: ' + BP.textDim + '; opacity: 1; }' +
-      '#' + PREFIX + '-configure-voice[data-listening="true"] svg, #' + PREFIX + '-insert-voice[data-listening="true"] svg { animation: impeccable-configure-voice-pulse 1.1s ease-in-out infinite; }' +
-      '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-configure-voice[data-listening="true"] svg, #' + PREFIX + '-insert-voice[data-listening="true"] svg { animation: none; opacity: 1; } }' +
-      '#' + PREFIX + '-configure-voice:hover, #' + PREFIX + '-insert-voice:hover { background: oklch(27% 0 0); color: ' + BP.accent + '; }';
+      '#' +
+      PREFIX +
+      '-input, #' +
+      PREFIX +
+      '-insert-input { box-sizing: border-box; height: ' +
+      CONFIGURE_ROW_TRACK_H +
+      '; line-height: ' +
+      CONFIGURE_ROW_TRACK_H +
+      '; padding: 0; margin: 0; caret-color: ' +
+      CONFIGURE_PILL_TEXT +
+      '; }' +
+      '#' +
+      PREFIX +
+      '-input::placeholder, #' +
+      PREFIX +
+      '-insert-input::placeholder { color: ' +
+      BP.textDim +
+      '; opacity: 1; }' +
+      '#' +
+      PREFIX +
+      '-configure-voice[data-listening="true"] svg, #' +
+      PREFIX +
+      '-insert-voice[data-listening="true"] svg { animation: impeccable-configure-voice-pulse 1.1s ease-in-out infinite; }' +
+      '@media (prefers-reduced-motion: reduce) { #' +
+      PREFIX +
+      '-configure-voice[data-listening="true"] svg, #' +
+      PREFIX +
+      '-insert-voice[data-listening="true"] svg { animation: none; opacity: 1; } }' +
+      '#' +
+      PREFIX +
+      '-configure-voice:hover, #' +
+      PREFIX +
+      '-insert-voice:hover { background: oklch(27% 0 0); color: ' +
+      BP.accent +
+      '; }';
     uiAppendStyle(s);
   }
 
   function buildConfigureRow() {
     const controlsLocked = pendingApplyInFlight === true;
     const row = el('div', {
-      display: 'flex', alignItems: 'stretch', width: '100%', height: CONFIGURE_BAR_H,
+      display: 'flex',
+      alignItems: 'stretch',
+      width: '100%',
+      height: CONFIGURE_BAR_H,
     });
 
     const inputShell = el('div', configureInputShellStyle());
@@ -2377,7 +2786,10 @@
       controlsLocked,
       onClick: (e) => {
         e.stopPropagation();
-        if (controlsLocked) { showManualApplyBusyToast(); return; }
+        if (controlsLocked) {
+          showManualApplyBusyToast();
+          return;
+        }
         toggleActionPicker();
       },
     });
@@ -2386,7 +2798,10 @@
       controlsLocked,
       onClick: (e) => {
         e.stopPropagation();
-        if (controlsLocked) { showManualApplyBusyToast(); return; }
+        if (controlsLocked) {
+          showManualApplyBusyToast();
+          return;
+        }
         count.textContent = '\u00D7' + cycleSelectedCount();
         if (count.matches(':hover')) {
           showConfigureBarTooltip(count, variantCountTooltipText(selectedCount));
@@ -2402,7 +2817,12 @@
     input.addEventListener('focus', () => syncConfigureInputChrome());
     input.addEventListener('blur', () => syncConfigureInputChrome());
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); handleGo(); return; }
+      if (e.key === 'Enter') {
+        e.stopPropagation();
+        e.preventDefault();
+        handleGo();
+        return;
+      }
       if (e.key === 'Escape') {
         e.stopPropagation();
         e.preventDefault();
@@ -2419,7 +2839,10 @@
       controlsLocked,
       onClick: (e) => {
         e.stopPropagation();
-        if (controlsLocked) { showManualApplyBusyToast(); return; }
+        if (controlsLocked) {
+          showManualApplyBusyToast();
+          return;
+        }
         toggleConfigureVoice();
       },
     });
@@ -2427,7 +2850,10 @@
     const go = buildConfigureSubmitButton({
       controlsLocked,
       ariaLabel: 'Generate variants',
-      onClick: (e) => { e.stopPropagation(); handleGo(); },
+      onClick: (e) => {
+        e.stopPropagation();
+        handleGo();
+      },
     });
 
     row.appendChild(inputShell);
@@ -2442,7 +2868,10 @@
   function buildInsertConfigureRow() {
     const controlsLocked = pendingApplyInFlight === true;
     const row = el('div', {
-      display: 'flex', alignItems: 'stretch', width: '100%', height: CONFIGURE_BAR_H,
+      display: 'flex',
+      alignItems: 'stretch',
+      width: '100%',
+      height: CONFIGURE_BAR_H,
     });
     row.addEventListener('pointerdown', (e) => e.stopPropagation());
     row.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -2467,7 +2896,10 @@
       controlsLocked,
       onClick: (e) => {
         e.stopPropagation();
-        if (controlsLocked) { showManualApplyBusyToast(); return; }
+        if (controlsLocked) {
+          showManualApplyBusyToast();
+          return;
+        }
         count.textContent = '\u00D7' + cycleSelectedCount();
         if (count.matches(':hover')) {
           showConfigureBarTooltip(count, variantCountTooltipText(selectedCount));
@@ -2485,16 +2917,22 @@
     input.addEventListener('mousedown', (e) => e.stopPropagation());
     input.addEventListener('click', (e) => {
       e.stopPropagation();
-      try { input.focus({ preventScroll: true }); } catch { input.focus(); }
+      try {
+        input.focus({ preventScroll: true });
+      } catch {
+        input.focus();
+      }
     });
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        e.stopPropagation(); e.preventDefault();
+        e.stopPropagation();
+        e.preventDefault();
         if (isInsertCreateEnabled()) handleInsertCreate();
         return;
       }
       if (e.key === 'Escape') {
-        e.stopPropagation(); e.preventDefault();
+        e.stopPropagation();
+        e.preventDefault();
         cancelInsertConfigure();
         return;
       }
@@ -2508,7 +2946,10 @@
       controlsLocked,
       onClick: (e) => {
         e.stopPropagation();
-        if (controlsLocked) { showManualApplyBusyToast(); return; }
+        if (controlsLocked) {
+          showManualApplyBusyToast();
+          return;
+        }
         toggleConfigureVoice();
       },
     });
@@ -2519,7 +2960,10 @@
       onClick: (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (controlsLocked) { showManualApplyBusyToast(); return; }
+        if (controlsLocked) {
+          showManualApplyBusyToast();
+          return;
+        }
         if (!isInsertCreateEnabled(create)) return;
         handleInsertCreate();
       },
@@ -2531,7 +2975,10 @@
         hideInsertCreateTooltip();
         return;
       }
-      showInsertCreateTooltip(create, insertCreateDisabledReason(insertCreateGateState(input)));
+      showInsertCreateTooltip(
+        create,
+        insertCreateDisabledReason(insertCreateGateState(input))
+      );
     });
     create.addEventListener('mouseleave', hideInsertCreateTooltip);
     row.appendChild(inputShell);
@@ -2546,14 +2993,19 @@
 
   function buildGeneratingRow() {
     const row = el('div', {
-      display: 'flex', alignItems: 'center', gap: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
       padding: '2px 4px',
     });
 
     // Action label
     const label = el('span', {
-      fontWeight: '600', fontSize: '12px', color: BP.text,
-      flexShrink: '0', whiteSpace: 'nowrap',
+      fontWeight: '600',
+      fontSize: '12px',
+      color: BP.text,
+      flexShrink: '0',
+      whiteSpace: 'nowrap',
     });
     label.textContent = configureKind === 'insert' ? 'Insert' : actionLabel();
     row.appendChild(label);
@@ -2563,7 +3015,9 @@
 
     // Status
     const status = el('span', {
-      fontSize: '11px', color: BP.textDim, whiteSpace: 'nowrap',
+      fontSize: '11px',
+      color: BP.textDim,
+      whiteSpace: 'nowrap',
       marginLeft: 'auto',
     });
     status.textContent = recoveryWaitingForAnchor
@@ -2579,31 +3033,42 @@
     if (generationPhase === 'picked_up') return 'Agent picked up the request...';
     if (generationPhase === 'scaffolding') return 'Finding the source...';
     if (generationPhase === 'source_ready') return 'Source ready. Generating...';
-    if (generationPhase === 'scaffold_fallback') return 'Agent is locating the source...';
-    if (generationPhase === 'first_variant_generating') return 'Designing the first variant...';
-    if (generationPhase === 'first_variant_validating') return 'Checking the first variant...';
-    if (generationPhase === 'remaining_variants_generating') return 'Exploring two more directions...';
-    if (generationPhase === 'remaining_variants_validating') return 'Checking the remaining variants...';
+    if (generationPhase === 'scaffold_fallback')
+      return 'Agent is locating the source...';
+    if (generationPhase === 'first_variant_generating')
+      return 'Designing the first variant...';
+    if (generationPhase === 'first_variant_validating')
+      return 'Checking the first variant...';
+    if (generationPhase === 'remaining_variants_generating')
+      return 'Exploring two more directions...';
+    if (generationPhase === 'remaining_variants_validating')
+      return 'Checking the remaining variants...';
     return 'Generating ' + expectedVariants + ' variants...';
   }
 
   // Cycling row
 
-  const TUNE_ICON_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="14" cy="8" r="2.4" fill="currentColor" stroke="none"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="10" cy="16" r="2.4" fill="currentColor" stroke="none"/></svg>';
+  const TUNE_ICON_SVG =
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="14" cy="8" r="2.4" fill="currentColor" stroke="none"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="10" cy="16" r="2.4" fill="currentColor" stroke="none"/></svg>';
 
   function buildCyclingRow() {
     if (!ensureCyclingRenderable('build-cycling-row')) {
       return el('div', { display: 'none' });
     }
     const row = el('div', {
-      display: 'flex', alignItems: 'center', gap: '6px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
       padding: '1px 2px',
     });
 
     // Prev
     const prev = navBtn('\u2190');
     prev.id = PREFIX + '-variant-prev';
-    prev.addEventListener('click', (e) => { e.stopPropagation(); cycleVariant(-1); });
+    prev.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cycleVariant(-1);
+    });
     if (visibleVariant <= 1) prev.style.opacity = '0.3';
     row.appendChild(prev);
 
@@ -2612,8 +3077,12 @@
 
     // Counter
     const counter = el('span', {
-      fontFamily: MONO, fontSize: '11px', fontWeight: '500',
-      color: BP.textDim, minWidth: '24px', textAlign: 'center',
+      fontFamily: MONO,
+      fontSize: '11px',
+      fontWeight: '500',
+      color: BP.textDim,
+      minWidth: '24px',
+      textAlign: 'center',
     });
     counter.id = PREFIX + '-variant-counter';
     counter.textContent = visibleVariant + '/' + expectedVariants;
@@ -2622,7 +3091,10 @@
     // Next
     const next = navBtn('\u2192');
     next.id = PREFIX + '-variant-next';
-    next.addEventListener('click', (e) => { e.stopPropagation(); cycleVariant(1); });
+    next.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cycleVariant(1);
+    });
     if (visibleVariant >= arrivedVariants) next.style.opacity = '0.3';
     row.appendChild(next);
 
@@ -2630,26 +3102,37 @@
     // then becomes interactive as soon as this variant exposes controls.
     const visParams = parseVariantParams(getVisibleVariantEl());
     const hasParams = visParams.length > 0;
-    const paramsPending = !hasParams && (parameterGenerationState === 'pending' || parameterGenerationState === 'loading');
+    const paramsPending =
+      !hasParams &&
+      (parameterGenerationState === 'pending' ||
+        parameterGenerationState === 'loading');
     if (hasParams || paramsPending) {
       const tune = el('button', {
-        display: 'inline-flex', alignItems: 'center', gap: '6px',
-        padding: '4px 10px', borderRadius: '5px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '4px 10px',
+        borderRadius: '5px',
         border: '1px solid transparent',
         background: tuneOpen ? BP.accentSoft : 'transparent',
         color: tuneOpen ? BP.accent : BP.text,
-        fontFamily: FONT, fontSize: '11px', fontWeight: '500',
+        fontFamily: FONT,
+        fontSize: '11px',
+        fontWeight: '500',
         cursor: paramsPending ? 'wait' : 'pointer',
         transition: 'color 0.12s ease, background 0.12s ease',
         whiteSpace: 'nowrap',
       });
       if (paramsPending) {
         const spinner = el('span', {
-          width: '11px', height: '11px', borderRadius: '50%',
+          width: '11px',
+          height: '11px',
+          borderRadius: '50%',
           border: '1.5px solid ' + BP.hairline,
           borderTopColor: BP.accent,
           animation: 'impeccable-spin 0.6s linear infinite',
-          boxSizing: 'border-box', flexShrink: '0',
+          boxSizing: 'border-box',
+          flexShrink: '0',
         });
         spinner.setAttribute('aria-hidden', 'true');
         tune.appendChild(spinner);
@@ -2662,25 +3145,39 @@
       if (hasParams) {
         const tuneBadge = document.createElement('span');
         Object.assign(tuneBadge.style, {
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          minWidth: '16px', height: '16px', padding: '0 4px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minWidth: '16px',
+          height: '16px',
+          padding: '0 4px',
           borderRadius: '999px',
           background: tuneOpen ? C.brand : BP.hairline,
           color: tuneOpen ? C.ink : 'inherit',
-          fontFamily: MONO, fontSize: '9.5px', fontWeight: '600',
+          fontFamily: MONO,
+          fontSize: '9.5px',
+          fontWeight: '600',
           lineHeight: '1',
           boxSizing: 'border-box',
         });
         tuneBadge.textContent = String(visParams.length);
         tune.appendChild(tuneBadge);
-        tune.title = 'Tune this variant (' + visParams.length + ' knob' + (visParams.length === 1 ? '' : 's') + ')';
+        tune.title =
+          'Tune this variant (' +
+          visParams.length +
+          ' knob' +
+          (visParams.length === 1 ? '' : 's') +
+          ')';
         tune.addEventListener('mouseenter', () => {
           if (!tuneOpen) tune.style.background = BP.accentSoft;
         });
         tune.addEventListener('mouseleave', () => {
           if (!tuneOpen) tune.style.background = 'transparent';
         });
-        tune.addEventListener('click', (e) => { e.stopPropagation(); toggleTunePopover(); });
+        tune.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleTunePopover();
+        });
       } else {
         tune.disabled = true;
         tune.setAttribute('aria-label', 'Tune controls are still being prepared');
@@ -2697,7 +3194,9 @@
     if (arrivedVariants < expectedVariants) {
       const remaining = expectedVariants - arrivedVariants;
       const progress = el('span', {
-        fontSize: '11px', color: BP.textDim, whiteSpace: 'nowrap',
+        fontSize: '11px',
+        color: BP.textDim,
+        whiteSpace: 'nowrap',
       });
       progress.textContent = remaining + ' more arriving...';
       row.appendChild(progress);
@@ -2705,18 +3204,33 @@
 
     // Accept - primary action, kinpaku gold + lacquer-deep (matches demo .live-demo-ctx-accept)
     const accept = el('button', {
-      padding: '5px 14px', borderRadius: '5px',
-      border: 'none', background: C.brand, color: C.ink,
-      fontFamily: FONT, fontSize: '11px', fontWeight: '600',
-      cursor: 'pointer', transition: 'filter 0.12s ease, transform 0.1s ease',
+      padding: '5px 14px',
+      borderRadius: '5px',
+      border: 'none',
+      background: C.brand,
+      color: C.ink,
+      fontFamily: FONT,
+      fontSize: '11px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'filter 0.12s ease, transform 0.1s ease',
       whiteSpace: 'nowrap',
     });
     accept.textContent = '\u2713 Accept';
-    accept.addEventListener('mouseenter', () => accept.style.filter = 'brightness(1.08)');
-    accept.addEventListener('mouseleave', () => accept.style.filter = 'none');
-    accept.addEventListener('mousedown', () => accept.style.transform = 'scale(0.97)');
-    accept.addEventListener('mouseup', () => accept.style.transform = 'scale(1)');
-    accept.addEventListener('click', (e) => { e.stopPropagation(); handleAccept(); });
+    accept.addEventListener(
+      'mouseenter',
+      () => (accept.style.filter = 'brightness(1.08)')
+    );
+    accept.addEventListener('mouseleave', () => (accept.style.filter = 'none'));
+    accept.addEventListener(
+      'mousedown',
+      () => (accept.style.transform = 'scale(0.97)')
+    );
+    accept.addEventListener('mouseup', () => (accept.style.transform = 'scale(1)'));
+    accept.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleAccept();
+    });
     if (arrivedVariants === 0) {
       accept.style.opacity = '0.3';
       accept.style.pointerEvents = 'none';
@@ -2726,16 +3240,30 @@
 
     // Discard
     const discard = el('button', {
-      padding: '4px 6px', borderRadius: '5px',
-      border: '1px solid ' + BP.hairline, background: 'transparent',
-      fontFamily: FONT, fontSize: '11px', color: BP.textDim,
-      cursor: 'pointer', transition: 'color 0.12s ease, border-color 0.12s ease',
+      padding: '4px 6px',
+      borderRadius: '5px',
+      border: '1px solid ' + BP.hairline,
+      background: 'transparent',
+      fontFamily: FONT,
+      fontSize: '11px',
+      color: BP.textDim,
+      cursor: 'pointer',
+      transition: 'color 0.12s ease, border-color 0.12s ease',
     });
     discard.textContent = '\u2715';
     discard.title = 'Discard all variants';
-    discard.addEventListener('mouseenter', () => { discard.style.color = BP.text; discard.style.borderColor = BP.text; });
-    discard.addEventListener('mouseleave', () => { discard.style.color = BP.textDim; discard.style.borderColor = BP.hairline; });
-    discard.addEventListener('click', (e) => { e.stopPropagation(); handleDiscard(); });
+    discard.addEventListener('mouseenter', () => {
+      discard.style.color = BP.text;
+      discard.style.borderColor = BP.text;
+    });
+    discard.addEventListener('mouseleave', () => {
+      discard.style.color = BP.textDim;
+      discard.style.borderColor = BP.hairline;
+    });
+    discard.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleDiscard();
+    });
     row.appendChild(discard);
 
     return row;
@@ -2747,11 +3275,15 @@
 
   function buildSavingRow() {
     const row = el('div', {
-      display: 'flex', alignItems: 'center', gap: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
       padding: '2px 8px',
     });
     const spinner = el('div', {
-      width: '14px', height: '14px', borderRadius: '50%',
+      width: '14px',
+      height: '14px',
+      borderRadius: '50%',
       border: '2px solid ' + BP.hairline,
       borderTopColor: BP.accent,
       animation: 'impeccable-spin 0.6s linear infinite',
@@ -2759,7 +3291,9 @@
     });
     row.appendChild(spinner);
     const label = el('span', {
-      fontSize: '12px', color: BP.textDim, fontWeight: '500',
+      fontSize: '12px',
+      color: BP.textDim,
+      fontWeight: '500',
     });
     label.textContent = 'Applying variant...';
     row.appendChild(label);
@@ -2772,17 +3306,23 @@
 
   function buildConfirmedRow() {
     const row = el('div', {
-      display: 'flex', alignItems: 'center', gap: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
       padding: '2px 8px',
     });
     const check = el('span', {
-      fontSize: '15px', lineHeight: '1', flexShrink: '0',
+      fontSize: '15px',
+      lineHeight: '1',
+      flexShrink: '0',
       color: 'oklch(45% 0.18 145)',
     });
     check.textContent = '\u2713';
     row.appendChild(check);
     const label = el('span', {
-      fontSize: '12px', color: 'oklch(49% 0.08 188)', fontWeight: '600',
+      fontSize: '12px',
+      color: 'oklch(49% 0.08 188)',
+      fontWeight: '600',
     });
     label.textContent = 'Variant applied';
     row.appendChild(label);
@@ -2793,7 +3333,9 @@
 
   function buildDots(clickable) {
     const container = el('div', {
-      display: 'flex', alignItems: 'center', gap: '4px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
     });
     for (let i = 1; i <= expectedVariants; i++) {
       const arrived = i <= arrivedVariants;
@@ -2803,9 +3345,7 @@
       // dots - the previous "accent ring + ash fill" combo read as noisy
       // kinpaku chips, especially when all variants had arrived and every
       // dot wore an accent ring.
-      const dotBg = active ? C.brand
-        : arrived ? BP.textDim
-        : 'transparent';
+      const dotBg = active ? C.brand : arrived ? BP.textDim : 'transparent';
       const dotBorder = arrived ? 'none' : '1.5px solid ' + BP.hairline;
       const dot = el('div', {
         width: active ? '8px' : '6px',
@@ -2815,7 +3355,7 @@
         border: dotBorder,
         boxSizing: 'border-box',
         transition: 'all 0.2s ' + EASE,
-        cursor: (clickable && arrived) ? 'pointer' : 'default',
+        cursor: clickable && arrived ? 'pointer' : 'default',
         transform: arrived ? 'scale(1)' : 'scale(0.85)',
         opacity: arrived ? (active ? '1' : '0.6') : '0.4',
       });
@@ -2833,21 +3373,34 @@
 
   function navBtn(text) {
     const b = el('button', {
-      width: '26px', height: '26px', borderRadius: '5px',
-      border: '1px solid ' + BP.hairline, background: 'transparent',
-      color: BP.text, fontFamily: FONT, fontSize: '13px',
-      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      width: '26px',
+      height: '26px',
+      borderRadius: '5px',
+      border: '1px solid ' + BP.hairline,
+      background: 'transparent',
+      color: BP.text,
+      fontFamily: FONT,
+      fontSize: '13px',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       transition: 'border-color 0.12s ease, background 0.12s ease',
-      padding: '0', lineHeight: '1',
+      padding: '0',
+      lineHeight: '1',
     });
     b.textContent = text;
-    b.addEventListener('mouseenter', () => { b.style.borderColor = BP.text; });
-    b.addEventListener('mouseleave', () => { b.style.borderColor = BP.hairline; });
+    b.addEventListener('mouseenter', () => {
+      b.style.borderColor = BP.text;
+    });
+    b.addEventListener('mouseleave', () => {
+      b.style.borderColor = BP.hairline;
+    });
     return b;
   }
 
   function actionLabel() {
-    const a = ACTIONS.find(a => a.value === selectedAction);
+    const a = ACTIONS.find((a) => a.value === selectedAction);
     return a ? a.label : 'Freeform';
   }
 
@@ -2867,8 +3420,10 @@
     pickerEl = document.createElement('div');
     pickerEl.id = PREFIX + '-picker';
     Object.assign(pickerEl.style, {
-      position: 'fixed', zIndex: Z.picker,
-      display: 'none', opacity: '0',
+      position: 'fixed',
+      zIndex: Z.picker,
+      display: 'none',
+      opacity: '0',
       transform: 'scale(0.96) translateY(4px)',
       transformOrigin: 'bottom right',
       transition: 'opacity 0.18s ' + EASE + ', transform 0.2s ' + EASE,
@@ -2882,25 +3437,36 @@
 
     // Build the chip grid
     const grid = el('div', {
-      display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '3px',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 1fr)',
+      gap: '3px',
     });
 
-    ACTIONS.forEach(action => {
+    ACTIONS.forEach((action) => {
       const chip = el('button', {
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
         gap: '4px',
-        padding: '8px 6px', borderRadius: '6px',
+        padding: '8px 6px',
+        borderRadius: '6px',
         border: 'none',
         background: action.value === selectedAction ? P.accentSoft : 'transparent',
         color: action.value === selectedAction ? P.accent : P.text,
-        fontFamily: FONT, fontSize: '11px', fontWeight: '500',
+        fontFamily: FONT,
+        fontSize: '11px',
+        fontWeight: '500',
         cursor: 'pointer',
         transition: 'background 0.1s ease, color 0.1s ease',
-        textAlign: 'center', whiteSpace: 'nowrap',
+        textAlign: 'center',
+        whiteSpace: 'nowrap',
       });
       const iconWrap = el('span', {
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '20px', opacity: '0.9',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '20px',
+        opacity: '0.9',
       });
       iconWrap.innerHTML = ICONS[action.value] || '';
       const labelEl = el('span', { lineHeight: '1' });
@@ -2912,7 +3478,8 @@
         if (action.value !== selectedAction) chip.style.background = P.accentSoft;
       });
       chip.addEventListener('mouseleave', () => {
-        chip.style.background = action.value === selectedAction ? P.accentSoft : 'transparent';
+        chip.style.background =
+          action.value === selectedAction ? P.accentSoft : 'transparent';
       });
       chip.addEventListener('click', (e) => {
         e.preventDefault();
@@ -2937,11 +3504,17 @@
   }
 
   function toggleActionPicker() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
-    if (pickerEl.style.display !== 'none') { hideActionPicker(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
+    if (pickerEl.style.display !== 'none') {
+      hideActionPicker();
+      return;
+    }
     // Rebuild chips to reflect current selection
     const P = pickerEl.__iceq_palette || barPaletteForTheme(detectPageTheme());
-    pickerEl.querySelectorAll('button').forEach(chip => {
+    pickerEl.querySelectorAll('button').forEach((chip) => {
       const isActive = chip.dataset.action === selectedAction;
       chip.style.background = isActive ? P.accentSoft : 'transparent';
       chip.style.color = isActive ? P.accent : P.text;
@@ -2969,7 +3542,9 @@
     if (!pickerEl) return;
     pickerEl.style.opacity = '0';
     pickerEl.style.transform = 'scale(0.96) translateY(4px)';
-    setTimeout(() => { if (pickerEl) pickerEl.style.display = 'none'; }, 180);
+    setTimeout(() => {
+      if (pickerEl) pickerEl.style.display = 'none';
+    }, 180);
   }
 
   function ensureCyclingRenderable(reason) {
@@ -2985,7 +3560,10 @@
     if (recoveringEmptyCycling) return;
     recoveringEmptyCycling = true;
     try {
-      console.warn('[impeccable] Refusing to render empty variant cycling state:', reason);
+      console.warn(
+        '[impeccable] Refusing to render empty variant cycling state:',
+        reason
+      );
       const message = 'No variants were mounted. Please try again.';
       if (svelteComponentSession?.sessionId === currentSessionId) {
         abortSvelteComponentInjection(currentSessionId, message);
@@ -3019,11 +3597,11 @@
   // can bake them into the source-file write.
   //
 
-  let paramsPanelEl = null;     // outer wrapper (overflow:hidden, clips the slide)
-  let paramsPanelInner = null;  // translating content (carries bg, padding, knobs)
-  let paramsPanelBody = null;   // grid holding the knob cells
+  let paramsPanelEl = null; // outer wrapper (overflow:hidden, clips the slide)
+  let paramsPanelInner = null; // translating content (carries bg, padding, knobs)
+  let paramsPanelBody = null; // grid holding the knob cells
   let paramsCurrentValues = {}; // {paramId: value} - mirror of the visible variant's live values
-  let tuneOpen = false;         // whether the Tune popover is open right now
+  let tuneOpen = false; // whether the Tune popover is open right now
 
   // Theme-aware Tune popover. Appears as a drawer that slides out from the
   // contextual bar's bar-facing edge (below if the bar sits below the
@@ -3044,7 +3622,8 @@
     paramsPanelEl = document.createElement('div');
     paramsPanelEl.id = PREFIX + '-params-panel';
     Object.assign(paramsPanelEl.style, {
-      position: 'fixed', zIndex: String(Z.bar - 1),
+      position: 'fixed',
+      zIndex: String(Z.bar - 1),
       background: P.surfaceDeep,
       color: P.text,
       fontFamily: FONT,
@@ -3062,7 +3641,9 @@
       // Park off-screen until positionParamsPanel places it. These are NOT
       // in the transition list, so they snap instantly - no fly-in from the
       // top-left when first shown.
-      top: '-9999px', left: '-9999px', width: '0',
+      top: '-9999px',
+      left: '-9999px',
+      width: '0',
     });
 
     paramsPanelBody = el('div', {
@@ -3080,7 +3661,6 @@
     paramsPanelInner = paramsPanelEl; // compatibility alias for the rest of the code
   }
 
-
   function getMountedSvelteComponentAnchor(session = svelteComponentSession) {
     const el = session?.mountTargetEl?.firstElementChild || null;
     if (!el || !document.body.contains(el)) return null;
@@ -3088,19 +3668,17 @@
   }
 
   function resolveSvelteComponentAnchor(session = svelteComponentSession) {
-    return getMountedSvelteComponentAnchor(session)
-      || session?.swapAnchor
-      || null;
+    return getMountedSvelteComponentAnchor(session) || session?.swapAnchor || null;
   }
 
   function getVisibleVariantEl() {
     if (!currentSessionId) return null;
     if (svelteComponentSession?.sessionId === currentSessionId) {
-      return resolveSvelteComponentAnchor()
-        || svelteComponentSession.wrapperEl
-        || null;
+      return resolveSvelteComponentAnchor() || svelteComponentSession.wrapperEl || null;
     }
-    const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+    const wrapper = document.querySelector(
+      '[data-impeccable-variants="' + currentSessionId + '"]'
+    );
     if (!wrapper) return null;
     return wrapper.querySelector('[data-impeccable-variant="' + visibleVariant + '"]');
   }
@@ -3143,8 +3721,10 @@
     // so there is no React hydration to mismatch. Drive range/toggle --p-* inline
     // on the mounted element so scoped preview CSS resolves them.
     if (svelteComponentSession?.sessionId === currentSessionId) {
-      if (param.kind === 'range') variantEl.style.setProperty('--p-' + param.id, String(value));
-      else if (param.kind === 'toggle') variantEl.style.setProperty('--p-' + param.id, value ? '1' : '0');
+      if (param.kind === 'range')
+        variantEl.style.setProperty('--p-' + param.id, String(value));
+      else if (param.kind === 'toggle')
+        variantEl.style.setProperty('--p-' + param.id, value ? '1' : '0');
       return;
     }
     // range/toggle --p-* custom properties are driven through the injected
@@ -3161,10 +3741,11 @@
   }
 
   function formatRangeValue(input) {
-    const max = parseFloat(input.max), min = parseFloat(input.min);
+    const max = parseFloat(input.max),
+      min = parseFloat(input.min);
     const v = parseFloat(input.value);
     if (!isFinite(v)) return input.value;
-    return (max - min) <= 2 ? v.toFixed(2) : String(Math.round(v));
+    return max - min <= 2 ? v.toFixed(2) : String(Math.round(v));
   }
 
   function buildParamsPanel(variantEl, params) {
@@ -3173,17 +3754,22 @@
     for (const p of params) {
       const row = el('div', { display: 'flex', flexDirection: 'column', gap: '6px' });
       const labelRow = el('div', {
-        display: 'flex', justifyContent: 'space-between',
-        alignItems: 'baseline', gap: '8px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        gap: '8px',
       });
       const lbl = el('span', {
-        fontSize: '10.5px', fontWeight: '600', color: P.text,
+        fontSize: '10.5px',
+        fontWeight: '600',
+        color: P.text,
         letterSpacing: '0.03em',
       });
       lbl.textContent = p.label || p.id;
       labelRow.appendChild(lbl);
       const readout = el('span', {
-        fontSize: '10.5px', color: P.textDim,
+        fontSize: '10.5px',
+        color: P.textDim,
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       });
       labelRow.appendChild(readout);
@@ -3197,7 +3783,9 @@
         input.step = String(p.step != null ? p.step : 0.05);
         input.value = String(p.default);
         Object.assign(input.style, {
-          width: '100%', accentColor: C.brand, cursor: 'pointer',
+          width: '100%',
+          accentColor: C.brand,
+          cursor: 'pointer',
         });
         readout.textContent = formatRangeValue(input);
         input.addEventListener('input', (e) => {
@@ -3213,17 +3801,24 @@
         const initial = !!p.default;
         readout.textContent = initial ? 'On' : 'Off';
         const track = el('button', {
-          position: 'relative', width: '36px', height: '20px',
-          borderRadius: '10px', border: 'none', padding: '0',
+          position: 'relative',
+          width: '36px',
+          height: '20px',
+          borderRadius: '10px',
+          border: 'none',
+          padding: '0',
           cursor: 'pointer',
           background: initial ? C.brand : P.hairline,
           transition: 'background 0.15s ease',
           alignSelf: 'flex-start',
         });
         const knob = el('span', {
-          position: 'absolute', top: '2px',
+          position: 'absolute',
+          top: '2px',
           left: initial ? '18px' : '2px',
-          width: '16px', height: '16px', borderRadius: '50%',
+          width: '16px',
+          height: '16px',
+          borderRadius: '50%',
           background: C.ink,
           transition: 'left 0.18s ' + EASE,
           boxShadow: '0 1px 2px oklch(0% 0 0 / 0.2)',
@@ -3241,26 +3836,33 @@
         });
         row.appendChild(track);
       } else if (p.kind === 'steps') {
-        const opts = (p.options || []).map(o =>
+        const opts = (p.options || []).map((o) =>
           typeof o === 'string' ? { value: o, label: o } : o
         );
-        const activeOpt = opts.find(o => o.value === p.default) || opts[0];
+        const activeOpt = opts.find((o) => o.value === p.default) || opts[0];
         readout.textContent = activeOpt ? activeOpt.label : String(p.default);
         const segRow = el('div', {
           display: 'grid',
           gridTemplateColumns: 'repeat(' + opts.length + ', 1fr)',
-          gap: '1px', padding: '2px',
-          background: P.hairline, borderRadius: '5px',
+          gap: '1px',
+          padding: '2px',
+          background: P.hairline,
+          borderRadius: '5px',
         });
         const segBtns = [];
-        opts.forEach(o => {
+        opts.forEach((o) => {
           const active = o.value === p.default;
           const b = el('button', {
-            padding: '5px 4px', border: 'none', borderRadius: '3px',
+            padding: '5px 4px',
+            border: 'none',
+            borderRadius: '3px',
             background: active ? C.brand : 'transparent',
             color: active ? C.ink : P.text,
-            fontFamily: FONT, fontSize: '10.5px', fontWeight: '500',
-            cursor: 'pointer', whiteSpace: 'nowrap',
+            fontFamily: FONT,
+            fontSize: '10.5px',
+            fontWeight: '500',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
             transition: 'background 0.1s ease, color 0.1s ease',
           });
           b.textContent = o.label;
@@ -3300,7 +3902,15 @@
   // text-node child in a marker span so the walker emits a row for it. The
   // wrappers are inline display by default and inherit styles, so the page
   // shouldn't visually shift. We unwrap in disableInlineEdit.
-  const MIXED_WRAP_SKIP = { script: 1, style: 1, template: 1, noscript: 1, svg: 1, code: 1, pre: 1 };
+  const MIXED_WRAP_SKIP = {
+    script: 1,
+    style: 1,
+    template: 1,
+    noscript: 1,
+    svg: 1,
+    code: 1,
+    pre: 1,
+  };
 
   function collectEditableTextRows(rootEl, opts) {
     if (!rootEl || rootEl.nodeType !== 1) return [];
@@ -3350,7 +3960,9 @@
     if (MIXED_WRAP_SKIP[tag]) return;
     if (rootEl.hasAttribute('contenteditable')) return;
     const children = Array.from(rootEl.childNodes);
-    const hasText = children.some((n) => n.nodeType === 3 && /\S/.test(n.nodeValue || ''));
+    const hasText = children.some(
+      (n) => n.nodeType === 3 && /\S/.test(n.nodeValue || '')
+    );
     const hasElement = children.some((n) => n.nodeType === 1);
     if (hasText && hasElement) {
       for (const node of children) {
@@ -3449,7 +4061,10 @@
   }
 
   function enterEditingMode() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
     setLiveState('EDITING');
     hideBar();
     hideAnnotOverlay();
@@ -3596,7 +4211,14 @@
 
   function documentRefSegment(el) {
     const tag = el.tagName.toLowerCase();
-    return tag + documentRefIdSuffix(el) + documentRefClassSuffix(el) + ':nth-of-type(' + indexAmongSameTag(el) + ')';
+    return (
+      tag +
+      documentRefIdSuffix(el) +
+      documentRefClassSuffix(el) +
+      ':nth-of-type(' +
+      indexAmongSameTag(el) +
+      ')'
+    );
   }
 
   function documentRefIdSuffix(el) {
@@ -3638,7 +4260,9 @@
       ref: documentRefForElement(el),
       tagName: el.tagName ? el.tagName.toLowerCase() : null,
       id: el.id || null,
-      classes: el.classList ? [...el.classList].filter((cls) => cls.indexOf('impeccable-') !== 0) : [],
+      classes: el.classList
+        ? [...el.classList].filter((cls) => cls.indexOf('impeccable-') !== 0)
+        : [],
       originalText,
       newText,
       textContent: (el.textContent || '').slice(0, 500),
@@ -3649,7 +4273,10 @@
   function nearbyEditableTextsForManualEdit(rows, activeEl, originalText, newText) {
     const out = [];
     const seen = new Set();
-    const skip = new Set([normalizeManualContextText(originalText), normalizeManualContextText(newText)]);
+    const skip = new Set([
+      normalizeManualContextText(originalText),
+      normalizeManualContextText(newText),
+    ]);
     for (const row of rows || []) {
       if (!row || row.el === activeEl) continue;
       const text = normalizeManualContextText(row.text);
@@ -3658,7 +4285,9 @@
       out.push({
         ref: documentRefForElement(row.el),
         tag: row.el?.tagName ? row.el.tagName.toLowerCase() : null,
-        classes: row.el?.classList ? [...row.el.classList].filter((cls) => cls.indexOf('impeccable-') !== 0) : [],
+        classes: row.el?.classList
+          ? [...row.el.classList].filter((cls) => cls.indexOf('impeccable-') !== 0)
+          : [],
         text,
       });
       if (out.length >= 12) break;
@@ -3672,7 +4301,9 @@
       ref: documentRefForElement(el),
       tagName: el.tagName ? el.tagName.toLowerCase() : null,
       id: el.id || null,
-      classes: el.classList ? [...el.classList].filter((cls) => cls.indexOf('impeccable-') !== 0) : [],
+      classes: el.classList
+        ? [...el.classList].filter((cls) => cls.indexOf('impeccable-') !== 0)
+        : [],
       textContent: (el.textContent || '').slice(0, 1000),
       outerHTML: sanitizedContextOuterHTML(el, 10000) || null,
     };
@@ -3687,7 +4318,10 @@
   }
 
   async function applyEditing() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
     const ops = [];
     for (const row of inlineEditRows) {
       const newText = inlineEditDrafts.get(row.el);
@@ -3698,7 +4332,12 @@
         }
         const forbidden = forbiddenManualTextChars(newText);
         if (forbidden.length > 0) {
-          showToast('Save rejected: newText cannot contain ' + forbidden.join(' ') + ' (plain text only; ask the AI to insert markup)', 5500);
+          showToast(
+            'Save rejected: newText cannot contain ' +
+              forbidden.join(' ') +
+              ' (plain text only; ask the AI to insert markup)',
+            5500
+          );
           return;
         }
         const locator = buildLocatorForLeaf(row.el, selectedElement);
@@ -3711,7 +4350,12 @@
           newText,
         };
         op.leaf = copyEditLeafContext(row.el, row.text, newText);
-        op.nearbyEditableTexts = nearbyEditableTextsForManualEdit(inlineEditRows, row.el, row.text, newText);
+        op.nearbyEditableTexts = nearbyEditableTextsForManualEdit(
+          inlineEditRows,
+          row.el,
+          row.text,
+          newText
+        );
         const restoreHint = mixedTextWrapRestoreHint(row.el);
         if (restoreHint) op.restore = restoreHint;
         const sourceHint = sourceHintForElement(row.el);
@@ -3719,8 +4363,15 @@
         ops.push(op);
       }
     }
-    if (ops.length === 0) { cancelEditing(); return; }
-    const contextElement = contextElementForManualEdit(selectedElement, inlineEditRows, ops);
+    if (ops.length === 0) {
+      cancelEditing();
+      return;
+    }
+    const contextElement = contextElementForManualEdit(
+      selectedElement,
+      inlineEditRows,
+      ops
+    );
     const contextRef = documentRefForElement(contextElement);
     if (contextRef) for (const op of ops) op.contextRef = contextRef;
     const container = copyEditContainerContext(contextElement);
@@ -3739,7 +4390,7 @@
       });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || ('HTTP ' + res.status));
+        throw new Error(errBody.error || 'HTTP ' + res.status);
       }
       const stashResult = await res.json();
       updatePendingCounter(stashResult.pendingCount || 0);
@@ -3752,7 +4403,10 @@
     } catch (err) {
       console.error('[impeccable] manual edit stash failed:', err);
       const detail = String(err?.message || '');
-      if (detail.includes('newText cannot contain') || detail.includes('newText cannot be empty')) {
+      if (
+        detail.includes('newText cannot contain') ||
+        detail.includes('newText cannot be empty')
+      ) {
         showToast('Save rejected: ' + detail.replace(/^manual_edits:\s*/, ''), 5500);
       } else {
         showToast('Save failed - retry or cancel', 4000);
@@ -3770,43 +4424,61 @@
     const width = globalBarEl.offsetWidth;
     const height = globalBarEl.offsetHeight;
     if (!width || !height) return;
-    pendingDockEl.style.left = Math.round((window.innerWidth / 2) - (width / 2) - 18) + 'px';
+    pendingDockEl.style.left =
+      Math.round(window.innerWidth / 2 - width / 2 - 18) + 'px';
     pendingDockEl.style.top = 'auto';
-    pendingDockEl.style.bottom = Math.round(14 + (height / 2)) + 'px';
+    pendingDockEl.style.bottom = Math.round(14 + height / 2) + 'px';
   }
 
   function playPendingIntroAnimation() {
-    if (!pendingPillEl || !pendingPillEl.animate || (matchMedia?.('(prefers-reduced-motion: reduce)').matches)) return;
+    if (
+      !pendingPillEl ||
+      !pendingPillEl.animate ||
+      matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    )
+      return;
     if (pendingIntroAnimation) pendingIntroAnimation.cancel();
-    pendingIntroAnimation = pendingPillEl.animate([
-      {
-        opacity: 0,
-        transform: 'scale(0.82)',
-        filter: 'brightness(1.2)',
-        boxShadow: '0 0 0 0 oklch(84% 0.19 80.46 / 0.45), 0 8px 24px oklch(0% 0 0 / 0.16)',
+    pendingIntroAnimation = pendingPillEl.animate(
+      [
+        {
+          opacity: 0,
+          transform: 'scale(0.82)',
+          filter: 'brightness(1.2)',
+          boxShadow:
+            '0 0 0 0 oklch(84% 0.19 80.46 / 0.45), 0 8px 24px oklch(0% 0 0 / 0.16)',
+        },
+        {
+          opacity: 1,
+          transform: 'scale(1.08)',
+          filter: 'brightness(1.15)',
+          boxShadow:
+            '0 0 0 12px oklch(84% 0.19 80.46 / 0), 0 12px 34px oklch(0% 0 0 / 0.22)',
+          offset: 0.55,
+        },
+        {
+          opacity: 1,
+          transform: 'scale(1)',
+          filter: 'none',
+          boxShadow: '0 4px 16px oklch(0% 0 0 / 0.16), 0 1px 3px oklch(0% 0 0 / 0.1)',
+        },
+      ],
+      { duration: 620, easing: EASE }
+    );
+    pendingIntroAnimation.addEventListener(
+      'finish',
+      () => {
+        pendingIntroAnimation = null;
       },
-      {
-        opacity: 1,
-        transform: 'scale(1.08)',
-        filter: 'brightness(1.15)',
-        boxShadow: '0 0 0 12px oklch(84% 0.19 80.46 / 0), 0 12px 34px oklch(0% 0 0 / 0.22)',
-        offset: 0.55,
-      },
-      {
-        opacity: 1,
-        transform: 'scale(1)',
-        filter: 'none',
-        boxShadow: '0 4px 16px oklch(0% 0 0 / 0.16), 0 1px 3px oklch(0% 0 0 / 0.1)',
-      },
-    ], { duration: 620, easing: EASE });
-    pendingIntroAnimation.addEventListener('finish', () => { pendingIntroAnimation = null; }, { once: true });
+      { once: true }
+    );
   }
 
   function ensureSpinKeyframes() {
     if (uiGetById(PREFIX + '-keyframes')) return;
     const style = document.createElement('style');
     style.id = PREFIX + '-keyframes';
-    style.textContent = '@keyframes impeccable-spin { to { transform: rotate(360deg); } }';
+    style.textContent =
+      '@keyframes impeccable-spin { to { transform: rotate(360deg); } }';
     uiAppendStyle(style);
   }
 
@@ -3827,7 +4499,11 @@
       const raw = sessionStorage.getItem(manualApplyStateKey());
       if (!raw) return null;
       const storedState = JSON.parse(raw);
-      if (!storedState || storedState.pageUrl !== location.pathname || Date.now() > Number(storedState.expiresAt || 0)) {
+      if (
+        !storedState ||
+        storedState.pageUrl !== location.pathname ||
+        Date.now() > Number(storedState.expiresAt || 0)
+      ) {
         sessionStorage.removeItem(manualApplyStateKey());
         return null;
       }
@@ -3839,12 +4515,15 @@
 
   function writeManualApplyState(applyState) {
     try {
-      sessionStorage.setItem(manualApplyStateKey(), JSON.stringify({
-        ...applyState,
-        pageUrl: location.pathname,
-        updatedAt: Date.now(),
-        expiresAt: Date.now() + MANUAL_APPLY_STATE_TTL_MS,
-      }));
+      sessionStorage.setItem(
+        manualApplyStateKey(),
+        JSON.stringify({
+          ...applyState,
+          pageUrl: location.pathname,
+          updatedAt: Date.now(),
+          expiresAt: Date.now() + MANUAL_APPLY_STATE_TTL_MS,
+        })
+      );
     } catch {
       // Best-effort only. The in-memory flag still covers non-reload flows.
     }
@@ -3853,13 +4532,16 @@
   function storeManualApplyState(count, patch) {
     const currentCount = Number(count) || 0;
     const existing = readStoredManualApplyState() || {};
-    const totalOps = Number(existing.totalOps) || Number(existing.count) || currentCount;
+    const totalOps =
+      Number(existing.totalOps) || Number(existing.count) || currentCount;
     if (totalOps <= 0 && currentCount <= 0) return;
     writeManualApplyState({
       count: Number(existing.count) || currentCount || totalOps,
       totalOps: totalOps || currentCount,
       completedOps: Number(existing.completedOps) || 0,
-      remainingCount: Number.isFinite(Number(existing.remainingCount)) ? Number(existing.remainingCount) : currentCount,
+      remainingCount: Number.isFinite(Number(existing.remainingCount))
+        ? Number(existing.remainingCount)
+        : currentCount,
       phase: existing.phase || 'applying',
       startedAt: Number(existing.startedAt) || Date.now(),
       ...(patch || {}),
@@ -3911,8 +4593,16 @@
   function updateManualApplyProgressFromChunk(chunk) {
     if (!chunk || !pendingApplyInFlight) return;
     const stored = readStoredManualApplyState() || {};
-    const totalOps = Number(chunk.totalOpCount) || Number(stored.totalOps) || Number(stored.count) || parseInt(pendingPillEl?.dataset.count || '0', 10) || 0;
-    const completedOps = Math.min(totalOps, (Number(stored.completedOps) || 0) + (Number(chunk.opCount) || 0));
+    const totalOps =
+      Number(chunk.totalOpCount) ||
+      Number(stored.totalOps) ||
+      Number(stored.count) ||
+      parseInt(pendingPillEl?.dataset.count || '0', 10) ||
+      0;
+    const completedOps = Math.min(
+      totalOps,
+      (Number(stored.completedOps) || 0) + (Number(chunk.opCount) || 0)
+    );
     const remainingCount = Math.max(0, totalOps - completedOps);
     storeManualApplyState(Number(stored.count) || totalOps, {
       totalOps,
@@ -3924,7 +4614,10 @@
   }
 
   function updateManualApplyRepairState(repair, phase) {
-    const count = parseInt(pendingPillEl?.dataset.count || '0', 10) || Number(readStoredManualApplyState()?.count) || 0;
+    const count =
+      parseInt(pendingPillEl?.dataset.count || '0', 10) ||
+      Number(readStoredManualApplyState()?.count) ||
+      0;
     if (count <= 0) return;
     storeManualApplyState(count, {
       phase,
@@ -3948,7 +4641,12 @@
     }
     if (editBadgeEl && editBadgeEl.style.display !== 'none') {
       if (pendingApplyInFlight) renderEditBadge('idle-disabled');
-      else if (state === 'CONFIGURING' && selectedElement && hasTextRows(selectedElement)) renderEditBadge('idle');
+      else if (
+        state === 'CONFIGURING' &&
+        selectedElement &&
+        hasTextRows(selectedElement)
+      )
+        renderEditBadge('idle');
     }
     updateGlobalBarState();
   }
@@ -3956,7 +4654,10 @@
   function hidePendingApplyDock() {
     pendingApplyInFlight = false;
     clearStoredManualApplyState();
-    if (pendingIntroAnimation) { pendingIntroAnimation.cancel(); pendingIntroAnimation = null; }
+    if (pendingIntroAnimation) {
+      pendingIntroAnimation.cancel();
+      pendingIntroAnimation = null;
+    }
     if (pendingDockEl) pendingDockEl.style.display = 'none';
     if (pendingPillEl) {
       pendingPillEl.dataset.count = '0';
@@ -3986,12 +4687,21 @@
   }
 
   function setPendingApplyLoading(loading, count) {
-    if (!pendingPillEl || !pendingPillLabelEl || !pendingPillCountEl || !pendingTrashBtn) return;
+    if (
+      !pendingPillEl ||
+      !pendingPillLabelEl ||
+      !pendingPillCountEl ||
+      !pendingTrashBtn
+    )
+      return;
     pendingApplyInFlight = loading === true;
     const currentCount = count || parseInt(pendingPillEl.dataset.count || '0', 10) || 0;
     if (pendingApplyInFlight) storeManualApplyState(currentCount);
     else clearStoredManualApplyState();
-    if (pendingPillSpinnerEl) pendingPillSpinnerEl.style.display = pendingApplyInFlight ? 'inline-block' : 'none';
+    if (pendingPillSpinnerEl)
+      pendingPillSpinnerEl.style.display = pendingApplyInFlight
+        ? 'inline-block'
+        : 'none';
     pendingPillLabelEl.textContent = pendingApplyInFlight
       ? manualApplyLoadingText(currentCount)
       : pendingApplyLabel(currentCount);
@@ -4014,7 +4724,14 @@
   }
 
   function updatePendingCounter(currentPageCount) {
-    if (!pendingDockEl || !pendingPillEl || !pendingPillLabelEl || !pendingPillCountEl || !pendingTrashBtn) return;
+    if (
+      !pendingDockEl ||
+      !pendingPillEl ||
+      !pendingPillLabelEl ||
+      !pendingPillCountEl ||
+      !pendingTrashBtn
+    )
+      return;
     const previousCount = parseInt(pendingPillEl.dataset.count || '0', 10);
     if (!currentPageCount || currentPageCount <= 0) {
       hidePendingApplyDock();
@@ -4022,12 +4739,20 @@
     }
     pendingPillLabelEl.textContent = pendingApplyLabel(currentPageCount);
     pendingPillCountEl.textContent = String(currentPageCount);
-    pendingPillEl.setAttribute('aria-label', 'Apply ' + currentPageCount + ' copy edit' + (currentPageCount === 1 ? '' : 's') + ' to source');
+    pendingPillEl.setAttribute(
+      'aria-label',
+      'Apply ' +
+        currentPageCount +
+        ' copy edit' +
+        (currentPageCount === 1 ? '' : 's') +
+        ' to source'
+    );
     pendingPillEl.style.display = 'inline-flex';
     pendingTrashBtn.style.display = 'inline-flex';
     pendingDockEl.style.display = 'inline-flex';
     pendingPillEl.dataset.count = String(currentPageCount);
-    if (pendingApplyInFlight || shouldResumeManualApplyLoading(currentPageCount)) setPendingApplyLoading(true, currentPageCount);
+    if (pendingApplyInFlight || shouldResumeManualApplyLoading(currentPageCount))
+      setPendingApplyLoading(true, currentPageCount);
     schedulePendingDockPosition();
     if (previousCount <= 0) playPendingIntroAnimation();
   }
@@ -4041,7 +4766,12 @@
   async function fetchPendingCount() {
     try {
       const res = await fetch(
-        'http://localhost:' + PORT + '/manual-edit-stash?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname),
+        'http://localhost:' +
+          PORT +
+          '/manual-edit-stash?token=' +
+          encodeURIComponent(TOKEN) +
+          '&pageUrl=' +
+          encodeURIComponent(location.pathname)
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -4054,19 +4784,27 @@
   async function onPendingPillClick() {
     const count = parseInt(pendingPillEl?.dataset.count || '0', 10);
     if (count <= 0 || pendingApplyInFlight) return;
-    const ok = confirm('Apply ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' to source?');
+    const ok = confirm(
+      'Apply ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' to source?'
+    );
     if (!ok) return;
     let waitForSseCompletion = false;
     resetManualApplyProgress(count);
     setPendingApplyLoading(true, count);
     try {
       const res = await fetch(
-        'http://localhost:' + PORT + '/manual-edit-commit?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname) + '&async=1',
-        { method: 'POST', keepalive: true },
+        'http://localhost:' +
+          PORT +
+          '/manual-edit-commit?token=' +
+          encodeURIComponent(TOKEN) +
+          '&pageUrl=' +
+          encodeURIComponent(location.pathname) +
+          '&async=1',
+        { method: 'POST', keepalive: true }
       );
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || ('HTTP ' + res.status));
+        throw new Error(errBody.error || 'HTTP ' + res.status);
       }
       const result = await res.json();
       if (res.status === 202 || result.status === 'started') {
@@ -4077,9 +4815,18 @@
       updatePendingCounter(remaining);
       if (result.failed && result.failed.length > 0) {
         console.warn('[impeccable] some copy edits failed:', result.failed);
-        showToast('Applied ' + (result.applied?.length || 0) + ', ' + result.failed.length + ' failed - see console', 5000);
+        showToast(
+          'Applied ' +
+            (result.applied?.length || 0) +
+            ', ' +
+            result.failed.length +
+            ' failed - see console',
+          5000
+        );
       } else {
-        const n = Array.isArray(result.applied) ? result.applied.length : (result.cleared || 0);
+        const n = Array.isArray(result.applied)
+          ? result.applied.length
+          : result.cleared || 0;
         if (n > 0) {
           showToast('Applied ' + n + ' edit' + (n === 1 ? '' : 's'), 2500);
         } else {
@@ -4101,19 +4848,34 @@
   async function onPendingTrashClick() {
     const count = parseInt(pendingPillEl?.dataset.count || '0', 10);
     if (count <= 0 || pendingApplyInFlight) return;
-    const ok = confirm('Discard ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' on this page?');
+    const ok = confirm(
+      'Discard ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' on this page?'
+    );
     if (!ok) return;
     try {
       const res = await fetch(
-        'http://localhost:' + PORT + '/manual-edit-discard?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname),
-        { method: 'POST' },
+        'http://localhost:' +
+          PORT +
+          '/manual-edit-discard?token=' +
+          encodeURIComponent(TOKEN) +
+          '&pageUrl=' +
+          encodeURIComponent(location.pathname),
+        { method: 'POST' }
       );
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const result = await res.json().catch(() => ({}));
       const restoreFailures = restoreDiscardedManualEdits(result.entries || []);
       updatePendingCounter(0);
       if (restoreFailures > 0) {
-        showToast('Discarded ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' - refresh to reset ' + restoreFailures, 4000);
+        showToast(
+          'Discarded ' +
+            count +
+            ' copy edit' +
+            (count === 1 ? '' : 's') +
+            ' - refresh to reset ' +
+            restoreFailures,
+          4000
+        );
       } else {
         showToast('Discarded ' + count + ' copy edit' + (count === 1 ? '' : 's'), 2500);
       }
@@ -4124,11 +4886,15 @@
   }
 
   function showManualApplyDecision(msg) {
-    const count = parseInt(pendingPillEl?.dataset.count || '0', 10) || numberOrNull(msg?.remainingCount) || 0;
+    const count =
+      parseInt(pendingPillEl?.dataset.count || '0', 10) ||
+      numberOrNull(msg?.remainingCount) ||
+      0;
     pendingApplyInFlight = false;
     storeManualApplyState(count, {
       phase: 'repair-decision',
-      repairAttempt: numberOrNull(msg?.repair?.attempts) || numberOrNull(msg?.repair?.attempt) || 3,
+      repairAttempt:
+        numberOrNull(msg?.repair?.attempts) || numberOrNull(msg?.repair?.attempt) || 3,
       repairMaxAttempts: numberOrNull(msg?.repair?.maxAttempts) || 3,
     });
     if (pendingPillSpinnerEl) pendingPillSpinnerEl.style.display = 'none';
@@ -4149,13 +4915,22 @@
   }
 
   async function onPendingKeepFixingClick() {
-    const count = parseInt(pendingPillEl?.dataset.count || '0', 10) || numberOrNull(readStoredManualApplyState()?.count) || 0;
+    const count =
+      parseInt(pendingPillEl?.dataset.count || '0', 10) ||
+      numberOrNull(readStoredManualApplyState()?.count) ||
+      0;
     if (count <= 0) return;
     updateManualApplyRepairState({ attempt: 1, maxAttempts: 3 }, 'repairing');
     try {
       const res = await fetch(
-        'http://localhost:' + PORT + '/manual-edit-commit?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname) + '&async=1&repair=1',
-        { method: 'POST', keepalive: true },
+        'http://localhost:' +
+          PORT +
+          '/manual-edit-commit?token=' +
+          encodeURIComponent(TOKEN) +
+          '&pageUrl=' +
+          encodeURIComponent(location.pathname) +
+          '&async=1&repair=1',
+        { method: 'POST', keepalive: true }
       );
       if (!res.ok) throw new Error('HTTP ' + res.status);
       if (pendingKeepFixingBtn) pendingKeepFixingBtn.style.display = 'none';
@@ -4164,21 +4939,35 @@
     } catch (err) {
       console.error('[impeccable] repair retry failed:', err);
       showToast('Repair retry failed - see console', 4000);
-      showManualApplyDecision({ remainingCount: count, repair: readStoredManualApplyState() });
+      showManualApplyDecision({
+        remainingCount: count,
+        repair: readStoredManualApplyState(),
+      });
     }
   }
 
   async function onPendingRollbackClick() {
-    const ok = confirm('Rollback source files to before this Apply and keep the edits staged?');
+    const ok = confirm(
+      'Rollback source files to before this Apply and keep the edits staged?'
+    );
     if (!ok) return;
     try {
       const res = await fetch(
-        'http://localhost:' + PORT + '/manual-edit-repair-decision?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname),
+        'http://localhost:' +
+          PORT +
+          '/manual-edit-repair-decision?token=' +
+          encodeURIComponent(TOKEN) +
+          '&pageUrl=' +
+          encodeURIComponent(location.pathname),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: TOKEN, pageUrl: location.pathname, action: 'rollback' }),
-        },
+          body: JSON.stringify({
+            token: TOKEN,
+            pageUrl: location.pathname,
+            action: 'rollback',
+          }),
+        }
       );
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const result = await res.json().catch(() => ({}));
@@ -4222,8 +5011,10 @@
     if (msg.type === 'manual_edit_commit_started') {
       const pendingCount = numberOrNull(msg.pendingCount);
       if (pendingCount !== null && pendingCount > 0) updatePendingCounter(pendingCount);
-      if (!msg.repairOnly && pendingCount !== null && pendingCount > 0) resetManualApplyProgress(pendingCount);
-      if (msg.repairOnly) updateManualApplyRepairState({ attempt: 1, maxAttempts: 3 }, 'repairing');
+      if (!msg.repairOnly && pendingCount !== null && pendingCount > 0)
+        resetManualApplyProgress(pendingCount);
+      if (msg.repairOnly)
+        updateManualApplyRepairState({ attempt: 1, maxAttempts: 3 }, 'repairing');
       setPendingApplyLoading(true, pendingCount || undefined);
       return;
     }
@@ -4251,7 +5042,10 @@
     }
 
     if (msg.type === 'manual_edit_commit_done') {
-      if (msg.reason === 'manual_edit_repair_needs_decision' || msg.needsManualDecision === true) {
+      if (
+        msg.reason === 'manual_edit_repair_needs_decision' ||
+        msg.needsManualDecision === true
+      ) {
         showManualApplyDecision(msg);
         return;
       }
@@ -4265,11 +5059,18 @@
       updatePendingCounter(remainingCount === null ? 0 : remainingCount);
       if (wasApplying) {
         const failedCount = numberOrNull(msg.failedCount) || 0;
-        const appliedCount = numberOrNull(msg.appliedCount) || numberOrNull(msg.cleared) || 0;
+        const appliedCount =
+          numberOrNull(msg.appliedCount) || numberOrNull(msg.cleared) || 0;
         if (failedCount > 0) {
-          showToast('Applied ' + appliedCount + ', ' + failedCount + ' failed - see console', 5000);
+          showToast(
+            'Applied ' + appliedCount + ', ' + failedCount + ' failed - see console',
+            5000
+          );
         } else if (appliedCount > 0) {
-          showToast('Applied ' + appliedCount + ' edit' + (appliedCount === 1 ? '' : 's'), 2500);
+          showToast(
+            'Applied ' + appliedCount + ' edit' + (appliedCount === 1 ? '' : 's'),
+            2500
+          );
         }
       }
       return;
@@ -4292,7 +5093,11 @@
       for (const op of entry.ops || []) {
         if (restoreMixedTextNodeManualEdit(op)) continue;
         const el = findManualEditRestoreElement(op);
-        if (!el || typeof op.originalText !== 'string' || !canRestoreManualEditElement(el, op)) {
+        if (
+          !el ||
+          typeof op.originalText !== 'string' ||
+          !canRestoreManualEditElement(el, op)
+        ) {
           failures += 1;
           continue;
         }
@@ -4300,7 +5105,11 @@
       }
     }
     if (failures > 0) {
-      console.warn('[impeccable] skipped unsafe copy edit DOM restore for', failures, 'edit(s). Refresh to reset the page DOM.');
+      console.warn(
+        '[impeccable] skipped unsafe copy edit DOM restore for',
+        failures,
+        'edit(s). Refresh to reset the page DOM.'
+      );
     }
     return failures;
   }
@@ -4308,11 +5117,20 @@
   function canRestoreManualEditElement(el, op) {
     if (!el || typeof op?.originalText !== 'string') return false;
     if (el.children && el.children.length > 0) return false;
-    return normalizeManualContextText(el.textContent) === normalizeManualContextText(op.newText);
+    return (
+      normalizeManualContextText(el.textContent) ===
+      normalizeManualContextText(op.newText)
+    );
   }
 
   function mixedTextWrapRestoreHint(el) {
-    if (!el || !el.dataset || el.dataset.impeccableTextWrap !== 'true' || !el.parentElement) return null;
+    if (
+      !el ||
+      !el.dataset ||
+      el.dataset.impeccableTextWrap !== 'true' ||
+      !el.parentElement
+    )
+      return null;
     const siblings = directMixedTextRestoreNodes(el.parentElement);
     const textIndex = siblings.indexOf(el);
     return {
@@ -4324,17 +5142,26 @@
 
   function restoreMixedTextNodeManualEdit(op) {
     const restore = op?.restore;
-    if (!restore || restore.kind !== 'mixedTextNode' || typeof op?.originalText !== 'string') return false;
+    if (
+      !restore ||
+      restore.kind !== 'mixedTextNode' ||
+      typeof op?.originalText !== 'string'
+    )
+      return false;
     const parent = queryManualEditRef(restore.parentRef);
     if (!parent) return false;
-    const textNodes = directMixedTextRestoreNodes(parent).filter((node) => node.nodeType === 3);
+    const textNodes = directMixedTextRestoreNodes(parent).filter(
+      (node) => node.nodeType === 3
+    );
     const newText = normalizeManualContextText(op.newText);
     const byIndex = textNodes[Number(restore.textIndex)];
     if (byIndex && normalizeManualContextText(byIndex.nodeValue) === newText) {
       byIndex.nodeValue = op.originalText;
       return true;
     }
-    const matches = textNodes.filter((node) => normalizeManualContextText(node.nodeValue) === newText);
+    const matches = textNodes.filter(
+      (node) => normalizeManualContextText(node.nodeValue) === newText
+    );
     if (matches.length !== 1) return false;
     matches[0].nodeValue = op.originalText;
     return true;
@@ -4343,10 +5170,12 @@
   function directMixedTextRestoreNodes(parent) {
     return Array.from(parent?.childNodes || []).filter((node) => {
       if (node.nodeType === 3) return /\S/.test(node.nodeValue || '');
-      return node.nodeType === 1
-        && node.dataset
-        && node.dataset.impeccableTextWrap === 'true'
-        && /\S/.test(node.textContent || '');
+      return (
+        node.nodeType === 1 &&
+        node.dataset &&
+        node.dataset.impeccableTextWrap === 'true' &&
+        /\S/.test(node.textContent || '')
+      );
     });
   }
 
@@ -4356,8 +5185,14 @@
       if (byRef) return byRef;
     }
     const tag = op?.tag || op?.leaf?.tagName || '*';
-    const classes = Array.isArray(op?.classes) ? op.classes : (Array.isArray(op?.leaf?.classes) ? op.leaf.classes : []);
-    const selector = (tag === '*' ? '' : tag) + classes.map((cls) => '.' + cssIdent(cls)).join('') || '*';
+    const classes = Array.isArray(op?.classes)
+      ? op.classes
+      : Array.isArray(op?.leaf?.classes)
+        ? op.leaf.classes
+        : [];
+    const selector =
+      (tag === '*' ? '' : tag) + classes.map((cls) => '.' + cssIdent(cls)).join('') ||
+      '*';
     let matches = [];
     try {
       matches = Array.from(document.querySelectorAll(selector));
@@ -4365,13 +5200,18 @@
       matches = [];
     }
     const newText = normalizeManualContextText(op?.newText);
-    const filtered = matches.filter((el) => normalizeManualContextText(el.textContent) === newText);
+    const filtered = matches.filter(
+      (el) => normalizeManualContextText(el.textContent) === newText
+    );
     return filtered.length === 1 ? filtered[0] : null;
   }
 
   function queryManualEditRef(ref) {
     if (!ref || typeof ref !== 'string') return null;
-    const parts = ref.split('>').map((part) => part.trim()).filter(Boolean);
+    const parts = ref
+      .split('>')
+      .map((part) => part.trim())
+      .filter(Boolean);
     let current = null;
     for (let index = 0; index < parts.length; index += 1) {
       const segment = parseManualEditRefSegment(parts[index]);
@@ -4383,7 +5223,9 @@
       }
       const scope = current || document.body;
       const children = Array.from(scope.children || []);
-      current = children.find((child) => elementMatchesManualRefSegment(child, segment)) || null;
+      current =
+        children.find((child) => elementMatchesManualRefSegment(child, segment)) ||
+        null;
       if (!current) return null;
     }
     return current;
@@ -4417,7 +5259,8 @@
   }
 
   function cssIdent(value) {
-    if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+    if (window.CSS && typeof window.CSS.escape === 'function')
+      return window.CSS.escape(String(value));
     return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
   }
 
@@ -4433,7 +5276,9 @@
 
   function usesShadowChromeRoot() {
     const root = liveUiRoot();
-    return root && root !== document.body && root.host && root.host.id === PREFIX + '-root';
+    return (
+      root && root !== document.body && root.host && root.host.id === PREFIX + '-root'
+    );
   }
 
   function setImportantStyle(el, name, value) {
@@ -4457,7 +5302,11 @@
       overflow: 'visible',
     };
     for (const [name, value] of Object.entries(styles)) {
-      setImportantStyle(editBadgeProxyRoot, name.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()), value);
+      setImportantStyle(
+        editBadgeProxyRoot,
+        name.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()),
+        value
+      );
     }
     document.body.appendChild(editBadgeProxyRoot);
   }
@@ -4484,7 +5333,11 @@
       zIndex: String(Z.toast + 2),
     };
     for (const [name, value] of Object.entries(styles)) {
-      setImportantStyle(proxy, name.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()), value);
+      setImportantStyle(
+        proxy,
+        name.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()),
+        value
+      );
     }
   }
 
@@ -4542,7 +5395,8 @@
   }
 
   function editBadgeProxyTargets() {
-    if (!usesShadowChromeRoot() || !editBadgeEl || editBadgeEl.style.display === 'none') return [];
+    if (!usesShadowChromeRoot() || !editBadgeEl || editBadgeEl.style.display === 'none')
+      return [];
     return [...editBadgeEl.querySelectorAll('button')].filter((target) => {
       if (target.disabled) return false;
       const rect = target.getBoundingClientRect();
@@ -4581,7 +5435,11 @@
         editBadgeProxyRoot.appendChild(proxy);
         editBadgeProxyByTarget.set(target, proxy);
       }
-      proxy.title = target.title || target.getAttribute('aria-label') || target.textContent || EDIT_COPY_LABEL;
+      proxy.title =
+        target.title ||
+        target.getAttribute('aria-label') ||
+        target.textContent ||
+        EDIT_COPY_LABEL;
       styleEditBadgeProxy(proxy, target);
     }
   }
@@ -4604,9 +5462,15 @@
       const s = document.createElement('style');
       s.id = PREFIX + '-edit-badge-focus-style';
       s.textContent =
-        '#' + PREFIX + '-edit-badge button { outline: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important; }' +
-        '#' + PREFIX + '-edit-badge button:focus { outline: none !important; }' +
-        '#' + PREFIX + '-edit-badge button:focus-visible { outline: none !important; }' +
+        '#' +
+        PREFIX +
+        '-edit-badge button { outline: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important; }' +
+        '#' +
+        PREFIX +
+        '-edit-badge button:focus { outline: none !important; }' +
+        '#' +
+        PREFIX +
+        '-edit-badge button:focus-visible { outline: none !important; }' +
         '[data-impeccable-editable="true"] { outline: none !important; box-shadow: none !important; }' +
         '[data-impeccable-editable="true"]:focus { outline: none !important; box-shadow: none !important; }' +
         '[data-impeccable-editable="true"]:focus-visible { outline: none !important; box-shadow: none !important; }';
@@ -4624,7 +5488,8 @@
     // Match showHighlight's 2px outset so the badge right edge lines up with the outline.
     const outlineRight = r.right + 2;
     editBadgeEl.style.top = Math.max(4, r.top - 28) + 'px';
-    editBadgeEl.style.left = Math.min(window.innerWidth - bw - 4, outlineRight - bw) + 'px';
+    editBadgeEl.style.left =
+      Math.min(window.innerWidth - bw - 4, outlineRight - bw) + 'px';
     syncEditBadgeHitProxies();
   }
 
@@ -4662,7 +5527,8 @@
       whiteSpace: 'nowrap',
       boxShadow: '0 4px 16px oklch(0% 0 0 / 0.16), 0 1px 3px oklch(0% 0 0 / 0.08)',
       cursor: 'pointer',
-      transition: 'background 0.18s ease, color 0.18s ease, border-color 0.18s ease, filter 0.18s ease',
+      transition:
+        'background 0.18s ease, color 0.18s ease, border-color 0.18s ease, filter 0.18s ease',
     });
     if (mode === 'idle' || mode === 'idle-disabled') {
       const disabled = mode === 'idle-disabled';
@@ -4671,10 +5537,10 @@
       btn.type = 'button';
       btn.innerHTML = EDIT_COPY_ICON;
       btn.setAttribute('aria-label', EDIT_COPY_LABEL);
-      Object.assign(btn.style, calloutStyle(
-        disabled ? MUTED : PRIMARY_TEXT,
-        disabled ? HAIRLINE : ACCENT,
-      ));
+      Object.assign(
+        btn.style,
+        calloutStyle(disabled ? MUTED : PRIMARY_TEXT, disabled ? HAIRLINE : ACCENT)
+      );
       Object.assign(btn.style, {
         padding: '4px',
         minWidth: '22px',
@@ -4692,11 +5558,16 @@
         btn.style.cursor = 'not-allowed';
         btn.style.opacity = '0.55';
         btn.disabled = true;
-        const disabledTip = EDIT_COPY_LABEL + ' is disabled while the current copy edit is applying';
-        btn.addEventListener('mouseenter', () => showConfigureBarTooltip(btn, disabledTip));
+        const disabledTip =
+          EDIT_COPY_LABEL + ' is disabled while the current copy edit is applying';
+        btn.addEventListener('mouseenter', () =>
+          showConfigureBarTooltip(btn, disabledTip)
+        );
         btn.addEventListener('mouseleave', hideConfigureBarTooltip);
       } else {
-        btn.addEventListener('mouseenter', () => showConfigureBarTooltip(btn, EDIT_COPY_LABEL));
+        btn.addEventListener('mouseenter', () =>
+          showConfigureBarTooltip(btn, EDIT_COPY_LABEL)
+        );
         btn.addEventListener('mouseleave', hideConfigureBarTooltip);
         btn.onclick = enterEditingMode;
       }
@@ -4708,8 +5579,12 @@
       const cancel = document.createElement('button');
       cancel.textContent = 'Cancel';
       Object.assign(cancel.style, calloutStyle(MUTED, HAIRLINE));
-      cancel.addEventListener('mouseenter', () => { cancel.style.color = P.text; });
-      cancel.addEventListener('mouseleave', () => { cancel.style.color = P.textDim; });
+      cancel.addEventListener('mouseenter', () => {
+        cancel.style.color = P.text;
+      });
+      cancel.addEventListener('mouseleave', () => {
+        cancel.style.color = P.textDim;
+      });
       cancel.onclick = cancelEditing;
       const save = document.createElement('button');
       save.textContent = 'Save';
@@ -4765,16 +5640,16 @@
     paramsPanelEl.style.width = br.width + 'px';
 
     if (direction === 'below') {
-      paramsPanelEl.style.top = (br.bottom - TUNE_OVERLAP) + 'px';
+      paramsPanelEl.style.top = br.bottom - TUNE_OVERLAP + 'px';
       paramsPanelEl.style.borderRadius = '0 0 10px 10px';
-      paramsPanelEl.style.paddingTop = (14 + TUNE_OVERLAP) + 'px';
+      paramsPanelEl.style.paddingTop = 14 + TUNE_OVERLAP + 'px';
       paramsPanelEl.style.paddingBottom = '14px';
     } else {
       const ih = paramsPanelEl.offsetHeight || 80;
-      paramsPanelEl.style.top = (br.top - ih + TUNE_OVERLAP) + 'px';
+      paramsPanelEl.style.top = br.top - ih + TUNE_OVERLAP + 'px';
       paramsPanelEl.style.borderRadius = '10px 10px 0 0';
       paramsPanelEl.style.paddingTop = '14px';
-      paramsPanelEl.style.paddingBottom = (14 + TUNE_OVERLAP) + 'px';
+      paramsPanelEl.style.paddingBottom = 14 + TUNE_OVERLAP + 'px';
     }
     paramsPanelEl.dataset.tuneDirection = direction;
 
@@ -4819,7 +5694,8 @@
       paramsCurrentValues = {};
       tuneOpen = false;
       hideParamsPanel();
-      if (currentSessionId && visibleVariant) updateVariantStateStylesheet(currentSessionId, visibleVariant);
+      if (currentSessionId && visibleVariant)
+        updateVariantStateStylesheet(currentSessionId, visibleVariant);
       return;
     }
     applyParamDefaults(variantEl, params);
@@ -4827,8 +5703,8 @@
     if (tuneOpen) {
       // If already visible (variant cycled while open), refresh in place
       // instead of re-running the clip-path animation.
-      const alreadyVisible = paramsPanelEl.style.display === 'block'
-        && paramsPanelEl.style.opacity === '1';
+      const alreadyVisible =
+        paramsPanelEl.style.display === 'block' && paramsPanelEl.style.opacity === '1';
       if (alreadyVisible) positionParamsPanel();
       else showParamsPanel();
     } else {
@@ -4838,13 +5714,20 @@
 
   function mountedParameterCount() {
     if (svelteComponentSession?.sessionId === currentSessionId) {
-      return Object.values(svelteComponentSession.paramsByVariant || {})
-        .reduce((total, params) => total + (Array.isArray(params) ? params.length : 0), 0);
+      return Object.values(svelteComponentSession.paramsByVariant || {}).reduce(
+        (total, params) => total + (Array.isArray(params) ? params.length : 0),
+        0
+      );
     }
-    const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+    const wrapper = document.querySelector(
+      '[data-impeccable-variants="' + currentSessionId + '"]'
+    );
     if (!wrapper) return 0;
-    return [...wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])')]
-      .reduce((total, variant) => total + parseVariantParams(variant).length, 0);
+    return [
+      ...wrapper.querySelectorAll(
+        '[data-impeccable-variant]:not([data-impeccable-variant="original"])'
+      ),
+    ].reduce((total, variant) => total + parseVariantParams(variant).length, 0);
   }
 
   function completeParameterPublication() {
@@ -4863,8 +5746,14 @@
   }
 
   function toggleTunePopover() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
-    if (tuneOpen) { closeTunePopover(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
+    if (tuneOpen) {
+      closeTunePopover();
+      return;
+    }
     openTunePopover();
   }
 
@@ -4918,11 +5807,14 @@
   }
 
   function syncCyclingControls() {
-    const shown = svelteComponentSession?.sessionId === currentSessionId && svelteComponentSession.mountedVariant > 0
-      ? svelteComponentSession.mountedVariant
-      : visibleVariant;
+    const shown =
+      svelteComponentSession?.sessionId === currentSessionId &&
+      svelteComponentSession.mountedVariant > 0
+        ? svelteComponentSession.mountedVariant
+        : visibleVariant;
     const counter = uiGetById(PREFIX + '-variant-counter');
-    if (counter && arrivedVariants > 0) counter.textContent = shown + '/' + arrivedVariants;
+    if (counter && arrivedVariants > 0)
+      counter.textContent = shown + '/' + arrivedVariants;
     const prev = uiGetById(PREFIX + '-variant-prev');
     const next = uiGetById(PREFIX + '-variant-next');
     if (prev) prev.style.opacity = shown <= 1 ? '0.3' : '1';
@@ -4940,7 +5832,9 @@
       scheduleCyclingBarSync(sessionId, num);
       return true;
     }
-    const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+    const wrapper = document.querySelector(
+      '[data-impeccable-variants="' + sessionId + '"]'
+    );
     if (!wrapper) return false;
     updateVariantStateStylesheet(sessionId, num);
     // Unconditional refresh - covers first-reveal (no-op if state isn't
@@ -4960,7 +5854,10 @@
 
   function parseOriginalMarkupElement(originalMarkup) {
     const parser = new DOMParser();
-    const doc = parser.parseFromString('<div id="impeccable-anchor">' + originalMarkup + '</div>', 'text/html');
+    const doc = parser.parseFromString(
+      '<div id="impeccable-anchor">' + originalMarkup + '</div>',
+      'text/html'
+    );
     return doc.getElementById('impeccable-anchor')?.firstElementChild || null;
   }
 
@@ -4987,11 +5884,13 @@
   }
 
   function isUsableInjectionAnchor(el) {
-    return !!el
-      && el.parentElement
-      && document.body.contains(el)
-      && !own(el)
-      && !el.closest?.('[data-impeccable-variants]');
+    return (
+      !!el &&
+      el.parentElement &&
+      document.body.contains(el) &&
+      !own(el) &&
+      !el.closest?.('[data-impeccable-variants]')
+    );
   }
 
   function elementMatchesOriginalMarkup(liveEl, origContent) {
@@ -5002,15 +5901,25 @@
     if (origContent.id) return liveEl.id === origContent.id;
     if (liveEl.tagName !== origContent.tagName) return false;
 
-    const origClasses = normalizeElementClassName(origContent).split(/\s+/).filter(Boolean)
+    const origClasses = normalizeElementClassName(origContent)
+      .split(/\s+/)
+      .filter(Boolean)
       .filter((name) => /^[A-Za-z_-][\w-]*$/.test(name));
-    if (origClasses.length > 0 && !origClasses.every((name) => liveEl.classList.contains(name))) return false;
+    if (
+      origClasses.length > 0 &&
+      !origClasses.every((name) => liveEl.classList.contains(name))
+    )
+      return false;
 
     const origText = (origContent.textContent || '').trim();
     if (origClasses.length === 0 && origText.length >= 4) {
       const liveText = (liveEl.textContent || '').trim();
       const needle = origText.slice(0, Math.min(40, origText.length));
-      if (!liveText.includes(needle) && !(liveText.length >= 4 && origText.includes(liveText.slice(0, 40)))) return false;
+      if (
+        !liveText.includes(needle) &&
+        !(liveText.length >= 4 && origText.includes(liveText.slice(0, 40)))
+      )
+        return false;
     }
     return true;
   }
@@ -5023,15 +5932,22 @@
       const byId = document.getElementById(snapshot.id);
       if (isUsableInjectionAnchor(byId)) return byId;
     }
-    const classes = (snapshot.classes || []).filter((name) => /^[A-Za-z_-][\w-]*$/.test(name));
+    const classes = (snapshot.classes || []).filter((name) =>
+      /^[A-Za-z_-][\w-]*$/.test(name)
+    );
     const needle = (snapshot.text || '').trim();
     const candidates = [...document.getElementsByTagName(tag)];
     for (const c of candidates) {
       if (!isUsableInjectionAnchor(c)) continue;
-      if (classes.length > 0 && !classes.every((name) => c.classList.contains(name))) continue;
+      if (classes.length > 0 && !classes.every((name) => c.classList.contains(name)))
+        continue;
       if (!snapshot.id && classes.length === 0 && needle.length >= 4) {
         const text = (c.textContent || '').trim();
-        if (!text.includes(needle.slice(0, 40)) && !(text.length >= 4 && needle.includes(text.slice(0, 40)))) continue;
+        if (
+          !text.includes(needle.slice(0, 40)) &&
+          !(text.length >= 4 && needle.includes(text.slice(0, 40)))
+        )
+          continue;
       }
       return c;
     }
@@ -5052,7 +5968,9 @@
     }
 
     if (cls) {
-      const expectedClasses = cls.split(/\s+/).filter((name) => /^[A-Za-z_-][\w-]*$/.test(name));
+      const expectedClasses = cls
+        .split(/\s+/)
+        .filter((name) => /^[A-Za-z_-][\w-]*$/.test(name));
       if (expectedClasses.length > 0) {
         for (const c of candidates) {
           if (!isUsableInjectionAnchor(c)) continue;
@@ -5069,8 +5987,15 @@
       for (const c of candidates) {
         if (!isUsableInjectionAnchor(c)) continue;
         const text = (c.textContent || '').trim();
-        if (!text.includes(needle) && !(text.length >= 4 && origText.includes(text.slice(0, 40)))) continue;
-        if (text.length < bestLen) { best = c; bestLen = text.length; }
+        if (
+          !text.includes(needle) &&
+          !(text.length >= 4 && origText.includes(text.slice(0, 40)))
+        )
+          continue;
+        if (text.length < bestLen) {
+          best = c;
+          bestLen = text.length;
+        }
       }
       if (best) return best;
     }
@@ -5091,11 +6016,19 @@
       if (elementMatchesOriginalMarkup(candidate, origContent)) return candidate;
     }
 
-    if (isUsableInjectionAnchor(selectedElement) && selectedElement.tagName === origContent.tagName) {
-      const origClasses = normalizeElementClassName(origContent).split(/\s+/).filter(Boolean);
-      if (origContent.id && selectedElement.id === origContent.id) return selectedElement;
+    if (
+      isUsableInjectionAnchor(selectedElement) &&
+      selectedElement.tagName === origContent.tagName
+    ) {
+      const origClasses = normalizeElementClassName(origContent)
+        .split(/\s+/)
+        .filter(Boolean);
+      if (origContent.id && selectedElement.id === origContent.id)
+        return selectedElement;
       if (origClasses.length === 0) return selectedElement;
-      const overlap = origClasses.filter((name) => selectedElement.classList.contains(name));
+      const overlap = origClasses.filter((name) =>
+        selectedElement.classList.contains(name)
+      );
       if (overlap.length >= 1) return selectedElement;
     }
 
@@ -5111,12 +6044,22 @@
       const anchor = findInsertAnchorInDom();
       if (anchor?.parentElement) return anchor;
     }
-    return resolveLiveInjectionAnchor(manifest?.originalMarkup || manifest?.anchorMarkup || '');
+    return resolveLiveInjectionAnchor(
+      manifest?.originalMarkup || manifest?.anchorMarkup || ''
+    );
   }
 
-  function waitForVariantAnchorAndRetry({ filePath, sessionId, srcWrapper, checkpointReason }) {
-    if (pendingVariantAnchorRetryObserver) pendingVariantAnchorRetryObserver.disconnect();
-    const origContent = srcWrapper?.querySelector('[data-impeccable-variant="original"] > :first-child');
+  function waitForVariantAnchorAndRetry({
+    filePath,
+    sessionId,
+    srcWrapper,
+    checkpointReason,
+  }) {
+    if (pendingVariantAnchorRetryObserver)
+      pendingVariantAnchorRetryObserver.disconnect();
+    const origContent = srcWrapper?.querySelector(
+      '[data-impeccable-variant="original"] > :first-child'
+    );
     if (!origContent) return;
     const originalMarkup = origContent.outerHTML;
 
@@ -5125,7 +6068,9 @@
       // A wrapper can land incomplete ("wrap HMR landed, variant insert did
       // not"); injectVariantsFromSource owns both cases - it replaces an
       // existing wrapper from source and clears recoveryWaitingForAnchor.
-      const wrapperLanded = !!document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+      const wrapperLanded = !!document.querySelector(
+        '[data-impeccable-variants="' + sessionId + '"]'
+      );
       if (!wrapperLanded) {
         const liveEl = resolveLiveInjectionAnchor(originalMarkup);
         if (!liveEl?.parentElement) return;
@@ -5134,11 +6079,20 @@
       pendingVariantAnchorRetryObserver = null;
       injectVariantsFromSource(filePath, sessionId);
     });
-    pendingVariantAnchorRetryObserver.observe(document.body, { childList: true, subtree: true });
+    pendingVariantAnchorRetryObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
     if (checkpointReason) queueCheckpoint(checkpointReason);
   }
 
-  function enterRecoveryWaitingForAnchor({ filePath, sessionId, srcWrapper, checkpointReason, trackScroll }) {
+  function enterRecoveryWaitingForAnchor({
+    filePath,
+    sessionId,
+    srcWrapper,
+    checkpointReason,
+    trackScroll,
+  }) {
     recoveryWaitingForAnchor = true;
     selectedElement = document.body;
     setLiveState('GENERATING');
@@ -5146,7 +6100,12 @@
     if (trackScroll !== false) startScrollTracking();
     saveSession();
     if (srcWrapper && filePath && sessionId) {
-      waitForVariantAnchorAndRetry({ filePath, sessionId, srcWrapper, checkpointReason });
+      waitForVariantAnchorAndRetry({
+        filePath,
+        sessionId,
+        srcWrapper,
+        checkpointReason,
+      });
     } else if (checkpointReason) {
       queueCheckpoint(checkpointReason);
     }
@@ -5173,7 +6132,13 @@
     const dir = String(manifest?.componentDir || '').replace(/^\/+/, '');
     if (!dir) return {};
     const paramsPath = dir + '/params.json';
-    const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(paramsPath);
+    const url =
+      'http://localhost:' +
+      PORT +
+      '/source?token=' +
+      TOKEN +
+      '&path=' +
+      encodeURIComponent(paramsPath);
     try {
       const res = await fetch(url);
       if (!res.ok) return {};
@@ -5194,7 +6159,13 @@
     if (!dir || !variantNum) return '';
     const extension = manifest.componentExtension || 'svelte';
     const sourcePath = dir + '/v' + variantNum + '.' + extension;
-    const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(sourcePath);
+    const url =
+      'http://localhost:' +
+      PORT +
+      '/source?token=' +
+      TOKEN +
+      '&path=' +
+      encodeURIComponent(sourcePath);
     try {
       const res = await fetch(url);
       if (!res.ok) return '';
@@ -5233,7 +6204,8 @@
   }
 
   function scopeCssToSveltePreview(css, sessionId) {
-    const prefix = '[data-impeccable-variants="' + String(sessionId).replace(/"/g, '\\"') + '"] ';
+    const prefix =
+      '[data-impeccable-variants="' + String(sessionId).replace(/"/g, '\\"') + '"] ';
     return scopeCssBlock(String(css || ''), prefix).trim();
   }
 
@@ -5349,7 +6321,7 @@
     if (!sourceOriginal) return values;
     const map = buildSvelteExpressionTextMap(sourceOriginal, liveEl);
     for (const entry of contract) {
-      const token = entry.previewToken || ('{' + entry.expr + '}');
+      const token = entry.previewToken || '{' + entry.expr + '}';
       values[entry.prop] = map.get(token) || '';
     }
     return values;
@@ -5359,14 +6331,19 @@
     if (!svelteComponentSession || !variantNum) return false;
     const { manifest, mountTargetEl, sessionId } = svelteComponentSession;
     try {
-      const previousAnchor = getMountedSvelteComponentAnchor(svelteComponentSession) || selectedElement;
-      svelteComponentSession.swapAnchor = makeFrozenAnchor(previousAnchor) || svelteComponentSession.swapAnchor || null;
+      const previousAnchor =
+        getMountedSvelteComponentAnchor(svelteComponentSession) || selectedElement;
+      svelteComponentSession.swapAnchor =
+        makeFrozenAnchor(previousAnchor) || svelteComponentSession.swapAnchor || null;
       const runtime = await loadSvelteRuntime(manifest.runtimeModule, manifest);
       const extension = manifest.componentExtension || 'svelte';
-      const moduleBase = manifest.componentModuleBase
-        || ('/' + String(manifest.componentDir || '').replace(/^\/+/, ''));
-      const modulePath = String(moduleBase).replace(/\/+$/, '') + '/v' + variantNum + '.' + extension;
-      const moduleUrl = resolveComponentModuleUrl(manifest, modulePath) + '?t=' + Date.now();
+      const moduleBase =
+        manifest.componentModuleBase ||
+        '/' + String(manifest.componentDir || '').replace(/^\/+/, '');
+      const modulePath =
+        String(moduleBase).replace(/\/+$/, '') + '/v' + variantNum + '.' + extension;
+      const moduleUrl =
+        resolveComponentModuleUrl(manifest, modulePath) + '?t=' + Date.now();
       const mod = await import(/* @vite-ignore */ moduleUrl);
       const Component = mod.default;
       if (svelteComponentSession.mountedInstance && runtime.unmount) {
@@ -5395,7 +6372,10 @@
           const settledAnchor = getMountedSvelteComponentAnchor(svelteComponentSession);
           if (!settledAnchor) return;
           if (!isSvelteInsertManifest(manifest)) {
-            applyOriginalAttrsToSvelteAnchor(settledAnchor, manifest.originalMarkup || '');
+            applyOriginalAttrsToSvelteAnchor(
+              settledAnchor,
+              manifest.originalMarkup || ''
+            );
           }
           svelteComponentSession.swapAnchor = null;
           selectedElement = settledAnchor;
@@ -5406,17 +6386,29 @@
       if (svelteComponentSession?.sessionId === sessionId) {
         svelteComponentSession.swapAnchor = null;
       }
-      console.error('[impeccable] Failed to mount component variant ' + variantNum + ' for ' + sessionId + ':', err);
+      console.error(
+        '[impeccable] Failed to mount component variant ' +
+          variantNum +
+          ' for ' +
+          sessionId +
+          ':',
+        err
+      );
       return false;
     }
   }
 
   function teardownSvelteComponentSession(restoreOriginal) {
     if (!svelteComponentSession) return;
-    const { wrapperEl, detachedOriginal, runtime, mountedInstance } = svelteComponentSession;
+    const { wrapperEl, detachedOriginal, runtime, mountedInstance } =
+      svelteComponentSession;
     removeSvelteComponentVariantStyle(svelteComponentSession);
     if (mountedInstance && runtime?.unmount) {
-      try { runtime.unmount(mountedInstance); } catch { /* non-fatal */ }
+      try {
+        runtime.unmount(mountedInstance);
+      } catch {
+        /* non-fatal */
+      }
     }
     if (restoreOriginal && detachedOriginal && wrapperEl?.parentElement) {
       wrapperEl.parentElement.replaceChild(detachedOriginal, wrapperEl);
@@ -5443,7 +6435,8 @@
   }
 
   function commitAcceptedSvelteComponentToDom(sessionId) {
-    if (!svelteComponentSession || svelteComponentSession.sessionId !== sessionId) return false;
+    if (!svelteComponentSession || svelteComponentSession.sessionId !== sessionId)
+      return false;
     const { wrapperEl, runtime, mountedInstance, manifest } = svelteComponentSession;
     const anchor = getMountedSvelteComponentAnchor(svelteComponentSession);
     if (!anchor || !wrapperEl?.parentElement) return false;
@@ -5452,7 +6445,11 @@
       applyOriginalAttrsToSvelteAnchor(committed, manifest.originalMarkup || '');
     }
     if (mountedInstance && runtime?.unmount) {
-      try { runtime.unmount(mountedInstance); } catch { /* non-fatal */ }
+      try {
+        runtime.unmount(mountedInstance);
+      } catch {
+        /* non-fatal */
+      }
     }
     removeSvelteComponentVariantStyle(svelteComponentSession);
     wrapperEl.parentElement.replaceChild(committed, wrapperEl);
@@ -5463,7 +6460,13 @@
   }
 
   async function injectSvelteComponentsFromManifest(manifestPath, sessionId) {
-    const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(manifestPath);
+    const url =
+      'http://localhost:' +
+      PORT +
+      '/source?token=' +
+      TOKEN +
+      '&path=' +
+      encodeURIComponent(manifestPath);
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(String(res.status));
@@ -5471,7 +6474,8 @@
       if (manifest.id !== sessionId) return;
 
       const paramsByVariant = await loadSvelteComponentParams(manifest);
-      const availableVariants = Number(manifest.arrivedVariants) || Number(manifest.count) || 1;
+      const availableVariants =
+        Number(manifest.arrivedVariants) || Number(manifest.count) || 1;
       const componentPreviewMode = isFrameworkComponentPreviewMode(manifest.previewMode)
         ? manifest.previewMode
         : 'svelte-component';
@@ -5484,14 +6488,18 @@
       });
       if (state !== 'CYCLING') setLiveState('GENERATING');
 
-      const existingWrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+      const existingWrapper = document.querySelector(
+        '[data-impeccable-variants="' + sessionId + '"]'
+      );
       if (existingWrapper && svelteComponentSession?.sessionId === sessionId) {
         recoveryWaitingForAnchor = false;
         svelteComponentSession.manifest = manifest;
         svelteComponentSession.paramsByVariant = paramsByVariant;
         arrivedVariants = availableVariants;
-        expectedVariants = Number(manifest.count) || expectedVariants || arrivedVariants;
-        visibleVariant = visibleVariant > 0 && visibleVariant <= arrivedVariants ? visibleVariant : 1;
+        expectedVariants =
+          Number(manifest.count) || expectedVariants || arrivedVariants;
+        visibleVariant =
+          visibleVariant > 0 && visibleVariant <= arrivedVariants ? visibleVariant : 1;
         await mountSvelteComponentVariant(visibleVariant || 1);
         setLiveState('CYCLING');
         showOrUpdateCyclingBar();
@@ -5504,20 +6512,29 @@
       if (!liveEl?.parentElement) {
         console.warn('[impeccable] Could not find original element in live DOM.');
         arrivedVariants = availableVariants;
-        expectedVariants = Number(manifest.count) || expectedVariants || arrivedVariants;
+        expectedVariants =
+          Number(manifest.count) || expectedVariants || arrivedVariants;
         const saved = loadSession();
         const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
-        visibleVariant = visibleVariant > 0 && visibleVariant <= arrivedVariants
-          ? visibleVariant
-          : (savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1);
-        enterRecoveryWaitingForAnchor({ checkpointReason: 'component_preview_anchor_missing', trackScroll: true });
+        visibleVariant =
+          visibleVariant > 0 && visibleVariant <= arrivedVariants
+            ? visibleVariant
+            : savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
+              ? savedVisibleVariant
+              : 1;
+        enterRecoveryWaitingForAnchor({
+          checkpointReason: 'component_preview_anchor_missing',
+          trackScroll: true,
+        });
         waitForSvelteComponentTargetAndRetry({ manifestPath, sessionId, manifest });
         return;
       }
 
       const wrapper = document.createElement('div');
       wrapper.dataset.impeccableVariants = sessionId;
-      wrapper.dataset.impeccableVariantCount = String(manifest.count || expectedVariants || 1);
+      wrapper.dataset.impeccableVariantCount = String(
+        manifest.count || expectedVariants || 1
+      );
       wrapper.dataset.impeccablePreview = componentPreviewMode;
       wrapper.style.display = 'contents';
 
@@ -5530,7 +6547,8 @@
       const detachedOriginal = insertMode ? null : liveEl;
       if (insertMode) {
         removeInsertPlaceholderDom();
-        if (manifest.position === 'before') liveEl.parentElement.insertBefore(wrapper, liveEl);
+        if (manifest.position === 'before')
+          liveEl.parentElement.insertBefore(wrapper, liveEl);
         else liveEl.parentElement.insertBefore(wrapper, liveEl.nextSibling);
       } else {
         liveEl.parentElement.replaceChild(wrapper, liveEl);
@@ -5555,21 +6573,28 @@
       }
       recoveryWaitingForAnchor = false;
 
-      const previousVisibleVariant = currentSessionId === sessionId ? visibleVariant : 0;
+      const previousVisibleVariant =
+        currentSessionId === sessionId ? visibleVariant : 0;
       arrivedVariants = availableVariants;
       expectedVariants = Number(manifest.count) || expectedVariants || arrivedVariants;
       const saved = loadSession();
       const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
-      visibleVariant = previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
-        ? previousVisibleVariant
-        : (savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1);
+      visibleVariant =
+        previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
+          ? previousVisibleVariant
+          : savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
+            ? savedVisibleVariant
+            : 1;
 
       const mounted = await mountSvelteComponentVariant(visibleVariant);
       if (!mounted) {
         // The compiled component threw (e.g. a Svelte compile error in the
         // variant file). Don't strand the bar in an empty CYCLING state; restore
         // the original element and reset to PICKING so the user can retry.
-        abortSvelteComponentInjection(sessionId, 'A variant failed to compile. Fix the component and re-run.');
+        abortSvelteComponentInjection(
+          sessionId,
+          'A variant failed to compile. Fix the component and re-run.'
+        );
         return;
       }
 
@@ -5583,15 +6608,25 @@
       positionBar();
       saveSession();
       if (parameterGenerationState === 'loading') completeParameterPublication();
-      console.log('[impeccable] Mounted ' + arrivedVariants + ' ' + manifest.framework + ' component variants.');
+      console.log(
+        '[impeccable] Mounted ' +
+          arrivedVariants +
+          ' ' +
+          manifest.framework +
+          ' component variants.'
+      );
     } catch (err) {
       console.error('[impeccable] Failed to mount component-preview variants:', err);
-      abortSvelteComponentInjection(sessionId, 'Could not load variants. Fix the error and re-run.');
+      abortSvelteComponentInjection(
+        sessionId,
+        'Could not load variants. Fix the error and re-run.'
+      );
     }
   }
 
   function waitForSvelteComponentTargetAndRetry({ manifestPath, sessionId, manifest }) {
-    if (pendingSvelteComponentRetryObserver) pendingSvelteComponentRetryObserver.disconnect();
+    if (pendingSvelteComponentRetryObserver)
+      pendingSvelteComponentRetryObserver.disconnect();
     pendingSvelteComponentRetryObserver = new MutationObserver(() => {
       if (svelteComponentSession?.sessionId === sessionId) {
         pendingSvelteComponentRetryObserver.disconnect();
@@ -5604,7 +6639,10 @@
       pendingSvelteComponentRetryObserver = null;
       injectSvelteComponentsFromManifest(manifestPath, sessionId);
     });
-    pendingSvelteComponentRetryObserver.observe(document.body, { childList: true, subtree: true });
+    pendingSvelteComponentRetryObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
   }
 
   // Reset cleanly when a Svelte component session can't mount: tear the wrapper
@@ -5615,16 +6653,27 @@
       if (svelteComponentSession?.sessionId === sessionId) {
         teardownSvelteComponentSession(true);
       } else {
-        const orphan = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+        const orphan = document.querySelector(
+          '[data-impeccable-variants="' + sessionId + '"]'
+        );
         if (orphan) orphan.remove();
       }
     } catch (err) {
       console.warn('[impeccable] Svelte component abort cleanup failed:', err);
     }
     hideShaderOverlay();
-    if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
-    if (pendingSvelteComponentRetryObserver) { pendingSvelteComponentRetryObserver.disconnect(); pendingSvelteComponentRetryObserver = null; }
-    if (pendingVariantAnchorRetryObserver) { pendingVariantAnchorRetryObserver.disconnect(); pendingVariantAnchorRetryObserver = null; }
+    if (variantObserver) {
+      variantObserver.disconnect();
+      variantObserver = null;
+    }
+    if (pendingSvelteComponentRetryObserver) {
+      pendingSvelteComponentRetryObserver.disconnect();
+      pendingSvelteComponentRetryObserver = null;
+    }
+    if (pendingVariantAnchorRetryObserver) {
+      pendingVariantAnchorRetryObserver.disconnect();
+      pendingVariantAnchorRetryObserver = null;
+    }
     stopScrollLock();
     removeVariantStateStylesheet();
     clearSession();
@@ -5665,10 +6714,19 @@
       return;
     }
     rememberSessionFileMeta({ file: filePath });
-    const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(filePath);
+    const url =
+      'http://localhost:' +
+      PORT +
+      '/source?token=' +
+      TOKEN +
+      '&path=' +
+      encodeURIComponent(filePath);
     fetch(url)
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
-      .then(html => {
+      .then((r) => {
+        if (!r.ok) throw new Error(r.status);
+        return r.text();
+      })
+      .then((html) => {
         const parser = new DOMParser();
         let srcWrapper = null;
 
@@ -5677,25 +6735,36 @@
         const endMark = '<!-- impeccable-variants-end ' + sessionId + ' -->';
         const startIdx = html.indexOf(startMark);
         const endIdx = html.indexOf(endMark);
-        const block = startIdx !== -1 && endIdx !== -1 && endIdx > startIdx
-          ? html.slice(startIdx + startMark.length, endIdx).trim()
-          : html;
-        const doc = parser.parseFromString(normalizeSourceFallbackBlock(block, filePath), 'text/html');
-        srcWrapper = doc.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+        const block =
+          startIdx !== -1 && endIdx !== -1 && endIdx > startIdx
+            ? html.slice(startIdx + startMark.length, endIdx).trim()
+            : html;
+        const doc = parser.parseFromString(
+          normalizeSourceFallbackBlock(block, filePath),
+          'text/html'
+        );
+        srcWrapper = doc.querySelector(
+          '[data-impeccable-variants="' + sessionId + '"]'
+        );
         if (!srcWrapper) {
           console.warn('[impeccable] Variant wrapper not found in source file.');
           return;
         }
 
-        const previousVisibleVariant = currentSessionId === sessionId ? visibleVariant : 0;
+        const previousVisibleVariant =
+          currentSessionId === sessionId ? visibleVariant : 0;
         const wrapper = srcWrapper.cloneNode(true);
 
         // Wrapper already in DOM (wrap HMR landed, variant insert did not).
-        const existingWrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+        const existingWrapper = document.querySelector(
+          '[data-impeccable-variants="' + sessionId + '"]'
+        );
         if (existingWrapper) {
           existingWrapper.parentElement.replaceChild(wrapper, existingWrapper);
         } else {
-          const origContent = srcWrapper.querySelector('[data-impeccable-variant="original"] > :first-child');
+          const origContent = srcWrapper.querySelector(
+            '[data-impeccable-variant="original"] > :first-child'
+          );
           if (!origContent) return;
 
           const liveEl = resolveLiveInjectionAnchor(origContent.outerHTML);
@@ -5721,9 +6790,13 @@
 
         // Update state: count variants, preserving the user's current variant
         // when a late HMR/source reinjection lands after they have cycled.
-        const variants = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])');
+        const variants = wrapper.querySelectorAll(
+          '[data-impeccable-variant]:not([data-impeccable-variant="original"])'
+        );
         arrivedVariants = variants.length;
-        expectedVariants = parseInt(wrapper.dataset.impeccableVariantCount || arrivedVariants);
+        expectedVariants = parseInt(
+          wrapper.dataset.impeccableVariantCount || arrivedVariants
+        );
         if (arrivedVariants <= 0) {
           if (state === 'GENERATING') {
             // Mid-generation the source legitimately holds a scaffold wrapper
@@ -5732,7 +6805,9 @@
             // in-flight generation; stay in GENERATING — the variant observer
             // is armed and the server re-delivers a missed `done`.
             if (!opts.generationCompleted) {
-              console.log('[impeccable] Source has scaffold but no variants yet; still generating.');
+              console.log(
+                '[impeccable] Source has scaffold but no variants yet; still generating.'
+              );
               return;
             }
             // Generation finished, yet the read shows only the scaffold: the
@@ -5741,12 +6816,20 @@
             // here would strand the tab in GENERATING forever.
             const attempt = opts.attempt || 0;
             if (attempt < COMPLETED_SOURCE_FALLBACK_RETRIES) {
-              console.log('[impeccable] Generation is done but source shows no variants yet; retrying read ('
-                + (attempt + 1) + '/' + COMPLETED_SOURCE_FALLBACK_RETRIES + ').');
+              console.log(
+                '[impeccable] Generation is done but source shows no variants yet; retrying read (' +
+                  (attempt + 1) +
+                  '/' +
+                  COMPLETED_SOURCE_FALLBACK_RETRIES +
+                  ').'
+              );
               setTimeout(() => {
                 if (state !== 'GENERATING' || currentSessionId !== sessionId) return;
                 if (arrivedVariants > 0) return;
-                injectVariantsFromSource(filePath, sessionId, { ...opts, attempt: attempt + 1 });
+                injectVariantsFromSource(filePath, sessionId, {
+                  ...opts,
+                  attempt: attempt + 1,
+                });
               }, COMPLETED_SOURCE_FALLBACK_RETRY_MS);
               return;
             }
@@ -5756,13 +6839,17 @@
         }
         const saved = loadSession();
         const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
-        visibleVariant = previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
-          ? previousVisibleVariant
-          : (savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1);
+        visibleVariant =
+          previousVisibleVariant > 0 && previousVisibleVariant <= arrivedVariants
+            ? previousVisibleVariant
+            : savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
+              ? savedVisibleVariant
+              : 1;
         showVariantInDOM(sessionId, visibleVariant);
 
         // Update selectedElement to the visible variant's content
-        selectedElement = pickVariantContent(wrapper, visibleVariant) || wrapper.parentElement;
+        selectedElement =
+          pickVariantContent(wrapper, visibleVariant) || wrapper.parentElement;
 
         setLiveState('CYCLING');
         recoveryWaitingForAnchor = false;
@@ -5773,9 +6860,11 @@
         positionBar();
         saveSession();
         if (parameterGenerationState === 'loading') completeParameterPublication();
-        console.log('[impeccable] Injected ' + arrivedVariants + ' variants from source file.');
+        console.log(
+          '[impeccable] Injected ' + arrivedVariants + ' variants from source file.'
+        );
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('[impeccable] Failed to fetch source:', err);
         showToast('Could not load variants. Try refreshing the page.', 5000);
       });
@@ -5786,10 +6875,13 @@
     return String(block)
       .replace(
         /<style\b([^>]*)>\s*\{\s*`([\s\S]*?)`\s*\}\s*<\/style>/g,
-        (_match, attrs, css) => '<style' + attrs + '>' + css + '</style>',
+        (_match, attrs, css) => '<style' + attrs + '>' + css + '</style>'
       )
       .replace(/\bclassName\s*=\s*\{\s*`([^`]*?)`\s*\}/g, (_match, value) => {
-        const literalClasses = value.replace(/\$\{[^}]*\}/g, ' ').replace(/\s+/g, ' ').trim();
+        const literalClasses = value
+          .replace(/\$\{[^}]*\}/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
         return literalClasses ? 'class="' + escapeHtml(literalClasses) + '"' : '';
       })
       .replace(/\bclassName\s*=/g, 'class=')
@@ -5801,7 +6893,8 @@
 
   function jsxStyleObjectToCss(body) {
     const declarations = [];
-    const re = /(["'][^"']+["']|[A-Za-z_$][\w$-]*)\s*:\s*(?:"([^"]*)"|'([^']*)'|(-?\d+(?:\.\d+)?))/g;
+    const re =
+      /(["'][^"']+["']|[A-Za-z_$][\w$-]*)\s*:\s*(?:"([^"]*)"|'([^']*)'|(-?\d+(?:\.\d+)?))/g;
     let match;
     while ((match = re.exec(String(body || '')))) {
       const prop = jsxStylePropToCss(match[1]);
@@ -5813,18 +6906,23 @@
   }
 
   function jsxStylePropToCss(prop) {
-    let out = String(prop || '').trim().replace(/^["']|["']$/g, '');
+    let out = String(prop || '')
+      .trim()
+      .replace(/^["']|["']$/g, '');
     if (!out) return '';
     if (out.startsWith('--')) return out;
-    return out.replace(/[A-Z]/g, (ch) => '-' + ch.toLowerCase()).replace(/^-ms-/, '-ms-');
+    return out
+      .replace(/[A-Z]/g, (ch) => '-' + ch.toLowerCase())
+      .replace(/^-ms-/, '-ms-');
   }
 
   function buildSvelteExpressionTextMap(sourceOriginal, liveOriginal) {
     const map = new Map();
     if (!sourceOriginal || !liveOriginal) return map;
 
-    const sourceNodes = collectTextNodes(sourceOriginal)
-      .filter((node) => /\{[^{}]+\}/.test(node.nodeValue || ''));
+    const sourceNodes = collectTextNodes(sourceOriginal).filter((node) =>
+      /\{[^{}]+\}/.test(node.nodeValue || '')
+    );
     const liveTexts = collectTextNodes(liveOriginal)
       .map((node) => normalizePreviewText(node.nodeValue || ''))
       .filter(Boolean);
@@ -5889,7 +6987,9 @@
   }
 
   function normalizePreviewText(value) {
-    return String(value || '').replace(/\s+/g, ' ').trim();
+    return String(value || '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   function escapeRegExp(value) {
@@ -5897,7 +6997,10 @@
   }
 
   async function selectVariant(next, checkpointReason) {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
     if (variantSelectionInFlight) return;
     if (next < 1 || next > arrivedVariants) return;
     if (next === visibleVariant) return;
@@ -5942,19 +7045,28 @@
       if (anchor && !anchor.__impeccableFrozenAnchor) selectedElement = anchor;
       return;
     }
-    const wrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+    const wrapper = document.querySelector(
+      '[data-impeccable-variants="' + currentSessionId + '"]'
+    );
     if (!wrapper) return;
     const visEl = pickVariantContent(wrapper, visibleVariant);
     if (visEl) selectedElement = visEl;
   }
 
   function readVisibleVariantFromDOM(sessionId) {
-    if (svelteComponentSession?.sessionId === sessionId && svelteComponentSession.mountedVariant > 0) {
+    if (
+      svelteComponentSession?.sessionId === sessionId &&
+      svelteComponentSession.mountedVariant > 0
+    ) {
       return svelteComponentSession.mountedVariant;
     }
-    const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+    const wrapper = document.querySelector(
+      '[data-impeccable-variants="' + sessionId + '"]'
+    );
     if (!wrapper) return 0;
-    const variants = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])');
+    const variants = wrapper.querySelectorAll(
+      '[data-impeccable-variant]:not([data-impeccable-variant="original"])'
+    );
     for (const variant of variants) {
       if (!isVariantShown(variant)) continue;
       const idx = parseInt(variant.dataset.impeccableVariant || '0', 10);
@@ -5971,7 +7083,9 @@
   // (it wraps all of them and gets correct bounds).
   function pickVariantContent(wrapper, index) {
     if (!wrapper) return null;
-    const variantDiv = wrapper.querySelector('[data-impeccable-variant="' + index + '"]');
+    const variantDiv = wrapper.querySelector(
+      '[data-impeccable-variant="' + index + '"]'
+    );
     if (!variantDiv) return null;
     const NON_VISUAL = new Set(['STYLE', 'SCRIPT', 'LINK', 'META', 'TEMPLATE']);
     const visual = [];
@@ -5999,9 +7113,10 @@
   // every variant via the bare `[data-impeccable-variant]` attribute.
   function variantStateSelector(sessionId, num) {
     const wrapper = '[data-impeccable-variants="' + sessionId + '"]';
-    const variant = num == null
-      ? '[data-impeccable-variant]'
-      : '[data-impeccable-variant="' + num + '"]';
+    const variant =
+      num == null
+        ? '[data-impeccable-variant]'
+        : '[data-impeccable-variant="' + num + '"]';
     return wrapper + ' > ' + variant;
   }
 
@@ -6012,7 +7127,8 @@
     return Object.entries(values || {})
       .map(([id, val]) => {
         if (typeof val === 'number') return ' --p-' + id + ': ' + val + ';';
-        if (typeof val === 'boolean') return ' --p-' + id + ': ' + (val ? '1' : '0') + ';';
+        if (typeof val === 'boolean')
+          return ' --p-' + id + ': ' + (val ? '1' : '0') + ';';
         return '';
       })
       .join('');
@@ -6029,13 +7145,22 @@
     }
 
     // Hide every variant except the visible one (incl. the SSR'd "original").
-    const hideOthers = variantStateSelector(sessionId)
-      + ':not([data-impeccable-variant="' + num + '"]) { ' + VARIANT_HIDE_DECL + ' }';
+    const hideOthers =
+      variantStateSelector(sessionId) +
+      ':not([data-impeccable-variant="' +
+      num +
+      '"]) { ' +
+      VARIANT_HIDE_DECL +
+      ' }';
 
     // Force-show the visible variant (beats the source inline display:none on
     // v2/v3) and apply its knob values as custom properties.
-    const showVisible = variantStateSelector(sessionId, num)
-      + ' { ' + VARIANT_SHOW_DECL + variantParamDecls(paramsCurrentValues) + ' }';
+    const showVisible =
+      variantStateSelector(sessionId, num) +
+      ' { ' +
+      VARIANT_SHOW_DECL +
+      variantParamDecls(paramsCurrentValues) +
+      ' }';
 
     styleEl.textContent = hideOthers + '\n' + showVisible + '\n';
   }
@@ -6053,8 +7178,11 @@
       (document.head || document.documentElement).appendChild(styleEl);
     }
     const wrapper = '[data-impeccable-variants="' + sessionId + '"]';
-    styleEl.textContent = wrapper + ' > [data-impeccable-variant]:not([data-impeccable-variant="original"]) { display:none !important; }\n'
-      + wrapper + ' > [data-impeccable-variant="original"] { display:block !important; }';
+    styleEl.textContent =
+      wrapper +
+      ' > [data-impeccable-variant]:not([data-impeccable-variant="original"]) { display:none !important; }\n' +
+      wrapper +
+      ' > [data-impeccable-variant="original"] { display:block !important; }';
   }
 
   function resolveScrollLockAnchorTop() {
@@ -6068,14 +7196,18 @@
   // session's wrapper (HMR patches, variant inserts, cycle swaps).
   function startScrollLock(sessionId, initialTargetY, initialAnchorTop) {
     stopScrollLock();
-    scrollLockTargetY = typeof initialTargetY === 'number' && isFinite(initialTargetY)
-      ? initialTargetY
-      : window.scrollY;
-    scrollLockAnchorTop = typeof initialAnchorTop === 'number' && isFinite(initialAnchorTop)
-      ? initialAnchorTop
-      : resolveScrollLockAnchorTop();
+    scrollLockTargetY =
+      typeof initialTargetY === 'number' && isFinite(initialTargetY)
+        ? initialTargetY
+        : window.scrollY;
+    scrollLockAnchorTop =
+      typeof initialAnchorTop === 'number' && isFinite(initialAnchorTop)
+        ? initialAnchorTop
+        : resolveScrollLockAnchorTop();
 
-    try { history.scrollRestoration = 'manual'; } catch {}
+    try {
+      history.scrollRestoration = 'manual';
+    } catch {}
 
     // Suppress the browser's scroll-anchoring on the scroll root so it can't
     // fight our manual scroll correction. Apply this as a stylesheet rule, not
@@ -6098,11 +7230,19 @@
       scrollLockRaf = null;
       if (scrollLockTargetY == null) return;
       const anchor = resolveBarAnchor();
-      if (anchor?.isConnected && typeof scrollLockAnchorTop === 'number' && isFinite(scrollLockAnchorTop)) {
+      if (
+        anchor?.isConnected &&
+        typeof scrollLockAnchorTop === 'number' &&
+        isFinite(scrollLockAnchorTop)
+      ) {
         const anchorTop = anchor.getBoundingClientRect().top;
         const anchorDelta = anchorTop - scrollLockAnchorTop;
         if (Math.abs(anchorDelta) >= 0.5) {
-          window.scrollTo({ top: window.scrollY + anchorDelta, left: window.scrollX, behavior: 'instant' });
+          window.scrollTo({
+            top: window.scrollY + anchorDelta,
+            left: window.scrollX,
+            behavior: 'instant',
+          });
           scrollLockTargetY = window.scrollY;
           writeScrollY(scrollLockTargetY);
           return;
@@ -6113,7 +7253,11 @@
       if (Math.abs(delta) < 0.5) {
         return;
       }
-      window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: 'instant' });
+      window.scrollTo({
+        top: scrollLockTargetY,
+        left: window.scrollX,
+        behavior: 'instant',
+      });
     };
     const schedule = (why) => {
       if (scrollLockRaf != null) return;
@@ -6127,7 +7271,11 @@
           return;
         }
         for (const n of m.addedNodes) {
-          if (n.nodeType === 1 && (n.matches?.('[data-impeccable-variants="' + sessionId + '"]') || n.querySelector?.('[data-impeccable-variants="' + sessionId + '"]'))) {
+          if (
+            n.nodeType === 1 &&
+            (n.matches?.('[data-impeccable-variants="' + sessionId + '"]') ||
+              n.querySelector?.('[data-impeccable-variants="' + sessionId + '"]'))
+          ) {
             schedule('wrapper-added');
             return;
           }
@@ -6137,9 +7285,13 @@
     scrollLockObserver.observe(document.body, { childList: true, subtree: true });
 
     scrollLockAbort = new AbortController();
-    scrollLockAbort.signal.addEventListener('abort', () => {
-      document.getElementById(SCROLL_ANCHOR_LOCK_ID)?.remove();
-    }, { once: true });
+    scrollLockAbort.signal.addEventListener(
+      'abort',
+      () => {
+        document.getElementById(SCROLL_ANCHOR_LOCK_ID)?.remove();
+      },
+      { once: true }
+    );
     const sig = { signal: scrollLockAbort.signal };
     // Track whether the most recent scroll came from a user gesture. We
     // gate user-scroll re-anchoring on this flag so programmatic smooth
@@ -6149,7 +7301,10 @@
     const USER_GESTURE_WINDOW_MS = 250;
 
     const reanchor = (why) => {
-      if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
+      if (scrollLockRaf != null) {
+        cancelAnimationFrame(scrollLockRaf);
+        scrollLockRaf = null;
+      }
       const prevTarget = scrollLockTargetY;
       scrollLockTargetY = window.scrollY;
       scrollLockAnchorTop = resolveScrollLockAnchorTop();
@@ -6159,36 +7314,75 @@
       userGestureAt = performance.now();
       reanchor(why);
     };
-    window.addEventListener('wheel', () => markGesture('wheel'), { passive: true, ...sig });
-    window.addEventListener('touchstart', () => markGesture('touchstart'), { passive: true, ...sig });
-    window.addEventListener('touchmove', () => markGesture('touchmove'), { passive: true, ...sig });
-    window.addEventListener('keydown', (e) => {
-      if (['PageDown', 'PageUp', ' ', 'End', 'Home', 'ArrowDown', 'ArrowUp'].includes(e.key)) markGesture('key:' + e.key);
-    }, sig);
+    window.addEventListener('wheel', () => markGesture('wheel'), {
+      passive: true,
+      ...sig,
+    });
+    window.addEventListener('touchstart', () => markGesture('touchstart'), {
+      passive: true,
+      ...sig,
+    });
+    window.addEventListener('touchmove', () => markGesture('touchmove'), {
+      passive: true,
+      ...sig,
+    });
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (
+          ['PageDown', 'PageUp', ' ', 'End', 'Home', 'ArrowDown', 'ArrowUp'].includes(
+            e.key
+          )
+        )
+          markGesture('key:' + e.key);
+      },
+      sig
+    );
 
     // Correct on EVERY scroll event: whether it's the browser's
     // post-reload animated restore or some other script calling
     // scrollIntoView, we want to snap back immediately. Only skip if a
     // user gesture fired in the last 250ms.
-    window.addEventListener('scroll', () => {
-      const now = window.scrollY;
-      if (scrollLockTargetY == null) return;
-      if (performance.now() - userGestureAt < USER_GESTURE_WINDOW_MS) return;
-      if (Math.abs(now - scrollLockTargetY) < 0.5) return;
-      window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: 'instant' });
-    }, { passive: true, ...sig });
+    window.addEventListener(
+      'scroll',
+      () => {
+        const now = window.scrollY;
+        if (scrollLockTargetY == null) return;
+        if (performance.now() - userGestureAt < USER_GESTURE_WINDOW_MS) return;
+        if (Math.abs(now - scrollLockTargetY) < 0.5) return;
+        window.scrollTo({
+          top: scrollLockTargetY,
+          left: window.scrollX,
+          behavior: 'instant',
+        });
+      },
+      { passive: true, ...sig }
+    );
 
     // Apply target synchronously, not via rAF - racing the browser's
     // restore or a smooth-scroll animation means we want to win now.
     if (Math.abs(window.scrollY - scrollLockTargetY) > 0.5) {
-      window.scrollTo({ top: scrollLockTargetY, left: window.scrollX, behavior: 'instant' });
+      window.scrollTo({
+        top: scrollLockTargetY,
+        left: window.scrollX,
+        behavior: 'instant',
+      });
     }
   }
 
   function stopScrollLock() {
-    if (scrollLockObserver) { scrollLockObserver.disconnect(); scrollLockObserver = null; }
-    if (scrollLockRaf != null) { cancelAnimationFrame(scrollLockRaf); scrollLockRaf = null; }
-    if (scrollLockAbort) { scrollLockAbort.abort(); scrollLockAbort = null; }
+    if (scrollLockObserver) {
+      scrollLockObserver.disconnect();
+      scrollLockObserver = null;
+    }
+    if (scrollLockRaf != null) {
+      cancelAnimationFrame(scrollLockRaf);
+      scrollLockRaf = null;
+    }
+    if (scrollLockAbort) {
+      scrollLockAbort.abort();
+      scrollLockAbort = null;
+    }
     scrollLockTargetY = null;
     scrollLockAnchorTop = null;
     // NOTE: do NOT clear the persistent scroll key here. startScrollLock
@@ -6210,29 +7404,40 @@
       // or mutations inside the variant wrapper. Ignore our own bar/UI changes.
       let dominated = false;
       for (const m of mutations) {
-        if (m.target.closest?.('[data-impeccable-variants]')) { dominated = true; break; }
+        if (m.target.closest?.('[data-impeccable-variants]')) {
+          dominated = true;
+          break;
+        }
         for (const n of m.addedNodes) {
           if (n.nodeType !== 1) continue;
           // Direct hit: the added node itself is the wrapper or a variant.
           if (n.dataset?.impeccableVariants || n.dataset?.impeccableVariant) {
-            dominated = true; break;
+            dominated = true;
+            break;
           }
           // Subtree hit: framework HMR (notably SvelteKit) sometimes replaces
           // a whole subtree where the wrapper is a descendant of the added
           // node. Without this check, the observer ignores those mutations
           // and the session stays in GENERATING forever.
-          if (n.querySelector?.('[data-impeccable-variants],[data-impeccable-variant]')) {
-            dominated = true; break;
+          if (
+            n.querySelector?.('[data-impeccable-variants],[data-impeccable-variant]')
+          ) {
+            dominated = true;
+            break;
           }
         }
         if (dominated) break;
       }
       if (!dominated) return;
 
-      const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+      const wrapper = document.querySelector(
+        '[data-impeccable-variants="' + sessionId + '"]'
+      );
       if (!wrapper) return;
 
-      const variants = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])');
+      const variants = wrapper.querySelectorAll(
+        '[data-impeccable-variant]:not([data-impeccable-variant="original"])'
+      );
       const count = variants.length;
 
       // Re-anchor selectedElement if it was detached by live-wrap's HMR swap.
@@ -6241,14 +7446,18 @@
       if (selectedElement && !document.body.contains(selectedElement)) {
         const isInsert = wrapper.dataset.impeccableMode === 'insert';
         if (isInsert) {
-          const visEl = count > 0 ? pickVariantContent(wrapper, visibleVariant || 1) : null;
+          const visEl =
+            count > 0 ? pickVariantContent(wrapper, visibleVariant || 1) : null;
           if (visEl) {
             selectedElement = visEl;
             if (count > 0) removeInsertPlaceholderDom();
           } else {
             const ph = ensureInsertPlaceholder();
             if (ph) selectedElement = ph;
-            else if (insertAnchorElement && document.body.contains(insertAnchorElement)) {
+            else if (
+              insertAnchorElement &&
+              document.body.contains(insertAnchorElement)
+            ) {
               selectedElement = insertAnchorElement;
             }
           }
@@ -6264,11 +7473,15 @@
 
       updating = true;
       arrivedVariants = count;
-      generationPhase = arrivedVariants >= expectedVariants ? 'variants_ready' : 'variants_progress';
+      generationPhase =
+        arrivedVariants >= expectedVariants ? 'variants_ready' : 'variants_progress';
       if (visibleVariant === 0 && arrivedVariants > 0) {
         const saved = loadSession();
         const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
-        visibleVariant = savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1;
+        visibleVariant =
+          savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
+            ? savedVisibleVariant
+            : 1;
         showVariantInDOM(sessionId, visibleVariant);
         // showVariantInDOM hid the original (display:none); if we were still
         // anchored to the original's content, its boundingRect is now zero
@@ -6288,7 +7501,8 @@
         updateSelectedElement();
         showOrUpdateCyclingBar();
         disableInlineEdit();
-        if (arrivedVariants >= expectedVariants && expectedVariants > 0) refreshParamsPanel();
+        if (arrivedVariants >= expectedVariants && expectedVariants > 0)
+          refreshParamsPanel();
         else hideParamsPanel();
         positionBar();
       } else if (state === 'GENERATING') {
@@ -6298,7 +7512,7 @@
       sendCheckpoint(
         arrivedVariants >= expectedVariants && expectedVariants > 0
           ? 'variants_ready'
-          : 'variants_progress',
+          : 'variants_progress'
       );
       updating = false;
     });
@@ -6318,7 +7532,10 @@
         positionBar();
         if (state === 'CONFIGURING') positionEditBadge();
         const hiTarget = resolveBarAnchor();
-        if (hiTarget && !hiTarget.hasAttribute?.('data-impeccable-insert-placeholder')) {
+        if (
+          hiTarget &&
+          !hiTarget.hasAttribute?.('data-impeccable-insert-placeholder')
+        ) {
           showHighlight(hiTarget);
         } else {
           hideHighlight();
@@ -6342,7 +7559,10 @@
   }
 
   function stopScrollTracking() {
-    if (scrollRaf) { cancelAnimationFrame(scrollRaf); scrollRaf = null; }
+    if (scrollRaf) {
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = null;
+    }
   }
 
   //
@@ -6352,7 +7572,7 @@
 
   let evtSource = null;
   let sseRetries = 0;
-  const SSE_MAX_RETRIES = 20;  // generous: heartbeats keep the connection alive, so retries mean real trouble
+  const SSE_MAX_RETRIES = 20; // generous: heartbeats keep the connection alive, so retries mean real trouble
 
   function connectSSE() {
     evtSource = new EventSource('http://localhost:' + PORT + '/events?token=' + TOKEN);
@@ -6363,11 +7583,20 @@
 
     evtSource.onmessage = (e) => {
       sseRetries = 0; // reset on any successful message
-      let msg; try { msg = JSON.parse(e.data); } catch { return; }
+      let msg;
+      try {
+        msg = JSON.parse(e.data);
+      } catch {
+        return;
+      }
       switch (msg.type) {
         case 'connected':
           hasProjectContext = !!msg.hasProjectContext;
-          if (!hasProjectContext) showToast(`No PRODUCT.md found. Variants will be brand-agnostic. Run ${IMPECCABLE_COMMAND} init to generate one.`, 7000);
+          if (!hasProjectContext)
+            showToast(
+              `No PRODUCT.md found. Variants will be brand-agnostic. Run ${IMPECCABLE_COMMAND} init to generate one.`,
+              7000
+            );
           console.log('[impeccable] Live mode connected.');
           syncAgentPollingUi(!!msg.agentPolling);
           startAgentStatusPoll();
@@ -6381,15 +7610,25 @@
           syncAgentPollingUi(!!msg.connected);
           break;
         case 'agent_phase':
-          if (msg.id === currentSessionId && (state === 'GENERATING' || state === 'CYCLING')) {
+          if (
+            msg.id === currentSessionId &&
+            (state === 'GENERATING' || state === 'CYCLING')
+          ) {
             // Advance the visible phase monotonically. A behind/resumed
             // checkpoint may carry an earlier phase for internal bookkeeping,
             // but the bar must not move backward.
-            if (shouldAdvancePhase(generationPhase, msg.phase)) generationPhase = msg.phase;
-            if (msg.phase === 'variant_parameters_generating' || msg.phase === 'variant_parameters_validating') {
+            if (shouldAdvancePhase(generationPhase, msg.phase))
+              generationPhase = msg.phase;
+            if (
+              msg.phase === 'variant_parameters_generating' ||
+              msg.phase === 'variant_parameters_validating'
+            ) {
               parameterGenerationState = 'loading';
             }
-            if (msg.phase === 'parameters_ready' && parameterGenerationState !== 'ready') {
+            if (
+              msg.phase === 'parameters_ready' &&
+              parameterGenerationState !== 'ready'
+            ) {
               parameterGenerationState = 'loading';
             }
             updateBarContent(state === 'CYCLING' ? 'cycling' : 'generating');
@@ -6433,7 +7672,11 @@
         case 'done':
           if (maybeCompleteSteer(msg)) break;
           rememberSessionFileMeta(msg);
-          if (msg.id === currentSessionId && isFrameworkComponentPreviewMode(currentPreviewMode) && currentPreviewFile) {
+          if (
+            msg.id === currentSessionId &&
+            isFrameworkComponentPreviewMode(currentPreviewMode) &&
+            currentPreviewFile
+          ) {
             injectSvelteComponentsFromManifest(currentPreviewFile, msg.id);
             break;
           }
@@ -6448,7 +7691,12 @@
             break;
           }
           // Source fallback when HMR did not land variants in this tab.
-          if (msg.file && msg.id && state === 'GENERATING' && msg.id === currentSessionId) {
+          if (
+            msg.file &&
+            msg.id &&
+            state === 'GENERATING' &&
+            msg.id === currentSessionId
+          ) {
             setTimeout(() => {
               if (arrivedVariants >= expectedVariants && expectedVariants > 0) return;
               if (state !== 'GENERATING' || msg.id !== currentSessionId) return;
@@ -6468,7 +7716,7 @@
             if (state !== 'GENERATING') return;
             showToast(
               "Variants ready. If the picked element isn't visible, retrace the path that revealed it - they'll appear automatically.",
-              15000,
+              15000
             );
           }, 2000);
           break;
@@ -6509,7 +7757,13 @@
     evtSource.onerror = () => {
       sseRetries++;
       if (sseRetries <= SSE_MAX_RETRIES) {
-        console.log('[impeccable] SSE connection lost. Retry ' + sseRetries + '/' + SSE_MAX_RETRIES + '...');
+        console.log(
+          '[impeccable] SSE connection lost. Retry ' +
+            sseRetries +
+            '/' +
+            SSE_MAX_RETRIES +
+            '...'
+        );
         return; // EventSource auto-reconnects
       }
       // Server is gone. Clean up gracefully.
@@ -6524,14 +7778,20 @@
   function handleServerLost() {
     const recoveryState = currentSessionId ? state : 'IDLE';
     if (state === 'GENERATING' || state === 'CYCLING' || state === 'SAVING') {
-      showToast('Live server connection lost. Your session is saved; reopen this page or restart live-poll.mjs to continue.', 6000);
+      showToast(
+        'Live server connection lost. Your session is saved; reopen this page or restart live-poll.mjs to continue.',
+        6000
+      );
     }
     hideBar();
     hideHighlight();
     hideShaderOverlay();
     hideAnnotOverlay();
     stopScrollTracking();
-    if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
+    if (variantObserver) {
+      variantObserver.disconnect();
+      variantObserver = null;
+    }
     stopScrollLock();
     // Preserve local session state on server loss. The durable journal is the
     // source of truth, but localStorage plus the variant wrapper lets the UI
@@ -6557,11 +7817,15 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(msg),
-    }).then(async res => {
-      if (res.ok) return res;
-      const body = await res.json().catch(() => ({}));
-      return handleFailure(new Error(body.error || ('HTTP ' + res.status + ' ' + res.statusText)));
-    }).catch(handleFailure);
+    })
+      .then(async (res) => {
+        if (res.ok) return res;
+        const body = await res.json().catch(() => ({}));
+        return handleFailure(
+          new Error(body.error || 'HTTP ' + res.status + ' ' + res.statusText)
+        );
+      })
+      .catch(handleFailure);
   }
 
   function checkpointPayload(reason) {
@@ -6638,9 +7902,9 @@
         siblings,
       });
       if (
-        resolved.anchor !== insertHoverAnchor
-        || resolved.position !== insertHoverPosition
-        || resolved.axis !== insertHoverAxis
+        resolved.anchor !== insertHoverAnchor ||
+        resolved.position !== insertHoverPosition ||
+        resolved.axis !== insertHoverAxis
       ) {
         showInsertLine(resolved);
       }
@@ -6669,20 +7933,36 @@
       hideActionPicker();
     }
     // Close Tune popover on outside click (anything outside panel + bar)
-    if (tuneOpen && paramsPanelEl && !paramsPanelEl.contains(e.target) && barEl && !barEl.contains(e.target)) {
+    if (
+      tuneOpen &&
+      paramsPanelEl &&
+      !paramsPanelEl.contains(e.target) &&
+      barEl &&
+      !barEl.contains(e.target)
+    ) {
       closeTunePopover();
     }
     // In EDITING: click outside exits the text edit flow without rebuilding configure UI first.
-    if (state === 'EDITING' && !own(e.target) && selectedElement && !selectedElement.contains(e.target)) {
+    if (
+      state === 'EDITING' &&
+      !own(e.target) &&
+      selectedElement &&
+      !selectedElement.contains(e.target)
+    ) {
       cancelEditingToPicking();
       return;
     }
     // In CONFIGURING: click outside the bar and selected element returns to PICKING.
     if (
-      state === 'CONFIGURING' && !own(e.target) && selectedElement
-      && !selectedElement.contains(e.target)
+      state === 'CONFIGURING' &&
+      !own(e.target) &&
+      selectedElement &&
+      !selectedElement.contains(e.target)
     ) {
-      if (configureKind === 'insert') { cancelInsertConfigure(); return; }
+      if (configureKind === 'insert') {
+        cancelInsertConfigure();
+        return;
+      }
       exitConfigureToPicking('configure-outside-click', { clearHover: true });
       return;
     }
@@ -6694,7 +7974,7 @@
       const placeholder = createInsertPlaceholder(
         insertHoverAnchor,
         insertHoverPosition,
-        insertHoverAxis,
+        insertHoverAxis
       );
       if (!placeholder) return;
       hideInsertLine();
@@ -6746,14 +8026,23 @@
     let depth = 0;
     while (node && depth < 12) {
       // 1. Active dialog / modal
-      if (node.getAttribute && node.getAttribute('role') === 'dialog'
-          && node.getAttribute('aria-modal') === 'true') {
-        showToast('Heads up: this element lives inside a dialog. If state resets during generation, you may need to re-open it.', 6000);
+      if (
+        node.getAttribute &&
+        node.getAttribute('role') === 'dialog' &&
+        node.getAttribute('aria-modal') === 'true'
+      ) {
+        showToast(
+          'Heads up: this element lives inside a dialog. If state resets during generation, you may need to re-open it.',
+          6000
+        );
         return;
       }
       // 2. Common Radix / shadcn / headless-ui open-state attribute
       if (node.dataset && node.dataset.state === 'open') {
-        showToast('Heads up: this element lives inside an open panel. If state resets during generation, you may need to re-open it.', 6000);
+        showToast(
+          'Heads up: this element lives inside an open panel. If state resets during generation, you may need to re-open it.',
+          6000
+        );
         return;
       }
       // 3. Tab panel - only meaningful when the page also shows ANOTHER
@@ -6764,16 +8053,24 @@
         if (list) {
           const tabs = list.querySelectorAll('[role="tab"]');
           if (tabs.length > 1) {
-            showToast('Heads up: this element lives in a tab panel. If state resets during generation, switch back to this tab.', 6000);
+            showToast(
+              'Heads up: this element lives in a tab panel. If state resets during generation, switch back to this tab.',
+              6000
+            );
             return;
           }
         }
       }
       // 4. Collapsible: aria-expanded sibling. Look for the trigger button.
       if (node.id) {
-        const trigger = document.querySelector(`[aria-controls="${CSS.escape(node.id)}"][aria-expanded="true"]`);
+        const trigger = document.querySelector(
+          `[aria-controls="${CSS.escape(node.id)}"][aria-expanded="true"]`
+        );
         if (trigger) {
-          showToast('Heads up: this element lives inside an expandable section. If state resets during generation, re-expand it.', 6000);
+          showToast(
+            'Heads up: this element lives inside an expandable section. If state resets during generation, re-expand it.',
+            6000
+          );
           return;
         }
       }
@@ -6809,7 +8106,8 @@
     if (!/^(INPUT|TEXTAREA)$/.test(deepActive.tagName || '')) return false;
     if (deepActive.value) return false;
     if (deepActive.id === PREFIX + '-input' && state === 'CONFIGURING') return true;
-    if (deepActive.id === PREFIX + '-page-chat-input' && state === 'PICKING') return true;
+    if (deepActive.id === PREFIX + '-page-chat-input' && state === 'PICKING')
+      return true;
     return false;
   }
 
@@ -6818,10 +8116,10 @@
     if (annotEditing && annotEditing.input && e.target === annotEditing.input) return;
     const deepActive = activeElementDeep();
     if (
-      deepActive
-      && own(deepActive)
-      && /^(INPUT|TEXTAREA|SELECT)$/.test(deepActive.tagName || '')
-      && !shouldPassthroughElementNav(deepActive, e)
+      deepActive &&
+      own(deepActive) &&
+      /^(INPUT|TEXTAREA|SELECT)$/.test(deepActive.tagName || '') &&
+      !shouldPassthroughElementNav(deepActive, e)
     ) {
       return;
     }
@@ -6845,12 +8143,16 @@
       return;
     }
     if (pendingApplyInFlight) {
-      const liveNavKey = e.key === 'Enter'
-        || e.key === 'ArrowUp'
-        || e.key === 'ArrowDown'
-        || e.key === 'ArrowLeft'
-        || e.key === 'ArrowRight';
-      if (liveNavKey && (state === 'PICKING' || state === 'CONFIGURING' || state === 'CYCLING')) {
+      const liveNavKey =
+        e.key === 'Enter' ||
+        e.key === 'ArrowUp' ||
+        e.key === 'ArrowDown' ||
+        e.key === 'ArrowLeft' ||
+        e.key === 'ArrowRight';
+      if (
+        liveNavKey &&
+        (state === 'PICKING' || state === 'CONFIGURING' || state === 'CYCLING')
+      ) {
         e.preventDefault();
         e.stopPropagation();
         if (e.key === 'Enter') showManualApplyBusyToast();
@@ -6859,26 +8161,51 @@
     }
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (pickerEl?.style.display !== 'none') { hideActionPicker(); return; }
-      if (state === 'EDITING') { cancelEditing(); return; }
+      if (pickerEl?.style.display !== 'none') {
+        hideActionPicker();
+        return;
+      }
+      if (state === 'EDITING') {
+        cancelEditing();
+        return;
+      }
       if (state === 'CONFIGURING') {
-        if (configureKind === 'insert') { cancelInsertConfigure(); return; }
+        if (configureKind === 'insert') {
+          cancelInsertConfigure();
+          return;
+        }
         exitConfigureToPicking('escape-from-configure');
         return;
       }
-      if (state === 'CYCLING') { handleDiscard(); return; }
+      if (state === 'CYCLING') {
+        handleDiscard();
+        return;
+      }
       if (state === 'SAVING' || state === 'CONFIRMED') return; // don't interrupt
       if (state === 'PICKING') {
         if (insertActive) toggleInsert();
         else if (pickActive) togglePick();
-        else { hideHighlight(); setLiveState('IDLE'); }
+        else {
+          hideHighlight();
+          setLiveState('IDLE');
+        }
         return;
       }
     }
 
     // Arrow/Enter nav works in PICKING (hover) and CONFIGURING (selected, input empty)
-    var navEl = (state === 'PICKING') ? hoveredElement : (state === 'CONFIGURING') ? selectedElement : null;
-    if (navEl && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || (e.key === 'Enter' && state === 'PICKING'))) {
+    var navEl =
+      state === 'PICKING'
+        ? hoveredElement
+        : state === 'CONFIGURING'
+          ? selectedElement
+          : null;
+    if (
+      navEl &&
+      (e.key === 'ArrowUp' ||
+        e.key === 'ArrowDown' ||
+        (e.key === 'Enter' && state === 'PICKING'))
+    ) {
       let next = null;
       if (e.key === 'ArrowDown' && !e.shiftKey) {
         next = navEl.nextElementSibling;
@@ -6925,14 +8252,26 @@
     }
 
     if (state === 'CYCLING') {
-      if (e.key === 'ArrowLeft') { e.preventDefault(); cycleVariant(-1); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); cycleVariant(1); }
-      if (e.key === 'Enter') { e.preventDefault(); handleAccept(); }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        cycleVariant(-1);
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        cycleVariant(1);
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleAccept();
+      }
     }
   }
 
   function handleGo() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
     if (!selectedElement || state !== 'CONFIGURING') return;
     stopVoice({ suppressSubmit: true });
     const input = uiGetById(PREFIX + '-input');
@@ -6963,11 +8302,14 @@
     const captureRect = elForCapture.getBoundingClientRect();
     pickedAnchorViewportTop = captureRect.top;
     const snapshot = {
-      comments: annotState.comments.map(c => ({ x: c.x, y: c.y, text: c.text })),
-      strokes: annotState.strokes.map(s => ({ points: s.points.map(p => [p[0], p[1]]) })),
+      comments: annotState.comments.map((c) => ({ x: c.x, y: c.y, text: c.text })),
+      strokes: annotState.strokes.map((s) => ({
+        points: s.points.map((p) => [p[0], p[1]]),
+      })),
     };
     const basePayload = {
-      type: 'generate', id: currentSessionId,
+      type: 'generate',
+      id: currentSessionId,
       action: selectedAction,
       freeformPrompt: prompt || undefined,
       count: selectedCount,
@@ -6986,7 +8328,8 @@
     // conflict with the variant wrap that's about to land in the same DOM
     // region. Only swap if the badge was visible - picked elements with no
     // text rows have it hidden already.
-    if (editBadgeEl && editBadgeEl.style.display !== 'none') renderEditBadge('idle-disabled');
+    if (editBadgeEl && editBadgeEl.style.display !== 'none')
+      renderEditBadge('idle-disabled');
     showBar('generating');
     saveSession();
     sendCheckpoint('generate_started');
@@ -7012,15 +8355,30 @@
   }
 
   function handleInsertCreate() {
-    if (!placeholderElement || !insertAnchorElement || state !== 'CONFIGURING' || configureKind !== 'insert') return;
+    if (
+      !placeholderElement ||
+      !insertAnchorElement ||
+      state !== 'CONFIGURING' ||
+      configureKind !== 'insert'
+    )
+      return;
     const input = uiGetById(PREFIX + '-insert-input');
     const prompt = input ? input.value.trim() : '';
     if (annotEditing) finalizeEditingPin();
     const snapshot = {
-      comments: annotState.comments.map(c => ({ x: c.x, y: c.y, text: c.text })),
-      strokes: annotState.strokes.map(s => ({ points: s.points.map(p => [p[0], p[1]]) })),
+      comments: annotState.comments.map((c) => ({ x: c.x, y: c.y, text: c.text })),
+      strokes: annotState.strokes.map((s) => ({
+        points: s.points.map((p) => [p[0], p[1]]),
+      })),
     };
-    if (!canCreateInsert({ prompt, comments: snapshot.comments, strokes: snapshot.strokes })) return;
+    if (
+      !canCreateInsert({
+        prompt,
+        comments: snapshot.comments,
+        strokes: snapshot.strokes,
+      })
+    )
+      return;
 
     stopVoice({ suppressSubmit: true });
     pendingAcceptedSession = null;
@@ -7033,7 +8391,10 @@
     parameterReadyAnnouncedSession = null;
     resetSessionFileMeta();
     selectedElement = placeholderElement;
-    insertPlaceholderSnapshot = buildInsertPlaceholderSnapshotFromDom(insertAnchorElement, placeholderElement);
+    insertPlaceholderSnapshot = buildInsertPlaceholderSnapshotFromDom(
+      insertAnchorElement,
+      placeholderElement
+    );
 
     const elForCapture = placeholderElement;
     const captureRect = elForCapture.getBoundingClientRect();
@@ -7084,7 +8445,10 @@
       const s = document.createElement('script');
       s.src = 'http://localhost:' + PORT + '/modern-screenshot.js';
       s.onload = () => resolve(window.modernScreenshot);
-      s.onerror = () => { msLoadPromise = null; reject(new Error('modern-screenshot failed to load')); };
+      s.onerror = () => {
+        msLoadPromise = null;
+        reject(new Error('modern-screenshot failed to load'));
+      };
       uiAppendStyle(s);
     });
     return msLoadPromise;
@@ -7101,7 +8465,11 @@
   // to modern-screenshot as font.cssText.
   const FONT_EXT_RE = /\.(woff2?|ttf|otf|eot)(\?.*)?$/i;
   const FONT_MIME = {
-    woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf', eot: 'application/vnd.ms-fontobject',
+    woff2: 'font/woff2',
+    woff: 'font/woff',
+    ttf: 'font/ttf',
+    otf: 'font/otf',
+    eot: 'application/vnd.ms-fontobject',
   };
   function bufferToBase64(buf) {
     const bytes = new Uint8Array(buf);
@@ -7120,16 +8488,20 @@
       if (FONT_EXT_RE.test(m[2])) urls.add(m[2]);
     }
     const map = new Map();
-    await Promise.all([...urls].map(async (url) => {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) return;
-        const buf = await res.arrayBuffer();
-        const ext = url.toLowerCase().match(FONT_EXT_RE)?.[1] || 'woff2';
-        const mime = FONT_MIME[ext] || 'application/octet-stream';
-        map.set(url, 'data:' + mime + ';base64,' + bufferToBase64(buf));
-      } catch { /* skip; fall through to URL */ }
-    }));
+    await Promise.all(
+      [...urls].map(async (url) => {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) return;
+          const buf = await res.arrayBuffer();
+          const ext = url.toLowerCase().match(FONT_EXT_RE)?.[1] || 'woff2';
+          const mime = FONT_MIME[ext] || 'application/octet-stream';
+          map.set(url, 'data:' + mime + ';base64,' + bufferToBase64(buf));
+        } catch {
+          /* skip; fall through to URL */
+        }
+      })
+    );
     return cssText.replace(urlRe, (orig, q, url) => {
       const data = map.get(url);
       return data ? 'url(' + q + data + q + ')' : orig;
@@ -7142,7 +8514,10 @@
       try {
         const rules = sheet.cssRules;
         for (const rule of rules) {
-          if (rule.constructor.name === 'CSSFontFaceRule' || rule.cssText?.startsWith('@font-face')) {
+          if (
+            rule.constructor.name === 'CSSFontFaceRule' ||
+            rule.cssText?.startsWith('@font-face')
+          ) {
             chunks.push(rule.cssText);
           }
         }
@@ -7154,7 +8529,9 @@
           const text = await res.text();
           let m2;
           while ((m2 = fontFaceRe.exec(text))) chunks.push(m2[0]);
-        } catch { /* ignore; capture is best-effort */ }
+        } catch {
+          /* ignore; capture is best-effort */
+        }
       }
     }
     if (chunks.length === 0) return '';
@@ -7248,16 +8625,19 @@
     // preview mounts are covered by the same shader regression checks.
     const adapter = String(window.__IMPECCABLE_LIVE_ADAPTER__ || '').toLowerCase();
     if (adapter === 'svelte' || adapter === 'sveltekit') return true;
-    if (isFrameworkComponentPreviewMode(currentPreviewMode) || svelteComponentSession) return true;
+    if (isFrameworkComponentPreviewMode(currentPreviewMode) || svelteComponentSession)
+      return true;
     const wrapper = el?.closest?.('[data-impeccable-variants]');
     return isFrameworkComponentPreviewMode(wrapper?.dataset?.impeccablePreview);
   }
 
   function paintsShaderProxySurface(node) {
     const s = getComputedStyle(node);
-    return !isTransparentColor(s.backgroundColor)
-      || (s.backgroundImage && s.backgroundImage !== 'none')
-      || paintsBackdrop(node);
+    return (
+      !isTransparentColor(s.backgroundColor) ||
+      (s.backgroundImage && s.backgroundImage !== 'none') ||
+      paintsBackdrop(node)
+    );
   }
 
   function findShaderProxyCaptureRoot(el) {
@@ -7267,7 +8647,8 @@
     while (node && node !== doc.documentElement) {
       const nr = node.getBoundingClientRect();
       const containsElement =
-        nr.width > 0 && nr.height > 0 &&
+        nr.width > 0 &&
+        nr.height > 0 &&
         nr.left <= er.left + 0.5 &&
         nr.top <= er.top + 0.5 &&
         nr.right >= er.right - 0.5 &&
@@ -7295,21 +8676,27 @@
     const sy = (er.top - rr.top) * S;
     const sw = er.width * S;
     const sh = er.height * S;
-    if (sw <= 0 || sh <= 0) throw new Error('Selected element has no visible capture rect');
+    if (sw <= 0 || sh <= 0)
+      throw new Error('Selected element has no visible capture rect');
     const crop = doc.createElement('canvas');
     crop.width = Math.max(1, Math.round(sw));
     crop.height = Math.max(1, Math.round(sh));
     const cctx = crop.getContext('2d', { willReadFrequently: true });
     cctx.drawImage(rootCanvas, sx, sy, sw, sh, 0, 0, crop.width, crop.height);
-    const paper = dominantRgb01(cctx, crop.width, crop.height) || averageRgb01(cctx, crop.width, crop.height);
+    const paper =
+      dominantRgb01(cctx, crop.width, crop.height) ||
+      averageRgb01(cctx, crop.width, crop.height);
     const blob = await new Promise((res) => crop.toBlob(res, 'image/png'));
     if (!blob) throw new Error('Ancestor crop failed to produce a PNG blob');
     return { blob, paper };
   }
 
   async function captureElementToBlob(el, snapshot, rect) {
-    try { if (document.fonts?.ready) await document.fonts.ready; } catch {}
-    const hasAnnotations = snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
+    try {
+      if (document.fonts?.ready) await document.fonts.ready;
+    } catch {}
+    const hasAnnotations =
+      snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
     let annotNode = null;
     let savedPosition = null;
     if (hasAnnotations) {
@@ -7330,16 +8717,24 @@
       };
       if (shouldUseAncestorCropShaderProxy(el)) {
         try {
-          return await hideCaptureChromeForShaderProxy(() => captureElementFromRenderedAncestor(ms, el, opts));
+          return await hideCaptureChromeForShaderProxy(() =>
+            captureElementFromRenderedAncestor(ms, el, opts)
+          );
         } catch (err) {
-          console.warn('[impeccable] Svelte ancestor crop capture failed, falling back to element capture:', err);
+          console.warn(
+            '[impeccable] Svelte ancestor crop capture failed, falling back to element capture:',
+            err
+          );
         }
       }
       const bg = resolveCanvasBackground(el);
       // Fast path: the element paints its own background, or an opaque ancestor
       // color was found. modern-screenshot bakes that color; paper matches it.
       if (bg !== '#ffffff') {
-        const blob = await ms.domToBlob(el, { ...opts, ...(bg ? { backgroundColor: bg } : {}) });
+        const blob = await ms.domToBlob(el, {
+          ...opts,
+          ...(bg ? { backgroundColor: bg } : {}),
+        });
         return { blob, paper: bg ? cssColorToRgb01(bg) : resolvePaperRgb(el) };
       }
       // Transparent up to the root. The visible backdrop may still come from an
@@ -7357,8 +8752,10 @@
       const S = opts.scale;
       const er = el.getBoundingClientRect();
       const ar = backdrop.getBoundingClientRect();
-      const sx = (er.left - ar.left) * S, sy = (er.top - ar.top) * S;
-      const sw = er.width * S, sh = er.height * S;
+      const sx = (er.left - ar.left) * S,
+        sy = (er.top - ar.top) * S;
+      const sw = er.width * S,
+        sh = er.height * S;
       const crop = document.createElement('canvas');
       crop.width = Math.max(1, Math.round(sw));
       crop.height = Math.max(1, Math.round(sh));
@@ -7367,8 +8764,16 @@
       // Ground = backdrop sampled around the element, falling back to the crop
       // mean only if the surround is fully transparent.
       const actx = ancestorCanvas.getContext('2d', { willReadFrequently: true });
-      const paper = sampleSurroundingRgb(actx, sx, sy, sw, sh, ancestorCanvas.width, ancestorCanvas.height)
-        || averageRgb01(cctx, crop.width, crop.height);
+      const paper =
+        sampleSurroundingRgb(
+          actx,
+          sx,
+          sy,
+          sw,
+          sh,
+          ancestorCanvas.width,
+          ancestorCanvas.height
+        ) || averageRgb01(cctx, crop.width, crop.height);
       const blob = await new Promise((res) => crop.toBlob(res, 'image/png'));
       return { blob, paper };
     } finally {
@@ -7378,7 +8783,8 @@
   }
 
   async function captureAndEmit(el, basePayload, snapshot, rect) {
-    const hasAnnotations = snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
+    const hasAnnotations =
+      snapshot && (snapshot.comments.length > 0 || snapshot.strokes.length > 0);
 
     // Plain requests do not send a screenshot to the agent, so capture is
     // presentation-only. Wait only for the helper to accept the event before
@@ -7409,9 +8815,13 @@
     if (blob && hasAnnotations) {
       try {
         const uploadRes = await fetch(
-          'http://localhost:' + PORT + '/annotation?token=' + encodeURIComponent(TOKEN) +
-          '&eventId=' + encodeURIComponent(basePayload.id),
-          { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob },
+          'http://localhost:' +
+            PORT +
+            '/annotation?token=' +
+            encodeURIComponent(TOKEN) +
+            '&eventId=' +
+            encodeURIComponent(basePayload.id),
+          { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob }
         );
         if (uploadRes.ok) {
           const { path: p } = await uploadRes.json();
@@ -7528,7 +8938,9 @@ void main() {
   let colorParseCtx = null;
   function cssColorToRgb01(str) {
     if (!colorParseCtx) {
-      colorParseCtx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+      colorParseCtx = document
+        .createElement('canvas')
+        .getContext('2d', { willReadFrequently: true });
     }
     // Clear first: the ctx is cached across calls, so a semi-transparent color
     // would otherwise blend (source-over) with the previous call's leftover
@@ -7564,8 +8976,9 @@ void main() {
     for (const child of node.children) {
       const ccs = getComputedStyle(child);
       if (ccs.position !== 'absolute' && ccs.position !== 'fixed') continue;
-      const paints = !isTransparentColor(ccs.backgroundColor)
-        || (ccs.backgroundImage && ccs.backgroundImage !== 'none');
+      const paints =
+        !isTransparentColor(ccs.backgroundColor) ||
+        (ccs.backgroundImage && ccs.backgroundImage !== 'none');
       if (!paints) continue;
       const cr = child.getBoundingClientRect();
       if (cr.width >= nr.width * 0.9 && cr.height >= nr.height * 0.9) return true;
@@ -7585,9 +8998,17 @@ void main() {
   // backdrop was captured from an ancestor rather than read from a CSS color.
   function averageRgb01(ctx, w, h) {
     const data = ctx.getImageData(0, 0, w, h).data;
-    let r = 0, g = 0, b = 0, n = 0;
+    let r = 0,
+      g = 0,
+      b = 0,
+      n = 0;
     // Stride a few pixels for speed; exact average is unnecessary for a ground.
-    for (let i = 0; i < data.length; i += 16) { r += data[i]; g += data[i + 1]; b += data[i + 2]; n++; }
+    for (let i = 0; i < data.length; i += 16) {
+      r += data[i];
+      g += data[i + 1];
+      b += data[i + 2];
+      n++;
+    }
     return n ? [r / n / 255, g / n / 255, b / n / 255] : SHADER_PAPER_FALLBACK;
   }
 
@@ -7613,7 +9034,13 @@ void main() {
     for (const bucket of buckets.values()) {
       if (!best || bucket.count > best.count) best = bucket;
     }
-    return best ? [best.r / best.count / 255, best.g / best.count / 255, best.b / best.count / 255] : null;
+    return best
+      ? [
+          best.r / best.count / 255,
+          best.g / best.count / 255,
+          best.b / best.count / 255,
+        ]
+      : null;
   }
 
   // Average the backdrop sampled just OUTSIDE an element's rect within a larger
@@ -7625,15 +9052,25 @@ void main() {
     const fx = [0.2, 0.5, 0.8].map((f) => sx + sw * f);
     const fy = [0.2, 0.5, 0.8].map((f) => sy + sh * f);
     const pts = [];
-    for (const x of fx) { pts.push([x, sy - pad], [x, sy + sh + pad]); }
-    for (const y of fy) { pts.push([sx - pad, y], [sx + sw + pad, y]); }
-    let r = 0, g = 0, b = 0, n = 0;
+    for (const x of fx) {
+      pts.push([x, sy - pad], [x, sy + sh + pad]);
+    }
+    for (const y of fy) {
+      pts.push([sx - pad, y], [sx + sw + pad, y]);
+    }
+    let r = 0,
+      g = 0,
+      b = 0,
+      n = 0;
     for (const [px, py] of pts) {
       const cx = Math.max(0, Math.min(W - 1, Math.round(px)));
       const cy = Math.max(0, Math.min(H - 1, Math.round(py)));
       const d = ctx.getImageData(cx, cy, 1, 1).data;
       if (d[3] === 0) continue; // outside the ancestor's paint
-      r += d[0]; g += d[1]; b += d[2]; n++;
+      r += d[0];
+      g += d[1];
+      b += d[2];
+      n++;
     }
     return n ? [r / n / 255, g / n / 255, b / n / 255] : null;
   }
@@ -7656,8 +9093,10 @@ void main() {
     if (!anchor) return;
     const r = anchor.getBoundingClientRect();
     Object.assign(shaderState.canvas.style, {
-      top: r.top + 'px', left: r.left + 'px',
-      width: r.width + 'px', height: r.height + 'px',
+      top: r.top + 'px',
+      left: r.left + 'px',
+      width: r.width + 'px',
+      height: r.height + 'px',
     });
   }
 
@@ -7667,7 +9106,9 @@ void main() {
     if (shaderState.canvas) shaderState.canvas.remove();
     if (shaderState.objectUrl) URL.revokeObjectURL(shaderState.objectUrl);
     const lose = shaderState.gl?.getExtension?.('WEBGL_lose_context');
-    try { lose?.loseContext(); } catch {}
+    try {
+      lose?.loseContext();
+    } catch {}
     shaderState = null;
   }
 
@@ -7687,7 +9128,15 @@ void main() {
     fallback.style.outline = '2px dashed ' + C.brand;
     fallback.style.outlineOffset = '-2px';
     uiAppend(fallback);
-    shaderState = { canvas: fallback, gl: null, program: null, texture: null, rafId: 0, startTime: 0, objectUrl };
+    shaderState = {
+      canvas: fallback,
+      gl: null,
+      program: null,
+      texture: null,
+      rafId: 0,
+      startTime: 0,
+      objectUrl,
+    };
   }
 
   async function showShaderOverlay(el, blob, rect, paper) {
@@ -7701,8 +9150,10 @@ void main() {
     canvas.height = Math.max(1, Math.floor(rect.height * dpr));
     Object.assign(canvas.style, {
       position: 'fixed',
-      top: rect.top + 'px', left: rect.left + 'px',
-      width: rect.width + 'px', height: rect.height + 'px',
+      top: rect.top + 'px',
+      left: rect.left + 'px',
+      width: rect.width + 'px',
+      height: rect.height + 'px',
       borderRadius: radius,
       overflow: 'hidden',
       pointerEvents: 'none',
@@ -7710,8 +9161,11 @@ void main() {
     });
     uiAppend(canvas);
 
-    const gl = canvas.getContext('webgl', { premultipliedAlpha: false, preserveDrawingBuffer: false })
-            || canvas.getContext('experimental-webgl');
+    const gl =
+      canvas.getContext('webgl', {
+        premultipliedAlpha: false,
+        preserveDrawingBuffer: false,
+      }) || canvas.getContext('experimental-webgl');
     if (!gl) {
       // WebGL unavailable: use the captured bitmap as a background overlay so
       // the user still sees something meaningful during generation.
@@ -7733,14 +9187,13 @@ void main() {
       // Full-screen quad
       const buf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-        -1, -1, 0, 1,
-         1, -1, 1, 1,
-        -1,  1, 0, 0,
-        -1,  1, 0, 0,
-         1, -1, 1, 1,
-         1,  1, 1, 0,
-      ]), gl.STATIC_DRAW);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+          -1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, -1, 1, 0, 0, 1, -1, 1, 1, 1, 1, 1, 0,
+        ]),
+        gl.STATIC_DRAW
+      );
       const posLoc = gl.getAttribLocation(program, 'a_position');
       const uvLoc = gl.getAttribLocation(program, 'a_uv');
       gl.enableVertexAttribArray(posLoc);
@@ -7760,7 +9213,9 @@ void main() {
     } catch (err) {
       console.warn('[impeccable] shader bitmap decode failed:', err);
       const lose = gl.getExtension?.('WEBGL_lose_context');
-      try { lose?.loseContext(); } catch {}
+      try {
+        lose?.loseContext();
+      } catch {}
       showShaderBitmapFallback(canvas, blob);
       return;
     }
@@ -7782,7 +9237,15 @@ void main() {
     const paperRgb = paper || resolvePaperRgb(el);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    shaderState = { canvas, gl, program, texture, rafId: 0, startTime: performance.now(), reduced };
+    shaderState = {
+      canvas,
+      gl,
+      program,
+      texture,
+      rafId: 0,
+      startTime: performance.now(),
+      reduced,
+    };
     function frame() {
       if (!shaderState) return;
       const elapsed = (performance.now() - shaderState.startTime) / 1000;
@@ -7803,10 +9266,17 @@ void main() {
   }
 
   async function handleAccept() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
     if (pendingAcceptedSession || state === 'SAVING') return;
     if (variantSelectionPromise) {
-      try { await variantSelectionPromise; } catch { /* failed selection falls back below */ }
+      try {
+        await variantSelectionPromise;
+      } catch {
+        /* failed selection falls back below */
+      }
     }
     const domVisibleVariant = readVisibleVariantFromDOM(currentSessionId);
     if (domVisibleVariant > 0) visibleVariant = domVisibleVariant;
@@ -7818,7 +9288,9 @@ void main() {
       clientSentAt: Date.now(),
     };
     if (!currentSessionId || arrivedVariants === 0) return;
-    const acceptWrapper = document.querySelector('[data-impeccable-variants="' + currentSessionId + '"]');
+    const acceptWrapper = document.querySelector(
+      '[data-impeccable-variants="' + currentSessionId + '"]'
+    );
     if (Object.keys(paramsCurrentValues).length > 0) {
       acceptPayload.paramValues = { ...paramsCurrentValues };
     }
@@ -7830,9 +9302,13 @@ void main() {
     // HMR hasn't cleaned up by then (keeps static-server flows working).
     const acceptedSessionId = currentSessionId;
     const acceptedVariant = visibleVariant;
-    const acceptedIsSvelteComponent = svelteComponentSession?.sessionId === acceptedSessionId
-      || isFrameworkComponentPreviewMode(acceptWrapper?.dataset?.impeccablePreview);
-    const acceptedSnapshot = snapshotAcceptedVariantDom(acceptedSessionId, acceptedVariant);
+    const acceptedIsSvelteComponent =
+      svelteComponentSession?.sessionId === acceptedSessionId ||
+      isFrameworkComponentPreviewMode(acceptWrapper?.dataset?.impeccablePreview);
+    const acceptedSnapshot = snapshotAcceptedVariantDom(
+      acceptedSessionId,
+      acceptedVariant
+    );
 
     setLiveState('SAVING');
     updateBarContent('saving');
@@ -7854,14 +9330,20 @@ void main() {
         // the background; the foreground picker is free immediately.
         markSessionHandled();
         setLiveState('CONFIRMED');
-        document.documentElement.dataset.impeccableAcceptToPickingMs = String(Date.now() - acceptPayload.clientSentAt);
+        document.documentElement.dataset.impeccableAcceptToPickingMs = String(
+          Date.now() - acceptPayload.clientSentAt
+        );
         scheduleAcceptCleanup(pending);
       })
       .catch(() => {
-        if (pendingAcceptedSession?.id === acceptedSessionId) pendingAcceptedSession = null;
+        if (pendingAcceptedSession?.id === acceptedSessionId)
+          pendingAcceptedSession = null;
         setLiveState('CYCLING');
         showOrUpdateCyclingBar();
-        showToast('Could not confirm accept with the live server. Session kept for recovery; try Accept again.', 5000);
+        showToast(
+          'Could not confirm accept with the live server. Session kept for recovery; try Accept again.',
+          5000
+        );
       });
   }
 
@@ -7885,7 +9367,7 @@ void main() {
   }
 
   function scheduleAcceptCleanup(accepted) {
-    queueMicrotask(function() {
+    queueMicrotask(function () {
       if (pendingAcceptedSession?.id !== accepted?.id) return;
       // Svelte previews live in an adapter-owned mount rather than in source
       // wrapper markup. Promote the mounted variant before releasing the
@@ -7901,15 +9383,19 @@ void main() {
     // races. Static servers still need a fallback, but it must not keep Live
     // in SAVING or block the user's next pick.
     if (!accepted?.isSvelteComponent) {
-      setTimeout(function() {
+      setTimeout(function () {
         if (!acceptedDomAlreadyClean(accepted)) ensureAcceptedDomClean(accepted);
       }, 1200);
     }
   }
 
   function snapshotAcceptedVariantDom(sessionId, variantId) {
-    const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
-    const accepted = wrapper?.querySelector?.('[data-impeccable-variant="' + variantId + '"]');
+    const wrapper = document.querySelector(
+      '[data-impeccable-variants="' + sessionId + '"]'
+    );
+    const accepted = wrapper?.querySelector?.(
+      '[data-impeccable-variant="' + variantId + '"]'
+    );
     const root = accepted?.firstElementChild || null;
     return {
       acceptedHtml: accepted ? accepted.innerHTML : '',
@@ -7931,8 +9417,15 @@ void main() {
   function acceptedDomAlreadyClean(pending) {
     if (!pending?.acceptedSelector) return false;
     const matches = [...document.querySelectorAll(pending.acceptedSelector)];
-    return matches.length > 0
-      && matches.every((el) => !el.closest('[data-impeccable-variants],[data-impeccable-variant],[data-impeccable-carbonize]'));
+    return (
+      matches.length > 0 &&
+      matches.every(
+        (el) =>
+          !el.closest(
+            '[data-impeccable-variants],[data-impeccable-variant],[data-impeccable-carbonize]'
+          )
+      )
+    );
   }
 
   function ensureAcceptedDomClean(pending) {
@@ -7946,7 +9439,9 @@ void main() {
     }
     for (const wrapper of wrappers) {
       if (!wrapper?.isConnected) continue;
-      const accepted = wrapper.querySelector?.('[data-impeccable-variant="' + variantId + '"]');
+      const accepted = wrapper.querySelector?.(
+        '[data-impeccable-variant="' + variantId + '"]'
+      );
       if (!accepted) {
         wrapper.remove();
         continue;
@@ -7963,10 +9458,12 @@ void main() {
 
   function findAcceptedRuntimeWrappers(sessionId) {
     if (!sessionId) return [];
-    return [...new Set([
-      ...document.querySelectorAll('[data-impeccable-variants="' + sessionId + '"]'),
-      ...document.querySelectorAll('[data-impeccable-carbonize="' + sessionId + '"]'),
-    ])];
+    return [
+      ...new Set([
+        ...document.querySelectorAll('[data-impeccable-variants="' + sessionId + '"]'),
+        ...document.querySelectorAll('[data-impeccable-carbonize="' + sessionId + '"]'),
+      ]),
+    ];
   }
 
   function restoreAcceptedDomFromSnapshot(pending) {
@@ -7977,23 +9474,30 @@ void main() {
     }
     const parent = pending.parentElement?.isConnected
       ? pending.parentElement
-      : (pending.parentSelector ? document.querySelector(pending.parentSelector) : null);
+      : pending.parentSelector
+        ? document.querySelector(pending.parentSelector)
+        : null;
     if (!parent) {
       reloadAfterMissingAcceptedDom(pending);
       return;
     }
     const template = document.createElement('template');
     template.innerHTML = pending.acceptedHtml;
-    const anchor = pending.nextSibling?.isConnected && pending.nextSibling.parentElement === parent
-      ? pending.nextSibling
-      : null;
+    const anchor =
+      pending.nextSibling?.isConnected && pending.nextSibling.parentElement === parent
+        ? pending.nextSibling
+        : null;
     parent.insertBefore(template.content, anchor);
     if (!acceptedDomAlreadyClean(pending)) reloadAfterMissingAcceptedDom(pending);
   }
 
   function reloadAfterMissingAcceptedDom(pending) {
     if (acceptedDomAlreadyClean(pending)) return;
-    if (pending?.id && document.querySelector('[data-impeccable-variants="' + pending.id + '"]')) return;
+    if (
+      pending?.id &&
+      document.querySelector('[data-impeccable-variants="' + pending.id + '"]')
+    )
+      return;
     location.reload();
   }
 
@@ -8001,7 +9505,10 @@ void main() {
     hideBar();
     hideHighlight();
     stopScrollTracking();
-    if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
+    if (variantObserver) {
+      variantObserver.disconnect();
+      variantObserver = null;
+    }
     stopScrollLock();
     removeVariantStateStylesheet();
     clearScrollY();
@@ -8020,15 +9527,22 @@ void main() {
   }
 
   function commitAcceptedVariantToDom(sessionId, variantId) {
-    const wrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+    const wrapper = document.querySelector(
+      '[data-impeccable-variants="' + sessionId + '"]'
+    );
     if (!wrapper) return false;
-    const accepted = wrapper.querySelector('[data-impeccable-variant="' + variantId + '"]');
+    const accepted = wrapper.querySelector(
+      '[data-impeccable-variant="' + variantId + '"]'
+    );
     if (!accepted || !accepted.firstElementChild) return false;
     const parent = wrapper.parentElement;
     if (!parent) return false;
 
     const style = wrapper.querySelector('style[data-impeccable-css]');
-    if (style && !document.querySelector('style[data-impeccable-accepted-css="' + sessionId + '"]')) {
+    if (
+      style &&
+      !document.querySelector('style[data-impeccable-accepted-css="' + sessionId + '"]')
+    ) {
       const promotedStyle = style.cloneNode(true);
       promotedStyle.setAttribute('data-impeccable-accepted-css', sessionId);
       parent.insertBefore(promotedStyle, wrapper);
@@ -8042,14 +9556,22 @@ void main() {
   }
 
   function handleDiscard() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
     if (!currentSessionId) return;
     sendEvent({ type: 'discard', id: currentSessionId }, { throwOnError: true })
       .then(() => {
         markSessionHandled();
         cleanup({ restoreOriginal: true, instantChrome: true });
       })
-      .catch(() => showToast('Could not confirm discard with the live server. Session kept for recovery.', 5000));
+      .catch(() =>
+        showToast(
+          'Could not confirm discard with the live server. Session kept for recovery.',
+          5000
+        )
+      );
   }
 
   //
@@ -8076,11 +9598,20 @@ void main() {
     const file = normalizeSessionPath(meta.file);
     const sourceFile = normalizeSessionPath(meta.sourceFile);
     const previewFile = normalizeSessionPath(meta.previewFile);
-    const previewMode = meta.previewMode || (isSvelteComponentManifestPath(previewFile || file) ? 'svelte-component' : null);
+    const previewMode =
+      meta.previewMode ||
+      (isSvelteComponentManifestPath(previewFile || file) ? 'svelte-component' : null);
 
-    if (isFrameworkComponentPreviewMode(previewMode) || isSvelteComponentManifestPath(file)) {
-      currentPreviewMode = isFrameworkComponentPreviewMode(previewMode) ? previewMode : 'svelte-component';
-      currentPreviewFile = previewFile || (isSvelteComponentManifestPath(file) ? file : currentPreviewFile);
+    if (
+      isFrameworkComponentPreviewMode(previewMode) ||
+      isSvelteComponentManifestPath(file)
+    ) {
+      currentPreviewMode = isFrameworkComponentPreviewMode(previewMode)
+        ? previewMode
+        : 'svelte-component';
+      currentPreviewFile =
+        previewFile ||
+        (isSvelteComponentManifestPath(file) ? file : currentPreviewFile);
       currentSourceFile = sourceFile || currentSourceFile;
       return;
     }
@@ -8095,7 +9626,8 @@ void main() {
     rememberSessionFileMeta(saved);
     if (saved.insertPlaceholder) insertPlaceholderSnapshot = saved.insertPlaceholder;
     if (saved.pickedAnchor) pickedAnchorSnapshot = saved.pickedAnchor;
-    if (Number.isFinite(saved.pickedAnchorViewportTop)) pickedAnchorViewportTop = saved.pickedAnchorViewportTop;
+    if (Number.isFinite(saved.pickedAnchorViewportTop))
+      pickedAnchorViewportTop = saved.pickedAnchorViewportTop;
     if (saved.action) selectedAction = saved.action;
     if (saved.count) selectedCount = saved.count;
     if (saved.previewMode) currentPreviewMode = saved.previewMode;
@@ -8121,16 +9653,21 @@ void main() {
   }
 
   function isTerminalSessionSummary(session) {
-    return /^(completed|discarded|discard_requested|accept_requested)$/.test(String(session?.phase || ''));
+    return /^(completed|discarded|discard_requested|accept_requested)$/.test(
+      String(session?.phase || '')
+    );
   }
 
   function findActiveSessionSummary(saved, activeSessions) {
     if (!saved?.id || !Array.isArray(activeSessions)) return null;
-    return activeSessions.find((session) =>
-      session?.id === saved.id
-      && pageMatchesCurrent(session.pageUrl || saved.pageUrl)
-      && !isTerminalSessionSummary(session)
-    ) || null;
+    return (
+      activeSessions.find(
+        (session) =>
+          session?.id === saved.id &&
+          pageMatchesCurrent(session.pageUrl || saved.pageUrl) &&
+          !isTerminalSessionSummary(session)
+      ) || null
+    );
   }
 
   function clampVariantIndex(value, count) {
@@ -8156,13 +9693,25 @@ void main() {
     applySavedSessionMeta(serverSession);
     applySavedSessionMeta(saved);
 
-    expectedVariants = Number(saved.expected || serverSession?.expectedVariants || selectedCount || 0);
+    expectedVariants = Number(
+      saved.expected || serverSession?.expectedVariants || selectedCount || 0
+    );
     arrivedVariants = Number(saved.arrived || serverSession?.arrivedVariants || 0);
-    if (arrivedVariants <= 0 && currentPreviewFile) arrivedVariants = Number(serverSession?.expectedVariants || saved.expected || selectedCount || 0);
-    if (expectedVariants <= 0) expectedVariants = Number(serverSession?.expectedVariants || arrivedVariants || selectedCount || 0);
-    visibleVariant = clampVariantIndex(saved.visible, arrivedVariants || expectedVariants)
-      || clampVariantIndex(serverSession?.visibleVariant, arrivedVariants || expectedVariants)
-      || (arrivedVariants > 0 ? 1 : 0);
+    if (arrivedVariants <= 0 && currentPreviewFile)
+      arrivedVariants = Number(
+        serverSession?.expectedVariants || saved.expected || selectedCount || 0
+      );
+    if (expectedVariants <= 0)
+      expectedVariants = Number(
+        serverSession?.expectedVariants || arrivedVariants || selectedCount || 0
+      );
+    visibleVariant =
+      clampVariantIndex(saved.visible, arrivedVariants || expectedVariants) ||
+      clampVariantIndex(
+        serverSession?.visibleVariant,
+        arrivedVariants || expectedVariants
+      ) ||
+      (arrivedVariants > 0 ? 1 : 0);
 
     const restoredAnchor = findLiveElementFromAnchorSnapshot(pickedAnchorSnapshot);
     selectedElement = restoredAnchor || document.body;
@@ -8177,7 +9726,7 @@ void main() {
 
     const restoreFile = isFrameworkComponentPreviewMode(currentPreviewMode)
       ? currentPreviewFile
-      : (currentSourceFile || currentPreviewFile);
+      : currentSourceFile || currentPreviewFile;
     if (restoreFile) {
       injectVariantsFromSource(restoreFile, currentSessionId);
       return true;
@@ -8188,7 +9737,8 @@ void main() {
 
   function restoreFromActiveSessions(activeSessions, reason) {
     const wrapper = document.querySelector('[data-impeccable-variants]');
-    if (wrapper && !isFrameworkComponentPreviewMode(wrapper.dataset.impeccablePreview)) return false;
+    if (wrapper && !isFrameworkComponentPreviewMode(wrapper.dataset.impeccablePreview))
+      return false;
     if (svelteComponentSession?.sessionId === currentSessionId) return false;
     return restoreSessionWithoutWrapper(reason || 'sse_connected', activeSessions);
   }
@@ -8213,9 +9763,14 @@ void main() {
     const sessionId = currentSessionId;
     const file = isFrameworkComponentPreviewMode(currentPreviewMode)
       ? currentPreviewFile
-      : (summary.sourceFile || summary.previewFile || currentSourceFile || currentPreviewFile);
+      : summary.sourceFile ||
+        summary.previewFile ||
+        currentSourceFile ||
+        currentPreviewFile;
     if (!file) return;
-    console.log('[impeccable] Reconnected after generation completed; recovering variants from source.');
+    console.log(
+      '[impeccable] Reconnected after generation completed; recovering variants from source.'
+    );
     setTimeout(() => {
       if (sessionId !== currentSessionId || state !== 'GENERATING') return;
       if (arrivedVariants > 0 && arrivedVariants >= expectedVariants) return;
@@ -8243,7 +9798,9 @@ void main() {
       parameterState: parameterGenerationState,
       insertPlaceholder: insertPlaceholderSnapshot || undefined,
       pickedAnchor: pickedAnchorSnapshot || undefined,
-      pickedAnchorViewportTop: Number.isFinite(pickedAnchorViewportTop) ? pickedAnchorViewportTop : undefined,
+      pickedAnchorViewportTop: Number.isFinite(pickedAnchorViewportTop)
+        ? pickedAnchorViewportTop
+        : undefined,
       pageHash: location.hash || undefined,
       pageSearch: location.search || undefined,
     });
@@ -8286,15 +9843,19 @@ void main() {
       // reconciler later tries to remove a wrapper we already removed.
       // Schedule a 2s fallback that does the manual swap only if HMR hasn't
       // replaced the wrapper by then (keeps static-server / no-HMR flows alive).
-      const wrapper = document.querySelector('[data-impeccable-variants="' + cleanupSessionId + '"]');
+      const wrapper = document.querySelector(
+        '[data-impeccable-variants="' + cleanupSessionId + '"]'
+      );
       if (wrapper) {
         if (restoreOriginal) showOriginalDuringDiscard(cleanupSessionId);
         else wrapper.style.display = 'none';
       }
-      setTimeout(function() {
+      setTimeout(function () {
         document.getElementById(DISCARD_STATE_STYLE_ID)?.remove();
         if (!cleanupSessionId) return;
-        const lateWrapper = document.querySelector('[data-impeccable-variants="' + cleanupSessionId + '"]');
+        const lateWrapper = document.querySelector(
+          '[data-impeccable-variants="' + cleanupSessionId + '"]'
+        );
         if (!lateWrapper) return;
         const orig = lateWrapper.querySelector('[data-impeccable-variant="original"]');
         if (orig) {
@@ -8310,8 +9871,14 @@ void main() {
     hideBar(instantChrome);
     hideHighlight();
     stopScrollTracking();
-    if (variantObserver) { variantObserver.disconnect(); variantObserver = null; }
-    if (pendingVariantAnchorRetryObserver) { pendingVariantAnchorRetryObserver.disconnect(); pendingVariantAnchorRetryObserver = null; }
+    if (variantObserver) {
+      variantObserver.disconnect();
+      variantObserver = null;
+    }
+    if (pendingVariantAnchorRetryObserver) {
+      pendingVariantAnchorRetryObserver.disconnect();
+      pendingVariantAnchorRetryObserver = null;
+    }
     stopScrollLock();
     removeVariantStateStylesheet();
     clearScrollY();
@@ -8346,18 +9913,27 @@ void main() {
     // with hover-expanded labels - and fall back to a sensible default
     // when the bar isn't mounted yet.
     const barRect = globalBarEl?.getBoundingClientRect();
-    const barTopFromBottom = barRect && barRect.height > 0
-      ? Math.max(16, window.innerHeight - barRect.top + 12)
-      : 16;
+    const barTopFromBottom =
+      barRect && barRect.height > 0
+        ? Math.max(16, window.innerHeight - barRect.top + 12)
+        : 16;
     const currentToast = el('div', {
-      position: 'fixed', bottom: barTopFromBottom + 'px', left: '50%',
+      position: 'fixed',
+      bottom: barTopFromBottom + 'px',
+      left: '50%',
       transform: 'translateX(-50%) translateY(8px)',
-      background: C.ink, color: C.white,
-      fontFamily: FONT, fontSize: '12px',
-      padding: '8px 16px', borderRadius: '8px',
-      zIndex: Z.toast, opacity: '0',
+      background: C.ink,
+      color: C.white,
+      fontFamily: FONT,
+      fontSize: '12px',
+      padding: '8px 16px',
+      borderRadius: '8px',
+      zIndex: Z.toast,
+      opacity: '0',
       transition: 'opacity 0.25s ' + EASE + ', transform 0.25s ' + EASE,
-      pointerEvents: 'none', maxWidth: '420px', textAlign: 'center',
+      pointerEvents: 'none',
+      maxWidth: '420px',
+      textAlign: 'center',
     });
     toastEl = currentToast;
     currentToast.id = PREFIX + '-toast';
@@ -8407,10 +9983,13 @@ void main() {
     // would strand the bar in CYCLING at 0/0. If there's no live in-memory mount
     // for this wrapper, it's an orphan (reload / failed mount): drop it and let
     // the live-server's SSE re-inject the manifest if the session is still live.
-    if (isFrameworkComponentPreviewMode(wrapper.dataset.impeccablePreview)
-        && svelteComponentSession?.sessionId !== sessionId) {
+    if (
+      isFrameworkComponentPreviewMode(wrapper.dataset.impeccablePreview) &&
+      svelteComponentSession?.sessionId !== sessionId
+    ) {
       wrapper.remove();
-      if (restoreSessionWithoutWrapper('browser_resumed_svelte_orphan_wrapper')) return true;
+      if (restoreSessionWithoutWrapper('browser_resumed_svelte_orphan_wrapper'))
+        return true;
       clearSession();
       clearHandled();
       return false;
@@ -8421,19 +10000,23 @@ void main() {
         return true;
       }
       currentSessionId = sessionId;
-      expectedVariants = Number(wrapper.dataset.impeccableVariantCount)
-        || Number(svelteComponentSession.manifest?.count)
-        || expectedVariants
-        || 1;
+      expectedVariants =
+        Number(wrapper.dataset.impeccableVariantCount) ||
+        Number(svelteComponentSession.manifest?.count) ||
+        expectedVariants ||
+        1;
       arrivedVariants = expectedVariants;
       const saved = loadSession();
       applySavedSessionMeta(saved);
       const savedVisibleVariant = saved && saved.id === sessionId ? saved.visible : 0;
-      visibleVariant = svelteComponentSession.mountedVariant > 0 && svelteComponentSession.mountedVariant <= arrivedVariants
-        ? svelteComponentSession.mountedVariant
-        : (savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants ? savedVisibleVariant : 1);
-      selectedElement = resolveSvelteComponentAnchor()
-        || wrapper.parentElement;
+      visibleVariant =
+        svelteComponentSession.mountedVariant > 0 &&
+        svelteComponentSession.mountedVariant <= arrivedVariants
+          ? svelteComponentSession.mountedVariant
+          : savedVisibleVariant > 0 && savedVisibleVariant <= arrivedVariants
+            ? savedVisibleVariant
+            : 1;
+      selectedElement = resolveSvelteComponentAnchor() || wrapper.parentElement;
       setLiveState('CYCLING');
       hideShaderOverlay();
       showBar('cycling');
@@ -8446,14 +10029,21 @@ void main() {
 
     currentSessionId = sessionId;
     expectedVariants = parseInt(wrapper.dataset.impeccableVariantCount || '0');
-    const variants = wrapper.querySelectorAll('[data-impeccable-variant]:not([data-impeccable-variant="original"])');
+    const variants = wrapper.querySelectorAll(
+      '[data-impeccable-variant]:not([data-impeccable-variant="original"])'
+    );
     arrivedVariants = variants.length;
 
     // Restore state from localStorage if available
     const saved = loadSession();
     if (saved && saved.id === sessionId) {
       applySavedSessionMeta(saved);
-      visibleVariant = (saved.visible > 0 && saved.visible <= arrivedVariants) ? saved.visible : (arrivedVariants > 0 ? 1 : 0);
+      visibleVariant =
+        saved.visible > 0 && saved.visible <= arrivedVariants
+          ? saved.visible
+          : arrivedVariants > 0
+            ? 1
+            : 0;
       if (saved.action) selectedAction = saved.action;
       if (saved.count) selectedCount = saved.count;
     } else {
@@ -8468,13 +10058,18 @@ void main() {
 
     // Find the visible variant's content element for highlight positioning.
     const isInsert = wrapper.dataset.impeccableMode === 'insert';
-    const visEl = visibleVariant > 0 ? pickVariantContent(wrapper, visibleVariant) : null;
+    const visEl =
+      visibleVariant > 0 ? pickVariantContent(wrapper, visibleVariant) : null;
     const origEl = pickVariantContent(wrapper, 'original');
     setLiveState(resumedState);
     if (isInsert && resumedState === 'GENERATING' && arrivedVariants === 0) {
       selectedElement = ensureInsertPlaceholder() || findInsertAnchorInDom() || wrapper;
     } else {
-      selectedElement = visEl || origEl || (isInsert ? findInsertAnchorInDom() : null) || wrapper.parentElement;
+      selectedElement =
+        visEl ||
+        origEl ||
+        (isInsert ? findInsertAnchorInDom() : null) ||
+        wrapper.parentElement;
     }
 
     // Set display state BEFORE starting observer (avoid triggering it)
@@ -8507,14 +10102,18 @@ void main() {
     // the wait doesn't go dead.
     if (state === 'GENERATING') {
       const shaderTarget = isInsert
-        ? (ensureInsertPlaceholder() || findInsertAnchorInDom())
+        ? ensureInsertPlaceholder() || findInsertAnchorInDom()
         : origEl;
       if (shaderTarget) {
         (async () => {
           try {
             const rect = shaderTarget.getBoundingClientRect();
             if (rect.width === 0 || rect.height === 0) return;
-            const { blob, paper } = await captureElementToBlob(shaderTarget, null, rect);
+            const { blob, paper } = await captureElementToBlob(
+              shaderTarget,
+              null,
+              rect
+            );
             if (blob && state === 'GENERATING') {
               showShaderOverlay(shaderTarget, blob, rect, paper);
             }
@@ -8569,14 +10168,21 @@ void main() {
         const prefs = JSON.parse(legacy);
         return { pickActive: !!prefs.pickActive, insertActive: false };
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return { pickActive: false, insertActive: false };
   }
 
   function saveInteractionPrefs() {
     try {
-      localStorage.setItem(INTERACTION_PREFS_KEY, JSON.stringify({ pickActive, insertActive }));
-    } catch { /* ignore */ }
+      localStorage.setItem(
+        INTERACTION_PREFS_KEY,
+        JSON.stringify({ pickActive, insertActive })
+      );
+    } catch {
+      /* ignore */
+    }
   }
 
   function loadPickPref() {
@@ -8675,7 +10281,9 @@ void main() {
       function readOpaque(el) {
         if (!el) return null;
         const bg = getComputedStyle(el).backgroundColor;
-        const m = bg.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/);
+        const m = bg.match(
+          /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/
+        );
         if (!m) return null;
         const alpha = m[4] == null ? 1 : parseFloat(m[4]);
         if (alpha < 0.5) return null; // transparent / nearly transparent → skip
@@ -8694,7 +10302,9 @@ void main() {
       // Perceptual luminance (Rec. 709)
       const L = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
       return L > 0.55 ? 'light' : 'dark';
-    } catch { return 'light'; }
+    } catch {
+      return 'light';
+    }
   }
 
   function barPaletteForTheme(_theme) {
@@ -8742,7 +10352,8 @@ void main() {
   function applyGlobalBarLabelState(expandInactive, forceCollapse = false) {
     globalBarModeToggles().forEach((toggle) => {
       if (forceCollapse) toggle._collapseLabel?.(true);
-      else if (expandInactive || toggle.dataset.active === 'true') toggle._expandLabel?.();
+      else if (expandInactive || toggle.dataset.active === 'true')
+        toggle._expandLabel?.();
       else toggle._collapseLabel?.();
     });
   }
@@ -8751,7 +10362,11 @@ void main() {
     const expandInactive = !!(expanded && !pageChatExpanded);
     applyGlobalBarLabelState(expandInactive, pageChatExpanded);
 
-    if (expandInactive && globalBarEl && globalBarEl.scrollWidth > window.innerWidth - 16) {
+    if (
+      expandInactive &&
+      globalBarEl &&
+      globalBarEl.scrollWidth > window.innerWidth - 16
+    ) {
       applyGlobalBarLabelState(false);
     }
   }
@@ -8763,11 +10378,18 @@ void main() {
 
   function pageChatExpandedWidth() {
     if (!pageChatEl || !globalBarEl) return PAGE_CHAT_EXPANDED_MAX_W + 'px';
-    const currentChatWidth = pageChatEl.getBoundingClientRect().width || pageChatCollapsedWidthPx();
-    const barWidth = Math.max(globalBarEl.getBoundingClientRect().width || 0, globalBarEl.scrollWidth || 0);
+    const currentChatWidth =
+      pageChatEl.getBoundingClientRect().width || pageChatCollapsedWidthPx();
+    const barWidth = Math.max(
+      globalBarEl.getBoundingClientRect().width || 0,
+      globalBarEl.scrollWidth || 0
+    );
     const nonChatWidth = Math.max(0, barWidth - currentChatWidth);
     const available = window.innerWidth - 16 - nonChatWidth;
-    const next = Math.max(pageChatCollapsedWidthPx(), Math.min(PAGE_CHAT_EXPANDED_MAX_W, available));
+    const next = Math.max(
+      pageChatCollapsedWidthPx(),
+      Math.min(PAGE_CHAT_EXPANDED_MAX_W, available)
+    );
     return Math.round(next) + 'px';
   }
 
@@ -8787,14 +10409,15 @@ void main() {
     if (chatIcon) {
       chatIcon.style.color = steerLocked
         ? P.patinaPale
-        : (inputFocused || pageChatExpanded ? P.text : P.textDim);
+        : inputFocused || pageChatExpanded
+          ? P.text
+          : P.textDim;
     }
     if (pageChatInput) pageChatInput.style.color = P.text;
     if (pageChatVoiceBtn) {
       const listening = pageChatVoiceBtn.dataset.listening === 'true';
-      pageChatVoiceBtn.style.color = listening || pageChatVoiceBtn.dataset.active === 'true'
-        ? P.accent
-        : P.textDim;
+      pageChatVoiceBtn.style.color =
+        listening || pageChatVoiceBtn.dataset.active === 'true' ? P.accent : P.textDim;
     }
   }
 
@@ -8806,9 +10429,7 @@ void main() {
   }
 
   function shouldFocusSteerChat() {
-    return state !== 'CONFIGURING'
-      && state !== 'EDITING'
-      && !steerLocked;
+    return state !== 'CONFIGURING' && state !== 'EDITING' && !steerLocked;
   }
 
   function isPageEditableElement(el) {
@@ -8837,10 +10458,12 @@ void main() {
   }
 
   function shouldSteerAutoFocus() {
-    return shouldFocusSteerChat()
-      && !steerFocusSuspended
-      && !isPageEditableActive()
-      && performance.now() >= steerFocusPauseUntil;
+    return (
+      shouldFocusSteerChat() &&
+      !steerFocusSuspended &&
+      !isPageEditableActive() &&
+      performance.now() >= steerFocusPauseUntil
+    );
   }
 
   function clearSteerFocusRecoverTimer() {
@@ -8885,28 +10508,42 @@ void main() {
     if (window.__IMPECCABLE_STEER_FOCUS_GUARD__) return;
     window.__IMPECCABLE_STEER_FOCUS_GUARD__ = true;
 
-    document.addEventListener('mousedown', (e) => {
-      notePagePointerDown(e);
-    }, true);
+    document.addEventListener(
+      'mousedown',
+      (e) => {
+        notePagePointerDown(e);
+      },
+      true
+    );
 
-    document.addEventListener('mousemove', (e) => {
-      if (!pagePointerGesture || pagePointerGesture.dragged) return;
-      const dx = e.clientX - pagePointerGesture.x;
-      const dy = e.clientY - pagePointerGesture.y;
-      if (Math.hypot(dx, dy) > 4) pagePointerGesture.dragged = true;
-    }, true);
+    document.addEventListener(
+      'mousemove',
+      (e) => {
+        if (!pagePointerGesture || pagePointerGesture.dragged) return;
+        const dx = e.clientX - pagePointerGesture.x;
+        const dy = e.clientY - pagePointerGesture.y;
+        if (Math.hypot(dx, dy) > 4) pagePointerGesture.dragged = true;
+      },
+      true
+    );
 
-    document.addEventListener('mouseup', () => {
-      if (!shouldFocusSteerChat()) return;
-      pagePickSkipClick = !!(pagePointerGesture?.dragged || pageHasHostTextSelection());
-      if (pageHasHostTextSelection()) {
-        steerFocusSuspended = true;
-      } else {
-        steerFocusSuspended = false;
-        scheduleSteerFocusRecover('page-mouseup-recover');
-      }
-      pagePointerGesture = null;
-    }, true);
+    document.addEventListener(
+      'mouseup',
+      () => {
+        if (!shouldFocusSteerChat()) return;
+        pagePickSkipClick = !!(
+          pagePointerGesture?.dragged || pageHasHostTextSelection()
+        );
+        if (pageHasHostTextSelection()) {
+          steerFocusSuspended = true;
+        } else {
+          steerFocusSuspended = false;
+          scheduleSteerFocusRecover('page-mouseup-recover');
+        }
+        pagePointerGesture = null;
+      },
+      true
+    );
 
     document.addEventListener('selectionchange', () => {
       if (!shouldFocusSteerChat()) return;
@@ -8926,7 +10563,11 @@ void main() {
   }
 
   function steerFocusDebugEnabled() {
-    try { return localStorage.getItem('impeccable-steer-debug') === '1'; } catch { return false; }
+    try {
+      return localStorage.getItem('impeccable-steer-debug') === '1';
+    } catch {
+      return false;
+    }
   }
 
   function steerFocusLog(reason, extra) {
@@ -8946,15 +10587,20 @@ void main() {
     if (!steerFocusDebugEnabled()) return;
     if (window.__IMPECCABLE_STEER_FOCUS_DEBUG__) return;
     window.__IMPECCABLE_STEER_FOCUS_DEBUG__ = true;
-    document.addEventListener('focusin', (e) => {
-      if (!pageChatInput) return;
-      steerFocusLog('focusin', { target: steerFocusTargetLabel(e.target) });
-    }, true);
+    document.addEventListener(
+      'focusin',
+      (e) => {
+        if (!pageChatInput) return;
+        steerFocusLog('focusin', { target: steerFocusTargetLabel(e.target) });
+      },
+      true
+    );
   }
 
   function focusConfigureInput(reason) {
     steerFocusLog('focusConfigureInput', { reason });
-    const inputId = configureKind === 'insert' ? PREFIX + '-insert-input' : PREFIX + '-input';
+    const inputId =
+      configureKind === 'insert' ? PREFIX + '-insert-input' : PREFIX + '-input';
     const input = uiGetById(inputId);
     if (!input) {
       steerFocusLog('focusConfigureInput missing', { reason });
@@ -9029,8 +10675,16 @@ void main() {
     syncPageChatVisual();
     pageChatInput.style.pointerEvents = 'auto';
     const before = activeElementDeep();
-    try { window.focus(); } catch { /* embed may block */ }
-    try { pageChatInput.focus({ preventScroll: true }); } catch { pageChatInput.focus(); }
+    try {
+      window.focus();
+    } catch {
+      /* embed may block */
+    }
+    try {
+      pageChatInput.focus({ preventScroll: true });
+    } catch {
+      pageChatInput.focus();
+    }
     syncPageChatFocusRing();
     syncPageChatChrome();
     steerFocusLog('focusSteerChat result', {
@@ -9050,20 +10704,30 @@ void main() {
   function buildSteerProcessingDots() {
     const P = pageChatPalette();
     const wrap = el('span', {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end',
-      gap: '5px', flex: '0 0 auto', minWidth: '0', marginLeft: 'auto',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: '5px',
+      flex: '0 0 auto',
+      minWidth: '0',
+      marginLeft: 'auto',
       padding: '0 12px 0 8px',
       pointerEvents: 'none',
     });
     wrap.setAttribute('aria-hidden', 'true');
     for (let i = 0; i < 3; i++) {
-      wrap.appendChild(el('span', {
-        display: 'inline-block',
-        width: '4px', height: '4px', borderRadius: '50%',
-        background: P.patinaPale,
-        boxShadow: '0 0 6px ' + P.patinaSoft,
-        animation: 'impeccable-steer-dot 1.05s ease-in-out ' + (i * 0.14) + 's infinite',
-      }));
+      wrap.appendChild(
+        el('span', {
+          display: 'inline-block',
+          width: '4px',
+          height: '4px',
+          borderRadius: '50%',
+          background: P.patinaPale,
+          boxShadow: '0 0 6px ' + P.patinaSoft,
+          animation:
+            'impeccable-steer-dot 1.05s ease-in-out ' + i * 0.14 + 's infinite',
+        })
+      );
     }
     return wrap;
   }
@@ -9108,7 +10772,11 @@ void main() {
 
   function focusPageChatInput(reason) {
     if (!preparePageChatInputForTyping() || steerLocked) return false;
-    try { pageChatInput.focus({ preventScroll: true }); } catch { pageChatInput.focus(); }
+    try {
+      pageChatInput.focus({ preventScroll: true });
+    } catch {
+      pageChatInput.focus();
+    }
     const focused = activeElementDeep() === pageChatInput;
     if (focused) steerInputWasFocused = true;
     syncPageChatFocusRing();
@@ -9127,7 +10795,8 @@ void main() {
     steerAwaitTimer = setTimeout(() => {
       if (!steerLocked || steerRequestId !== id) return;
       unlockSteerChat({
-        error: 'Steer timed out waiting for the agent. Check that live-poll is running and replies with steer_done.',
+        error:
+          'Steer timed out waiting for the agent. Check that live-poll is running and replies with steer_done.',
         restoreMessage: steerPendingMessage,
       });
     }, STEER_AWAIT_TIMEOUT_MS);
@@ -9162,7 +10831,8 @@ void main() {
 
   function unlockSteerChat(opts) {
     clearSteerAwaitTimer();
-    const restoreMessage = typeof opts?.restoreMessage === 'string' ? opts.restoreMessage : '';
+    const restoreMessage =
+      typeof opts?.restoreMessage === 'string' ? opts.restoreMessage : '';
     const keepExpanded = Boolean(opts?.error && restoreMessage);
     steerLocked = false;
     const completedId = steerRequestId;
@@ -9173,7 +10843,9 @@ void main() {
     pageChatEl.setAttribute('aria-label', 'Steer the page');
     pageChatExpanded = keepExpanded;
     pageChatEl.dataset.expanded = keepExpanded ? 'true' : 'false';
-    pageChatEl.style.width = keepExpanded ? pageChatExpandedWidth() : PAGE_CHAT_COLLAPSED_W;
+    pageChatEl.style.width = keepExpanded
+      ? pageChatExpandedWidth()
+      : PAGE_CHAT_COLLAPSED_W;
     pageChatEl.style.cursor = 'pointer';
     if (pageChatInput) {
       pageChatInput.disabled = false;
@@ -9223,11 +10895,13 @@ void main() {
     if (/Cursor/i.test(ua)) return true;
     try {
       return !!(window.cursor || window.__CURSOR__ || window.__GLASS_BROWSER__);
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 
   function steerVoiceUnavailableMessage() {
-    return 'Voice input works in Chrome or Safari. Cursor\'s preview browser cannot reach speech services.';
+    return "Voice input works in Chrome or Safari. Cursor's preview browser cannot reach speech services.";
   }
 
   function steerVoiceErrorMessage(code) {
@@ -9258,7 +10932,10 @@ void main() {
       if (pageChatVoiceBtn) {
         pageChatVoiceBtn.dataset.active = listening ? 'true' : 'false';
         pageChatVoiceBtn.dataset.listening = listening ? 'true' : 'false';
-        pageChatVoiceBtn.setAttribute('aria-label', listening ? 'Stop voice input' : 'Voice input');
+        pageChatVoiceBtn.setAttribute(
+          'aria-label',
+          listening ? 'Stop voice input' : 'Voice input'
+        );
         pageChatVoiceBtn.setAttribute('aria-pressed', listening ? 'true' : 'false');
       }
       if (pageChatEl) pageChatEl.dataset.voiceListening = listening ? 'true' : 'false';
@@ -9266,11 +10943,15 @@ void main() {
     } else if (voiceCtx?.mode === 'configure') {
       // The bar shows either the replace row's voice button or the insert
       // row's - both run voice through the 'configure' mode.
-      const voiceBtn = uiGetById(PREFIX + '-configure-voice') || uiGetById(PREFIX + '-insert-voice');
+      const voiceBtn =
+        uiGetById(PREFIX + '-configure-voice') || uiGetById(PREFIX + '-insert-voice');
       if (voiceBtn) {
         voiceBtn.dataset.active = listening ? 'true' : 'false';
         voiceBtn.dataset.listening = listening ? 'true' : 'false';
-        voiceBtn.setAttribute('aria-label', listening ? 'Stop voice input' : 'Voice input');
+        voiceBtn.setAttribute(
+          'aria-label',
+          listening ? 'Stop voice input' : 'Voice input'
+        );
         voiceBtn.setAttribute('aria-pressed', listening ? 'true' : 'false');
       }
       syncConfigureInputChrome();
@@ -9289,7 +10970,9 @@ void main() {
     try {
       if (opts && opts.abort) rec.abort();
       else rec.stop();
-    } catch { /* already ended */ }
+    } catch {
+      /* already ended */
+    }
   }
 
   function stopVoice(opts) {
@@ -9336,9 +11019,7 @@ void main() {
     voiceCtx = ctx;
     if (ctx.beforeStart) ctx.beforeStart();
 
-    voiceInterimBase = ctx.input.value.trim()
-      ? ctx.input.value.trim() + ' '
-      : '';
+    voiceInterimBase = ctx.input.value.trim() ? ctx.input.value.trim() + ' ' : '';
 
     const rec = new Ctor();
     rec.continuous = false;
@@ -9400,12 +11081,14 @@ void main() {
 
   function configureVoiceContext() {
     const input = uiGetById(
-      configureKind === 'insert' ? PREFIX + '-insert-input' : PREFIX + '-input',
+      configureKind === 'insert' ? PREFIX + '-insert-input' : PREFIX + '-input'
     );
     return {
       mode: 'configure',
       input,
-      beforeStart: () => { input?.focus(); },
+      beforeStart: () => {
+        input?.focus();
+      },
       submit: configureKind === 'insert' ? handleInsertCreate : handleGo,
     };
   }
@@ -9435,10 +11118,14 @@ void main() {
     const id = id8();
     steerRequestId = id;
     steerPendingMessage = text;
-    if (steerInputWasFocused) sendSteerCheckpoint(id, 'steer_input_focused', { focused: true });
+    if (steerInputWasFocused)
+      sendSteerCheckpoint(id, 'steer_input_focused', { focused: true });
     lockSteerChat();
     scheduleSteerAwaitTimeout(id);
-    sendSteerCheckpoint(id, 'steer_submitted', { message: text, pageUrl: location.href });
+    sendSteerCheckpoint(id, 'steer_submitted', {
+      message: text,
+      pageUrl: location.href,
+    });
     sendEvent({
       type: 'steer',
       id,
@@ -9458,13 +11145,17 @@ void main() {
       unlockSteerChat({ message: msg.message, file: msg.file });
       if (msg.file && /\.svelte(?:$|\?)/.test(String(msg.file))) {
         setTimeout(() => {
-          if (!steerLocked) showToast('Steer applied. Reload if the page has not refreshed yet.', 5000);
+          if (!steerLocked)
+            showToast('Steer applied. Reload if the page has not refreshed yet.', 5000);
         }, 4500);
       }
       return true;
     }
     if (msg.type === 'error') {
-      unlockSteerChat({ error: msg.message || 'Steer failed', restoreMessage: steerPendingMessage });
+      unlockSteerChat({
+        error: msg.message || 'Steer failed',
+        restoreMessage: steerPendingMessage,
+      });
       return true;
     }
     return false;
@@ -9505,8 +11196,10 @@ void main() {
 
   function initPageChat(parent, P) {
     pageChatEl = el('div', {
-      display: 'inline-flex', alignItems: 'center',
-      height: '28px', margin: '0 4px 0 ' + (GLOBAL_BAR_SECTION_GAP - GLOBAL_BAR_INNER_GAP) + 'px',
+      display: 'inline-flex',
+      alignItems: 'center',
+      height: '28px',
+      margin: '0 4px 0 ' + (GLOBAL_BAR_SECTION_GAP - GLOBAL_BAR_INNER_GAP) + 'px',
       borderRadius: '7px',
       background: P.chatSurface,
       border: '1px solid transparent',
@@ -9521,17 +11214,26 @@ void main() {
     pageChatEl.title = 'Steer the page';
 
     const chatIcon = el('span', {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: '28px', height: '28px', flexShrink: '0',
-      color: P.textDim, pointerEvents: 'none',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '28px',
+      height: '28px',
+      flexShrink: '0',
+      color: P.textDim,
+      pointerEvents: 'none',
     });
     chatIcon.innerHTML = ICON_PAGE_CHAT;
 
     pageChatHint = el('span', {
-      fontSize: '11.5px', fontWeight: '500',
+      fontSize: '11.5px',
+      fontWeight: '500',
       color: P.textDim,
-      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-      flex: '1', minWidth: '0',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      flex: '1',
+      minWidth: '0',
       pointerEvents: 'none',
       transition: 'opacity 0.15s ease',
     });
@@ -9543,20 +11245,35 @@ void main() {
     pageChatInput.placeholder = PAGE_CHAT_PLACEHOLDER_COLLAPSED;
     pageChatInput.setAttribute('aria-label', 'Steer the page');
     Object.assign(pageChatInput.style, {
-      flex: '1', minWidth: '0', width: '0',
-      padding: '0', border: 'none', background: 'transparent',
-      fontFamily: FONT, fontSize: '11.5px', color: P.text,
-      outline: 'none', opacity: '0', pointerEvents: 'none',
+      flex: '1',
+      minWidth: '0',
+      width: '0',
+      padding: '0',
+      border: 'none',
+      background: 'transparent',
+      fontFamily: FONT,
+      fontSize: '11.5px',
+      color: P.text,
+      outline: 'none',
+      opacity: '0',
+      pointerEvents: 'none',
       caretColor: P.accent,
       transition: 'opacity 0.15s ease',
     });
 
     pageChatVoiceBtn = el('button', {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      padding: '0', boxSizing: 'border-box',
-      width: '28px', height: '28px', flexShrink: '0',
-      border: 'none', background: 'transparent',
-      color: P.textDim, cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '0',
+      boxSizing: 'border-box',
+      width: '28px',
+      height: '28px',
+      flexShrink: '0',
+      border: 'none',
+      background: 'transparent',
+      color: P.textDim,
+      cursor: 'pointer',
       transition: 'color 0.12s ease, background 0.12s ease',
     });
     pageChatVoiceBtn.id = PREFIX + '-page-chat-voice';
@@ -9576,15 +11293,37 @@ void main() {
         '@keyframes impeccable-steer-dot { 0%, 70%, 100% { opacity: 0.28; transform: scale(0.82); } 35% { opacity: 1; transform: scale(1); } }' +
         '@keyframes impeccable-steer-processing { 0%, 100% { border-color: oklch(70% 0.12 188 / 0.28); box-shadow: 0 0 0 0 oklch(70% 0.12 188 / 0); } 50% { border-color: oklch(82% 0.07 188 / 0.55); box-shadow: 0 0 14px oklch(70% 0.12 188 / 0.18); } }' +
         '@keyframes impeccable-voice-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }' +
-        '#' + PREFIX + '-page-chat[data-processing="true"] { animation: impeccable-steer-processing 1.6s ease-in-out infinite; }' +
-        '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-page-chat[data-processing="true"] { animation: none; border-color: oklch(70% 0.12 188 / 0.45); } #' + PREFIX + '-page-chat[data-processing="true"] [aria-hidden="true"] span { animation: none; opacity: 0.85; } }' +
-        '#' + PREFIX + '-page-chat[data-voice-listening="true"] { border-color: oklch(70% 0.12 188 / 0.45); }' +
-        '#' + PREFIX + '-page-chat-voice[data-listening="true"] svg { animation: impeccable-voice-pulse 1.1s ease-in-out infinite; }' +
-        '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-page-chat-voice[data-listening="true"] svg { animation: none; opacity: 1; } }' +
-        '#' + PREFIX + '-page-chat-input::placeholder { color: oklch(72% 0 0); opacity: 1; }' +
-        '#' + PREFIX + '-page-chat-input { caret-color: oklch(84% 0.19 80.46); }' +
-        '#' + PREFIX + '-page-chat[data-input-focused="true"]:not([data-expanded="true"]) #' + PREFIX + '-page-chat-input::placeholder { color: oklch(72% 0 0); }' +
-        '#' + PREFIX + '-page-chat-voice:hover { background: oklch(78% 0.12 82 / 0.12); }';
+        '#' +
+        PREFIX +
+        '-page-chat[data-processing="true"] { animation: impeccable-steer-processing 1.6s ease-in-out infinite; }' +
+        '@media (prefers-reduced-motion: reduce) { #' +
+        PREFIX +
+        '-page-chat[data-processing="true"] { animation: none; border-color: oklch(70% 0.12 188 / 0.45); } #' +
+        PREFIX +
+        '-page-chat[data-processing="true"] [aria-hidden="true"] span { animation: none; opacity: 0.85; } }' +
+        '#' +
+        PREFIX +
+        '-page-chat[data-voice-listening="true"] { border-color: oklch(70% 0.12 188 / 0.45); }' +
+        '#' +
+        PREFIX +
+        '-page-chat-voice[data-listening="true"] svg { animation: impeccable-voice-pulse 1.1s ease-in-out infinite; }' +
+        '@media (prefers-reduced-motion: reduce) { #' +
+        PREFIX +
+        '-page-chat-voice[data-listening="true"] svg { animation: none; opacity: 1; } }' +
+        '#' +
+        PREFIX +
+        '-page-chat-input::placeholder { color: oklch(72% 0 0); opacity: 1; }' +
+        '#' +
+        PREFIX +
+        '-page-chat-input { caret-color: oklch(84% 0.19 80.46); }' +
+        '#' +
+        PREFIX +
+        '-page-chat[data-input-focused="true"]:not([data-expanded="true"]) #' +
+        PREFIX +
+        '-page-chat-input::placeholder { color: oklch(72% 0 0); }' +
+        '#' +
+        PREFIX +
+        '-page-chat-voice:hover { background: oklch(78% 0.12 82 / 0.12); }';
       uiAppendStyle(s);
     }
 
@@ -9637,7 +11376,8 @@ void main() {
     });
 
     pageChatInput.addEventListener('keydown', (e) => {
-      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !pageChatInput.value) return;
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !pageChatInput.value)
+        return;
       e.stopPropagation();
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -9694,9 +11434,13 @@ void main() {
     globalBarBrandEl.dataset.agentConnected = connected ? 'true' : 'false';
     // The tooltip is mouse-only, so carry the same distinction in the label or
     // screen-reader users are left with the vaguer of the two readings.
-    globalBarBrandEl.setAttribute('aria-label', agentStatusMessage
-      ? 'Impeccable live mode - ' + (agentHasWorkInFlight() ? 'agent is working' : 'agent not polling')
-      : 'Impeccable live mode');
+    globalBarBrandEl.setAttribute(
+      'aria-label',
+      agentStatusMessage
+        ? 'Impeccable live mode - ' +
+            (agentHasWorkInFlight() ? 'agent is working' : 'agent not polling')
+        : 'Impeccable live mode'
+    );
     globalBarBrandEl.removeAttribute('title');
     globalBarBrandEl.style.cursor = agentStatusMessage ? 'help' : 'default';
     const mark = globalBarBrandEl.querySelector('[data-brand-mark]');
@@ -9750,7 +11494,10 @@ void main() {
     const r = anchor.getBoundingClientRect();
     const tipW = tip.offsetWidth;
     const tipH = tip.offsetHeight;
-    const left = Math.max(8, Math.min(window.innerWidth - tipW - 8, r.left + r.width / 2 - tipW / 2));
+    const left = Math.max(
+      8,
+      Math.min(window.innerWidth - tipW - 8, r.left + r.width / 2 - tipW / 2)
+    );
     const top = Math.max(8, r.top - tipH - 8);
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
@@ -9777,7 +11524,9 @@ void main() {
           syncAgentPollingUi(data.agentPolling);
         }
       })
-      .catch(() => { /* server loss handled elsewhere */ });
+      .catch(() => {
+        /* server loss handled elsewhere */
+      });
   }
 
   function startAgentStatusPoll() {
@@ -9797,31 +11546,48 @@ void main() {
       const s = document.createElement('style');
       s.id = PREFIX + '-bar-focus-style';
       s.textContent =
-        '#' + PREFIX + '-global-bar button:focus { outline: none; }' +
-        '#' + PREFIX + '-global-bar button:focus-visible {' +
+        '#' +
+        PREFIX +
+        '-global-bar button:focus { outline: none; }' +
+        '#' +
+        PREFIX +
+        '-global-bar button:focus-visible {' +
         '  outline: none;' +
-        '  box-shadow: 0 0 0 2px ' + P.accentSoft + ', 0 0 0 3px ' + P.accent + ';' +
+        '  box-shadow: 0 0 0 2px ' +
+        P.accentSoft +
+        ', 0 0 0 3px ' +
+        P.accent +
+        ';' +
         '}' +
         '@keyframes impeccable-agent-dot { 0%, 100% { opacity: 0.45; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1); } }' +
-        '#' + PREFIX + '-global-bar-brand[data-agent-connected="false"] [data-agent-dot] { animation: impeccable-agent-dot 1.4s ease-in-out infinite; }' +
-        '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-global-bar-brand[data-agent-connected="false"] [data-agent-dot] { animation: none; opacity: 0.9; } }';
+        '#' +
+        PREFIX +
+        '-global-bar-brand[data-agent-connected="false"] [data-agent-dot] { animation: impeccable-agent-dot 1.4s ease-in-out infinite; }' +
+        '@media (prefers-reduced-motion: reduce) { #' +
+        PREFIX +
+        '-global-bar-brand[data-agent-connected="false"] [data-agent-dot] { animation: none; opacity: 0.9; } }';
       uiAppendStyle(s);
     }
 
     globalBarEl = el('div', {
-      position: 'fixed', bottom: '14px', left: '50%',
+      position: 'fixed',
+      bottom: '14px',
+      left: '50%',
       transform: 'translateX(-50%) translateY(20px)',
       zIndex: Z.bar + 5,
-      display: 'flex', alignItems: 'stretch',
+      display: 'flex',
+      alignItems: 'stretch',
       gap: '0',
       width: 'max-content',
       background: P.surface,
       border: '1px solid ' + P.border,
       borderRadius: '8px',
       boxShadow: P.shadow,
-      fontFamily: FONT, fontSize: '12px', lineHeight: '1',
+      fontFamily: FONT,
+      fontSize: '12px',
+      lineHeight: '1',
       opacity: '0',
-      overflow: 'hidden',          // clip the full-bleed brand mark to the bar radius
+      overflow: 'hidden', // clip the full-bleed brand mark to the bar radius
       maxWidth: 'calc(100vw - 16px)',
       boxSizing: 'border-box',
       transition: 'opacity 0.3s ' + EASE + ', transform 0.3s ' + EASE,
@@ -9831,9 +11597,13 @@ void main() {
 
     // Brand mark - kinpaku Impeccable icon (site header / favicon paths).
     const brand = el('span', {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      alignSelf: 'stretch', position: 'relative',
-      padding: '0 ' + (GLOBAL_BAR_SECTION_GAP - GLOBAL_BAR_INNER_PAD_LEFT) + 'px 0 14px',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'stretch',
+      position: 'relative',
+      padding:
+        '0 ' + (GLOBAL_BAR_SECTION_GAP - GLOBAL_BAR_INNER_PAD_LEFT) + 'px 0 14px',
       background: 'transparent',
       color: P.accent,
       flexShrink: '0',
@@ -9844,18 +11614,25 @@ void main() {
     brand.setAttribute('aria-label', 'Impeccable live mode - agent not polling');
 
     const brandMark = el('span', {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       position: 'relative',
     });
     brandMark.dataset.brandMark = 'true';
     brandMark.innerHTML = brandMarkSvg(P.accent, 18);
 
     const agentDot = el('span', {
-      position: 'absolute', right: '-1px', bottom: '7px',
-      width: '6px', height: '6px', borderRadius: '50%',
+      position: 'absolute',
+      right: '-1px',
+      bottom: '7px',
+      width: '6px',
+      height: '6px',
+      borderRadius: '50%',
       background: 'oklch(77% 0.13 82)',
       boxShadow: '0 0 0 2px ' + P.surface,
-      display: 'none', pointerEvents: 'none',
+      display: 'none',
+      pointerEvents: 'none',
     });
     agentDot.dataset.agentDot = 'true';
     agentDot.setAttribute('aria-hidden', 'true');
@@ -9870,8 +11647,10 @@ void main() {
 
     // Inner wrapper: holds the toggles with normal bar padding.
     const inner = el('div', {
-      display: 'flex', alignItems: 'center',
-      padding: '4px 5px 4px ' + GLOBAL_BAR_INNER_PAD_LEFT + 'px', gap: GLOBAL_BAR_INNER_GAP + 'px',
+      display: 'flex',
+      alignItems: 'center',
+      padding: '4px 5px 4px ' + GLOBAL_BAR_INNER_PAD_LEFT + 'px',
+      gap: GLOBAL_BAR_INNER_GAP + 'px',
       flex: '0 0 auto',
     });
     inner.id = PREFIX + '-global-bar-inner';
@@ -9881,38 +11660,58 @@ void main() {
     function makeIconBtn({ id, svg, label, ariaLabel, labelFont, onClick }) {
       const b = el('button', {
         position: 'relative',
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         boxSizing: 'border-box',
         flex: '0 0 auto',
         minWidth: '30px',
-        padding: '6px 8px', borderRadius: '7px',
-        border: 'none', background: 'transparent',
-        color: P.textDim, fontFamily: FONT, fontSize: '11.5px', fontWeight: '500',
+        padding: '6px 8px',
+        borderRadius: '7px',
+        border: 'none',
+        background: 'transparent',
+        color: P.textDim,
+        fontFamily: FONT,
+        fontSize: '11.5px',
+        fontWeight: '500',
         cursor: 'pointer',
         transition: 'background 0.15s ease, color 0.15s ease',
-        whiteSpace: 'nowrap', overflow: 'hidden',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
       });
       b.id = id;
       b.title = ariaLabel || label || '';
       b.setAttribute('aria-label', ariaLabel || label || '');
-      b.innerHTML = svg + (label
-        ? `<span class="icon-btn-label" style="display:inline-block;max-width:0;opacity:0;margin-left:0;overflow:hidden;font-family:${labelFont || FONT};transform:translateX(-4px);transition:opacity 0.2s ease, transform 0.25s ${EASE};">${label}</span>`
-        : '');
+      b.innerHTML =
+        svg +
+        (label
+          ? `<span class="icon-btn-label" style="display:inline-block;max-width:0;opacity:0;margin-left:0;overflow:hidden;font-family:${labelFont || FONT};transform:translateX(-4px);transition:opacity 0.2s ease, transform 0.25s ${EASE};">${label}</span>`
+          : '');
       const labelEl = b.querySelector('.icon-btn-label');
       const expand = () => {
         if (!labelEl) return;
-        labelEl.style.maxWidth = '120px'; labelEl.style.opacity = '1'; labelEl.style.marginLeft = '6px'; labelEl.style.transform = 'translateX(0)';
+        labelEl.style.maxWidth = '120px';
+        labelEl.style.opacity = '1';
+        labelEl.style.marginLeft = '6px';
+        labelEl.style.transform = 'translateX(0)';
       };
       const collapse = (force = false) => {
         if (!labelEl || (!force && b.dataset.active === 'true')) return;
-        labelEl.style.maxWidth = '0'; labelEl.style.opacity = '0'; labelEl.style.marginLeft = '0'; labelEl.style.transform = 'translateX(-4px)';
+        labelEl.style.maxWidth = '0';
+        labelEl.style.opacity = '0';
+        labelEl.style.marginLeft = '0';
+        labelEl.style.transform = 'translateX(-4px)';
       };
       // Per-button hover only changes color (no layout). The label expand/
       // collapse is driven by the bar-level mouseenter/mouseleave so moving
       // the mouse between adjacent buttons doesn't trigger per-button width
       // thrashing - the whole bar grows once and shrinks once.
-      b.addEventListener('mouseenter', () => { if (b.dataset.active !== 'true') b.style.color = P.text; });
-      b.addEventListener('mouseleave', () => { if (b.dataset.active !== 'true') b.style.color = P.textDim; });
+      b.addEventListener('mouseenter', () => {
+        if (b.dataset.active !== 'true') b.style.color = P.text;
+      });
+      b.addEventListener('mouseleave', () => {
+        if (b.dataset.active !== 'true') b.style.color = P.textDim;
+      });
       b.addEventListener('click', onClick);
       b._expandLabel = expand;
       b._collapseLabel = collapse;
@@ -9947,10 +11746,16 @@ void main() {
       onClick: () => toggleDetect(),
     });
     const detectBadge = el('span', {
-      fontSize: '10px', fontWeight: '600',
-      padding: '0px 5px', borderRadius: '7px', lineHeight: '16px',
-      background: P.accent, color: C.ink,
-      display: 'none', fontFamily: MONO, marginLeft: '4px',
+      fontSize: '10px',
+      fontWeight: '600',
+      padding: '0px 5px',
+      borderRadius: '7px',
+      lineHeight: '16px',
+      background: P.accent,
+      color: C.ink,
+      display: 'none',
+      fontFamily: MONO,
+      marginLeft: '4px',
     });
     detectBadge.id = PREFIX + '-detect-badge';
     detectBtn.appendChild(detectBadge);
@@ -10046,16 +11851,22 @@ void main() {
     pendingPillEl.addEventListener('mouseenter', () => {
       if (pendingApplyInFlight) return;
       pendingPillEl.style.filter = 'brightness(1.1)';
-      pendingPillEl.style.boxShadow = '0 7px 22px oklch(0% 0 0 / 0.18), 0 2px 5px oklch(0% 0 0 / 0.12)';
+      pendingPillEl.style.boxShadow =
+        '0 7px 22px oklch(0% 0 0 / 0.18), 0 2px 5px oklch(0% 0 0 / 0.12)';
     });
     pendingPillEl.addEventListener('mouseleave', () => {
       if (pendingApplyInFlight) return;
       pendingPillEl.style.filter = 'none';
       pendingPillEl.style.transform = 'scale(1)';
-      pendingPillEl.style.boxShadow = '0 4px 16px oklch(0% 0 0 / 0.16), 0 1px 3px oklch(0% 0 0 / 0.1)';
+      pendingPillEl.style.boxShadow =
+        '0 4px 16px oklch(0% 0 0 / 0.16), 0 1px 3px oklch(0% 0 0 / 0.1)';
     });
-    pendingPillEl.addEventListener('mousedown', () => { if (!pendingApplyInFlight) pendingPillEl.style.transform = 'scale(0.97)'; });
-    pendingPillEl.addEventListener('mouseup', () => { pendingPillEl.style.transform = 'scale(1)'; });
+    pendingPillEl.addEventListener('mousedown', () => {
+      if (!pendingApplyInFlight) pendingPillEl.style.transform = 'scale(0.97)';
+    });
+    pendingPillEl.addEventListener('mouseup', () => {
+      pendingPillEl.style.transform = 'scale(1)';
+    });
     pendingPillEl.addEventListener('click', onPendingPillClick);
 
     pendingTrashBtn = el('button', {
@@ -10063,8 +11874,11 @@ void main() {
       display: 'none',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '0', boxSizing: 'border-box',
-      width: '30px', height: '30px', borderRadius: '999px',
+      padding: '0',
+      boxSizing: 'border-box',
+      width: '30px',
+      height: '30px',
+      borderRadius: '999px',
       border: '1px solid ' + P.hairline,
       background: P.chatSurface,
       color: P.textDim,
@@ -10073,7 +11887,8 @@ void main() {
       cursor: 'pointer',
       transition: 'color 0.12s ease, background 0.12s ease, box-shadow 0.18s ease',
     });
-    pendingTrashBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M3 4h8"/><path d="M5 4V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1"/><path d="M4 4l.5 7a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1L10 4"/></svg>';
+    pendingTrashBtn.innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M3 4h8"/><path d="M5 4V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1"/><path d="M4 4l.5 7a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1L10 4"/></svg>';
     const pendingTrashTooltipEl = el('span', {
       position: 'absolute',
       bottom: 'calc(100% + 8px)',
@@ -10099,14 +11914,16 @@ void main() {
     pendingTrashBtn.setAttribute('aria-label', 'Discard copy edits on this page');
     const showTrashTooltip = () => {
       pendingTrashBtn.style.color = P.accent;
-      pendingTrashBtn.style.boxShadow = '0 7px 22px oklch(0% 0 0 / 0.16), 0 2px 5px oklch(0% 0 0 / 0.1)';
+      pendingTrashBtn.style.boxShadow =
+        '0 7px 22px oklch(0% 0 0 / 0.16), 0 2px 5px oklch(0% 0 0 / 0.1)';
       pendingTrashTooltipEl.style.opacity = '1';
       pendingTrashTooltipEl.style.transform = 'translateX(-50%) translateY(0)';
     };
     const hideTrashTooltip = () => {
       pendingTrashBtn.style.color = P.textDim;
       pendingTrashBtn.style.background = P.chatSurface;
-      pendingTrashBtn.style.boxShadow = '0 4px 16px oklch(0% 0 0 / 0.12), 0 1px 3px oklch(0% 0 0 / 0.08)';
+      pendingTrashBtn.style.boxShadow =
+        '0 4px 16px oklch(0% 0 0 / 0.12), 0 1px 3px oklch(0% 0 0 / 0.08)';
       pendingTrashTooltipEl.style.opacity = '0';
       pendingTrashTooltipEl.style.transform = 'translateX(-50%) translateY(4px)';
     };
@@ -10139,10 +11956,16 @@ void main() {
       return btn;
     };
     pendingKeepFixingBtn = makePendingDecisionBtn('Keep fixing', true);
-    pendingKeepFixingBtn.setAttribute('aria-label', 'Ask the agent to keep fixing Apply errors');
+    pendingKeepFixingBtn.setAttribute(
+      'aria-label',
+      'Ask the agent to keep fixing Apply errors'
+    );
     pendingKeepFixingBtn.addEventListener('click', onPendingKeepFixingClick);
     pendingRollbackBtn = makePendingDecisionBtn('Rollback', false);
-    pendingRollbackBtn.setAttribute('aria-label', 'Rollback source and keep copy edits staged');
+    pendingRollbackBtn.setAttribute(
+      'aria-label',
+      'Rollback source and keep copy edits staged'
+    );
     pendingRollbackBtn.addEventListener('click', onPendingRollbackClick);
 
     pendingDockEl.appendChild(pendingPillEl);
@@ -10152,7 +11975,8 @@ void main() {
 
     // Thin divider before the exit button
     const divider = el('span', {
-      width: '1px', height: '18px',
+      width: '1px',
+      height: '18px',
       background: P.hairline,
       margin: '0 4px 0 2px',
       flexShrink: '0',
@@ -10169,20 +11993,40 @@ void main() {
     // DevTools look fine. Every other chrome button sets padding inline;
     // this one needed it too.
     const exitBtn = el('button', {
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      padding: '0', boxSizing: 'border-box',
-      width: '24px', height: '24px', borderRadius: '6px',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '0',
+      boxSizing: 'border-box',
+      width: '24px',
+      height: '24px',
+      borderRadius: '6px',
       flexShrink: '0',
-      border: 'none', background: 'transparent',
-      color: P.textDim, fontFamily: FONT, fontSize: '0', lineHeight: '0',
-      cursor: 'pointer', transition: 'color 0.12s ease, background 0.12s ease',
+      border: 'none',
+      background: 'transparent',
+      color: P.textDim,
+      fontFamily: FONT,
+      fontSize: '0',
+      lineHeight: '0',
+      cursor: 'pointer',
+      transition: 'color 0.12s ease, background 0.12s ease',
     });
     exitBtn.id = PREFIX + '-exit';
-    exitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>';
+    exitBtn.innerHTML =
+      '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>';
     exitBtn.title = 'Exit live mode';
-    exitBtn.addEventListener('mouseenter', () => { exitBtn.style.color = 'oklch(58% 0.15 35)'; exitBtn.style.background = P.exitHover; });
-    exitBtn.addEventListener('mouseleave', () => { exitBtn.style.color = P.textDim; exitBtn.style.background = 'transparent'; });
-    exitBtn.addEventListener('click', () => { sendEvent({ type: 'exit' }); teardown(); });
+    exitBtn.addEventListener('mouseenter', () => {
+      exitBtn.style.color = 'oklch(58% 0.15 35)';
+      exitBtn.style.background = P.exitHover;
+    });
+    exitBtn.addEventListener('mouseleave', () => {
+      exitBtn.style.color = P.textDim;
+      exitBtn.style.background = 'transparent';
+    });
+    exitBtn.addEventListener('click', () => {
+      sendEvent({ type: 'exit' });
+      teardown();
+    });
     inner.appendChild(exitBtn);
 
     // Bar-level hover: expand mode labels unless Steer is using the space.
@@ -10198,9 +12042,17 @@ void main() {
       schedulePendingDockPosition();
       setTimeout(schedulePendingDockPosition, 260);
     });
-    globalBarEl.addEventListener('pointerdown', () => {
-      try { window.focus(); } catch { /* in-app preview may block */ }
-    }, true);
+    globalBarEl.addEventListener(
+      'pointerdown',
+      () => {
+        try {
+          window.focus();
+        } catch {
+          /* in-app preview may block */
+        }
+      },
+      true
+    );
 
     uiAppend(pendingDockEl);
     uiAppend(globalBarEl);
@@ -10262,13 +12114,13 @@ void main() {
     syncGlobalBarExpandedLabels(globalBarEl && globalBarEl.matches(':hover'));
 
     if (detectBadge) {
-      detectBadge.style.display = (detectActive && detectCount > 0) ? 'inline' : 'none';
+      detectBadge.style.display = detectActive && detectCount > 0 ? 'inline' : 'none';
       detectBadge.textContent = detectCount;
     }
 
     // When pick/insert is active, make detect overlays click-through
-    document.querySelectorAll('.impeccable-overlay').forEach(o => {
-      o.style.pointerEvents = (pickActive || insertActive) ? 'none' : '';
+    document.querySelectorAll('.impeccable-overlay').forEach((o) => {
+      o.style.pointerEvents = pickActive || insertActive ? 'none' : '';
     });
     syncPageInteractionCursor();
   }
@@ -10280,15 +12132,21 @@ void main() {
     const scanId = String(++detectScanSeq);
     activeDetectScanId = scanId;
     pendingDetectScanId = scanId;
-    window.postMessage({
-      source: 'impeccable-command',
-      action: 'scan',
-      config: { scanId },
-    }, '*');
+    window.postMessage(
+      {
+        source: 'impeccable-command',
+        action: 'scan',
+        config: { scanId },
+      },
+      '*'
+    );
   }
 
   function toggleDetect() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
     detectActive = !detectActive;
     updateGlobalBarState();
 
@@ -10311,7 +12169,10 @@ void main() {
   }
 
   function togglePick() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
     pickActive = !pickActive;
     if (pickActive) {
       insertActive = false;
@@ -10339,7 +12200,10 @@ void main() {
   }
 
   function toggleInsert() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
     insertActive = !insertActive;
     if (insertActive) {
       pickActive = false;
@@ -10407,9 +12271,15 @@ void main() {
     pagePickSkipClick = false;
     cleanup();
     hideBar();
-    if (pendingDockResizeObserver) { pendingDockResizeObserver.disconnect(); pendingDockResizeObserver = null; }
+    if (pendingDockResizeObserver) {
+      pendingDockResizeObserver.disconnect();
+      pendingDockResizeObserver = null;
+    }
     window.removeEventListener('resize', positionPendingDock);
-    if (pendingIntroAnimation) { pendingIntroAnimation.cancel(); pendingIntroAnimation = null; }
+    if (pendingIntroAnimation) {
+      pendingIntroAnimation.cancel();
+      pendingIntroAnimation = null;
+    }
     if (pendingDockEl) {
       pendingDockEl.remove();
       pendingDockEl = null;
@@ -10432,15 +12302,45 @@ void main() {
     pageChatHint = null;
     pageChatVoiceBtn = null;
     pageChatExpanded = false;
-    if (insertCreateTooltipEl) { insertCreateTooltipEl.remove(); insertCreateTooltipEl = null; }
-    if (configureBarTooltipEl) { configureBarTooltipEl.remove(); configureBarTooltipEl = null; }
-    if (highlightEl) { highlightEl.remove(); highlightEl = null; }
-    if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
-    if (barEl) { barEl.remove(); barEl = null; }
-    if (pickerEl) { pickerEl.remove(); pickerEl = null; }
-    if (paramsPanelEl) { paramsPanelEl.remove(); paramsPanelEl = null; paramsPanelInner = null; paramsPanelBody = null; }
-    if (editBadgeProxyRoot) { editBadgeProxyRoot.remove(); editBadgeProxyRoot = null; editBadgeProxyByTarget = new Map(); }
-    if (evtSource) { evtSource.close(); evtSource = null; }
+    if (insertCreateTooltipEl) {
+      insertCreateTooltipEl.remove();
+      insertCreateTooltipEl = null;
+    }
+    if (configureBarTooltipEl) {
+      configureBarTooltipEl.remove();
+      configureBarTooltipEl = null;
+    }
+    if (highlightEl) {
+      highlightEl.remove();
+      highlightEl = null;
+    }
+    if (tooltipEl) {
+      tooltipEl.remove();
+      tooltipEl = null;
+    }
+    if (barEl) {
+      barEl.remove();
+      barEl = null;
+    }
+    if (pickerEl) {
+      pickerEl.remove();
+      pickerEl = null;
+    }
+    if (paramsPanelEl) {
+      paramsPanelEl.remove();
+      paramsPanelEl = null;
+      paramsPanelInner = null;
+      paramsPanelBody = null;
+    }
+    if (editBadgeProxyRoot) {
+      editBadgeProxyRoot.remove();
+      editBadgeProxyRoot = null;
+      editBadgeProxyByTarget = new Map();
+    }
+    if (evtSource) {
+      evtSource.close();
+      evtSource = null;
+    }
     document.removeEventListener('mousemove', handleMouseMove, true);
     document.removeEventListener('click', handleClick, true);
     document.removeEventListener('keydown', handleKeyDown, true);
@@ -10465,18 +12365,21 @@ void main() {
   let designShadow = null;
   let designState = {
     open: false,
-    tab: 'visual',          // 'visual' | 'raw'
-    parsed: null,           // parseDesignMd output (frontmatter + body sections)
-    sidecar: null,          // .impeccable/design.json v2 payload (extensions + components + narrative)
+    tab: 'visual', // 'visual' | 'raw'
+    parsed: null, // parseDesignMd output (frontmatter + body sections)
+    sidecar: null, // .impeccable/design.json v2 payload (extensions + components + narrative)
     hasMd: false,
     hasSidecar: false,
-    present: null,          // true/false once fetch resolves
-    raw: null,              // raw DESIGN.md for the raw tab
+    present: null, // true/false once fetch resolves
+    raw: null, // raw DESIGN.md for the raw tab
     mdNewerThanJson: false, // stale-hint flag
     loading: false,
     error: null,
-    collapsed: {            // narrative-section accordion state
-      rules: true, dosdonts: true, overview: true,
+    collapsed: {
+      // narrative-section accordion state
+      rules: true,
+      dosdonts: true,
+      overview: true,
     },
   };
 
@@ -10491,24 +12394,34 @@ void main() {
       if (prefs.collapsed && typeof prefs.collapsed === 'object') {
         Object.assign(designState.collapsed, prefs.collapsed);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   function saveDesignPrefs() {
     try {
-      localStorage.setItem(DESIGN_PREFS_KEY, JSON.stringify({
-        tab: designState.tab,
-        collapsed: designState.collapsed,
-      }));
-    } catch { /* ignore */ }
+      localStorage.setItem(
+        DESIGN_PREFS_KEY,
+        JSON.stringify({
+          tab: designState.tab,
+          collapsed: designState.collapsed,
+        })
+      );
+    } catch {
+      /* ignore */
+    }
   }
 
   function initDesignPanel() {
     designHost = document.createElement('div');
     designHost.id = PREFIX + '-design-host';
     Object.assign(designHost.style, {
-      position: 'fixed', top: '0', left: '0',
-      width: '0', height: '0',
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '0',
+      height: '0',
       zIndex: String(Z.bar + 10),
       pointerEvents: 'none',
     });
@@ -10541,16 +12454,16 @@ void main() {
   // Neutral panel palette - deliberately NOT Impeccable-branded. The panel is
   // a viewer of the project's design system, not an Impeccable surface.
   const DP = {
-    canvas:   'oklch(94% 0 0)',            // panel background
-    tile:     'oklch(98.5% 0 0)',          // card-on-canvas
-    tileAlt:  'oklch(96% 0 0)',            // subtler tile for inner surfaces
-    ink:      'oklch(15% 0 0)',
-    ink2:     'oklch(35% 0 0)',
-    meta:     'oklch(55% 0 0)',
+    canvas: 'oklch(94% 0 0)', // panel background
+    tile: 'oklch(98.5% 0 0)', // card-on-canvas
+    tileAlt: 'oklch(96% 0 0)', // subtler tile for inner surfaces
+    ink: 'oklch(15% 0 0)',
+    ink2: 'oklch(35% 0 0)',
+    meta: 'oklch(55% 0 0)',
     hairline: 'oklch(88% 0 0)',
     hairlineSoft: 'oklch(92% 0 0)',
-    amber:    'oklch(77% 0.13 82)',         // stale-hint accent
-    amberBg:  'oklch(89% 0.055 84)',
+    amber: 'oklch(77% 0.13 82)', // stale-hint accent
+    amberBg: 'oklch(89% 0.055 84)',
   };
 
   function designPanelCss(BP) {
@@ -10858,7 +12771,10 @@ void main() {
 
     const tabs = document.createElement('div');
     tabs.className = 'tabs';
-    for (const t of [['visual', 'Visual'], ['raw', 'Raw']]) {
+    for (const t of [
+      ['visual', 'Visual'],
+      ['raw', 'Raw'],
+    ]) {
       const btn = document.createElement('button');
       btn.className = 'tab';
       btn.textContent = t[1];
@@ -10887,7 +12803,10 @@ void main() {
   }
 
   function toggleDesignPanel() {
-    if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
+    if (pendingApplyInFlight) {
+      showManualApplyBusyToast();
+      return;
+    }
     designState.open = !designState.open;
     renderDesignChrome();
     updateGlobalBarState();
@@ -10902,8 +12821,12 @@ void main() {
     renderDesignBody();
     try {
       const [jsonRes, rawRes] = await Promise.all([
-        fetch(`http://localhost:${PORT}/design-system.json?token=${TOKEN}`, { cache: 'no-store' }),
-        fetch(`http://localhost:${PORT}/design-system/raw?token=${TOKEN}`, { cache: 'no-store' }),
+        fetch(`http://localhost:${PORT}/design-system.json?token=${TOKEN}`, {
+          cache: 'no-store',
+        }),
+        fetch(`http://localhost:${PORT}/design-system/raw?token=${TOKEN}`, {
+          cache: 'no-store',
+        }),
       ]);
       const jsonData = await jsonRes.json();
       designState.present = jsonData.present === true;
@@ -10987,10 +12910,17 @@ void main() {
     const extensions = sidecar?.extensions || {};
     const proseColors = parsed?.colors || null;
 
-    const colors = buildColorModels(frontmatter.colors, extensions.colorMeta, proseColors);
+    const colors = buildColorModels(
+      frontmatter.colors,
+      extensions.colorMeta,
+      proseColors
+    );
     if (colors.length) renderColorTiles(body, colors);
 
-    const types = buildTypographyModels(frontmatter.typography, extensions.typographyMeta);
+    const types = buildTypographyModels(
+      frontmatter.typography,
+      extensions.typographyMeta
+    );
     if (types.length) renderTypeTiles(body, types);
 
     const radii = buildRadiiModels(frontmatter.rounded);
@@ -11004,9 +12934,15 @@ void main() {
     // Narrative: sidecar wins if present (richer, agent-curated). Otherwise
     // synthesize from prose sections.
     const narrative = sidecar?.narrative || synthesizeNarrative(parsed);
-    if (narrative.rules?.length) body.appendChild(renderRulesCollapsible(narrative.rules));
-    if ((narrative.dos?.length || narrative.donts?.length)) body.appendChild(renderDosDontsCollapsible(narrative));
-    if (narrative.overview || narrative.northStar || narrative.keyCharacteristics?.length) {
+    if (narrative.rules?.length)
+      body.appendChild(renderRulesCollapsible(narrative.rules));
+    if (narrative.dos?.length || narrative.donts?.length)
+      body.appendChild(renderDosDontsCollapsible(narrative));
+    if (
+      narrative.overview ||
+      narrative.northStar ||
+      narrative.keyCharacteristics?.length
+    ) {
       body.appendChild(renderOverviewCollapsible(narrative));
     }
 
@@ -11028,7 +12964,8 @@ void main() {
         name: m.displayName || humanizeKey(key),
         value: normalizeCssColor(m.canonical || value),
         canonical: m.canonical || null,
-        description: m.description || findProseDescription(proseColors, key, m.displayName),
+        description:
+          m.description || findProseDescription(proseColors, key, m.displayName),
         tonalRamp: m.tonalRamp || null,
       };
     });
@@ -11069,7 +13006,9 @@ void main() {
   }
 
   function humanizeKey(k) {
-    return String(k || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    return String(k || '')
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   function findProseDescription(proseColors, key, displayName) {
@@ -11124,7 +13063,9 @@ void main() {
       if (ramp.length) {
         const r = document.createElement('div');
         r.className = 'c-ramp';
-        r.innerHTML = ramp.map((v) => `<span style="background:${cssSafe(v)}"></span>`).join('');
+        r.innerHTML = ramp
+          .map((v) => `<span style="background:${cssSafe(v)}"></span>`)
+          .join('');
         tile.appendChild(r);
       }
 
@@ -11141,7 +13082,11 @@ void main() {
   function synthesizeRamp(c) {
     if (c.tonalRamp?.length) return c.tonalRamp;
     // If base value is OKLCH, synthesize an 8-step ramp across lightness.
-    const m = typeof c.value === 'string' && c.value.match(/^oklch\(\s*([\d.]+)%\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+))?\s*\)$/i);
+    const m =
+      typeof c.value === 'string' &&
+      c.value.match(
+        /^oklch\(\s*([\d.]+)%\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+))?\s*\)$/i
+      );
     if (!m) return [];
     const [, , chroma, hue] = m;
     const steps = [20, 32, 44, 56, 68, 80, 90, 96];
@@ -11164,7 +13109,7 @@ void main() {
       specimen.style.fontFamily = fontStack(t);
       specimen.style.fontWeight = String(t.weight || 400);
       specimen.style.fontStyle = t.style || 'normal';
-      specimen.style.fontSize = '56px';  // Fixed specimen size - compare faces, not scales.
+      specimen.style.fontSize = '56px'; // Fixed specimen size - compare faces, not scales.
       specimen.style.letterSpacing = 'normal';
       specimen.style.textTransform = 'none';
       tile.appendChild(specimen);
@@ -11172,7 +13117,12 @@ void main() {
       // The system's actual sample size for this role, shown as small mono meta below.
       if (t.sampleSize) {
         const scale = document.createElement('div');
-        scale.style.cssText = 'font-family:' + MONO + '; font-size: 10px; color:' + DP.meta + '; margin-top: 2px;';
+        scale.style.cssText =
+          'font-family:' +
+          MONO +
+          '; font-size: 10px; color:' +
+          DP.meta +
+          '; margin-top: 2px;';
         scale.textContent = t.sampleSize;
         tile.appendChild(scale);
       }
@@ -11198,7 +13148,7 @@ void main() {
     if (fam && /[,\s]/.test(fam) && !fam.includes("'") && !fam.includes('"')) {
       return `"${fam}", ${fb}`;
     }
-    return fam && fb ? `"${fam}", ${fb}` : (fam || fb);
+    return fam && fb ? `"${fam}", ${fb}` : fam || fb;
   }
 
   function renderRadiiTile(body, radii) {
@@ -11274,9 +13224,10 @@ void main() {
 
       const meta = document.createElement('div');
       meta.className = 'tile-meta';
-      const groupTitle = group.length === 1
-        ? (group[0].name || group[0].kind || 'Component')
-        : titleForKind(group[0].kind, group.length);
+      const groupTitle =
+        group.length === 1
+          ? group[0].name || group[0].kind || 'Component'
+          : titleForKind(group[0].kind, group.length);
       meta.innerHTML = `<span class="name">${escapeHtml(groupTitle)}</span><span class="cmp-kind">${escapeHtml(group[0].kind || '')}</span>`;
       tile.appendChild(meta);
 
@@ -11341,7 +13292,10 @@ void main() {
       card: 'Cards',
       custom: 'Components',
     };
-    return labels[kind] || (kind ? kind.charAt(0).toUpperCase() + kind.slice(1) + 's' : 'Components');
+    return (
+      labels[kind] ||
+      (kind ? kind.charAt(0).toUpperCase() + kind.slice(1) + 's' : 'Components')
+    );
   }
 
   // Collapsibles.
@@ -11427,7 +13381,9 @@ void main() {
     }
     if (n.keyCharacteristics?.length) {
       const ul = document.createElement('ul');
-      ul.innerHTML = n.keyCharacteristics.map((k) => `<li>${inlineMd(k)}</li>`).join('');
+      ul.innerHTML = n.keyCharacteristics
+        .map((k) => `<li>${inlineMd(k)}</li>`)
+        .join('');
       ov.appendChild(ul);
     }
     body.appendChild(ov);
@@ -11468,7 +13424,7 @@ void main() {
     let inCode = false;
     let codeBuf = [];
     let paraBuf = [];
-    let listBuf = [];  // array of { indent, html }
+    let listBuf = []; // array of { indent, html }
     let listType = null; // 'ul' | 'ol'
 
     const flushPara = () => {
@@ -11484,7 +13440,10 @@ void main() {
         listType = null;
       }
     };
-    const flushAll = () => { flushPara(); flushList(); };
+    const flushAll = () => {
+      flushPara();
+      flushList();
+    };
 
     for (; i < lines.length; i++) {
       const line = lines[i];
@@ -11492,19 +13451,32 @@ void main() {
       // Code fence
       const fence = line.match(/^```(\w*)\s*$/);
       if (fence) {
-        if (!inCode) { flushAll(); inCode = true; codeBuf = []; }
-        else {
+        if (!inCode) {
+          flushAll();
+          inCode = true;
+          codeBuf = [];
+        } else {
           out.push(`<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`);
           inCode = false;
         }
         continue;
       }
-      if (inCode) { codeBuf.push(line); continue; }
+      if (inCode) {
+        codeBuf.push(line);
+        continue;
+      }
 
-      if (line.trim() === '') { flushAll(); continue; }
+      if (line.trim() === '') {
+        flushAll();
+        continue;
+      }
 
       const hr = line.match(/^\s*(?:---+|\*\*\*+)\s*$/);
-      if (hr) { flushAll(); out.push('<hr />'); continue; }
+      if (hr) {
+        flushAll();
+        out.push('<hr />');
+        continue;
+      }
 
       const heading = line.match(/^(#{1,4})\s+(.+)$/);
       if (heading) {
@@ -11542,7 +13514,8 @@ void main() {
     let lastIndent = 0;
     for (const it of items) {
       if (it.indent > lastIndent) html += `<${type}>`;
-      else if (it.indent < lastIndent) html += `</${type}>`.repeat(lastIndent - it.indent);
+      else if (it.indent < lastIndent)
+        html += `</${type}>`.repeat(lastIndent - it.indent);
       html += `<li>${it.html}</li>`;
       lastIndent = it.indent;
     }
@@ -11556,7 +13529,10 @@ void main() {
     // Code spans
     s = s.replace(/`([^`]+)`/g, (_, code) => `<code>${code}</code>`);
     // Links [text](url)
-    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`);
+    s = s.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      (_, t, u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`
+    );
     // Bold
     s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     // Italic (only single *…*, skip if inside bold already handled)
@@ -11582,7 +13558,9 @@ void main() {
     try {
       navigator.clipboard.writeText(text);
       showToast('Copied: ' + text);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   //
@@ -11590,7 +13568,9 @@ void main() {
   //
 
   function init() {
-    try { history.scrollRestoration = 'manual'; } catch {}
+    try {
+      history.scrollRestoration = 'manual';
+    } catch {}
     initHighlight();
     initEditBadge();
     initAnnotOverlay();
@@ -11609,7 +13589,9 @@ void main() {
 
     // Check for an active session to resume (variant wrapper already in DOM after HMR)
     if (!resumeSession()) {
-      console.log('[impeccable] Live variant mode ready. Hover over elements to pick one.');
+      console.log(
+        '[impeccable] Live variant mode ready. Hover over elements to pick one.'
+      );
       // SvelteKit (and any framework that hydrates after HTML parse) may add
       // the variant wrapper AFTER init runs. Watch for it and retry resume
       // once it appears. Disconnect on first hit.
@@ -11618,12 +13600,24 @@ void main() {
         if (!wrapper) return;
         scout.disconnect();
         if (resumeSession()) {
-          console.log('[impeccable] Resumed deferred session ' + currentSessionId + ' (post-hydration).');
+          console.log(
+            '[impeccable] Resumed deferred session ' +
+              currentSessionId +
+              ' (post-hydration).'
+          );
         }
       });
       scout.observe(document.body, { childList: true, subtree: true });
     } else {
-      console.log('[impeccable] Resumed active variant session ' + currentSessionId + ' (' + arrivedVariants + '/' + expectedVariants + ' variants).');
+      console.log(
+        '[impeccable] Resumed active variant session ' +
+          currentSessionId +
+          ' (' +
+          arrivedVariants +
+          '/' +
+          expectedVariants +
+          ' variants).'
+      );
     }
 
     if (state === 'IDLE' && (pickActive || insertActive)) setLiveState('PICKING');

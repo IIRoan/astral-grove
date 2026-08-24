@@ -39,10 +39,15 @@ export function resolvePasswordResetRedirectTo(
     params.set('email', normalizeVerificationEmail(email));
   }
   const query = params.toString();
-  return query.length > 0 ? `${origin}/reset-password?${query}` : `${origin}/reset-password`;
+  return query.length > 0
+    ? `${origin}/reset-password?${query}`
+    : `${origin}/reset-password`;
 }
 
-export function buildPasswordResetDeepLink(input: { token: string; email?: string }): string {
+export function buildPasswordResetDeepLink(input: {
+  token: string;
+  email?: string;
+}): string {
   const params = new URLSearchParams({ token: input.token.trim() });
   if (input.email) {
     params.set('email', normalizeVerificationEmail(input.email));

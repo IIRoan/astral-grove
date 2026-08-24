@@ -158,7 +158,8 @@ export function MobileTabBar({ state, descriptors, navigation }: MobileTabBarPro
 
   const indicatorX = useSharedValue(0);
   const segmentWidth = useSharedValue(0);
-  const nextSegmentWidth = visibleItems.length > 0 ? tabBarWidth / visibleItems.length : 0;
+  const nextSegmentWidth =
+    visibleItems.length > 0 ? tabBarWidth / visibleItems.length : 0;
 
   useEffect(() => {
     segmentWidth.value = nextSegmentWidth;
@@ -171,13 +172,7 @@ export function MobileTabBar({ state, descriptors, navigation }: MobileTabBarPro
       duration: TAB_SCENE.durationMs,
       easing: INDICATOR_EASE,
     });
-  }, [
-    activeVisibleIndex,
-    indicatorX,
-    nextSegmentWidth,
-    reduceMotion,
-    segmentWidth,
-  ]);
+  }, [activeVisibleIndex, indicatorX, nextSegmentWidth, reduceMotion, segmentWidth]);
 
   const indicatorStyle = useAnimatedStyle(() => ({
     width: segmentWidth.value,

@@ -18,27 +18,34 @@ export function createDeckRulesRoutes() {
           version: RIFTBOUND_DECK_RULES.version,
           rules: RIFTBOUND_DECK_RULES,
         },
-      }))
-    .post('/validate', {
-      body: t.Object({
-        format: t.Optional(t.Union([t.Literal('constructed'), t.Literal('pre-rift')])),
-        legend: t.Optional(t.Nullable(t.Any())),
-        champion: t.Optional(t.Nullable(t.Any())),
-        mainDeck: t.Array(t.Any()),
-        runes: t.Array(t.Any()),
-        battlefields: t.Array(t.Any()),
-        sideboard: t.Array(t.Any()),
-      }),
-      detail: { tags: ['deck-rules'] },
-    }, ({ body }) => {
-      const input = parseRequest(DeckValidateInput, body);
-      const messages = validateRiftboundDeck(input);
-      return DeckValidateResponse.parse({
-        data: {
-          messages,
-          valid: deckValidationIsValid(messages),
-          hasErrors: deckValidationHasErrors(messages),
-        },
-      });
-    });
+      })
+    )
+    .post(
+      '/validate',
+      {
+        body: t.Object({
+          format: t.Optional(
+            t.Union([t.Literal('constructed'), t.Literal('pre-rift')])
+          ),
+          legend: t.Optional(t.Nullable(t.Any())),
+          champion: t.Optional(t.Nullable(t.Any())),
+          mainDeck: t.Array(t.Any()),
+          runes: t.Array(t.Any()),
+          battlefields: t.Array(t.Any()),
+          sideboard: t.Array(t.Any()),
+        }),
+        detail: { tags: ['deck-rules'] },
+      },
+      ({ body }) => {
+        const input = parseRequest(DeckValidateInput, body);
+        const messages = validateRiftboundDeck(input);
+        return DeckValidateResponse.parse({
+          data: {
+            messages,
+            valid: deckValidationIsValid(messages),
+            hasErrors: deckValidationHasErrors(messages),
+          },
+        });
+      }
+    );
 }

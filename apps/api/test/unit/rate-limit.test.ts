@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { clientIpFromHeaders, createSlidingWindowLimiter } from '../../src/lib/rate-limit.js';
+import {
+  clientIpFromHeaders,
+  createSlidingWindowLimiter,
+} from '../../src/lib/rate-limit.js';
 import { isRateLimitExemptPath } from '../../src/plugins/rate-limit.js';
 
 describe('createSlidingWindowLimiter', () => {

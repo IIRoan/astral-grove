@@ -34,7 +34,10 @@ function ArchiveProgressBar({
         className
       )}
     >
-      <View className="h-full rounded-[3px] bg-foreground" style={{ width: `${pct}%` }} />
+      <View
+        className="h-full rounded-[3px] bg-foreground"
+        style={{ width: `${pct}%` }}
+      />
     </View>
   );
 }
@@ -106,7 +109,9 @@ export function BreakdownSection({
                       transition={0}
                     />
                   ) : null}
-                  <Text className="text-[13px] font-medium text-foreground">{stat.name}</Text>
+                  <Text className="text-[13px] font-medium text-foreground">
+                    {stat.name}
+                  </Text>
                 </View>
                 <Text className="font-mono text-[13px] font-normal tabular-nums text-foreground">
                   {stat.owned} / {stat.total}
@@ -155,33 +160,49 @@ function SetCard({ set }: { set: MergedSetStat }) {
           )}
           <View className="absolute bottom-2 left-3 flex-row items-center gap-2">
             {set.logo ? <SetLogoImage source={set.logo} /> : null}
-            <Text className="font-mono text-xs font-normal text-foreground">{set.code}</Text>
+            <Text className="font-mono text-xs font-normal text-foreground">
+              {set.code}
+            </Text>
           </View>
         </View>
       ) : set.logo ? (
         <View className="flex-row items-center justify-between bg-card-panel px-4 py-3">
           <View className="min-w-0 flex-1 flex-row items-center gap-2">
             <SetLogoImage source={set.logo} />
-            <Text className="font-mono text-xs font-normal text-foreground">{set.code}</Text>
+            <Text className="font-mono text-xs font-normal text-foreground">
+              {set.code}
+            </Text>
           </View>
-          <Text className="shrink-0 font-mono text-xs text-archive-subtle">{set.total} cards</Text>
+          <Text className="shrink-0 font-mono text-xs text-archive-subtle">
+            {set.total} cards
+          </Text>
         </View>
       ) : (
         <View className="flex-row items-center justify-between bg-card-panel px-4 py-3">
-          <Text className="font-mono text-xs font-normal text-foreground">{set.code}</Text>
-          <Text className="font-mono text-xs text-archive-subtle">{set.total} cards</Text>
+          <Text className="font-mono text-xs font-normal text-foreground">
+            {set.code}
+          </Text>
+          <Text className="font-mono text-xs text-archive-subtle">
+            {set.total} cards
+          </Text>
         </View>
       )}
 
       <View className="p-4">
         <View className="flex-row items-baseline justify-between gap-3">
-          <Text className="min-w-0 flex-1 text-sm font-normal text-foreground">{set.name}</Text>
+          <Text className="min-w-0 flex-1 text-sm font-normal text-foreground">
+            {set.name}
+          </Text>
           {set.released ? (
-            <Text className="shrink-0 font-mono text-xs text-archive-subtle">{set.released}</Text>
+            <Text className="shrink-0 font-mono text-xs text-archive-subtle">
+              {set.released}
+            </Text>
           ) : null}
         </View>
         {set.art ? (
-          <Text className="mt-1 font-mono text-xs text-archive-subtle">{set.total} cards</Text>
+          <Text className="mt-1 font-mono text-xs text-archive-subtle">
+            {set.total} cards
+          </Text>
         ) : null}
         <View className="mt-3 gap-3">
           <ProgressRow

@@ -75,7 +75,9 @@ export async function signUpAndHydrateSession(
 /** Land on search as an authenticated user (AuthGate cleared). */
 export async function gotoSignedInSearch(page: Page): Promise<void> {
   await page.goto('/search');
-  await expect(page.getByPlaceholder('Search cards, artists, tags, or set numbers')).toBeVisible({
+  await expect(
+    page.getByPlaceholder('Search cards, artists, tags, or set numbers')
+  ).toBeVisible({
     timeout: 45_000,
   });
   await expect(page.getByRole('tab', { name: 'Sign up' })).toHaveCount(0);

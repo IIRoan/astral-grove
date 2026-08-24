@@ -25,7 +25,9 @@ function createCollectionHarness(
 
 describe('CollectionService.quantitiesForVariants', () => {
   test('returns zero for missing variants and deduplicates input', async () => {
-    const service = createCollectionHarness([{ variantNumber: 'OGN-001', quantity: 3 }]);
+    const service = createCollectionHarness([
+      { variantNumber: 'OGN-001', quantity: 3 },
+    ]);
 
     const result = await service.quantitiesForVariants('collection-1', [
       'OGN-001',

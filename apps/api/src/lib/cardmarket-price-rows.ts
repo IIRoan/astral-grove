@@ -31,7 +31,12 @@ function hasPriceData(values: Array<number | null | undefined>): boolean {
 
 /** Cardmarket uses trend:0 + null averages when no non-foil guide exists (foil-only / signed showcase). */
 export function hasNonFoilPriceGuide(entry: CardmarketPriceGuideEntry): boolean {
-  if (entry.avg !== null || entry.avg1 !== null || entry.avg7 !== null || entry.avg30 !== null) {
+  if (
+    entry.avg !== null ||
+    entry.avg1 !== null ||
+    entry.avg7 !== null ||
+    entry.avg30 !== null
+  ) {
     return true;
   }
   return entry.trend !== null && entry.trend > 0;
@@ -49,7 +54,9 @@ export function normalizeGuideTrend(
 
 export function stablePriceRowId(cardmarketId: number, isFoil: boolean): string {
   const hex = createHash('sha256')
-    .update(`astral-grove:cardmarket-price:${String(cardmarketId)}:${isFoil ? 'foil' : 'plain'}`)
+    .update(
+      `astral-grove:cardmarket-price:${String(cardmarketId)}:${isFoil ? 'foil' : 'plain'}`
+    )
     .digest('hex')
     .slice(0, 32);
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
@@ -112,7 +119,14 @@ export function mapPriceGuideEntryToRows(
   const plainTrend = normalizeGuideTrend(entry.trend, entry.avg, entry.avg7);
   if (
     hasNonFoilPriceGuide(entry) &&
-    hasPriceData([entry.low, plainTrend, entry.avg, entry.avg1, entry.avg7, entry.avg30])
+    hasPriceData([
+      entry.low,
+      plainTrend,
+      entry.avg,
+      entry.avg1,
+      entry.avg7,
+      entry.avg30,
+    ])
   ) {
     rows.push(
       buildRow({
@@ -157,9 +171,10 @@ export function mapPriceGuideEntryToRows(
   return rows;
 }
 
-export function mapPriceGuideExportToRows(
-  exportData: { createdAt: string; priceGuides: CardmarketPriceGuideEntry[] }
-): CardmarketPriceRow[] {
+export function mapPriceGuideExportToRows(exportData: {
+  createdAt: string;
+  priceGuides: CardmarketPriceGuideEntry[];
+}): CardmarketPriceRow[] {
   const lastUpdated = new Date(exportData.createdAt);
   if (Number.isNaN(lastUpdated.getTime())) {
     throw new Error(`Invalid Cardmarket export createdAt: ${exportData.createdAt}`);

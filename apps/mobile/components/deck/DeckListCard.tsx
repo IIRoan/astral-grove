@@ -71,7 +71,9 @@ function CardThumb({
       </View>
       {count != null && count > 1 ? (
         <View className="absolute -bottom-1 -right-1 rounded bg-background/95 px-1 py-px">
-          <Text className="font-mono text-[9px] font-normal text-foreground">×{count}</Text>
+          <Text className="font-mono text-[9px] font-normal text-foreground">
+            ×{count}
+          </Text>
         </View>
       ) : null}
     </View>
@@ -113,7 +115,8 @@ function DeckListCardInner({
     return [...new Set(variants)].sort().join('|');
   }, [deck.legend?.variantNumber, deck.champion?.variantNumber, previewEntries]);
 
-  const { data: imageByVariant = new Map<string, string>() } = useDeckCardImages(imageVariants);
+  const { data: imageByVariant = new Map<string, string>() } =
+    useDeckCardImages(imageVariants);
 
   const mainCount = getSectionCount(deck, 'mainDeck') + (deck.champion ? 1 : 0);
   const runeCount = getSectionCount(deck, 'runes');
@@ -218,10 +221,14 @@ function DeckListCardInner({
               </Text>
               <View className="flex-row flex-wrap items-center gap-x-2 gap-y-0.5">
                 {readOnly ? (
-                  <Text className="text-[11px] font-medium text-muted-foreground">Imported</Text>
+                  <Text className="text-[11px] font-medium text-muted-foreground">
+                    Imported
+                  </Text>
                 ) : null}
                 {updatedLabel ? (
-                  <Text className="text-[11px] text-muted-foreground">Edited {updatedLabel}</Text>
+                  <Text className="text-[11px] text-muted-foreground">
+                    Edited {updatedLabel}
+                  </Text>
                 ) : null}
                 {deck.legend?.colors?.length ? (
                   <Text className="text-[11px] text-muted-foreground" numberOfLines={1}>
@@ -288,7 +295,10 @@ function DeckListCardInner({
   );
 }
 
-function deckListCardPropsEqual(prev: DeckListCardProps, next: DeckListCardProps): boolean {
+function deckListCardPropsEqual(
+  prev: DeckListCardProps,
+  next: DeckListCardProps
+): boolean {
   return (
     prev.deck.id === next.deck.id &&
     prev.deck.updatedAt === next.deck.updatedAt &&

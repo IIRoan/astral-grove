@@ -1,7 +1,10 @@
 import { PlusIcon } from '@/components/icons';
 import { Pressable, View } from 'react-native';
 import { Text } from '@/components/ui/text';
-import { OPERATE_CTA_FILL_CLASS, OPERATE_CTA_ICON_CLASS } from '@/constants/operateType';
+import {
+  OPERATE_CTA_FILL_CLASS,
+  OPERATE_CTA_ICON_CLASS,
+} from '@/constants/operateType';
 import { cn } from '@/lib/utils';
 
 interface DeckSectionHeaderProps {
@@ -66,8 +69,13 @@ export function DeckSectionHeader({
               )}
               onPress={onAdd}
             >
-              <PlusIcon className={cn('size-3.5', OPERATE_CTA_ICON_CLASS)} weight="bold" />
-              <Text className="text-[12px] font-medium tracking-tight text-cta-foreground">Add</Text>
+              <PlusIcon
+                className={cn('size-3.5', OPERATE_CTA_ICON_CLASS)}
+                weight="bold"
+              />
+              <Text className="text-[12px] font-medium tracking-tight text-cta-foreground">
+                Add
+              </Text>
             </Pressable>
           ) : null}
         </View>
@@ -75,7 +83,10 @@ export function DeckSectionHeader({
 
       <View className="h-1 overflow-hidden rounded-none bg-border/80">
         <View
-          className={cn('h-full rounded-none', complete ? 'bg-success' : 'bg-foreground')}
+          className={cn(
+            'h-full rounded-none',
+            complete ? 'bg-success' : 'bg-foreground'
+          )}
           style={{ width: `${Math.max(ratio * 100, current > 0 ? 4 : 0)}%` }}
         />
       </View>

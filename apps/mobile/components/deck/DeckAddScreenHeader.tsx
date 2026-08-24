@@ -3,7 +3,11 @@ import { Pressable, View } from 'react-native';
 import { deckBuilderHeadlineStats } from '@/components/deck/deckBuilderStatusStrip.utils';
 import { Text } from '@/components/ui/text';
 import { getSectionCount } from '@/lib/deck-card';
-import { deckSectionsForFormat, type DeckSectionKey, type DeckState } from '@/lib/deck-types';
+import {
+  deckSectionsForFormat,
+  type DeckSectionKey,
+  type DeckState,
+} from '@/lib/deck-types';
 import { cn } from '@/lib/utils';
 
 export function DeckAddScreenHeader({
@@ -15,11 +19,12 @@ export function DeckAddScreenHeader({
   section: DeckSectionKey;
   onBack: () => void;
 }) {
-  const meta = deckSectionsForFormat(deck.format).find((entry) => entry.key === section);
+  const meta = deckSectionsForFormat(deck.format).find(
+    (entry) => entry.key === section
+  );
   const count = getSectionCount(deck, section);
   const target = meta?.target ?? 0;
-  const complete =
-    meta?.single || meta?.isMin ? count >= target : count === target;
+  const complete = meta?.single || meta?.isMin ? count >= target : count === target;
 
   return (
     <View className="gap-2">
@@ -44,7 +49,9 @@ export function DeckAddScreenHeader({
           <View
             className={cn(
               'shrink-0 rounded-[3px] border px-2.5 py-1.5',
-              complete ? 'border-success/30 bg-success/5' : 'border-border bg-card-panel'
+              complete
+                ? 'border-success/30 bg-success/5'
+                : 'border-border bg-card-panel'
             )}
           >
             <Text

@@ -64,43 +64,43 @@ This is the non-negotiable rule: **every visible element gets motion.** Not "mos
 
 Fill this table for EVERY element on the page. Every row must have at least one ✓. Any empty row = incomplete implementation.
 
-| Element | Entry Animation | Scroll Reveal | Hover/Focus State | Ambient/Micro | Assigned |
-|---|---|---|---|---|---|
-| **Navigation bar** | Slide down + fade from top | — | Link underline slide, spring-scale menu items | — | ✓ |
-| **Logo** | Fade in (first element, 0ms delay) | — | Subtle scale(1.05) on hover | — | ✓ |
-| **Nav links** | Stagger fade-in left-to-right | — | Sliding underline + color shift | — | ✓ |
-| **Hero heading** | Word-by-word masked reveal OR char split | — | — | — | ✓ |
-| **Hero subtext** | Fade-up-deblur (stagger after heading) | — | — | — | ✓ |
-| **Hero CTA button** | Scale-in + fade (last hero element) | — | Pressure depth (compress + inner shadow) + lift + ripple on click | Subtle glow pulse | ✓ |
-| **Hero background** | Scale(1.05→1) + fade (Ken Burns settle) | Parallax slow | — | Gradient shift OR grain movement | ✓ |
-| **Section headings** | — | Word-by-word masked reveal OR fade-up-deblur | — | — | ✓ |
-| **Section subtext** | — | Fade-up (stagger 80ms after heading) | — | — | ✓ |
-| **Body paragraphs** | — | Line-by-line reveal OR fade-up | — | — | ✓ |
-| **Cards** | — | Stagger fade-up (80ms increment per card) | Lift(-4px) + shadow expand + border glow + 3D tilt | — | ✓ |
-| **Card icons/images** | — | Scale-in (after card reveals) | Subtle rotate or color shift on card hover | — | ✓ |
-| **Card titles** | — | Part of card reveal | Color shift on card hover | — | ✓ |
-| **Card descriptions** | — | Part of card reveal | Opacity increase on card hover | — | ✓ |
-| **Images** | — | Clip-path wipe reveal OR scale-in | Ken Burns zoom on hover | — | ✓ |
-| **Buttons (all)** | — | Fade-up with parent | Pressure depth + lift + shadow + ripple click | — | ✓ |
-| **Links (inline)** | — | Part of parent reveal | Sliding underline + color shift | — | ✓ |
-| **Input fields** | — | Fade-up with parent | Border glow on focus + label float | — | ✓ |
-| **Badges/pills** | — | Scale-in + fade | Background color shift on hover | Subtle bounce float | ✓ |
-| **Dividers/lines** | — | Width expand from center (scaleX 0→1) | — | — | ✓ |
-| **Testimonial quotes** | — | Fade-up-deblur + slide | — | — | ✓ |
-| **Avatars** | — | Scale-in with border ring animation | Ring pulse on hover | — | ✓ |
-| **Stats/numbers** | — | Counter animation (count up from 0) | — | — | ✓ |
-| **Footer** | — | Fade-up (last section) | Link underline slides | — | ✓ |
-| **Footer links** | — | Stagger reveal | Underline slide + color shift | — | ✓ |
-| **Social icons** | — | Stagger scale-in | Lift + color shift to brand color | — | ✓ |
-| **Background shapes** | — | — | — | Floating animation + parallax | ✓ |
-| **Decorative elements** | — | Rotate-in or scale-in | — | Slow spin or float | ✓ |
-| **Scroll indicator** | Fade-in after hero loads | — | — | Gentle bounce loop | ✓ |
-| **Progress bars** | — | Width expand (scaleX 0→1) with easing | — | — | ✓ |
-| **Tooltips** | — | — | Float up + fade from trigger | — | ✓ |
-| **Accordions** | — | Fade-up with parent | Border/bg shift on hover | Smooth height expand | ✓ |
-| **Tabs** | — | Fade-up with parent | Background shift | Sliding indicator + content crossfade | ✓ |
-| **Modals** | — | — | — | Backdrop fade + content scale-in | ✓ |
-| **Toast/notifications** | — | — | — | Slide-in from edge + auto-dismiss | ✓ |
+| Element                 | Entry Animation                          | Scroll Reveal                                | Hover/Focus State                                                 | Ambient/Micro                         | Assigned |
+| ----------------------- | ---------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------- | -------- |
+| **Navigation bar**      | Slide down + fade from top               | —                                            | Link underline slide, spring-scale menu items                     | —                                     | ✓        |
+| **Logo**                | Fade in (first element, 0ms delay)       | —                                            | Subtle scale(1.05) on hover                                       | —                                     | ✓        |
+| **Nav links**           | Stagger fade-in left-to-right            | —                                            | Sliding underline + color shift                                   | —                                     | ✓        |
+| **Hero heading**        | Word-by-word masked reveal OR char split | —                                            | —                                                                 | —                                     | ✓        |
+| **Hero subtext**        | Fade-up-deblur (stagger after heading)   | —                                            | —                                                                 | —                                     | ✓        |
+| **Hero CTA button**     | Scale-in + fade (last hero element)      | —                                            | Pressure depth (compress + inner shadow) + lift + ripple on click | Subtle glow pulse                     | ✓        |
+| **Hero background**     | Scale(1.05→1) + fade (Ken Burns settle)  | Parallax slow                                | —                                                                 | Gradient shift OR grain movement      | ✓        |
+| **Section headings**    | —                                        | Word-by-word masked reveal OR fade-up-deblur | —                                                                 | —                                     | ✓        |
+| **Section subtext**     | —                                        | Fade-up (stagger 80ms after heading)         | —                                                                 | —                                     | ✓        |
+| **Body paragraphs**     | —                                        | Line-by-line reveal OR fade-up               | —                                                                 | —                                     | ✓        |
+| **Cards**               | —                                        | Stagger fade-up (80ms increment per card)    | Lift(-4px) + shadow expand + border glow + 3D tilt                | —                                     | ✓        |
+| **Card icons/images**   | —                                        | Scale-in (after card reveals)                | Subtle rotate or color shift on card hover                        | —                                     | ✓        |
+| **Card titles**         | —                                        | Part of card reveal                          | Color shift on card hover                                         | —                                     | ✓        |
+| **Card descriptions**   | —                                        | Part of card reveal                          | Opacity increase on card hover                                    | —                                     | ✓        |
+| **Images**              | —                                        | Clip-path wipe reveal OR scale-in            | Ken Burns zoom on hover                                           | —                                     | ✓        |
+| **Buttons (all)**       | —                                        | Fade-up with parent                          | Pressure depth + lift + shadow + ripple click                     | —                                     | ✓        |
+| **Links (inline)**      | —                                        | Part of parent reveal                        | Sliding underline + color shift                                   | —                                     | ✓        |
+| **Input fields**        | —                                        | Fade-up with parent                          | Border glow on focus + label float                                | —                                     | ✓        |
+| **Badges/pills**        | —                                        | Scale-in + fade                              | Background color shift on hover                                   | Subtle bounce float                   | ✓        |
+| **Dividers/lines**      | —                                        | Width expand from center (scaleX 0→1)        | —                                                                 | —                                     | ✓        |
+| **Testimonial quotes**  | —                                        | Fade-up-deblur + slide                       | —                                                                 | —                                     | ✓        |
+| **Avatars**             | —                                        | Scale-in with border ring animation          | Ring pulse on hover                                               | —                                     | ✓        |
+| **Stats/numbers**       | —                                        | Counter animation (count up from 0)          | —                                                                 | —                                     | ✓        |
+| **Footer**              | —                                        | Fade-up (last section)                       | Link underline slides                                             | —                                     | ✓        |
+| **Footer links**        | —                                        | Stagger reveal                               | Underline slide + color shift                                     | —                                     | ✓        |
+| **Social icons**        | —                                        | Stagger scale-in                             | Lift + color shift to brand color                                 | —                                     | ✓        |
+| **Background shapes**   | —                                        | —                                            | —                                                                 | Floating animation + parallax         | ✓        |
+| **Decorative elements** | —                                        | Rotate-in or scale-in                        | —                                                                 | Slow spin or float                    | ✓        |
+| **Scroll indicator**    | Fade-in after hero loads                 | —                                            | —                                                                 | Gentle bounce loop                    | ✓        |
+| **Progress bars**       | —                                        | Width expand (scaleX 0→1) with easing        | —                                                                 | —                                     | ✓        |
+| **Tooltips**            | —                                        | —                                            | Float up + fade from trigger                                      | —                                     | ✓        |
+| **Accordions**          | —                                        | Fade-up with parent                          | Border/bg shift on hover                                          | Smooth height expand                  | ✓        |
+| **Tabs**                | —                                        | Fade-up with parent                          | Background shift                                                  | Sliding indicator + content crossfade | ✓        |
+| **Modals**              | —                                        | —                                            | —                                                                 | Backdrop fade + content scale-in      | ✓        |
+| **Toast/notifications** | —                                        | —                                            | —                                                                 | Slide-in from edge + auto-dismiss     | ✓        |
 
 ⚠ **Drift Warning:** The #1 failure is animating the hero and first section, then leaving everything below the fold completely static. EVERY section must have scroll-triggered reveals. EVERY interactive element must have hover feedback. Walk the page top-to-bottom and verify coverage. If you scroll and find a section that just "sits there" without animating in, the implementation is broken.
 
@@ -124,37 +124,38 @@ Before writing any code, classify the motion requirements.
 
 ### → Classify the Motion Context
 
-| Field | Your answer |
-|---|---|
-| **Page type** | Marketing landing page / Product app / Portfolio / E-commerce / Editorial / Dashboard |
-| **Motion density** | Minimal (Apple-style restraint) / Moderate (Stripe-level) / Rich (Awwwards experimental) |
-| **Primary motion purpose** | Guide attention / Communicate state / Create atmosphere / Reveal content / Delight |
-| **Scroll behavior** | Standard scroll / Scroll-linked animations / Scroll-jacked sections / Sticky reveals |
-| **Page transitions** | None (SPA with instant swap) / Crossfade / Slide / Morph / Custom sequence |
-| **Framework** | Vanilla CSS/JS / Framer Motion (React) / GSAP / Motion One / CSS-only |
+| Field                      | Your answer                                                                              |
+| -------------------------- | ---------------------------------------------------------------------------------------- |
+| **Page type**              | Marketing landing page / Product app / Portfolio / E-commerce / Editorial / Dashboard    |
+| **Motion density**         | Minimal (Apple-style restraint) / Moderate (Stripe-level) / Rich (Awwwards experimental) |
+| **Primary motion purpose** | Guide attention / Communicate state / Create atmosphere / Reveal content / Delight       |
+| **Scroll behavior**        | Standard scroll / Scroll-linked animations / Scroll-jacked sections / Sticky reveals     |
+| **Page transitions**       | None (SPA with instant swap) / Crossfade / Slide / Morph / Custom sequence               |
+| **Framework**              | Vanilla CSS/JS / Framer Motion (React) / GSAP / Motion One / CSS-only                    |
 
 ### → Identify Motion Layers
 
 Walk through the page and tag every element that should move. Classify each into one of these layers:
 
-| Motion Layer | What it covers | Priority |
-|---|---|---|
-| **Entry** | First-paint reveals, above-the-fold load animation | P0 — must have |
-| **Scroll** | Elements revealing as user scrolls, parallax, sticky sequences | P0 — must have |
-| **Hover/Focus** | Button lifts, card tilts, link underlines, pressure depth effects | P0 — must have |
-| **State** | Page transitions, tab switches, modal open/close, accordion, menu | P1 — should have |
-| **Ambient** | Floating elements, gradient shifts, particle systems, cursor glow | P2 — polish layer |
-| **Kinetic** | Text splitting, character-by-character reveals, word rotators | P2 — polish layer |
+| Motion Layer    | What it covers                                                    | Priority          |
+| --------------- | ----------------------------------------------------------------- | ----------------- |
+| **Entry**       | First-paint reveals, above-the-fold load animation                | P0 — must have    |
+| **Scroll**      | Elements revealing as user scrolls, parallax, sticky sequences    | P0 — must have    |
+| **Hover/Focus** | Button lifts, card tilts, link underlines, pressure depth effects | P0 — must have    |
+| **State**       | Page transitions, tab switches, modal open/close, accordion, menu | P1 — should have  |
+| **Ambient**     | Floating elements, gradient shifts, particle systems, cursor glow | P2 — polish layer |
+| **Kinetic**     | Text splitting, character-by-character reveals, word rotators     | P2 — polish layer |
 
 ### → Output the Motion Brief
 
 State in 2-3 lines the motion strategy:
 
-> *"Motion Brief: Apple-restraint motion density. Staggered fade-up-deblur entries on all sections. Scroll-triggered reveals with 20% viewport threshold. Magnetic hover on CTA buttons. Smooth text split reveals on section headings. Crossfade page transitions. No ambient particles. Easing palette: snappy decel for entries, spring for hovers, smooth for scrolls."*
+> _"Motion Brief: Apple-restraint motion density. Staggered fade-up-deblur entries on all sections. Scroll-triggered reveals with 20% viewport threshold. Magnetic hover on CTA buttons. Smooth text split reveals on section headings. Crossfade page transitions. No ambient particles. Easing palette: snappy decel for entries, spring for hovers, smooth for scrolls."_
 
 ### ✓ Quality Gate: Audit
 
 Before moving to Phase 2, confirm:
+
 - Motion context is classified (page type, density, purpose)
 - Every moving element is tagged to a motion layer
 - The Element Animation Map is filled for EVERY element on the page — no empty rows
@@ -200,10 +201,22 @@ This is what Apple uses. This is what Material Design 3 Expressive uses. This is
      Use on: hero entries, scroll reveals, modal opens, everything
      that "arrives" on screen. This is your DEFAULT curve. */
   --spring-snappy: linear(
-    0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 12.9%,
-    0.938 16.7%, 1.017 19.4%, 1.067 22.5%, 1.089 26.0%,
-    1.079 30.3%, 1.049 36.0%, 1.024 42.6%, 1.011 50.3%,
-    1.004 59.2%, 1.001 69.3%, 1
+    0,
+    0.009,
+    0.035 2.1%,
+    0.141 4.4%,
+    0.723 12.9%,
+    0.938 16.7%,
+    1.017 19.4%,
+    1.067 22.5%,
+    1.089 26%,
+    1.079 30.3%,
+    1.049 36%,
+    1.024 42.6%,
+    1.011 50.3%,
+    1.004 59.2%,
+    1.001 69.3%,
+    1
   );
   --spring-snappy-duration: 0.55s;
 
@@ -215,10 +228,24 @@ This is what Apple uses. This is what Material Design 3 Expressive uses. This is
      Use on: page transitions, tab switches, carousel slides,
      anything moving from position A to position B. */
   --spring-smooth: linear(
-    0, 0.004, 0.016 2.3%, 0.063 4.7%, 0.141 7.2%,
-    0.25 9.9%, 0.601 16.5%, 0.815 21.0%, 0.929 25.2%,
-    0.987 29.0%, 1.025 33.5%, 1.042 38.0%, 1.04 43.5%,
-    1.027 50.0%, 1.013 57.5%, 1.005 67.0%, 1.001 79.0%, 1
+    0,
+    0.004,
+    0.016 2.3%,
+    0.063 4.7%,
+    0.141 7.2%,
+    0.25 9.9%,
+    0.601 16.5%,
+    0.815 21%,
+    0.929 25.2%,
+    0.987 29%,
+    1.025 33.5%,
+    1.042 38%,
+    1.04 43.5%,
+    1.027 50%,
+    1.013 57.5%,
+    1.005 67%,
+    1.001 79%,
+    1
   );
   --spring-smooth-duration: 0.7s;
 
@@ -229,10 +256,24 @@ This is what Apple uses. This is what Material Design 3 Expressive uses. This is
      Use SPARINGLY on: toggles, like buttons, notification pops,
      small badges, emoji reactions. NEVER on large elements. */
   --spring-bouncy: linear(
-    0, 0.014, 0.055 1.8%, 0.218 3.7%, 0.867 8.5%,
-    1.085 10.7%, 1.212 12.9%, 1.264 15.0%, 1.262 17.0%,
-    1.217 19.5%, 1.098 24.0%, 1.035 28.5%, 0.993 33.0%,
-    0.981 38.0%, 0.988 45.0%, 0.998 55.0%, 1.001 68.0%, 1
+    0,
+    0.014,
+    0.055 1.8%,
+    0.218 3.7%,
+    0.867 8.5%,
+    1.085 10.7%,
+    1.212 12.9%,
+    1.264 15%,
+    1.262 17%,
+    1.217 19.5%,
+    1.098 24%,
+    1.035 28.5%,
+    0.993 33%,
+    0.981 38%,
+    0.988 45%,
+    0.998 55%,
+    1.001 68%,
+    1
   );
   --spring-bouncy-duration: 0.5s;
 
@@ -242,7 +283,7 @@ This is what Apple uses. This is what Material Design 3 Expressive uses. This is
      This is the M3 "emphasized" transition for container transforms,
      shared element transitions, and FAB expansions.
      Use on: container morphs, expand/collapse, shared transitions. */
-  --m3-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+  --m3-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
   --m3-emphasized-duration: 0.5s;
 
   /* 5. MATERIAL 3 EMPHASIZED as SPRING — for spring-capable contexts
@@ -250,10 +291,22 @@ This is what Apple uses. This is what Material Design 3 Expressive uses. This is
      The spring equivalent of M3 Emphasized — with the overshoot
      that Google's spec now recommends via their spring system. */
   --m3-spring: linear(
-    0, 0.007, 0.029 2.0%, 0.118 4.2%, 0.508 10.9%,
-    0.797 15.4%, 0.951 19.2%, 1.029 22.2%, 1.074 25.6%,
-    1.088 29.2%, 1.075 33.6%, 1.045 39.5%, 1.02 46.5%,
-    1.007 55.0%, 1.001 66.0%, 1
+    0,
+    0.007,
+    0.029 2%,
+    0.118 4.2%,
+    0.508 10.9%,
+    0.797 15.4%,
+    0.951 19.2%,
+    1.029 22.2%,
+    1.074 25.6%,
+    1.088 29.2%,
+    1.075 33.6%,
+    1.045 39.5%,
+    1.02 46.5%,
+    1.007 55%,
+    1.001 66%,
+    1
   );
   --m3-spring-duration: 0.6s;
 }
@@ -305,13 +358,13 @@ For browsers that don't support `linear()`, or for secondary animations where sp
 
 `ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear` — these CSS keywords are the typographic equivalent of Comic Sans. They have zero character, zero intentionality, zero soul. They exist because browsers needed a default, not because any designer chose them.
 
-| CSS Keyword | Why it's banned | What to use instead |
-|---|---|---|
-| `ease` | Generic curve that matches nothing. The "I didn't think about this" easing. | `--spring-snappy` or `--ease-out` |
-| `ease-in` | Slow start, fast end — objects accelerating into a wall. Almost never what you want. | `--ease-dramatic` (if you need a slow start) |
-| `ease-out` | Better than `ease`, but still a bland, characterless deceleration. | `--spring-snappy` or `--ease-out` (the custom one) |
-| `ease-in-out` | The "I want this to look smooth" default that looks like nothing. | `--spring-smooth` or `--ease-in-out` (the custom one) |
-| `linear` | Objects don't move at constant speed in nature. Feels robotic and dead. | Only acceptable for `animation-timing-function` on infinite loops (marquees, spinners) |
+| CSS Keyword   | Why it's banned                                                                      | What to use instead                                                                    |
+| ------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `ease`        | Generic curve that matches nothing. The "I didn't think about this" easing.          | `--spring-snappy` or `--ease-out`                                                      |
+| `ease-in`     | Slow start, fast end — objects accelerating into a wall. Almost never what you want. | `--ease-dramatic` (if you need a slow start)                                           |
+| `ease-out`    | Better than `ease`, but still a bland, characterless deceleration.                   | `--spring-snappy` or `--ease-out` (the custom one)                                     |
+| `ease-in-out` | The "I want this to look smooth" default that looks like nothing.                    | `--spring-smooth` or `--ease-in-out` (the custom one)                                  |
+| `linear`      | Objects don't move at constant speed in nature. Feels robotic and dead.              | Only acceptable for `animation-timing-function` on infinite loops (marquees, spinners) |
 
 ⚠ **Drift Warning:** If you write `transition: all 0.3s ease` ANYWHERE in the codebase, the implementation has failed the quality bar. Every transition must use a named curve from the palette. No exceptions. No shortcuts. The easing palette is the DNA of the entire motion experience.
 
@@ -319,20 +372,20 @@ For browsers that don't support `linear()`, or for secondary animations where sp
 
 **→ How to choose between Tier 1 and Tier 2:**
 
-| Animation type | Use this tier | Why |
-|---|---|---|
-| **Hero entry, page load reveals** | Tier 1 (`--spring-snappy`) | First impression. Must feel physical and premium. |
-| **Scroll reveals** | Tier 1 (`--spring-snappy`) | User sees dozens of these. Each one must feel alive. |
-| **Button/card hover** | Tier 2 (`--ease-snap`) | Hover is fast and functional. Spring overshoot on hover feels jittery. |
-| **Button click/active** | Tier 1 (`--spring-bouncy`) | Click feedback benefits from the satisfying "pop" of a spring bounce. |
-| **Modal/dialog open** | Tier 1 (`--spring-smooth`) | Modals are spatial — they arrive from somewhere. Springs make this feel real. |
-| **Tab switch/carousel** | Tier 1 (`--spring-smooth`) | Position changes need momentum and settle. |
-| **Background color shift** | Tier 2 (`--ease-in-out`) | Color doesn't have mass. Springs on color feel wrong. |
-| **Gradient animation** | Tier 2 (`--ease-in-out`) or `linear` | Ambient motion. No spring needed. |
-| **Page transition** | Tier 1 (`--spring-smooth`) | Page navigation is a major spatial event. Must feel physical. |
-| **Tooltip appear** | Tier 2 (`--ease-snap`) | Fast, functional, non-theatrical. |
-| **Accordion expand** | Tier 1 (`--spring-snappy`) or Tier 1 (`--m3-spring`) | Height changes with spring settle feel premium. |
-| **Floating/ambient** | CSS `linear` keyword | Continuous loops don't need easing — constant speed IS correct. |
+| Animation type                    | Use this tier                                        | Why                                                                           |
+| --------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Hero entry, page load reveals** | Tier 1 (`--spring-snappy`)                           | First impression. Must feel physical and premium.                             |
+| **Scroll reveals**                | Tier 1 (`--spring-snappy`)                           | User sees dozens of these. Each one must feel alive.                          |
+| **Button/card hover**             | Tier 2 (`--ease-snap`)                               | Hover is fast and functional. Spring overshoot on hover feels jittery.        |
+| **Button click/active**           | Tier 1 (`--spring-bouncy`)                           | Click feedback benefits from the satisfying "pop" of a spring bounce.         |
+| **Modal/dialog open**             | Tier 1 (`--spring-smooth`)                           | Modals are spatial — they arrive from somewhere. Springs make this feel real. |
+| **Tab switch/carousel**           | Tier 1 (`--spring-smooth`)                           | Position changes need momentum and settle.                                    |
+| **Background color shift**        | Tier 2 (`--ease-in-out`)                             | Color doesn't have mass. Springs on color feel wrong.                         |
+| **Gradient animation**            | Tier 2 (`--ease-in-out`) or `linear`                 | Ambient motion. No spring needed.                                             |
+| **Page transition**               | Tier 1 (`--spring-smooth`)                           | Page navigation is a major spatial event. Must feel physical.                 |
+| **Tooltip appear**                | Tier 2 (`--ease-snap`)                               | Fast, functional, non-theatrical.                                             |
+| **Accordion expand**              | Tier 1 (`--spring-snappy`) or Tier 1 (`--m3-spring`) | Height changes with spring settle feel premium.                               |
+| **Floating/ambient**              | CSS `linear` keyword                                 | Continuous loops don't need easing — constant speed IS correct.               |
 
 ---
 
@@ -347,19 +400,19 @@ For browsers that don't support `linear()`, or for secondary animations where sp
 
 const springs = {
   // Matches --spring-snappy: fast, minimal overshoot
-  snappy: { type: "spring", stiffness: 400, damping: 30, mass: 1 },
+  snappy: { type: 'spring', stiffness: 400, damping: 30, mass: 1 },
 
   // Matches --spring-smooth: gentle, visible settle
-  smooth: { type: "spring", stiffness: 200, damping: 24, mass: 1 },
+  smooth: { type: 'spring', stiffness: 200, damping: 24, mass: 1 },
 
   // Matches --spring-bouncy: playful pop
-  bouncy: { type: "spring", stiffness: 500, damping: 18, mass: 1 },
+  bouncy: { type: 'spring', stiffness: 500, damping: 18, mass: 1 },
 
   // Matches --m3-spring: Material 3 emphasized
-  emphasized: { type: "spring", stiffness: 300, damping: 22, mass: 1 },
+  emphasized: { type: 'spring', stiffness: 300, damping: 22, mass: 1 },
 
   // For hover responses (no spring, just fast decel)
-  snap: { type: "tween", duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+  snap: { type: 'tween', duration: 0.35, ease: [0.22, 1, 0.36, 1] },
 };
 
 // Usage:
@@ -391,28 +444,28 @@ const springs = {
 
 Map every animation in sequence. This is the score.
 
-| Element | Trigger | Delay | Duration | Easing | Transform | Notes |
-|---|---|---|---|---|---|---|
-| Nav | Page load | 0ms | 600ms | --ease-out | opacity 0→1, y -20→0 | First element to appear |
-| Hero eyebrow | Page load | 100ms | 700ms | --ease-out | opacity 0→1, y 20→0, blur 8→0 | Stagger start |
-| Hero heading | Page load | 200ms | 800ms | --ease-out | opacity 0→1, y 30→0, blur 8→0 | Core focal point |
-| Hero subtext | Page load | 320ms | 700ms | --ease-out | opacity 0→1, y 20→0 | After heading lands |
-| Hero CTA | Page load | 440ms | 600ms | --ease-out | opacity 0→1, y 20→0, scale 0.95→1 | Last hero element |
-| Section heading | Scroll (20% visible) | 0ms | 800ms | --ease-out | opacity 0→1, y 40→0 | Per section |
-| Cards | Scroll (15% visible) | 0/80/160ms | 700ms | --ease-out | opacity 0→1, y 30→0 | Stagger per card |
-| CTA buttons | Hover | 0ms | 500ms | --ease-snap | y 0→-2px, shadow increase | Immediate response |
-| Cards | Hover | 0ms | 400ms | --ease-snap | y 0→-4px, shadow increase | Lift effect |
+| Element         | Trigger              | Delay      | Duration | Easing      | Transform                         | Notes                   |
+| --------------- | -------------------- | ---------- | -------- | ----------- | --------------------------------- | ----------------------- |
+| Nav             | Page load            | 0ms        | 600ms    | --ease-out  | opacity 0→1, y -20→0              | First element to appear |
+| Hero eyebrow    | Page load            | 100ms      | 700ms    | --ease-out  | opacity 0→1, y 20→0, blur 8→0     | Stagger start           |
+| Hero heading    | Page load            | 200ms      | 800ms    | --ease-out  | opacity 0→1, y 30→0, blur 8→0     | Core focal point        |
+| Hero subtext    | Page load            | 320ms      | 700ms    | --ease-out  | opacity 0→1, y 20→0               | After heading lands     |
+| Hero CTA        | Page load            | 440ms      | 600ms    | --ease-out  | opacity 0→1, y 20→0, scale 0.95→1 | Last hero element       |
+| Section heading | Scroll (20% visible) | 0ms        | 800ms    | --ease-out  | opacity 0→1, y 40→0               | Per section             |
+| Cards           | Scroll (15% visible) | 0/80/160ms | 700ms    | --ease-out  | opacity 0→1, y 30→0               | Stagger per card        |
+| CTA buttons     | Hover                | 0ms        | 500ms    | --ease-snap | y 0→-2px, shadow increase         | Immediate response      |
+| Cards           | Hover                | 0ms        | 400ms    | --ease-snap | y 0→-4px, shadow increase         | Lift effect             |
 
 **Timing Rules:**
 
-| Rule | Value | Why |
-|---|---|---|
-| Maximum total entry sequence | 800ms | Beyond 800ms, the page feels slow to load |
-| Stagger increment | 80-150ms | Below 80ms feels simultaneous. Above 150ms feels sluggish |
-| Hover response | ≤ 150ms perceived start | The user must feel instant feedback |
-| Scroll reveal duration | 600-900ms | Long enough to notice, short enough to not obstruct |
-| Page transition | 300-500ms | Fast enough to not break flow, slow enough to register |
-| Micro-interaction (toggle, checkbox) | 200-350ms | Functional feedback, not theatrical |
+| Rule                                 | Value                   | Why                                                       |
+| ------------------------------------ | ----------------------- | --------------------------------------------------------- |
+| Maximum total entry sequence         | 800ms                   | Beyond 800ms, the page feels slow to load                 |
+| Stagger increment                    | 80-150ms                | Below 80ms feels simultaneous. Above 150ms feels sluggish |
+| Hover response                       | ≤ 150ms perceived start | The user must feel instant feedback                       |
+| Scroll reveal duration               | 600-900ms               | Long enough to notice, short enough to not obstruct       |
+| Page transition                      | 300-500ms               | Fast enough to not break flow, slow enough to register    |
+| Micro-interaction (toggle, checkbox) | 200-350ms               | Functional feedback, not theatrical                       |
 
 ⚠ **Drift Warning:** The #1 AI animation failure is making everything too slow. A 1.5-second fade-in on every section makes the page feel like it's loading, not revealing. Keep scroll reveals under 900ms. Keep hover responses under 500ms. Keep total page entry under 800ms.
 
@@ -421,15 +474,17 @@ Map every animation in sequence. This is the score.
 Stagger is not "delay each item by 100ms." Stagger follows visual hierarchy.
 
 **Correct stagger order (top to bottom = first to last):**
+
 ```
 1. Container/background (instant or 0ms)
 2. Primary content (heading, hero image) — 100ms
-3. Supporting content (subtext, description) — 220ms  
+3. Supporting content (subtext, description) — 220ms
 4. Interactive elements (CTAs, buttons) — 340ms
 5. Decorative elements (badges, accents) — 440ms
 ```
 
 **Stagger within grids (cards, features):**
+
 ```
 For a 3-column grid, stagger left-to-right:
   Card 1: 0ms
@@ -446,6 +501,7 @@ For a 2x3 grid, stagger top-left to bottom-right:
 ### ✓ Quality Gate: Choreography
 
 Before moving to Phase 3, confirm:
+
 - Easing palette is defined (not using CSS keyword easings)
 - Timing sheet covers every moving element
 - No animation exceeds 900ms duration
@@ -503,8 +559,12 @@ The first impression. Every above-the-fold element needs a choreographed entranc
 }
 
 @keyframes enter-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .enter-up {
@@ -560,12 +620,12 @@ const fadeUpBlur = {
   hidden: {
     opacity: 0,
     y: 30,
-    filter: "blur(8px)",
+    filter: 'blur(8px)',
   },
   visible: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
+    filter: 'blur(0px)',
     transition: {
       duration: 0.8,
       ease: [0.16, 1, 0.3, 1],
@@ -616,21 +676,44 @@ const scaleIn = {
    and GSAP animates TO the element's natural CSS state. */
 
 // Hero entry (fires on page load)
-const heroTl = gsap.timeline({ defaults: { ease: "power3.out" } });
+const heroTl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
 heroTl
-  .from(".hero-eyebrow", {
-    y: 20, opacity: 0, duration: 0.7, filter: "blur(8px)"
+  .from('.hero-eyebrow', {
+    y: 20,
+    opacity: 0,
+    duration: 0.7,
+    filter: 'blur(8px)',
   })
-  .from(".hero-heading", {
-    y: 30, opacity: 0, duration: 0.8, filter: "blur(8px)"
-  }, "-=0.55")  // overlap with previous
-  .from(".hero-subtext", {
-    y: 20, opacity: 0, duration: 0.6
-  }, "-=0.5")
-  .from(".hero-cta", {
-    y: 20, opacity: 0, scale: 0.95, duration: 0.5
-  }, "-=0.4");
+  .from(
+    '.hero-heading',
+    {
+      y: 30,
+      opacity: 0,
+      duration: 0.8,
+      filter: 'blur(8px)',
+    },
+    '-=0.55'
+  ) // overlap with previous
+  .from(
+    '.hero-subtext',
+    {
+      y: 20,
+      opacity: 0,
+      duration: 0.6,
+    },
+    '-=0.5'
+  )
+  .from(
+    '.hero-cta',
+    {
+      y: 20,
+      opacity: 0,
+      scale: 0.95,
+      duration: 0.5,
+    },
+    '-=0.4'
+  );
 ```
 
 ---
@@ -657,18 +740,18 @@ class ScrollReveal {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            entry.target.classList.add("is-visible");
+            entry.target.classList.add('is-visible');
             this.observer.unobserve(entry.target);
           }
         });
       },
       {
         threshold: 0.15,
-        rootMargin: "-50px 0px",
+        rootMargin: '-50px 0px',
       }
     );
 
-    document.querySelectorAll("[data-reveal]").forEach((el) => {
+    document.querySelectorAll('[data-reveal]').forEach((el) => {
       this.observer.observe(el);
     });
   }
@@ -702,18 +785,18 @@ new ScrollReveal();
 }
 
 /* Variant: reveal with blur */
-[data-reveal="blur"] {
+[data-reveal='blur'] {
   filter: blur(8px);
 }
-[data-reveal="blur"].is-visible {
+[data-reveal='blur'].is-visible {
   filter: blur(0);
 }
 
 /* Variant: reveal with scale */
-[data-reveal="scale"] {
+[data-reveal='scale'] {
   transform: scale(0.92);
 }
-[data-reveal="scale"].is-visible {
+[data-reveal='scale'].is-visible {
   transform: scale(1);
 }
 
@@ -725,12 +808,36 @@ new ScrollReveal();
     opacity 0.7s var(--ease-out),
     transform 0.7s var(--ease-out);
 }
-[data-reveal-stagger].is-visible > *:nth-child(1) { transition-delay: 0ms; opacity: 1; transform: translateY(0); }
-[data-reveal-stagger].is-visible > *:nth-child(2) { transition-delay: 80ms; opacity: 1; transform: translateY(0); }
-[data-reveal-stagger].is-visible > *:nth-child(3) { transition-delay: 160ms; opacity: 1; transform: translateY(0); }
-[data-reveal-stagger].is-visible > *:nth-child(4) { transition-delay: 240ms; opacity: 1; transform: translateY(0); }
-[data-reveal-stagger].is-visible > *:nth-child(5) { transition-delay: 320ms; opacity: 1; transform: translateY(0); }
-[data-reveal-stagger].is-visible > *:nth-child(6) { transition-delay: 400ms; opacity: 1; transform: translateY(0); }
+[data-reveal-stagger].is-visible > *:nth-child(1) {
+  transition-delay: 0ms;
+  opacity: 1;
+  transform: translateY(0);
+}
+[data-reveal-stagger].is-visible > *:nth-child(2) {
+  transition-delay: 80ms;
+  opacity: 1;
+  transform: translateY(0);
+}
+[data-reveal-stagger].is-visible > *:nth-child(3) {
+  transition-delay: 160ms;
+  opacity: 1;
+  transform: translateY(0);
+}
+[data-reveal-stagger].is-visible > *:nth-child(4) {
+  transition-delay: 240ms;
+  opacity: 1;
+  transform: translateY(0);
+}
+[data-reveal-stagger].is-visible > *:nth-child(5) {
+  transition-delay: 320ms;
+  opacity: 1;
+  transform: translateY(0);
+}
+[data-reveal-stagger].is-visible > *:nth-child(6) {
+  transition-delay: 400ms;
+  opacity: 1;
+  transform: translateY(0);
+}
 
 @media (prefers-reduced-motion: reduce) {
   [data-reveal] {
@@ -775,21 +882,22 @@ new ScrollReveal();
    and the user scrolls past it. */
 
 // Sticky section with scroll-driven content changes
-gsap.timeline({
-  scrollTrigger: {
-    trigger: ".feature-section",
-    start: "top top",
-    end: "+=300%",   // 3x viewport height of scroll distance
-    pin: true,
-    scrub: 1,        // smooth 1:1 scroll linking
-  },
-})
-.to(".feature-text-1", { opacity: 0, y: -30, duration: 0.3 })
-.from(".feature-text-2", { opacity: 0, y: 30, duration: 0.3 })
-.to(".feature-image-1", { scale: 0.9, opacity: 0, duration: 0.3 }, "<")
-.from(".feature-image-2", { scale: 1.1, opacity: 0, duration: 0.3 })
-.to(".feature-text-2", { opacity: 0, y: -30, duration: 0.3 })
-.from(".feature-text-3", { opacity: 0, y: 30, duration: 0.3 });
+gsap
+  .timeline({
+    scrollTrigger: {
+      trigger: '.feature-section',
+      start: 'top top',
+      end: '+=300%', // 3x viewport height of scroll distance
+      pin: true,
+      scrub: 1, // smooth 1:1 scroll linking
+    },
+  })
+  .to('.feature-text-1', { opacity: 0, y: -30, duration: 0.3 })
+  .from('.feature-text-2', { opacity: 0, y: 30, duration: 0.3 })
+  .to('.feature-image-1', { scale: 0.9, opacity: 0, duration: 0.3 }, '<')
+  .from('.feature-image-2', { scale: 1.1, opacity: 0, duration: 0.3 })
+  .to('.feature-text-2', { opacity: 0, y: -30, duration: 0.3 })
+  .from('.feature-text-3', { opacity: 0, y: 30, duration: 0.3 });
 ```
 
 **Horizontal Scroll Section:**
@@ -802,15 +910,15 @@ gsap.timeline({
    = 1px of horizontal movement. The pin keeps the section in
    view during the entire horizontal traverse. */
 
-const horizontalSection = document.querySelector(".horizontal-gallery");
+const horizontalSection = document.querySelector('.horizontal-gallery');
 const scrollWidth = horizontalSection.scrollWidth - window.innerWidth;
 
-gsap.to(".horizontal-gallery-inner", {
+gsap.to('.horizontal-gallery-inner', {
   x: -scrollWidth,
-  ease: "none",
+  ease: 'none',
   scrollTrigger: {
-    trigger: ".horizontal-gallery",
-    start: "top top",
+    trigger: '.horizontal-gallery',
+    start: 'top top',
     end: () => `+=${scrollWidth}`,
     pin: true,
     scrub: 1,
@@ -854,8 +962,7 @@ The layer that separates "works" from "feels premium." Every interactive element
 
 .btn:active {
   transform: translateY(0px) scale(0.98);
-  box-shadow:
-    0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   transition-duration: 0.1s;
 }
 ```
@@ -898,16 +1005,16 @@ The layer that separates "works" from "feels premium." Every interactive element
    not on scroll (hundreds of elements). */
 
 function initTiltCards() {
-  document.querySelectorAll("[data-tilt]").forEach((card) => {
+  document.querySelectorAll('[data-tilt]').forEach((card) => {
     const maxTilt = 8; // degrees
 
-    card.addEventListener("mousemove", (e) => {
+    card.addEventListener('mousemove', (e) => {
       const rect = card.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;   // 0 to 1
-      const y = (e.clientY - rect.top) / rect.height;    // 0 to 1
+      const x = (e.clientX - rect.left) / rect.width; // 0 to 1
+      const y = (e.clientY - rect.top) / rect.height; // 0 to 1
 
-      const rotateX = (0.5 - y) * maxTilt;  // tilt up/down
-      const rotateY = (x - 0.5) * maxTilt;  // tilt left/right
+      const rotateX = (0.5 - y) * maxTilt; // tilt up/down
+      const rotateY = (x - 0.5) * maxTilt; // tilt left/right
 
       card.style.transform = `
         perspective(800px)
@@ -917,14 +1024,13 @@ function initTiltCards() {
       `;
     });
 
-    card.addEventListener("mouseleave", () => {
-      card.style.transform =
-        "perspective(800px) rotateX(0) rotateY(0) scale3d(1,1,1)";
-      card.style.transition = "transform 0.6s var(--ease-out)";
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = 'perspective(800px) rotateX(0) rotateY(0) scale3d(1,1,1)';
+      card.style.transition = 'transform 0.6s var(--ease-out)';
     });
 
-    card.addEventListener("mouseenter", () => {
-      card.style.transition = "transform 0.1s ease-out";
+    card.addEventListener('mouseenter', () => {
+      card.style.transition = 'transform 0.1s ease-out';
     });
   });
 }
@@ -958,7 +1064,8 @@ function initPressureButtons() {
 
     btn.addEventListener('mouseenter', () => {
       btn.style.transform = `scale(${depth})`;
-      btn.style.boxShadow = 'inset 0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)';
+      btn.style.boxShadow =
+        'inset 0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)';
       btn.style.transition = `transform 0.5s var(--spring-snappy), box-shadow 0.3s var(--ease-snap)`;
       btn.style.filter = 'brightness(1.05)';
     });
@@ -978,7 +1085,8 @@ function initPressureButtons() {
 
     btn.addEventListener('mouseup', () => {
       btn.style.transform = `scale(${depth})`;
-      btn.style.boxShadow = 'inset 0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)';
+      btn.style.boxShadow =
+        'inset 0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)';
       btn.style.transition = `transform 0.5s var(--spring-bouncy), box-shadow 0.3s var(--ease-snap)`;
     });
   });
@@ -1004,13 +1112,15 @@ function initPressureButtons() {
 
 .btn-pressure:hover {
   transform: scale(0.97);
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08);
   filter: brightness(1.05);
 }
 
 .btn-pressure:active {
   transform: scale(0.94);
-  box-shadow: inset 0 3px 12px rgba(0,0,0,0.2);
+  box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.2);
   transition-duration: 0.08s;
   transition-timing-function: ease;
 }
@@ -1077,11 +1187,11 @@ function initPressureButtons() {
 
 /* Variant: reveal from left */
 .image-reveal--wipe img {
-  clip-path: inset(0 100% 0 0);  /* hidden: clipped from right */
+  clip-path: inset(0 100% 0 0); /* hidden: clipped from right */
   transition: clip-path 0.9s var(--ease-dramatic);
 }
 .image-reveal--wipe.is-visible img {
-  clip-path: inset(0 0 0 0);  /* visible: no clipping */
+  clip-path: inset(0 0 0 0); /* visible: no clipping */
 }
 ```
 
@@ -1102,46 +1212,42 @@ Text splitting and character-level animation is the signature of studio-quality 
    ensures screen readers read the complete text, not individual
    letters. */
 
-function splitText(element, type = "chars") {
+function splitText(element, type = 'chars') {
   const text = element.textContent;
 
   // Keep original text accessible
-  element.setAttribute("aria-label", text);
+  element.setAttribute('aria-label', text);
 
-  if (type === "chars") {
+  if (type === 'chars') {
     element.innerHTML = text
-      .split("")
+      .split('')
       .map((char) =>
-        char === " "
+        char === ' '
           ? '<span class="split-char">&nbsp;</span>'
           : `<span class="split-char" aria-hidden="true">${char}</span>`
       )
-      .join("");
-  } else if (type === "words") {
+      .join('');
+  } else if (type === 'words') {
     element.innerHTML = text
-      .split(" ")
+      .split(' ')
       .map(
         (word) =>
           `<span class="split-word-wrap"><span class="split-word" aria-hidden="true">${word}</span></span>`
       )
       .join('<span class="split-char">&nbsp;</span>');
-  } else if (type === "lines") {
+  } else if (type === 'lines') {
     // Wrap each line in a clip container for reveal
     element.innerHTML = text
-      .split("\n")
+      .split('\n')
       .map(
         (line) =>
           `<span class="split-line-wrap" style="display:block;overflow:hidden;"><span class="split-line">${line}</span></span>`
       )
-      .join("");
+      .join('');
   }
 
   return element.querySelectorAll(
-    type === "chars"
-      ? ".split-char"
-      : type === "words"
-      ? ".split-word"
-      : ".split-line"
+    type === 'chars' ? '.split-char' : type === 'words' ? '.split-word' : '.split-line'
   );
 }
 ```
@@ -1174,7 +1280,7 @@ function splitText(element, type = "chars") {
 
 ```javascript
 // Apply stagger after splitting
-const chars = splitText(document.querySelector(".hero-heading"), "chars");
+const chars = splitText(document.querySelector('.hero-heading'), 'chars');
 chars.forEach((char, i) => {
   char.style.transitionDelay = `${i * 25}ms`;
 });
@@ -1211,7 +1317,7 @@ chars.forEach((char, i) => {
 
 ```javascript
 // Apply stagger on words
-const words = splitText(document.querySelector(".section-heading"), "words");
+const words = splitText(document.querySelector('.section-heading'), 'words');
 words.forEach((word, i) => {
   word.style.transitionDelay = `${i * 60}ms`;
 });
@@ -1250,7 +1356,7 @@ words.forEach((word, i) => {
 
 function animateCounter(element, target, duration = 2000) {
   const start = performance.now();
-  const format = element.dataset.format || "number"; // "number" | "percent" | "currency"
+  const format = element.dataset.format || 'number'; // "number" | "percent" | "currency"
 
   function update(now) {
     const elapsed = now - start;
@@ -1260,9 +1366,9 @@ function animateCounter(element, target, duration = 2000) {
     const eased = 1 - Math.pow(1 - progress, 3);
     const current = Math.round(eased * target);
 
-    if (format === "percent") {
+    if (format === 'percent') {
       element.textContent = `${current}%`;
-    } else if (format === "currency") {
+    } else if (format === 'currency') {
       element.textContent = `$${current.toLocaleString()}`;
     } else {
       element.textContent = current.toLocaleString();
@@ -1308,13 +1414,25 @@ Moving between pages or views with choreographed transitions.
 }
 
 @keyframes fade-out {
-  from { opacity: 1; transform: scale(1); }
-  to   { opacity: 0; transform: scale(0.98); }
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: scale(1.02); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Element-level transitions (e.g., hero image persists across pages) */
@@ -1350,17 +1468,16 @@ function navigateWithTransition(url) {
     const response = await fetch(url);
     const html = await response.text();
     const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
+    const doc = parser.parseFromString(html, 'text/html');
 
     // Swap the main content
-    document.querySelector("main").innerHTML =
-      doc.querySelector("main").innerHTML;
+    document.querySelector('main').innerHTML = doc.querySelector('main').innerHTML;
 
     // Update the title
     document.title = doc.title;
 
     // Update URL
-    history.pushState({}, "", url);
+    history.pushState({}, '', url);
   });
 }
 ```
@@ -1374,20 +1491,20 @@ function navigateWithTransition(url) {
    mode="wait" ensures the exit completes BEFORE the enter starts,
    preventing both pages from being visible simultaneously. */
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from 'framer-motion';
 
 const pageTransition = {
-  initial: { opacity: 0, y: 20, filter: "blur(6px)" },
+  initial: { opacity: 0, y: 20, filter: 'blur(6px)' },
   animate: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
+    filter: 'blur(0px)',
     transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
   },
   exit: {
     opacity: 0,
     y: -10,
-    filter: "blur(4px)",
+    filter: 'blur(4px)',
     transition: { duration: 0.3, ease: [0.65, 0, 0.35, 1] },
   },
 };
@@ -1415,13 +1532,13 @@ const pageTransition = {
    sites for their scroll feel. lerp (linear interpolation)
    controls smoothness — 0.1 is silky, 0.3 is more direct. */
 
-import Lenis from "@studio-freight/lenis";
+import Lenis from '@studio-freight/lenis';
 
 const lenis = new Lenis({
-  lerp: 0.1,           // smoothness factor (0.05 = very smooth, 0.2 = snappier)
-  duration: 1.2,       // base scroll duration
+  lerp: 0.1, // smoothness factor (0.05 = very smooth, 0.2 = snappier)
+  duration: 1.2, // base scroll duration
   smoothWheel: true,
-  smoothTouch: false,   // never smooth-scroll on touch — it breaks native feel
+  smoothTouch: false, // never smooth-scroll on touch — it breaks native feel
   wheelMultiplier: 1,
   touchMultiplier: 2,
 });
@@ -1464,7 +1581,9 @@ requestAnimationFrame(raf);
 }
 
 @keyframes scroll-progress {
-  to { transform: scaleX(1); }
+  to {
+    transform: scaleX(1);
+  }
 }
 ```
 
@@ -1501,13 +1620,21 @@ The final polish layer. These are the details that make a page feel alive even w
 }
 
 @keyframes orbital-x {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(15px); }
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(15px);
+  }
 }
 
 @keyframes orbital-y {
-  0%   { transform: translateY(0); }
-  100% { transform: translateY(-12px); }
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-12px);
+  }
 }
 
 /* Secondary orbital — offset phase for second element */
@@ -1526,7 +1653,9 @@ The final polish layer. These are the details that make a page feel alive even w
 }
 
 @keyframes orbital-rotate {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* For elements that need true combined transforms,
@@ -1551,8 +1680,12 @@ The final polish layer. These are the details that make a page feel alive even w
 }
 
 @keyframes orbital-scale {
-  0%   { scale: 1; }
-  100% { scale: 1.08; }
+  0% {
+    scale: 1;
+  }
+  100% {
+    scale: 1.08;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1605,9 +1738,15 @@ The final polish layer. These are the details that make a page feel alive even w
 }
 
 @keyframes gradient-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1630,18 +1769,18 @@ The final polish layer. These are the details that make a page feel alive even w
    fires at monitor refresh rate already. */
 
 function initCursorGlow() {
-  const glow = document.querySelector(".cursor-glow");
+  const glow = document.querySelector('.cursor-glow');
   if (!glow) return;
 
   // Respect reduced motion
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    glow.style.display = "none";
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    glow.style.display = 'none';
     return;
   }
 
-  document.addEventListener("mousemove", (e) => {
-    glow.style.setProperty("--mx", `${e.clientX}px`);
-    glow.style.setProperty("--my", `${e.clientY}px`);
+  document.addEventListener('mousemove', (e) => {
+    glow.style.setProperty('--mx', `${e.clientX}px`);
+    glow.style.setProperty('--my', `${e.clientY}px`);
   });
 }
 ```
@@ -1680,22 +1819,26 @@ function initCursorGlow() {
    JS calculations. */
 
 function initParallax() {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   let ticking = false;
 
-  window.addEventListener("scroll", () => {
-    if (!ticking) {
-      requestAnimationFrame(() => {
-        document.documentElement.style.setProperty(
-          "--scroll",
-          window.scrollY.toString()
-        );
-        ticking = false;
-      });
-      ticking = true;
-    }
-  }, { passive: true });
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          document.documentElement.style.setProperty(
+            '--scroll',
+            window.scrollY.toString()
+          );
+          ticking = false;
+        });
+        ticking = true;
+      }
+    },
+    { passive: true }
+  );
 }
 ```
 
@@ -1800,7 +1943,7 @@ dialog[open] {
   transition: grid-template-rows 0.4s var(--ease-out);
 }
 
-.accordion-content[data-expanded="true"] {
+.accordion-content[data-expanded='true'] {
   grid-template-rows: 1fr;
 }
 
@@ -1821,9 +1964,9 @@ dialog[open] {
    tab's getBoundingClientRect() for pixel-perfect alignment. */
 
 function initTabs() {
-  const tabContainer = document.querySelector("[data-tabs]");
-  const indicator = tabContainer.querySelector(".tab-indicator");
-  const tabs = tabContainer.querySelectorAll("[data-tab]");
+  const tabContainer = document.querySelector('[data-tabs]');
+  const indicator = tabContainer.querySelector('.tab-indicator');
+  const tabs = tabContainer.querySelectorAll('[data-tab]');
 
   function moveIndicator(tab) {
     const rect = tab.getBoundingClientRect();
@@ -1834,15 +1977,15 @@ function initTabs() {
   }
 
   tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      tabs.forEach((t) => t.classList.remove("active"));
-      tab.classList.add("active");
+    tab.addEventListener('click', () => {
+      tabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
       moveIndicator(tab);
     });
   });
 
   // Initialize on the active tab
-  const activeTab = tabContainer.querySelector("[data-tab].active");
+  const activeTab = tabContainer.querySelector('[data-tab].active');
   if (activeTab) moveIndicator(activeTab);
 }
 ```
@@ -1896,11 +2039,31 @@ function initTabs() {
     transform 0.4s var(--ease-out);
 }
 
-.mobile-menu.is-open .menu-link:nth-child(1) { transition-delay: 100ms; opacity: 1; transform: translateX(0); }
-.mobile-menu.is-open .menu-link:nth-child(2) { transition-delay: 160ms; opacity: 1; transform: translateX(0); }
-.mobile-menu.is-open .menu-link:nth-child(3) { transition-delay: 220ms; opacity: 1; transform: translateX(0); }
-.mobile-menu.is-open .menu-link:nth-child(4) { transition-delay: 280ms; opacity: 1; transform: translateX(0); }
-.mobile-menu.is-open .menu-link:nth-child(5) { transition-delay: 340ms; opacity: 1; transform: translateX(0); }
+.mobile-menu.is-open .menu-link:nth-child(1) {
+  transition-delay: 100ms;
+  opacity: 1;
+  transform: translateX(0);
+}
+.mobile-menu.is-open .menu-link:nth-child(2) {
+  transition-delay: 160ms;
+  opacity: 1;
+  transform: translateX(0);
+}
+.mobile-menu.is-open .menu-link:nth-child(3) {
+  transition-delay: 220ms;
+  opacity: 1;
+  transform: translateX(0);
+}
+.mobile-menu.is-open .menu-link:nth-child(4) {
+  transition-delay: 280ms;
+  opacity: 1;
+  transform: translateX(0);
+}
+.mobile-menu.is-open .menu-link:nth-child(5) {
+  transition-delay: 340ms;
+  opacity: 1;
+  transform: translateX(0);
+}
 ```
 
 ---
@@ -1932,7 +2095,7 @@ The first thing the user sees. A choreographed preloader signals quality before 
 }
 
 .preloader.is-done {
-  clip-path: inset(0 0 100% 0);  /* wipes upward */
+  clip-path: inset(0 0 100% 0); /* wipes upward */
   pointer-events: none;
 }
 
@@ -1977,9 +2140,9 @@ The first thing the user sees. A choreographed preloader signals quality before 
 
 class Preloader {
   constructor() {
-    this.counter = document.querySelector(".preloader-counter");
-    this.line = document.querySelector(".preloader-line");
-    this.preloader = document.querySelector(".preloader");
+    this.counter = document.querySelector('.preloader-counter');
+    this.line = document.querySelector('.preloader-line');
+    this.preloader = document.querySelector('.preloader');
     this.progress = 0;
     this.target = 0;
   }
@@ -1988,14 +2151,13 @@ class Preloader {
     // Track actual resource loading
     const promises = [
       document.fonts.ready,
-      ...Array.from(document.images).map(
-        (img) =>
-          img.complete
-            ? Promise.resolve()
-            : new Promise((res) => {
-                img.onload = res;
-                img.onerror = res;
-              })
+      ...Array.from(document.images).map((img) =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise((res) => {
+              img.onload = res;
+              img.onerror = res;
+            })
       ),
     ];
 
@@ -2004,8 +2166,8 @@ class Preloader {
       this.progress += (this.target - this.progress) * 0.08;
 
       const rounded = Math.round(this.progress);
-      this.counter.textContent = String(rounded).padStart(3, "0");
-      this.line.style.setProperty("--progress", this.progress / 100);
+      this.counter.textContent = String(rounded).padStart(3, '0');
+      this.line.style.setProperty('--progress', this.progress / 100);
 
       if (rounded < 100) {
         requestAnimationFrame(tick);
@@ -2015,9 +2177,15 @@ class Preloader {
     };
 
     // Simulate progress stages
-    setTimeout(() => { this.target = 30; }, 100);
-    setTimeout(() => { this.target = 60; }, 400);
-    setTimeout(() => { this.target = 80; }, 700);
+    setTimeout(() => {
+      this.target = 30;
+    }, 100);
+    setTimeout(() => {
+      this.target = 60;
+    }, 400);
+    setTimeout(() => {
+      this.target = 80;
+    }, 700);
 
     Promise.all(promises).then(() => {
       this.target = 100;
@@ -2028,17 +2196,17 @@ class Preloader {
 
   complete() {
     setTimeout(() => {
-      this.preloader.classList.add("is-done");
+      this.preloader.classList.add('is-done');
       // Trigger hero entry animation after preloader exits
       setTimeout(() => {
-        document.body.classList.add("is-loaded");
+        document.body.classList.add('is-loaded');
       }, 800);
     }, 300);
   }
 }
 
 // Initialize
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener('DOMContentLoaded', () => {
   new Preloader().start();
 });
 ```
@@ -2307,8 +2475,12 @@ function initRipple() {
 }
 
 @keyframes shimmer-sweep {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Dark mode variant */
@@ -2325,7 +2497,8 @@ function initRipple() {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shimmer, .shimmer--dark {
+  .shimmer,
+  .shimmer--dark {
     animation: none;
   }
 }
@@ -2362,8 +2535,12 @@ function initRipple() {
 }
 
 @keyframes marquee-scroll {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 /* Fade edges for seamless look */
@@ -2439,7 +2616,8 @@ function initRipple() {
 }
 
 @keyframes morph {
-  0%, 100% {
+  0%,
+  100% {
     border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
     transform: rotate(0deg) scale(1);
   }
@@ -2627,37 +2805,41 @@ function initScrollTypography() {
   let velocity = 0;
   let ticking = false;
 
-  window.addEventListener('scroll', () => {
-    if (!ticking) {
-      requestAnimationFrame(() => {
-        const currentScroll = window.scrollY;
-        velocity = Math.abs(currentScroll - lastScroll);
-        lastScroll = currentScroll;
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const currentScroll = window.scrollY;
+          velocity = Math.abs(currentScroll - lastScroll);
+          lastScroll = currentScroll;
 
-        // Clamp velocity to usable range
-        const clampedVelocity = Math.min(velocity, 50);
-        const skewAmount = clampedVelocity * 0.15; // max ~7.5deg
-        const scaleY = 1 + clampedVelocity * 0.002; // max ~1.1
+          // Clamp velocity to usable range
+          const clampedVelocity = Math.min(velocity, 50);
+          const skewAmount = clampedVelocity * 0.15; // max ~7.5deg
+          const scaleY = 1 + clampedVelocity * 0.002; // max ~1.1
 
-        elements.forEach((el) => {
-          el.style.transform = `skewY(${currentScroll > lastScroll ? -skewAmount : skewAmount}deg) scaleY(${scaleY})`;
-          el.style.transition = 'transform 0.1s ease-out';
-        });
-
-        // Reset when scroll stops
-        clearTimeout(window._scrollTypeTimer);
-        window._scrollTypeTimer = setTimeout(() => {
           elements.forEach((el) => {
-            el.style.transform = 'skewY(0deg) scaleY(1)';
-            el.style.transition = 'transform 0.6s var(--ease-out)';
+            el.style.transform = `skewY(${currentScroll > lastScroll ? -skewAmount : skewAmount}deg) scaleY(${scaleY})`;
+            el.style.transition = 'transform 0.1s ease-out';
           });
-        }, 150);
 
-        ticking = false;
-      });
-      ticking = true;
-    }
-  }, { passive: true });
+          // Reset when scroll stops
+          clearTimeout(window._scrollTypeTimer);
+          window._scrollTypeTimer = setTimeout(() => {
+            elements.forEach((el) => {
+              el.style.transform = 'skewY(0deg) scaleY(1)';
+              el.style.transition = 'transform 0.6s var(--ease-out)';
+            });
+          }, 150);
+
+          ticking = false;
+        });
+        ticking = true;
+      }
+    },
+    { passive: true }
+  );
 }
 ```
 
@@ -2692,15 +2874,33 @@ function initScrollTypography() {
 }
 
 /* Cascade stagger: top-left → bottom-right */
-.grid-rain > *:nth-child(1)  { animation-delay: 0ms; }
-.grid-rain > *:nth-child(2)  { animation-delay: 60ms; }
-.grid-rain > *:nth-child(3)  { animation-delay: 120ms; }
-.grid-rain > *:nth-child(4)  { animation-delay: 100ms; }
-.grid-rain > *:nth-child(5)  { animation-delay: 160ms; }
-.grid-rain > *:nth-child(6)  { animation-delay: 220ms; }
-.grid-rain > *:nth-child(7)  { animation-delay: 200ms; }
-.grid-rain > *:nth-child(8)  { animation-delay: 260ms; }
-.grid-rain > *:nth-child(9)  { animation-delay: 320ms; }
+.grid-rain > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.grid-rain > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+.grid-rain > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+.grid-rain > *:nth-child(4) {
+  animation-delay: 100ms;
+}
+.grid-rain > *:nth-child(5) {
+  animation-delay: 160ms;
+}
+.grid-rain > *:nth-child(6) {
+  animation-delay: 220ms;
+}
+.grid-rain > *:nth-child(7) {
+  animation-delay: 200ms;
+}
+.grid-rain > *:nth-child(8) {
+  animation-delay: 260ms;
+}
+.grid-rain > *:nth-child(9) {
+  animation-delay: 320ms;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .grid-rain > * {
@@ -2730,7 +2930,8 @@ function initScrollTypography() {
 }
 
 @keyframes focus-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow:
       0 0 0 2px var(--color-accent),
       0 0 0 4px rgba(var(--color-accent-rgb, 99, 102, 241), 0.2);
@@ -2839,7 +3040,9 @@ function initScrollTypography() {
 /* Variant: desaturate-to-color on hover */
 .image-distort--desat img {
   filter: grayscale(100%);
-  transition: filter 0.6s var(--ease-out), transform 0.8s var(--ease-out);
+  transition:
+    filter 0.6s var(--ease-out),
+    transform 0.8s var(--ease-out);
 }
 
 .image-distort--desat:hover img {
@@ -2876,7 +3079,9 @@ function initScrollTypography() {
 }
 
 @keyframes spin-slow {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2894,7 +3099,7 @@ function initScrollTypography() {
       <path id="circle-path" d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0" />
     </defs>
     <text>
-      <textPath href="#circle-path">SCROLL TO EXPLORE • SCROLL TO EXPLORE • </textPath>
+      <textPath href="#circle-path">SCROLL TO EXPLORE • SCROLL TO EXPLORE •</textPath>
     </text>
   </svg>
 </div>
@@ -2943,10 +3148,18 @@ function initScrollTypography() {
   animation: fan-in-right 0.7s var(--ease-out) both;
 }
 
-.fan-reveal > *:nth-child(1) { animation-delay: 0ms; }
-.fan-reveal > *:nth-child(2) { animation-delay: 80ms; }
-.fan-reveal > *:nth-child(3) { animation-delay: 160ms; }
-.fan-reveal > *:nth-child(4) { animation-delay: 240ms; }
+.fan-reveal > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.fan-reveal > *:nth-child(2) {
+  animation-delay: 80ms;
+}
+.fan-reveal > *:nth-child(3) {
+  animation-delay: 160ms;
+}
+.fan-reveal > *:nth-child(4) {
+  animation-delay: 240ms;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .fan-reveal > * {
@@ -2969,7 +3182,7 @@ function initScrollTypography() {
    Best on: featured cards, pricing cards, CTA buttons, hero elements. */
 
 @property --gradient-angle {
-  syntax: "<angle>";
+  syntax: '<angle>';
   initial-value: 0deg;
   inherits: false;
 }
@@ -2994,7 +3207,9 @@ function initScrollTypography() {
 }
 
 @keyframes gradient-rotate {
-  to { --gradient-angle: 360deg; }
+  to {
+    --gradient-angle: 360deg;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3075,8 +3290,10 @@ function initCustomCursor() {
   circle.className = 'cursor-circle';
   document.body.append(dot, circle);
 
-  let mouseX = 0, mouseY = 0;
-  let circleX = 0, circleY = 0;
+  let mouseX = 0,
+    mouseY = 0;
+  let circleX = 0,
+    circleY = 0;
 
   document.addEventListener('mousemove', (e) => {
     mouseX = e.clientX;
@@ -3138,7 +3355,10 @@ function initCustomCursor() {
   border-radius: 50%;
   pointer-events: none;
   z-index: 99998;
-  transition: width 0.3s var(--ease-snap), height 0.3s var(--ease-snap), border-color 0.3s ease;
+  transition:
+    width 0.3s var(--ease-snap),
+    height 0.3s var(--ease-snap),
+    border-color 0.3s ease;
   mix-blend-mode: difference;
 }
 
@@ -3146,7 +3366,7 @@ function initCustomCursor() {
   width: 60px;
   height: 60px;
   border-color: var(--color-accent);
-  background: rgba(var(--color-accent-rgb, 99,102,241), 0.08);
+  background: rgba(var(--color-accent-rgb, 99, 102, 241), 0.08);
 }
 ```
 
@@ -3213,14 +3433,14 @@ function initCustomCursor() {
 
 Do not use all 20 effects on one page. Select 4-6 that match the project's personality:
 
-| Project type | Recommended signature effects |
-|---|---|
-| **Tech/SaaS landing** | Text scramble on hero, gradient border on pricing, shimmer loading, hover wipe buttons |
-| **Creative agency** | Custom cursor trail, image hover reveal on project list, clip-path section reveals, morphing blob background |
-| **Portfolio** | Tilt parallax cards, fan reveal on grid, image distortion hover, text scramble on project titles |
-| **Editorial/blog** | Scroll-speed typography, marquee ticker, word-by-word masked reveals, border draw on features |
-| **E-commerce** | Ripple click on CTAs, shimmer loading for products, elastic spring on cart icons, gradient border on featured products |
-| **Luxury/brand** | Rotating text badge, cursor glow, clip-path reveals, border draw animation, morphing blob |
+| Project type          | Recommended signature effects                                                                                          |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Tech/SaaS landing** | Text scramble on hero, gradient border on pricing, shimmer loading, hover wipe buttons                                 |
+| **Creative agency**   | Custom cursor trail, image hover reveal on project list, clip-path section reveals, morphing blob background           |
+| **Portfolio**         | Tilt parallax cards, fan reveal on grid, image distortion hover, text scramble on project titles                       |
+| **Editorial/blog**    | Scroll-speed typography, marquee ticker, word-by-word masked reveals, border draw on features                          |
+| **E-commerce**        | Ripple click on CTAs, shimmer loading for products, elastic spring on cart icons, gradient border on featured products |
+| **Luxury/brand**      | Rotating text badge, cursor glow, clip-path reveals, border draw animation, morphing blob                              |
 
 ⚠ **Drift Warning:** Signature micro-animations are spice, not the main dish. 4-6 per page maximum. If every element has a unique animation, none of them feel special. The signature effects should be on YOUR MOST IMPORTANT elements — the hero heading, the primary CTA, the featured card, the section transition. Everything else uses the standard fade-up-deblur reveal system.
 
@@ -3230,98 +3450,98 @@ Compare your animations against the Motion Brief and Timing Sheet. Walk through 
 
 ### ⚡ Coverage Check (MANDATORY — Run First)
 
-| Check | PASS/FAIL |
-|---|---|
-| **Every heading** on the page has a scroll reveal or entry animation | |
-| **Every paragraph/body text** has at minimum a fade-up reveal | |
-| **Every card** has a scroll reveal AND a hover state (lift + shadow) | |
-| **Every button** has hover (lift/wipe/color) + active (press) + focus-visible states | |
-| **Every link** has a hover underline animation or color shift | |
-| **Every image** has a reveal animation (clip-path, scale-in, or fade) | |
-| **Every input** has a focus state (glow, border shift, or label animation) | |
-| **Every section** has scroll-triggered entry (no section just "sits there") | |
-| **Every decorative element** has ambient motion (float, rotate, pulse) | |
-| **Every divider/line** animates in (scaleX expansion or fade) | |
-| **Every icon** has hover feedback (color, scale, or rotation shift) | |
-| **Stats/numbers** count up from 0 when scrolled into view | |
-| **Nav bar** has an entry animation on page load | |
-| **Footer** has scroll-triggered stagger reveal on its contents | |
-| Scroll the entire page top-to-bottom: ZERO static elements found | |
+| Check                                                                                | PASS/FAIL |
+| ------------------------------------------------------------------------------------ | --------- |
+| **Every heading** on the page has a scroll reveal or entry animation                 |           |
+| **Every paragraph/body text** has at minimum a fade-up reveal                        |           |
+| **Every card** has a scroll reveal AND a hover state (lift + shadow)                 |           |
+| **Every button** has hover (lift/wipe/color) + active (press) + focus-visible states |           |
+| **Every link** has a hover underline animation or color shift                        |           |
+| **Every image** has a reveal animation (clip-path, scale-in, or fade)                |           |
+| **Every input** has a focus state (glow, border shift, or label animation)           |           |
+| **Every section** has scroll-triggered entry (no section just "sits there")          |           |
+| **Every decorative element** has ambient motion (float, rotate, pulse)               |           |
+| **Every divider/line** animates in (scaleX expansion or fade)                        |           |
+| **Every icon** has hover feedback (color, scale, or rotation shift)                  |           |
+| **Stats/numbers** count up from 0 when scrolled into view                            |           |
+| **Nav bar** has an entry animation on page load                                      |           |
+| **Footer** has scroll-triggered stagger reveal on its contents                       |           |
+| Scroll the entire page top-to-bottom: ZERO static elements found                     |           |
 
 ⚠ **If any row is FAIL, go back and add the missing animation before proceeding.** This is not optional. A page with 90% animation coverage has dead spots that destroy the premium feel.
 
 ### Feel Check
 
-| Check | PASS/FAIL |
-|---|---|
-| Page entry completes in under 800ms total | |
-| No element "pops" into existence without any animation | |
-| Stagger follows visual hierarchy (heading before subtext before CTA) | |
-| Scroll reveals trigger at a natural point (~15-20% element visibility) | |
-| Hover feedback is immediate (perceived start ≤ 150ms) | |
-| No animation feels "slow" or makes the user wait | |
-| No animation draws attention to ITSELF rather than to the content | |
-| At least 3-5 signature micro-animations are present (not just fade-ups everywhere) | |
-| The page has a "wow moment" — one animation that is uniquely memorable | |
+| Check                                                                              | PASS/FAIL |
+| ---------------------------------------------------------------------------------- | --------- |
+| Page entry completes in under 800ms total                                          |           |
+| No element "pops" into existence without any animation                             |           |
+| Stagger follows visual hierarchy (heading before subtext before CTA)               |           |
+| Scroll reveals trigger at a natural point (~15-20% element visibility)             |           |
+| Hover feedback is immediate (perceived start ≤ 150ms)                              |           |
+| No animation feels "slow" or makes the user wait                                   |           |
+| No animation draws attention to ITSELF rather than to the content                  |           |
+| At least 3-5 signature micro-animations are present (not just fade-ups everywhere) |           |
+| The page has a "wow moment" — one animation that is uniquely memorable             |           |
 
 ### Easing Check
 
-| Check | PASS/FAIL |
-|---|---|
-| No CSS keyword easings (ease, ease-in, ease-out) on visible animations | |
-| All entry animations use --ease-out (snappy decel) | |
-| All hover interactions use --ease-snap (energetic out) | |
-| All state transitions use --ease-in-out (smooth) | |
-| Easing palette is consistent across the entire page | |
+| Check                                                                  | PASS/FAIL |
+| ---------------------------------------------------------------------- | --------- |
+| No CSS keyword easings (ease, ease-in, ease-out) on visible animations |           |
+| All entry animations use --ease-out (snappy decel)                     |           |
+| All hover interactions use --ease-snap (energetic out)                 |           |
+| All state transitions use --ease-in-out (smooth)                       |           |
+| Easing palette is consistent across the entire page                    |           |
 
 ### Performance Check
 
-| Check | PASS/FAIL |
-|---|---|
-| All animations use ONLY `transform` and `opacity` (except clip-path reveals and filter:blur entries) | |
-| No animations on `top`, `left`, `width`, `height`, `margin`, `padding` | |
-| `will-change` is applied only to elements that are actively animating | |
-| `will-change` is removed after animation completes (for one-shot animations) | |
-| No `backdrop-filter` on scrolling elements (only fixed/sticky) | |
-| Scroll listeners use `{ passive: true }` | |
-| Page maintains 60fps during all animations (check DevTools → Performance) | |
-| No layout thrashing (reading layout → writing layout in a loop) | |
+| Check                                                                                                | PASS/FAIL |
+| ---------------------------------------------------------------------------------------------------- | --------- |
+| All animations use ONLY `transform` and `opacity` (except clip-path reveals and filter:blur entries) |           |
+| No animations on `top`, `left`, `width`, `height`, `margin`, `padding`                               |           |
+| `will-change` is applied only to elements that are actively animating                                |           |
+| `will-change` is removed after animation completes (for one-shot animations)                         |           |
+| No `backdrop-filter` on scrolling elements (only fixed/sticky)                                       |           |
+| Scroll listeners use `{ passive: true }`                                                             |           |
+| Page maintains 60fps during all animations (check DevTools → Performance)                            |           |
+| No layout thrashing (reading layout → writing layout in a loop)                                      |           |
 
 ### Accessibility Check
 
-| Check | PASS/FAIL |
-|---|---|
-| All motion respects `prefers-reduced-motion: reduce` | |
-| Reduced motion fallback is opacity-only fade (no transforms) | |
-| Split text has `aria-label` preserving the original text | |
-| No essential information is conveyed ONLY through animation | |
-| Focus states are visible and not obscured by animations | |
-| Auto-playing animations (marquee, floats, gradients) can be paused (WCAG 2.2.2) | |
-| Custom cursor does not appear on touch devices | |
+| Check                                                                           | PASS/FAIL |
+| ------------------------------------------------------------------------------- | --------- |
+| All motion respects `prefers-reduced-motion: reduce`                            |           |
+| Reduced motion fallback is opacity-only fade (no transforms)                    |           |
+| Split text has `aria-label` preserving the original text                        |           |
+| No essential information is conveyed ONLY through animation                     |           |
+| Focus states are visible and not obscured by animations                         |           |
+| Auto-playing animations (marquee, floats, gradients) can be paused (WCAG 2.2.2) |           |
+| Custom cursor does not appear on touch devices                                  |           |
 
 ### Technical Check
 
-| Check | PASS/FAIL |
-|---|---|
-| Scroll reveal uses IntersectionObserver, not scroll event listener | |
-| Scroll-linked animations use `scrub` (not triggered by scroll events) | |
-| Touch devices have `smoothTouch: false` if using Lenis | |
-| No scroll-jacking (overriding native scroll behavior) without clear justification | |
-| Parallax is disabled on mobile (too janky on underpowered devices) | |
-| Custom cursor is disabled on mobile/touch | |
-| Preloader shows content within 3 seconds maximum | |
-| No FOUC (flash of unstyled content) before animations initialize | |
+| Check                                                                             | PASS/FAIL |
+| --------------------------------------------------------------------------------- | --------- |
+| Scroll reveal uses IntersectionObserver, not scroll event listener                |           |
+| Scroll-linked animations use `scrub` (not triggered by scroll events)             |           |
+| Touch devices have `smoothTouch: false` if using Lenis                            |           |
+| No scroll-jacking (overriding native scroll behavior) without clear justification |           |
+| Parallax is disabled on mobile (too janky on underpowered devices)                |           |
+| Custom cursor is disabled on mobile/touch                                         |           |
+| Preloader shows content within 3 seconds maximum                                  |           |
+| No FOUC (flash of unstyled content) before animations initialize                  |           |
 
 ### Composition Check
 
-| Check | PASS/FAIL |
-|---|---|
-| Maximum 2-3 complex animations running simultaneously on screen | |
-| No competing motion (two elements fighting for attention at the same time) | |
-| Ambient motion (floats, gradients) does not compete with interactive motion | |
-| Animation density matches the Motion Brief (minimal/moderate/rich) | |
-| The page feels cohesive — all motion speaks the same language | |
-| Signature micro-animations are on the MOST important elements, not random ones | |
+| Check                                                                          | PASS/FAIL |
+| ------------------------------------------------------------------------------ | --------- |
+| Maximum 2-3 complex animations running simultaneously on screen                |           |
+| No competing motion (two elements fighting for attention at the same time)     |           |
+| Ambient motion (floats, gradients) does not compete with interactive motion    |           |
+| Animation density matches the Motion Brief (minimal/moderate/rich)             |           |
+| The page feels cohesive — all motion speaks the same language                  |           |
+| Signature micro-animations are on the MOST important elements, not random ones |           |
 
 ---
 
@@ -3330,49 +3550,59 @@ Compare your animations against the Motion Brief and Timing Sheet. Walk through 
 These are the specific failures that turn premium motion into amateur animation. Check for all of them.
 
 ### ❌ The Slow Reveal
+
 Everything fades in over 1.5 seconds. The page feels like it's buffering. **Fix:** Keep reveals under 800ms. The user came for content, not a curtain call.
 
 ### ❌ The Scroll Carnival
+
 Every element has a different animation: this one slides left, that one bounces, this one rotates in. **Fix:** Use ONE reveal animation (fade-up-deblur) for all scroll reveals. Consistency reads as intentional.
 
 ### ❌ The Hover Disco
+
 Buttons scale to 1.1x, cards rotate, links flash different colors. **Fix:** Hover effects should be subtle: 2px lift + shadow expansion for cards, background-color shift for buttons. The user shouldn't be startled.
 
 ### ❌ The Parallax Soup
+
 Five layers of parallax on every section. Foreground, midground, background, all moving at different speeds. **Fix:** Maximum 2 parallax layers per viewport. One subtle background shift, one element float. More is motion sickness.
 
 ### ❌ The Text Disassembly
+
 Every heading character-splits and reassembles from random positions. **Fix:** Character-split maximum ONE heading per page. Use word-reveal on section headings. Use simple fade-up on everything else.
 
 ### ❌ The Infinite Preloader
+
 A 5-second preloader with elaborate animations before the content appears. **Fix:** Preloader maximum 2.5 seconds. If content loads faster, end sooner. Never add artificial delay.
 
 ### ❌ The Missing Reduced Motion
+
 No `prefers-reduced-motion` media query anywhere. **Fix:** Every single animation must gate behind `prefers-reduced-motion: reduce` with an opacity-only fallback.
 
 ### ❌ The Layout Animator
+
 Animating `width`, `height`, `top`, `left`, `padding`, `margin`, or `border-radius`. **Fix:** Only animate `transform` and `opacity`. Use `transform: scale()` instead of `width`/`height`. Use `transform: translate()` instead of `top`/`left`.
 
 ---
 
 ## Framework Decision Matrix
 
-| If the project uses... | Use this motion stack |
-|---|---|
-| **Vanilla HTML/CSS/JS** | CSS keyframes + transitions + IntersectionObserver. Add GSAP only for scroll-pinning or complex timelines |
-| **React (no framework)** | Framer Motion (`motion/react`). It handles AnimatePresence, layout animations, and gesture detection |
-| **Next.js** | Framer Motion + View Transitions API for page transitions |
-| **Vue** | `<Transition>` / `<TransitionGroup>` components + GSAP for scroll |
-| **Astro** | View Transitions API (built-in) + CSS animations + GSAP for scroll |
-| **Svelte** | Built-in `transition:` and `animate:` directives + GSAP for scroll |
+| If the project uses...   | Use this motion stack                                                                                     |
+| ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| **Vanilla HTML/CSS/JS**  | CSS keyframes + transitions + IntersectionObserver. Add GSAP only for scroll-pinning or complex timelines |
+| **React (no framework)** | Framer Motion (`motion/react`). It handles AnimatePresence, layout animations, and gesture detection      |
+| **Next.js**              | Framer Motion + View Transitions API for page transitions                                                 |
+| **Vue**                  | `<Transition>` / `<TransitionGroup>` components + GSAP for scroll                                         |
+| **Astro**                | View Transitions API (built-in) + CSS animations + GSAP for scroll                                        |
+| **Svelte**               | Built-in `transition:` and `animate:` directives + GSAP for scroll                                        |
 
 **When to reach for GSAP:**
+
 - Scroll-pinned (sticky) sequences where content changes as you scroll
 - Horizontal scroll sections
 - Complex timelines with overlapping animations
 - Text splitting with SplitText plugin (premium, but best-in-class)
 
 **When CSS is enough:**
+
 - Entry animations (keyframes + animation-delay)
 - Hover states (transitions)
 - Simple scroll reveals (IntersectionObserver + CSS transitions)

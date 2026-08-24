@@ -1,5 +1,10 @@
 import { and, desc, eq, gte, inArray, ne, notInArray, sql } from 'drizzle-orm';
-import type { PaPriceRow, PriceDailyPoint, PriceRow, PriceStats } from '@riftbound/contracts';
+import type {
+  PaPriceRow,
+  PriceDailyPoint,
+  PriceRow,
+  PriceStats,
+} from '@riftbound/contracts';
 import {
   CARDMARKET_PRICE_SCOPE_NOTE,
   cardmarketPriceScopeLabel,

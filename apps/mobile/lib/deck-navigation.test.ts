@@ -23,8 +23,8 @@ describe('deck-navigation', () => {
   });
 
   test('leaveDeckEditMode dismisses one screen when possible (pop animation)', () => {
-    const dismiss = mock(() => { });
-    const replace = mock(() => { });
+    const dismiss = mock(() => {});
+    const replace = mock(() => {});
     leaveDeckEditMode(
       { canDismiss: () => true, dismiss, replace } as unknown as ImperativeRouter,
       'abc'
@@ -34,8 +34,8 @@ describe('deck-navigation', () => {
   });
 
   test('leaveDeckEditMode replaces to viewer when nothing to dismiss', () => {
-    const dismiss = mock(() => { });
-    const replace = mock(() => { });
+    const dismiss = mock(() => {});
+    const replace = mock(() => {});
     leaveDeckEditMode(
       { canDismiss: () => false, dismiss, replace } as unknown as ImperativeRouter,
       'abc'
@@ -45,8 +45,8 @@ describe('deck-navigation', () => {
   });
 
   test('enterCreatedDeckEditor stacks viewer under editor', () => {
-    const replace = mock(() => { });
-    const push = mock(() => { });
+    const replace = mock(() => {});
+    const push = mock(() => {});
     enterCreatedDeckEditor({ replace, push } as unknown as ImperativeRouter, 'abc');
     expect(replace).toHaveBeenCalledWith('/decks/abc');
     expect(push).toHaveBeenCalledWith('/decks/abc?mode=edit');

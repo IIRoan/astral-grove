@@ -38,11 +38,22 @@ export function AuthSlabCorners() {
   const tick = 'absolute h-3 w-3 border-foreground/45';
   return (
     <>
-      <View className={cn(tick, 'top-3 left-3 border-t border-l')} pointerEvents="none" />
-      <View className={cn(tick, 'top-3 right-3 border-t border-r')} pointerEvents="none" />
-      <View className={cn(tick, 'bottom-3 left-3 border-b border-l')} pointerEvents="none" />
-      <View className={cn(tick, 'right-3 bottom-3 border-r border-b')} pointerEvents="none" />
+      <View
+        className={cn(tick, 'top-3 left-3 border-t border-l')}
+        pointerEvents="none"
+      />
+      <View
+        className={cn(tick, 'top-3 right-3 border-t border-r')}
+        pointerEvents="none"
+      />
+      <View
+        className={cn(tick, 'bottom-3 left-3 border-b border-l')}
+        pointerEvents="none"
+      />
+      <View
+        className={cn(tick, 'right-3 bottom-3 border-r border-b')}
+        pointerEvents="none"
+      />
     </>
   );
 }
-

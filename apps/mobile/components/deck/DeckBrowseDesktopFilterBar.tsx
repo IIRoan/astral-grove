@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { DeckBrowseFilterSegmentPanel } from '@/components/deck/DeckBrowseFilterPanels';
-import { FilterClearButton, FilterPopoverBar } from '@/components/filters/FilterPrimitives';
+import {
+  FilterClearButton,
+  FilterPopoverBar,
+} from '@/components/filters/FilterPrimitives';
 import {
   DEFAULT_DECK_BROWSE_FILTERS,
   deckBrowseFiltersActive,
@@ -55,7 +58,9 @@ export function DeckBrowseDesktopFilterBar({
       />
 
       {deckBrowseFiltersActive(filters) ? (
-        <FilterClearButton onPress={() => onFiltersChange(DEFAULT_DECK_BROWSE_FILTERS)} />
+        <FilterClearButton
+          onPress={() => onFiltersChange(DEFAULT_DECK_BROWSE_FILTERS)}
+        />
       ) : null}
     </View>
   );

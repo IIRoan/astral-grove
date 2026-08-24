@@ -67,11 +67,7 @@ function seedDetailCache(
 ): void {
   const key = cardQueryKeys.detail(variantNumber);
   const existing = queryClient.getQueryState<CardDetailCacheEntry>(key);
-  if (
-    existing?.data &&
-    isHydratedDetail(existing.data) &&
-    !existing.isInvalidated
-  ) {
+  if (existing?.data && isHydratedDetail(existing.data) && !existing.isInvalidated) {
     if (Date.now() - existing.dataUpdatedAt < DETAIL_STALE_MS) return;
   }
 
@@ -123,7 +119,9 @@ async function runBatchPrefetch(
       const source = mapBatchSource(response.meta.source);
 
       for (const card of response.data) {
-        const hit = card.variants.some((variant) => requested.has(variant.variantNumber));
+        const hit = card.variants.some((variant) =>
+          requested.has(variant.variantNumber)
+        );
         if (!hit) continue;
         for (const variant of card.variants) {
           seedDetailCache(queryClient, variant.variantNumber, card, source);
@@ -183,7 +181,10 @@ export async function fetchCardDetailNow(
 }
 
 /** Fire-and-forget: start description fetch as soon as the user taps a card. */
-export function ensureCardDetail(queryClient: QueryClient, variantNumber: string): void {
+export function ensureCardDetail(
+  queryClient: QueryClient,
+  variantNumber: string
+): void {
   if (!variantNumber) return;
   const cached = queryClient.getQueryData<CardDetailCacheEntry>(
     cardQueryKeys.detail(variantNumber)
@@ -203,7 +204,9 @@ export function findCachedCardListItem(
   variantNumber: string
 ): CardListItem | undefined {
   if (!variantNumber) return undefined;
-  const index = queryClient.getQueryData<{ items: CardListItem[] }>(catalogQueryKeys.index);
+  const index = queryClient.getQueryData<{ items: CardListItem[] }>(
+    catalogQueryKeys.index
+  );
   const items = index?.items;
   if (!items?.length) return undefined;
 

@@ -22,7 +22,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function PlayScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [state, setState] = useState<ScoreTrackerState>(() => createScoreTrackerState('duel'));
+  const [state, setState] = useState<ScoreTrackerState>(() =>
+    createScoreTrackerState('duel')
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [legendSeatId, setLegendSeatId] = useState<string | null>(null);
 

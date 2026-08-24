@@ -27,12 +27,8 @@
           "name": "card_colors_card_id_cards_id_fk",
           "tableFrom": "card_colors",
           "tableTo": "cards",
-          "columnsFrom": [
-            "card_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["card_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -40,12 +36,8 @@
           "name": "card_colors_color_id_colors_id_fk",
           "tableFrom": "card_colors",
           "tableTo": "colors",
-          "columnsFrom": [
-            "color_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["color_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -53,10 +45,7 @@
       "compositePrimaryKeys": {
         "card_colors_card_id_color_id_pk": {
           "name": "card_colors_card_id_color_id_pk",
-          "columns": [
-            "card_id",
-            "color_id"
-          ]
+          "columns": ["card_id", "color_id"]
         }
       },
       "uniqueConstraints": {},
@@ -224,9 +213,7 @@
         "colors_name_unique": {
           "name": "colors_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -452,9 +439,7 @@
         "sets_code_unique": {
           "name": "sets_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
+          "columns": ["code"]
         }
       },
       "policies": {},
@@ -708,12 +693,8 @@
           "name": "variants_card_id_cards_id_fk",
           "tableFrom": "variants",
           "tableTo": "cards",
-          "columnsFrom": [
-            "card_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["card_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -721,12 +702,8 @@
           "name": "variants_set_id_sets_id_fk",
           "tableFrom": "variants",
           "tableTo": "sets",
-          "columnsFrom": [
-            "set_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["set_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -736,9 +713,7 @@
         "variants_variant_number_unique": {
           "name": "variants_variant_number_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "variant_number"
-          ]
+          "columns": ["variant_number"]
         }
       },
       "policies": {},

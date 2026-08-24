@@ -47,39 +47,39 @@ export function createAuth(db: Database, env: Env): AuthApi {
       revokeSessionsOnPasswordReset: true,
       ...(emailEnabled
         ? {
-          sendResetPassword: async ({
-            user,
-            url,
-            token,
-          }: {
-            user: { email: string };
-            url: string;
-            token: string;
-          }) => {
-            const content = resetPasswordEmailContent({
-              email: user.email,
+            sendResetPassword: async ({
+              user,
+              url,
               token,
-              appUrl: resolvePasswordResetAppUrl(env),
-              callbackUrl: url,
-            });
-            try {
-              await sendTransactionalEmail(env, { to: user.email, ...content });
-            } catch (error) {
-              logActionFailure('auth.reset-email', error, { to: user.email });
-              throw error;
-            }
-          },
-        }
+            }: {
+              user: { email: string };
+              url: string;
+              token: string;
+            }) => {
+              const content = resetPasswordEmailContent({
+                email: user.email,
+                token,
+                appUrl: resolvePasswordResetAppUrl(env),
+                callbackUrl: url,
+              });
+              try {
+                await sendTransactionalEmail(env, { to: user.email, ...content });
+              } catch (error) {
+                logActionFailure('auth.reset-email', error, { to: user.email });
+                throw error;
+              }
+            },
+          }
         : {}),
     },
     ...(emailEnabled
       ? {
-        emailVerification: {
-          sendOnSignUp: true,
-          sendOnSignIn: true,
-          autoSignInAfterVerification: true,
-        },
-      }
+          emailVerification: {
+            sendOnSignUp: true,
+            sendOnSignIn: true,
+            autoSignInAfterVerification: true,
+          },
+        }
       : {}),
     plugins: [
       expo(),
@@ -113,15 +113,15 @@ export function createAuth(db: Database, env: Env): AuthApi {
           const content =
             type === 'change-email'
               ? changeEmailOtpEmailContent({
-                email,
-                otp,
-                ...(currentEmail ? { currentEmail } : {}),
-              })
+                  email,
+                  otp,
+                  ...(currentEmail ? { currentEmail } : {}),
+                })
               : verificationEmailContent({
-                email,
-                otp,
-                appUrl: resolveVerificationAppUrl(env),
-              });
+                  email,
+                  otp,
+                  appUrl: resolveVerificationAppUrl(env),
+                });
           try {
             await sendTransactionalEmail(env, { to: email, ...content });
           } catch (error) {

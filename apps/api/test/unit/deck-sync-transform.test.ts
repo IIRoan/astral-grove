@@ -13,10 +13,12 @@ function createTransformTestHarness(options: {
     select: () => ({
       from: () => ({
         where: async () =>
-          [...(options.resolvedVariantIds ?? new Map()).entries()].map(([id, variantNumber]) => ({
-            id,
-            variantNumber,
-          })),
+          [...(options.resolvedVariantIds ?? new Map()).entries()].map(
+            ([id, variantNumber]) => ({
+              id,
+              variantNumber,
+            })
+          ),
       }),
     }),
   } as unknown as Database;
@@ -35,13 +37,15 @@ function createTransformTestHarness(options: {
       ) => {
         if (options.resolveByUpstreamId) {
           for (const ref of refs) {
-            const variantNumber = await options.resolveByUpstreamId(ref.variantId, ref.cardId);
+            const variantNumber = await options.resolveByUpstreamId(
+              ref.variantId,
+              ref.cardId
+            );
             if (variantNumber) resolved.set(ref.variantId, variantNumber);
           }
         }
       }),
-    resolveVariantNumberByUpstreamId:
-      options.resolveByUpstreamId ?? (async () => null),
+    resolveVariantNumberByUpstreamId: options.resolveByUpstreamId ?? (async () => null),
   } as unknown as CardCacheService;
 
   return new DeckSyncService(db, {} as never, cardCache);
@@ -89,7 +93,9 @@ describe('DeckSyncService.transformUpstreamDeckDetailToStoredDeckPayload', () =>
     expect(mainCount).toBe(5);
     expect(payload.champion?.name).toBe('Card not in catalog');
     expect(payload.syncWarnings?.length).toBeGreaterThan(0);
-    expect(payload.syncWarnings?.some((warning) => warning.includes('3 card variants'))).toBe(true);
+    expect(
+      payload.syncWarnings?.some((warning) => warning.includes('3 card variants'))
+    ).toBe(true);
   });
 
   test('uses resolved catalog cards when variant mappings exist', async () => {
@@ -162,6 +168,8 @@ describe('DeckSyncService.transformUpstreamDeckDetailToStoredDeckPayload', () =>
       sideboard: [],
     });
 
-    expect(payload.legend?.imageUrl).toBe('https://cdn.piltoverarchive.com/cards/sfd-001.webp');
+    expect(payload.legend?.imageUrl).toBe(
+      'https://cdn.piltoverarchive.com/cards/sfd-001.webp'
+    );
   });
 });

@@ -1,8 +1,6 @@
 import type { ThemedIconColor } from '@/lib/themeIconTokens';
 import { cn } from '@/lib/utils';
-import {
-  FACTORY_RADIUS_CONTROL_CLASS,
-} from '@/constants/factoryShape';
+import { FACTORY_RADIUS_CONTROL_CLASS } from '@/constants/factoryShape';
 
 /** Factory control radius — buttons/nav = 3px (DESIGN.md). */
 const CONTROL_RADIUS = FACTORY_RADIUS_CONTROL_CLASS;
@@ -21,7 +19,8 @@ export const CATALOG_TOOLBAR_LABELED_CONTROL_CLASS = cn(
 );
 
 /** Desktop catalog toolbar row — standalone filter bars (deck builder, etc.). */
-export const CATALOG_TOOLBAR_DESKTOP_ROW_CLASS = 'flex-row flex-wrap items-center gap-1.5';
+export const CATALOG_TOOLBAR_DESKTOP_ROW_CLASS =
+  'flex-row flex-wrap items-center gap-1.5';
 
 /** Unified desktop catalog shell — instrument chrome (3px), matches side rail. */
 export const CATALOG_TOOLBAR_DESKTOP_SHELL_CLASS = cn(
@@ -48,14 +47,16 @@ export const FILTER_CHIP_SHELL_CLASS = cn(
   CONTROL_RADIUS
 );
 
-export const FILTER_CHIP_CATEGORY_CLASS = 'justify-center border-r border-border px-2.5';
+export const FILTER_CHIP_CATEGORY_CLASS =
+  'justify-center border-r border-border px-2.5';
 
 export const FILTER_CHIP_CATEGORY_LABEL_CLASS =
   'font-mono text-[11px] font-semibold uppercase leading-none tracking-[-0.24px] text-muted-foreground';
 
 export const FILTER_CHIP_VALUE_CLASS = 'min-w-0 flex-row items-center px-2';
 
-export const FILTER_CHIP_VALUE_TEXT_CLASS = 'text-[12px] font-semibold leading-none text-foreground';
+export const FILTER_CHIP_VALUE_TEXT_CLASS =
+  'text-[12px] font-semibold leading-none text-foreground';
 
 /** Nested value token inside a multi-value chip (e.g. color names) — fits inside h-8. */
 export const FILTER_CHIP_VALUE_PILL_CLASS = cn(
@@ -124,7 +125,8 @@ export const CATALOG_TOOLBAR_CONTROL_CLASS_MOBILE = cn(
   CONTROL_RADIUS
 );
 
-export const CATALOG_TOOLBAR_CONTROL_ACTIVE_CLASS_MOBILE = 'border-border bg-card-panel';
+export const CATALOG_TOOLBAR_CONTROL_ACTIVE_CLASS_MOBILE =
+  'border-border bg-card-panel';
 
 /** Segmented control shell on phone — natural width, matches 44pt row. */
 export const CATALOG_TOOLBAR_GROUP_CLASS_MOBILE = cn(
@@ -216,7 +218,9 @@ export function catalogToolbarSegmentClasses(
 ): string {
   if (mobile) {
     return cn(
-      labeled ? CATALOG_TOOLBAR_LABELED_SEGMENT_CLASS_MOBILE : CATALOG_TOOLBAR_SEGMENT_CLASS_MOBILE,
+      labeled
+        ? CATALOG_TOOLBAR_LABELED_SEGMENT_CLASS_MOBILE
+        : CATALOG_TOOLBAR_SEGMENT_CLASS_MOBILE,
       active
         ? CATALOG_TOOLBAR_SEGMENT_ACTIVE_CLASS_MOBILE
         : CATALOG_TOOLBAR_SEGMENT_INACTIVE_CLASS
@@ -224,6 +228,8 @@ export function catalogToolbarSegmentClasses(
   }
   return cn(
     labeled ? CATALOG_TOOLBAR_LABELED_SEGMENT_CLASS : CATALOG_TOOLBAR_SEGMENT_CLASS,
-    active ? CATALOG_TOOLBAR_SEGMENT_ACTIVE_CLASS : CATALOG_TOOLBAR_SEGMENT_INACTIVE_CLASS
+    active
+      ? CATALOG_TOOLBAR_SEGMENT_ACTIVE_CLASS
+      : CATALOG_TOOLBAR_SEGMENT_INACTIVE_CLASS
   );
 }

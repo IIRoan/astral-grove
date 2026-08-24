@@ -15,10 +15,7 @@ import {
 import type { DeckCard } from '@/lib/deck-types';
 import golden from '@/lib/fixtures/riftbound-deck-codes-golden.json';
 
-function card(
-  variantNumber: string,
-  overrides: Partial<DeckCard> = {}
-): DeckCard {
+function card(variantNumber: string, overrides: Partial<DeckCard> = {}): DeckCard {
   const setCode = variantNumber.split('-')[0] ?? 'OGN';
   return {
     cardId: variantNumber,
@@ -95,11 +92,14 @@ describe('deckStateToCodePayload / exportDeckCode', () => {
     let deck = createEmptyDeck('Test');
     deck = {
       ...deck,
-      legend: card('OGN-280', { type: 'Legend', name: 'Kai\'Sa - Daughter of the Void' }),
+      legend: card('OGN-280', {
+        type: 'Legend',
+        name: "Kai'Sa - Daughter of the Void",
+      }),
       champion: card('OGN-103', {
         type: 'Unit',
         super: 'Champion',
-        name: 'Kai\'Sa',
+        name: "Kai'Sa",
       }),
     };
     deck = addCardToDeck(deck, card('OGN-103', { type: 'Unit', super: 'Champion' }), {
@@ -131,12 +131,12 @@ describe('deckStateToCodePayload / exportDeckCode', () => {
     expect(payload.chosenChampion).toBe('OGN-103');
   });
 
-  test('encodes the README Kai\'Sa golden deck from DeckState', () => {
-    const fixture = golden.find((g) => g.name.includes('Kai\'Sa'));
+  test("encodes the README Kai'Sa golden deck from DeckState", () => {
+    const fixture = golden.find((g) => g.name.includes("Kai'Sa"));
     expect(fixture).toBeDefined();
     if (!fixture) return;
 
-    let deck = createEmptyDeck('Kai\'Sa');
+    let deck = createEmptyDeck("Kai'Sa");
     deck = {
       ...deck,
       champion: card(fixture.input.chosenChampion!, {
@@ -150,16 +150,23 @@ describe('deckStateToCodePayload / exportDeckCode', () => {
         // One copy already in champion slot; remaining go to main/runes/etc by type guess.
         const remaining = entry.count - 1;
         if (remaining > 0) {
-          deck = addCardToDeck(deck, card(entry.cardCode, { type: 'Unit', super: 'Champion' }), {
-            section: 'mainDeck',
-            count: remaining,
-          });
+          deck = addCardToDeck(
+            deck,
+            card(entry.cardCode, { type: 'Unit', super: 'Champion' }),
+            {
+              section: 'mainDeck',
+              count: remaining,
+            }
+          );
         }
         continue;
       }
       // Heuristic sectioning for fixture rebuild — runes often have high counts of OGN-007/089.
-      const isRuneLike = entry.count >= 5 && (entry.cardCode === 'OGN-007' || entry.cardCode === 'OGN-089');
-      const isBattlefield = entry.count === 1 && ['OGN-280', 'OGN-288', 'OGN-292'].includes(entry.cardCode);
+      const isRuneLike =
+        entry.count >= 5 &&
+        (entry.cardCode === 'OGN-007' || entry.cardCode === 'OGN-089');
+      const isBattlefield =
+        entry.count === 1 && ['OGN-280', 'OGN-288', 'OGN-292'].includes(entry.cardCode);
       if (isRuneLike) {
         deck = addCardToDeck(deck, card(entry.cardCode, { type: 'Rune' }), {
           section: 'runes',
@@ -214,7 +221,7 @@ describe('importDeckCode', () => {
     );
 
     const cards: Record<string, DeckCard> = {
-      'OGN-103': card('OGN-103', { type: 'Unit', super: 'Champion', name: 'Kai\'Sa' }),
+      'OGN-103': card('OGN-103', { type: 'Unit', super: 'Champion', name: "Kai'Sa" }),
       'OGN-004': card('OGN-004', { name: 'Spell' }),
       'OGN-007': card('OGN-007', { type: 'Rune', name: 'Mind Rune' }),
       'OGN-288': card('OGN-288', { type: 'Battlefield', name: 'Field' }),
@@ -225,7 +232,7 @@ describe('importDeckCode', () => {
     const { deck, unresolved } = await importDeckCode(code, mockVariantResolver(cards));
     expect(unresolved).toEqual([]);
     expect(deck.champion?.variantNumber).toBe('OGN-103');
-    expect(deck.mainDeck.get('Kai\'Sa')?.count).toBe(2);
+    expect(deck.mainDeck.get("Kai'Sa")?.count).toBe(2);
     expect(deck.legend?.variantNumber).toBe('OGN-280');
     expect(deck.runes.get('Mind Rune')?.count).toBe(7);
     expect(deck.battlefields.get('Field')?.count).toBe(1);
@@ -243,7 +250,9 @@ describe('importDeckCode', () => {
     const fixture = golden.find((g) => g.input.chosenChampion);
     expect(fixture).toBeDefined();
     if (!fixture) return;
-    expect(decodeDeckCode(fixture.code).chosenChampion).toBe(fixture.input.chosenChampion);
+    expect(decodeDeckCode(fixture.code).chosenChampion).toBe(
+      fixture.input.chosenChampion
+    );
   });
 });
 

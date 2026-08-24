@@ -59,7 +59,9 @@ describe('sync admin routes', () => {
   });
 
   test('GET /api/v1/sync/status requires admin bearer token', async () => {
-    const response = await app.handle(new Request('http://localhost/api/v1/sync/status'));
+    const response = await app.handle(
+      new Request('http://localhost/api/v1/sync/status')
+    );
     expect(response.status).toBe(401);
   });
 });

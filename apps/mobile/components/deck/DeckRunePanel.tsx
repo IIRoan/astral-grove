@@ -104,11 +104,7 @@ function RuneDomainRow({
                 onAdjust(-1);
               }}
             >
-              <ThemedIcon
-                icon={MinusIcon}
-                size={dense ? 12 : 14}
-                color="foreground"
-              />
+              <ThemedIcon icon={MinusIcon} size={dense ? 12 : 14} color="foreground" />
             </Pressable>
             <Text className="min-w-5 text-center font-mono text-[13px] font-normal tabular-nums text-foreground">
               {count}
@@ -124,11 +120,7 @@ function RuneDomainRow({
                 onAdjust(1);
               }}
             >
-              <ThemedIcon
-                icon={PlusIcon}
-                size={dense ? 12 : 14}
-                color="foreground"
-              />
+              <ThemedIcon icon={PlusIcon} size={dense ? 12 : 14} color="foreground" />
             </Pressable>
           </>
         )}
@@ -154,9 +146,13 @@ export function DeckRunePanel({
   const isPreRift = deck.format === 'pre-rift';
 
   const displayDomains = isPreRift
-    ? [...new Set([...activeDomains, ...DOMAIN_KEYWORD_NAMES, ...runeCardsByDomain.keys()])].sort(
-        (a, b) => a.localeCompare(b)
-      )
+    ? [
+        ...new Set([
+          ...activeDomains,
+          ...DOMAIN_KEYWORD_NAMES,
+          ...runeCardsByDomain.keys(),
+        ]),
+      ].sort((a, b) => a.localeCompare(b))
     : activeDomains;
 
   if (!isPreRift && !deck.legend) return null;

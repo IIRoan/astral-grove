@@ -48,7 +48,9 @@ export function CatalogFilterColorsPanel({
             onPress={() =>
               onUpdate({ colors: toggleCatalogFilterValue(filters.colors, color.name) })
             }
-            leading={<DomainIcon name={color.name} imageUrl={color.imageUrl} size={18} />}
+            leading={
+              <DomainIcon name={color.name} imageUrl={color.imageUrl} size={18} />
+            }
           />
         ))}
       </FilterChipGrid>

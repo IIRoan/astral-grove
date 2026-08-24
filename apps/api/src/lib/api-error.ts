@@ -2,10 +2,7 @@ import { ZodError } from 'zod';
 import { RequestValidationError } from './request-validation.js';
 
 export type ApiErrorCode =
-  | 'VALIDATION_ERROR'
-  | 'UNAUTHORIZED'
-  | 'NOT_FOUND'
-  | 'INTERNAL_ERROR';
+  'VALIDATION_ERROR' | 'UNAUTHORIZED' | 'NOT_FOUND' | 'INTERNAL_ERROR';
 
 export type ApiErrorResponse = {
   status: number;

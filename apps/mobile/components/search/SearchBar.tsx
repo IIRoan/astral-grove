@@ -85,7 +85,11 @@ export const SearchBar = memo(function SearchBar({
   /** Reliable path: RN-web often commits `ahri/` before window preventDefault. */
   const handleChangeText = useCallback(
     (text: string) => {
-      if (enableSlashFocus && Platform.OS === 'web' && isSlashShortcutTextChange(text)) {
+      if (
+        enableSlashFocus &&
+        Platform.OS === 'web' &&
+        isSlashShortcutTextChange(text)
+      ) {
         // "ahri" + "/" → empty draft, keep prior committed results.
         onHoldClear();
         return;

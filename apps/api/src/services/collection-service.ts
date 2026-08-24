@@ -220,10 +220,10 @@ export class CollectionService {
         isFoil,
         actor
           ? {
-            userId: actor.userId,
-            action: actor.action === 'upsert' ? 'delete' : actor.action,
-            ...(actor.metadata ? { metadata: actor.metadata } : {}),
-          }
+              userId: actor.userId,
+              action: actor.action === 'upsert' ? 'delete' : actor.action,
+              ...(actor.metadata ? { metadata: actor.metadata } : {}),
+            }
           : undefined,
         { skipAudit: false }
       );
@@ -751,10 +751,10 @@ export class CollectionService {
     let totalCopies = 0;
     const importActor: CollectionAuditActorRef | undefined = actor
       ? {
-        userId: actor.userId,
-        action: 'import',
-        ...(actor.metadata ? { metadata: actor.metadata } : {}),
-      }
+          userId: actor.userId,
+          action: 'import',
+          ...(actor.metadata ? { metadata: actor.metadata } : {}),
+        }
       : undefined;
     const chunks = chunkArray(validItems, COLLECTION_IMPORT_BATCH_SIZE);
     for (const chunk of chunks) {

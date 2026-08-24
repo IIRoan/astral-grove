@@ -1,5 +1,12 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  startTransition,
+} from 'react';
 import {
   InteractionManager,
   Keyboard,
@@ -45,7 +52,11 @@ import { useCatalogBrowseInfinite } from '@/hooks/useCatalogBrowseInfinite';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { prefetchCatalogFilters } from '@/hooks/useFiltersData';
 import { useCollectionOwnership, useCollection } from '@/hooks/useCollection';
-import { collectVariantNumbers, ownershipMapFromCollection, preferCollectionOwnership } from '@/utils/collectionOwnership';
+import {
+  collectVariantNumbers,
+  ownershipMapFromCollection,
+  preferCollectionOwnership,
+} from '@/utils/collectionOwnership';
 import { cardListItemMatchesVariant } from '@/utils/variants';
 import {
   CATALOG_DETAIL_GAP,
@@ -69,7 +80,10 @@ import {
   type CatalogScrollMetrics,
 } from '@/lib/catalog-page-size';
 import { prefetchCatalogArt } from '@/lib/imagePrefetch';
-import { isCatalogGridLoading, resolveCatalogDisplayItems } from '@/lib/catalog-loading';
+import {
+  isCatalogGridLoading,
+  resolveCatalogDisplayItems,
+} from '@/lib/catalog-loading';
 import {
   beginCatalogDrawerDismiss,
   createCatalogDrawerPresentation,
@@ -80,8 +94,12 @@ import {
 export function useSearchScreenBody(): React.ReactElement {
   const { defaultLayout: view } = useTheme();
   const { height: windowHeight } = useWindowDimensions();
-  const { contentWidth: layoutContentWidth, measuredWidth: layoutMeasuredWidth, paddingBottomInline, showRail } =
-    useScreenLayout();
+  const {
+    contentWidth: layoutContentWidth,
+    measuredWidth: layoutMeasuredWidth,
+    paddingBottomInline,
+    showRail,
+  } = useScreenLayout();
   const [splitMainWidth, setSplitMainWidth] = useState<number | null>(null);
   const splitLayout = useCatalogSplitLayout();
   const isMobile = useMobileLayout();
@@ -130,7 +148,11 @@ export function useSearchScreenBody(): React.ReactElement {
   const { numColumns, contentWidth, tileWidth, compact } = useStableResponsiveColumns(
     view,
     {
-      reservedWidth: splitLayout ? catalogReservedWidth : showRail ? SIDE_RAIL_WIDTH : 0,
+      reservedWidth: splitLayout
+        ? catalogReservedWidth
+        : showRail
+          ? SIDE_RAIL_WIDTH
+          : 0,
       measuredWidth: splitLayout ? catalogColumnWidth : layoutContentWidth,
       fillAvailable: view === 'grid',
       measurementReady: gridMeasurementReady,
@@ -204,7 +226,8 @@ export function useSearchScreenBody(): React.ReactElement {
     return variants.sort();
   }, [ownershipRevision, selectedVariant]);
 
-  const { collectionByVariant: fetchedOwnership } = useCollectionOwnership(ownershipVariants);
+  const { collectionByVariant: fetchedOwnership } =
+    useCollectionOwnership(ownershipVariants);
 
   const collectionByVariant = useMemo(() => {
     const fromCollection = ownershipMapFromCollection(collectionEntries);
@@ -233,7 +256,9 @@ export function useSearchScreenBody(): React.ReactElement {
 
   const filteredItems = useMemo(
     () =>
-      items.filter((card) => matchesCatalogFilters(card, catalogFilters, filterOwnership)),
+      items.filter((card) =>
+        matchesCatalogFilters(card, catalogFilters, filterOwnership)
+      ),
     [items, catalogFilters, filterOwnership]
   );
 
@@ -260,14 +285,17 @@ export function useSearchScreenBody(): React.ReactElement {
   const isFetchingNextPage = hasSearchInput
     ? searchIsFetchingNextPage
     : browseCatalog.isFetchingNextPage;
-  const fetchNextPage = hasSearchInput ? fetchNextSearchPage : browseCatalog.fetchNextPage;
+  const fetchNextPage = hasSearchInput
+    ? fetchNextSearchPage
+    : browseCatalog.fetchNextPage;
   const isList = view === 'list';
 
   const selectedCard = useMemo(
     () =>
       selectedVariant
-        ? (displayItems.find((item) => cardListItemMatchesVariant(item, selectedVariant)) ??
-          null)
+        ? (displayItems.find((item) =>
+            cardListItemMatchesVariant(item, selectedVariant)
+          ) ?? null)
         : null,
     [displayItems, selectedVariant]
   );
@@ -347,10 +375,7 @@ export function useSearchScreenBody(): React.ReactElement {
       if (!splitLayout) {
         nextDrawerSessionIdRef.current += 1;
         setDrawerPresentation(
-          createCatalogDrawerPresentation(
-            nextDrawerSessionIdRef.current,
-            variantNumber
-          )
+          createCatalogDrawerPresentation(nextDrawerSessionIdRef.current, variantNumber)
         );
       }
       setSelectedVariant(variantNumber);
@@ -384,7 +409,11 @@ export function useSearchScreenBody(): React.ReactElement {
           numColumns,
           scrollMetricsRef.current.velocityY
         );
-        for (let i = maxIndex + 1; i <= maxIndex + lookahead && i < catalogItems.length; i += 1) {
+        for (
+          let i = maxIndex + 1;
+          i <= maxIndex + lookahead && i < catalogItems.length;
+          i += 1
+        ) {
           prefetchCardDetail(queryClient, catalogItems[i]!);
         }
       }
@@ -398,7 +427,14 @@ export function useSearchScreenBody(): React.ReactElement {
         queueOwnershipFetch();
       }
     },
-    [isList, numColumns, queryClient, selectedVariant, queueOwnershipFetch, displayItemsRef]
+    [
+      isList,
+      numColumns,
+      queryClient,
+      selectedVariant,
+      queueOwnershipFetch,
+      displayItemsRef,
+    ]
   );
 
   const onViewableItemsChangedRef = useLatestRef(onViewableItemsChanged);
@@ -431,7 +467,10 @@ export function useSearchScreenBody(): React.ReactElement {
 
   useEffect(() => {
     if (isFetchingNextPage) return;
-    if (!pendingCatalogFetchRef.current && !isFastCatalogScroll(scrollMetricsRef.current.velocityY)) {
+    if (
+      !pendingCatalogFetchRef.current &&
+      !isFastCatalogScroll(scrollMetricsRef.current.velocityY)
+    ) {
       return;
     }
     pendingCatalogFetchRef.current = false;
@@ -475,7 +514,10 @@ export function useSearchScreenBody(): React.ReactElement {
 
       const layout = isList ? 'list' : 'grid';
       const rowHeight = estimateCatalogRowHeight(layout, tileWidth, compact);
-      const firstRow = Math.max(0, Math.floor(contentOffset.y / Math.max(1, rowHeight)));
+      const firstRow = Math.max(
+        0,
+        Math.floor(contentOffset.y / Math.max(1, rowHeight))
+      );
       const firstIndex = layout === 'list' ? firstRow : firstRow * numColumns;
       const visibleRows = Math.max(
         1,
@@ -502,11 +544,7 @@ export function useSearchScreenBody(): React.ReactElement {
         distanceFromEnd: Math.max(0, contentHeight - catalogViewportHeight),
         viewportHeight: catalogViewportHeight,
       };
-      if (
-        contentHeight > 0 &&
-        contentHeight < catalogTargetHeight &&
-        hasNextPage
-      ) {
+      if (contentHeight > 0 && contentHeight < catalogTargetHeight && hasNextPage) {
         requestCatalogFetch();
       } else {
         maybePrefetchCatalog();

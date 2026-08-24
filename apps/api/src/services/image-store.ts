@@ -26,12 +26,12 @@ type CachedImage = {
 
 export type ServeImageResult =
   | {
-    kind: 'body';
-    body: ArrayBuffer;
-    contentType: string;
-    source: 's3' | 'memory';
-    etag: string;
-  }
+      kind: 'body';
+      body: ArrayBuffer;
+      contentType: string;
+      source: 's3' | 'memory';
+      etag: string;
+    }
   | { kind: 'redirect'; url: string };
 
 export type ServeImageOptions = {
@@ -109,9 +109,13 @@ export class ImageStoreService {
     return rewriteCardImageUrls(this.env, card);
   }
 
-  async serveImage(key: string, options?: ServeImageOptions): Promise<ServeImageResult | null> {
+  async serveImage(
+    key: string,
+    options?: ServeImageOptions
+  ): Promise<ServeImageResult | null> {
     const normalizedKey = key.replace(/^\//, '');
-    if (!isSafeImageKey(normalizedKey) || normalizedKey.startsWith('thumbs/')) return null;
+    if (!isSafeImageKey(normalizedKey) || normalizedKey.startsWith('thumbs/'))
+      return null;
 
     const width = options?.width;
     if (width != null && canResizeKey(normalizedKey)) {
@@ -149,7 +153,12 @@ export class ImageStoreService {
   ): Promise<ServeImageResult | null> {
     const stored = await this.loadStoredBody(derivativeKey);
     if (stored) {
-      return this.storeInMemoryCache(derivativeKey, stored.body, stored.contentType, 's3');
+      return this.storeInMemoryCache(
+        derivativeKey,
+        stored.body,
+        stored.contentType,
+        's3'
+      );
     }
 
     const original = await this.loadOriginalBody(sourceKey);
@@ -157,7 +166,12 @@ export class ImageStoreService {
 
     const resized = await this.resizeWithLimit(original.body, width);
     if (!resized) {
-      return this.storeInMemoryCache(sourceKey, original.body, original.contentType, 'memory');
+      return this.storeInMemoryCache(
+        sourceKey,
+        original.body,
+        original.contentType,
+        'memory'
+      );
     }
 
     const contentType = 'image/webp';
@@ -174,7 +188,9 @@ export class ImageStoreService {
     return this.storeInMemoryCache(derivativeKey, resized, contentType, 'memory');
   }
 
-  private async serveOriginalImage(normalizedKey: string): Promise<ServeImageResult | null> {
+  private async serveOriginalImage(
+    normalizedKey: string
+  ): Promise<ServeImageResult | null> {
     const cached = this.readMemoryCache(normalizedKey);
     if (cached) return cached;
 
@@ -243,7 +259,9 @@ export class ImageStoreService {
     return { kind: 'redirect', url: cdnUrl };
   }
 
-  private async loadOriginalBody(key: string): Promise<{ body: ArrayBuffer; contentType: string } | null> {
+  private async loadOriginalBody(
+    key: string
+  ): Promise<{ body: ArrayBuffer; contentType: string } | null> {
     const stored = await this.loadStoredBody(key);
     if (stored) return stored;
 
@@ -276,7 +294,9 @@ export class ImageStoreService {
         if (body.byteLength > 0) {
           const stat = await this.client.stat(key);
           const contentType = safeServedContentType(
-            typeof stat.type === 'string' && stat.type.length > 0 ? stat.type : undefined,
+            typeof stat.type === 'string' && stat.type.length > 0
+              ? stat.type
+              : undefined,
             key
           );
           return { body, contentType };
@@ -311,8 +331,7 @@ export class ImageStoreService {
         this.s3MissCache.delete(key);
         return;
       }
-    } catch {
-    }
+    } catch {}
 
     console.log(`[s3] Background download: ${cdnUrl}`);
     const res = await fetch(cdnUrl, { signal: AbortSignal.timeout(30_000) });

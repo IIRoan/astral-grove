@@ -1,4 +1,4 @@
-import type { ComponentPropsWithRef, ComponentRef, ReactNode } from "react";
+import type { ComponentPropsWithRef, ComponentRef, ReactNode } from 'react';
 import {
   Children,
   createContext,
@@ -10,13 +10,13 @@ import {
   useMemo,
   useRef,
   useState,
-} from "react";
+} from 'react';
 import {
   type GestureResponderEvent,
   Pressable,
   View,
   type ViewProps,
-} from "react-native";
+} from 'react-native';
 import Animated, {
   FadeInDown,
   FadeOutUp,
@@ -24,40 +24,30 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-} from "react-native-reanimated";
-import { cn, mergeRefs } from "@/lib/utils";
-import { ChevronDownIcon } from "@/components/icons";
-import { Slot } from "./slot";
+} from 'react-native-reanimated';
+import { cn, mergeRefs } from '@/lib/utils';
+import { ChevronDownIcon } from '@/components/icons';
+import { Slot } from './slot';
 
-const CONTENT_ENTER = FadeInDown.springify()
-  .damping(28)
-  .stiffness(340)
-  .mass(0.55);
+const CONTENT_ENTER = FadeInDown.springify().damping(28).stiffness(340).mass(0.55);
 const CONTENT_EXIT = FadeOutUp.duration(120).damping(32).stiffness(380);
-const ITEM_LAYOUT = LinearTransition.springify()
-  .damping(28)
-  .stiffness(340)
-  .mass(0.6);
+const ITEM_LAYOUT = LinearTransition.springify().damping(28).stiffness(340).mass(0.6);
 const ICON_SPRING = { damping: 26, stiffness: 320, mass: 0.5 };
 
 const ACCORDION_ITEM_CLASSNAME = cn(
-  "my-0 overflow-hidden rounded-none bg-card",
-  "data-[layout=open]:my-2 data-[layout=open]:rounded-2xl",
-  "data-[layout=closed-only]:rounded-2xl",
-  "data-[layout=closed-start]:rounded-t-2xl",
-  "data-[layout=closed-end]:rounded-b-2xl"
+  'my-0 overflow-hidden rounded-none bg-card',
+  'data-[layout=open]:my-2 data-[layout=open]:rounded-2xl',
+  'data-[layout=closed-only]:rounded-2xl',
+  'data-[layout=closed-start]:rounded-t-2xl',
+  'data-[layout=closed-end]:rounded-b-2xl'
 );
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
-type AccordionType = "single" | "multiple";
+type AccordionType = 'single' | 'multiple';
 
 type AccordionItemLayout =
-  | "open"
-  | "closed-only"
-  | "closed-start"
-  | "closed-middle"
-  | "closed-end";
+  'open' | 'closed-only' | 'closed-start' | 'closed-middle' | 'closed-end';
 
 type AccordionRootContextValue = {
   type: AccordionType;
@@ -74,17 +64,13 @@ type AccordionItemContextValue = {
   triggerId: string;
 };
 
-const AccordionRootContext = createContext<AccordionRootContextValue | null>(
-  null
-);
-const AccordionItemContext = createContext<AccordionItemContextValue | null>(
-  null
-);
+const AccordionRootContext = createContext<AccordionRootContextValue | null>(null);
+const AccordionItemContext = createContext<AccordionItemContextValue | null>(null);
 
 const useAccordionRoot = () => {
   const ctx = useContext(AccordionRootContext);
   if (!ctx) {
-    throw new Error("Accordion components must be used within Accordion");
+    throw new Error('Accordion components must be used within Accordion');
   }
   return ctx;
 };
@@ -93,7 +79,7 @@ const useAccordionItem = () => {
   const ctx = useContext(AccordionItemContext);
   if (!ctx) {
     throw new Error(
-      "AccordionItem, AccordionTrigger, AccordionContent, and AccordionIndicator must be used within AccordionItem"
+      'AccordionItem, AccordionTrigger, AccordionContent, and AccordionIndicator must be used within AccordionItem'
     );
   }
   return ctx;
@@ -105,7 +91,7 @@ const getAccordionItemValues = (children: ReactNode): string[] => {
   Children.forEach(children, (child) => {
     if (
       isValidElement<{ value?: string }>(child) &&
-      typeof child.props.value === "string"
+      typeof child.props.value === 'string'
     ) {
       values.push(child.props.value);
     }
@@ -119,20 +105,20 @@ const getClosedItemLayout = (
   itemValues: string[],
   isItemOpen: (value: string) => boolean
 ): AccordionItemLayout => {
-  const prevOpen = index === 0 || isItemOpen(itemValues[index - 1] ?? "");
+  const prevOpen = index === 0 || isItemOpen(itemValues[index - 1] ?? '');
   const nextOpen =
-    index === itemValues.length - 1 || isItemOpen(itemValues[index + 1] ?? "");
+    index === itemValues.length - 1 || isItemOpen(itemValues[index + 1] ?? '');
 
   if (prevOpen && nextOpen) {
-    return "closed-only";
+    return 'closed-only';
   }
   if (prevOpen) {
-    return "closed-start";
+    return 'closed-start';
   }
   if (nextOpen) {
-    return "closed-end";
+    return 'closed-end';
   }
-  return "closed-middle";
+  return 'closed-middle';
 };
 
 export type AccordionProps = {
@@ -145,34 +131,31 @@ export type AccordionProps = {
 };
 
 export const Accordion = ({
-  type = "single",
+  type = 'single',
   collapsible = false,
   value: valueProp,
   defaultValue,
   onValueChange,
   children,
 }: AccordionProps) => {
-  const itemValues = useMemo(
-    () => getAccordionItemValues(children),
-    [children]
-  );
+  const itemValues = useMemo(() => getAccordionItemValues(children), [children]);
   const isControlled = valueProp !== undefined;
 
   const [internalSingle, setInternalSingle] = useState<string | undefined>(
-    typeof defaultValue === "string" ? defaultValue : undefined
+    typeof defaultValue === 'string' ? defaultValue : undefined
   );
   const [internalMultiple, setInternalMultiple] = useState<string[]>(
     Array.isArray(defaultValue) ? defaultValue : []
   );
 
   const singleValue = isControlled
-    ? typeof valueProp === "string"
+    ? typeof valueProp === 'string'
       ? valueProp
       : undefined
     : internalSingle;
 
   const multipleValues = useMemo(() => {
-    if (type !== "multiple") {
+    if (type !== 'multiple') {
       return new Set<string>();
     }
     if (isControlled) {
@@ -183,7 +166,7 @@ export const Accordion = ({
 
   const isOpen = useCallback(
     (itemValue: string) => {
-      if (type === "multiple") {
+      if (type === 'multiple') {
         return multipleValues.has(itemValue);
       }
       return singleValue === itemValue;
@@ -195,10 +178,10 @@ export const Accordion = ({
     const layouts: Record<string, AccordionItemLayout> = {};
 
     for (let index = 0; index < itemValues.length; index++) {
-      const itemValue = itemValues[index] ?? "";
+      const itemValue = itemValues[index] ?? '';
 
       layouts[itemValue] = isOpen(itemValue)
-        ? "open"
+        ? 'open'
         : getClosedItemLayout(index, itemValues, isOpen);
     }
 
@@ -207,7 +190,7 @@ export const Accordion = ({
 
   const toggle = useCallback(
     (itemValue: string) => {
-      if (type === "multiple") {
+      if (type === 'multiple') {
         const next = new Set(multipleValues);
         if (next.has(itemValue)) {
           next.delete(itemValue);
@@ -233,14 +216,7 @@ export const Accordion = ({
       }
       onValueChange?.(next);
     },
-    [
-      type,
-      multipleValues,
-      singleValue,
-      collapsible,
-      isControlled,
-      onValueChange,
-    ]
+    [type, multipleValues, singleValue, collapsible, isControlled, onValueChange]
   );
 
   const ctx = useMemo(
@@ -277,7 +253,7 @@ export const AccordionItem = ({
   const triggerId = `${baseId}-trigger`;
   const contentId = `${baseId}-content`;
   const open = root.isOpen(value);
-  const layout = root.itemLayouts[value] ?? "closed-only";
+  const layout = root.itemLayouts[value] ?? 'closed-only';
 
   const itemCtx = useMemo(
     () => ({
@@ -305,7 +281,7 @@ export const AccordionItem = ({
 
 export type AccordionTriggerProps = Omit<
   ComponentPropsWithRef<typeof Pressable>,
-  "children"
+  'children'
 > & {
   asChild?: boolean;
   children?: ReactNode;
@@ -339,7 +315,7 @@ export const AccordionTrigger = ({
       accessibilityRole="button"
       accessibilityState={{ expanded: item.isOpen }}
       className={cn(
-        "flex flex-row items-center justify-between gap-2 bg-card px-3 py-3 active:opacity-75",
+        'flex flex-row items-center justify-between gap-2 bg-card px-3 py-3 active:opacity-75',
         className
       )}
       nativeID={item.triggerId}
@@ -373,7 +349,7 @@ export const AccordionContent = ({
       exiting={CONTENT_EXIT}
       nativeID={item.contentId}
     >
-      <View className={cn("px-3 pt-1 pb-3", className)} {...props}>
+      <View className={cn('px-3 pt-1 pb-3', className)} {...props}>
         {children}
       </View>
     </Animated.View>
@@ -411,7 +387,7 @@ export const AccordionIndicator = ({
   return (
     <Animated.View style={animatedStyle}>
       <ChevronDownIcon
-        className={cn("size-5 shrink-0 text-muted-foreground", className)}
+        className={cn('size-5 shrink-0 text-muted-foreground', className)}
       />
     </Animated.View>
   );

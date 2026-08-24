@@ -1,12 +1,12 @@
-import { createContext, useContext, useEffect, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo } from 'react';
 import Animated, {
   type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
-} from "react-native-reanimated";
-import { cn } from "@/lib/utils";
+} from 'react-native-reanimated';
+import { cn } from '@/lib/utils';
 
 const ANIMATION_DURATION = 1000;
 const MIN_OPACITY = 0.4;
@@ -22,8 +22,9 @@ type SkeletonGroupProps = {
 
 type SkeletonProps = React.ComponentProps<typeof Animated.View>;
 
-const SkeletonGroupContext =
-  createContext<InternalSkeletonGroupContextType | null>(null);
+const SkeletonGroupContext = createContext<InternalSkeletonGroupContextType | null>(
+  null
+);
 
 const useSkeletonGroupContext = () => useContext(SkeletonGroupContext);
 
@@ -76,7 +77,7 @@ export const Skeleton = ({ className, ...props }: SkeletonProps) => {
 
   return (
     <Animated.View
-      className={cn("w-full rounded-md bg-muted", className)}
+      className={cn('w-full rounded-md bg-muted', className)}
       data-slot="skeleton"
       style={animatedStyle}
       {...props}

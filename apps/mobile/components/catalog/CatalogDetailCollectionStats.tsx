@@ -1,6 +1,9 @@
 import { View } from 'react-native';
 import { MightIcon } from '@/components/riftbound/CardIcons';
-import { CatalogDetailMetaPill, CatalogDetailStat } from '@/components/catalog/CatalogDetailMetaParts';
+import {
+  CatalogDetailMetaPill,
+  CatalogDetailStat,
+} from '@/components/catalog/CatalogDetailMetaParts';
 import { CatalogDetailPrintingRows } from '@/components/catalog/CatalogDetailPrintingRows';
 import { CardTag } from '@/components/riftbound/CardDetailParts';
 import { DomainIcon, RarityIcon } from '@/components/riftbound/CardIcons';

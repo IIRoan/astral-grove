@@ -15,9 +15,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   const wide = useAuthWideLayout();
   const [mode, setMode] = useState<Mode>('sign-in');
-  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(
-    null
-  );
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<
+    string | null
+  >(null);
   const [sessionReady, setSessionReady] = useState(false);
   const { data: session, isPending } = authClient.useSession();
   const { isUserReady } = useAppBootstrap();

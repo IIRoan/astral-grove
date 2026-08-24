@@ -46,33 +46,41 @@ export function createWishlistRoutes(wishlist: WishlistService, auth: Auth) {
       }
       return parsed.data;
     })
-    .put('/:variantNumber', { detail: { tags: ['wishlist'] } }, async ({ request, set, params, body }) => {
-      const user = await getSessionUser(auth, request.headers);
-      if (!user) {
-        set.status = 401;
-        return unauthorized();
+    .put(
+      '/:variantNumber',
+      { detail: { tags: ['wishlist'] } },
+      async ({ request, set, params, body }) => {
+        const user = await getSessionUser(auth, request.headers);
+        if (!user) {
+          set.status = 401;
+          return unauthorized();
+        }
+        const parsed = parseRequest(WishlistUpsertRequest, {
+          ...(body as z.infer<typeof _UpsertBody>),
+          variantNumber: params.variantNumber,
+        });
+        const item = await wishlist.upsert(user.id, {
+          variantNumber: parsed.variantNumber,
+          priority: parsed.priority,
+          targetPriceCents: parsed.targetPriceCents ?? null,
+          notes: parsed.notes ?? null,
+        });
+        return wishlistItemResponse('wishlist.upsert', item, {
+          variantNumber: parsed.variantNumber,
+        });
       }
-      const parsed = parseRequest(WishlistUpsertRequest, {
-        ...(body as z.infer<typeof _UpsertBody>),
-        variantNumber: params.variantNumber,
-      });
-      const item = await wishlist.upsert(user.id, {
-        variantNumber: parsed.variantNumber,
-        priority: parsed.priority,
-        targetPriceCents: parsed.targetPriceCents ?? null,
-        notes: parsed.notes ?? null,
-      });
-      return wishlistItemResponse('wishlist.upsert', item, {
-        variantNumber: parsed.variantNumber,
-      });
-    })
-    .delete('/:variantNumber', { detail: { tags: ['wishlist'] } }, async ({ request, set, params }) => {
-      const user = await getSessionUser(auth, request.headers);
-      if (!user) {
-        set.status = 401;
-        return unauthorized();
+    )
+    .delete(
+      '/:variantNumber',
+      { detail: { tags: ['wishlist'] } },
+      async ({ request, set, params }) => {
+        const user = await getSessionUser(auth, request.headers);
+        if (!user) {
+          set.status = 401;
+          return unauthorized();
+        }
+        await wishlist.remove(user.id, params.variantNumber);
+        return { data: { ok: true } };
       }
-      await wishlist.remove(user.id, params.variantNumber);
-      return { data: { ok: true } };
-    });
+    );
 }

@@ -1,8 +1,19 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import { DeckDetailResponse, DeckListResponse } from '@riftbound/contracts';
 import { eq, like } from 'drizzle-orm';
 import { getEnv, getContext, getBaseUrl } from './support.js';
-import { user as userTable, session as sessionTable, account as accountTable } from '../../src/db/auth-schema.js';
+import {
+  user as userTable,
+  session as sessionTable,
+  account as accountTable,
+} from '../../src/db/auth-schema.js';
 import { userDecks } from '../../src/db/schema.js';
 
 setDefaultTimeout(180_000);
@@ -23,10 +34,14 @@ function extractCookies(res: Response): string {
     .join('; ');
 }
 
-async function authFetch(path: string, init?: RequestInit & { cookie?: string }): Promise<Response> {
+async function authFetch(
+  path: string,
+  init?: RequestInit & { cookie?: string }
+): Promise<Response> {
   const headers = new Headers(init?.headers);
   if (init?.cookie) headers.set('cookie', init.cookie);
-  if (init?.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
+  if (init?.body && !headers.has('content-type'))
+    headers.set('content-type', 'application/json');
   return fetch(`${getBaseUrl()}${path}`, { ...init, headers });
 }
 
@@ -43,8 +58,7 @@ async function cleanupTestUsers(): Promise<void> {
       await db.delete(accountTable).where(eq(accountTable.userId, u.id));
       await db.delete(userTable).where(eq(userTable.id, u.id));
     }
-  } catch {
-  }
+  } catch {}
 }
 
 function asAnyDeckId(x: unknown): string {
@@ -84,7 +98,9 @@ describe('decks: upstream transformation', () => {
     };
     const deckId = asAnyDeckId(upstreamJson.data[0]?.id);
 
-    const res = await authFetch(`/api/v1/decks/${encodeURIComponent(deckId)}`, { cookie: cookieHeader });
+    const res = await authFetch(`/api/v1/decks/${encodeURIComponent(deckId)}`, {
+      cookie: cookieHeader,
+    });
     expect(res.status).toBe(200);
     const body = DeckDetailResponse.parse(await res.json());
     const deck = body.data;
@@ -111,7 +127,9 @@ describe('decks: upstream transformation', () => {
     };
     const deckId = asAnyDeckId(upstreamJson.data[0]?.id);
 
-    const getRes = await authFetch(`/api/v1/decks/${encodeURIComponent(deckId)}`, { cookie: cookieHeader });
+    const getRes = await authFetch(`/api/v1/decks/${encodeURIComponent(deckId)}`, {
+      cookie: cookieHeader,
+    });
     expect(getRes.status).toBe(200);
     const existing = DeckDetailResponse.parse(await getRes.json()).data;
 
@@ -131,7 +149,9 @@ describe('decks: upstream transformation', () => {
 
   test('GET /api/v1/decks returns imported summaries quickly', async () => {
     const start = performance.now();
-    const res = await authFetch('/api/v1/decks?source=imported', { cookie: cookieHeader });
+    const res = await authFetch('/api/v1/decks?source=imported', {
+      cookie: cookieHeader,
+    });
     const elapsedMs = performance.now() - start;
 
     expect(res.status).toBe(200);
@@ -139,7 +159,9 @@ describe('decks: upstream transformation', () => {
 
     const body = DeckListResponse.parse(await res.json());
     expect(body.meta.imported).toBeGreaterThanOrEqual(1);
-    expect(body.data.every((deck) => deck.source === 'imported' && deck.readOnly)).toBe(true);
+    expect(body.data.every((deck) => deck.source === 'imported' && deck.readOnly)).toBe(
+      true
+    );
   });
 
   test('POST /api/v1/decks/:id/import copies an upstream deck into owned decks', async () => {
@@ -153,10 +175,13 @@ describe('decks: upstream transformation', () => {
     };
     const deckId = asAnyDeckId(upstreamJson.data[0]?.id);
 
-    const importRes = await authFetch(`/api/v1/decks/${encodeURIComponent(deckId)}/import`, {
-      method: 'POST',
-      cookie: cookieHeader,
-    });
+    const importRes = await authFetch(
+      `/api/v1/decks/${encodeURIComponent(deckId)}/import`,
+      {
+        method: 'POST',
+        cookie: cookieHeader,
+      }
+    );
     expect(importRes.status).toBe(200);
     const imported = DeckDetailResponse.parse(await importRes.json()).data;
     expect(imported.source).toBe('owned');
@@ -164,7 +189,9 @@ describe('decks: upstream transformation', () => {
     expect(imported.id).not.toBe(deckId);
     expect(imported.upstreamId).toBe(deckId);
 
-    const listRes = await authFetch('/api/v1/decks?source=owned', { cookie: cookieHeader });
+    const listRes = await authFetch('/api/v1/decks?source=owned', {
+      cookie: cookieHeader,
+    });
     expect(listRes.status).toBe(200);
     const owned = DeckListResponse.parse(await listRes.json()).data;
     expect(owned.some((deck) => deck.id === imported.id)).toBe(true);
@@ -197,7 +224,9 @@ describe('decks: upstream transformation', () => {
     expect(putBody.data.source).toBe('owned');
     expect(putBody.data.readOnly).toBe(false);
 
-    const sessionRes = await authFetch('/api/auth/get-session', { cookie: cookieHeader });
+    const sessionRes = await authFetch('/api/auth/get-session', {
+      cookie: cookieHeader,
+    });
     expect(sessionRes.status).toBe(200);
     const sessionBody = (await sessionRes.json()) as { user?: { id?: string } | null };
     const userId = sessionBody.user?.id;
@@ -209,5 +238,4 @@ describe('decks: upstream transformation', () => {
     });
     expect(row).toBeTruthy();
   });
-
 });

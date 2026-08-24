@@ -1,11 +1,5 @@
 import { type VariantProps } from 'class-variance-authority';
-import {
-  Children,
-  cloneElement,
-  createContext,
-  useContext,
-  useMemo,
-} from 'react';
+import { Children, cloneElement, createContext, useContext, useMemo } from 'react';
 import { Text, View } from 'react-native';
 import {
   badgeIconVariants,
@@ -32,12 +26,7 @@ const useBadgeContext = () => {
   return context;
 };
 
-export const Badge = ({
-  children,
-  className,
-  variant,
-  ...props
-}: BadgeProps) => {
+export const Badge = ({ children, className, variant, ...props }: BadgeProps) => {
   const ctx = useMemo(() => {
     return {
       variant,
@@ -62,9 +51,7 @@ export const Badge = ({
 export const BadgeText = (props: BadgeChildProps) => {
   const ctx = useBadgeContext();
 
-  return (
-    <Text {...props} className={cn(badgeTextVariants(ctx), props.className)} />
-  );
+  return <Text {...props} className={cn(badgeTextVariants(ctx), props.className)} />;
 };
 
 export const BadgeIcon = ({ children, ...props }: BadgeChildProps) => {

@@ -19,7 +19,10 @@ function mergeBatchIntoMap(
         map.set(variant.variantNumber, resolveImageUrl(variant.imageUrl));
       }
     }
-    const primary = findVariantByNumber(card.variants, card.variants[0]?.variantNumber ?? '');
+    const primary = findVariantByNumber(
+      card.variants,
+      card.variants[0]?.variantNumber ?? ''
+    );
     if (primary?.imageUrl) {
       map.set(primary.variantNumber, resolveImageUrl(primary.imageUrl));
     }
@@ -43,7 +46,11 @@ export function useDeckCardImages(variantKey: string) {
   });
 
   const missingKey = useMemo(
-    () => needed.filter((variantNumber) => !store.has(variantNumber)).sort().join('|'),
+    () =>
+      needed
+        .filter((variantNumber) => !store.has(variantNumber))
+        .sort()
+        .join('|'),
     [needed, store]
   );
 

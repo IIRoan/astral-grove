@@ -38,9 +38,13 @@ export function DecksListHeader({
     <View className={`mb-4 w-full gap-3${shrinkHeader ? ' shrink-0' : ''}`}>
       <View className="w-full flex-row items-start justify-between gap-3">
         <View className="min-w-0 flex-1 shrink" style={{ minWidth: 0 }}>
-          <Text className="text-2xl font-normal tracking-tight text-foreground">{title}</Text>
+          <Text className="text-2xl font-normal tracking-tight text-foreground">
+            {title}
+          </Text>
           <Text className="mt-1 font-mono text-[13px] text-muted-foreground">
-            {query.trim() ? `${deckCountLabel} matching “${query.trim()}”` : deckCountLabel}
+            {query.trim()
+              ? `${deckCountLabel} matching “${query.trim()}”`
+              : deckCountLabel}
           </Text>
         </View>
         {showCreate || showImport ? (

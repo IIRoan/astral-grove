@@ -62,9 +62,9 @@ describe('cardmarket price rows', () => {
 
     expect(rows).toHaveLength(3);
     expect(rows.filter((row) => row.cardmarketId === 845712)).toHaveLength(2);
-    expect(rows.find((row) => row.cardmarketId === 845721 && !row.isFoil)?.marketPrice).toBe(
-      '142.64'
-    );
+    expect(
+      rows.find((row) => row.cardmarketId === 845721 && !row.isFoil)?.marketPrice
+    ).toBe('142.64');
   });
 
   test('price guide URL uses Riftbound game id 22', () => {

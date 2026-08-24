@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { catalogFingerprint, entityHash, pricesFingerprint } from '../../src/lib/hash.js';
+import {
+  catalogFingerprint,
+  entityHash,
+  pricesFingerprint,
+} from '../../src/lib/hash.js';
 
 describe('entityHash', () => {
   test('is stable regardless of object key order', () => {

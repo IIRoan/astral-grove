@@ -6,7 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
-} from "react";
+} from 'react';
 import {
   type DimensionValue,
   type GestureResponderEvent,
@@ -16,7 +16,7 @@ import {
   Pressable,
   type View,
   type ViewStyle,
-} from "react-native";
+} from 'react-native';
 import Animated, {
   Easing,
   Extrapolation,
@@ -25,13 +25,13 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-} from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Uniwind } from "uniwind";
-import { useRelativePosition } from "@/hooks/use-relative-position";
-import { cn, mergeRefs } from "@/lib/utils";
-import { Portal, PortalOverlay } from "./portal";
-import { Slot } from "./slot";
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Uniwind } from 'uniwind';
+import { useRelativePosition } from '@/hooks/use-relative-position';
+import { cn, mergeRefs } from '@/lib/utils';
+import { Portal, PortalOverlay } from './portal';
+import { Slot } from './slot';
 
 const ANIMATION_DURATION = 160;
 const SWITCH_CONTENT_DURATION = 120;
@@ -73,11 +73,11 @@ type PopoverOverlayProps = {
 
 type PopoverContentProps = React.ComponentProps<typeof View> & {
   avoidCollisions?: boolean;
-  side?: "top" | "bottom" | "left" | "right";
+  side?: 'top' | 'bottom' | 'left' | 'right';
   sideOffset?: number;
-  align?: "start" | "center" | "end";
+  align?: 'start' | 'center' | 'end';
   alignOffset?: number;
-  width?: "full" | "fit" | "auto" | "trigger" | number | `${number}%`;
+  width?: 'full' | 'fit' | 'auto' | 'trigger' | number | `${number}%`;
   disablePositioningStyle?: boolean;
 };
 
@@ -94,7 +94,7 @@ const PopoverContext = createContext<PopoverContextProps | null>(null);
 export const usePopover = () => {
   const context = useContext(PopoverContext);
   if (!context) {
-    throw new Error("usePopover must be used within a Popover");
+    throw new Error('usePopover must be used within a Popover');
   }
   return context;
 };
@@ -160,12 +160,18 @@ export const Popover = ({
       triggerPosition,
       setTriggerPosition,
     }),
-    [open, switchKey, triggerPosition, contentLayout, visibilityProgress, onOpenChange, setTriggerPosition]
+    [
+      open,
+      switchKey,
+      triggerPosition,
+      contentLayout,
+      visibilityProgress,
+      onOpenChange,
+      setTriggerPosition,
+    ]
   );
 
-  return (
-    <PopoverContext.Provider value={ctx}>{children}</PopoverContext.Provider>
-  );
+  return <PopoverContext.Provider value={ctx}>{children}</PopoverContext.Provider>;
 };
 
 export const PopoverTrigger = ({
@@ -221,7 +227,7 @@ export const PopoverClose = ({ asChild, ...props }: PopoverCloseProps) => {
 
 export const PopoverPortal = ({
   children,
-  name = "popover-portal",
+  name = 'popover-portal',
   ...portalProps
 }: PopoverPortalProps) => {
   const ctx = usePopover();
@@ -245,7 +251,7 @@ export const PopoverOverlay = ({
 }: PopoverOverlayProps) => {
   const { onOpenChange, visibilityProgress } = usePopover();
 
-  const isDark = Uniwind.currentTheme === "dark";
+  const isDark = Uniwind.currentTheme === 'dark';
 
   const animatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
@@ -262,7 +268,7 @@ export const PopoverOverlay = ({
 
   return (
     <AnimatedPressable
-      className={cn("absolute inset-0 z-40 bg-black", className)}
+      className={cn('absolute inset-0 z-40 bg-black', className)}
       disabled={!closeOnPress}
       onPress={() => onOpenChange(false)}
       style={animatedStyle}
@@ -275,11 +281,11 @@ export const PopoverContent = ({
   className,
   onLayout: onLayoutProp,
   style,
-  width = "fit",
+  width = 'fit',
   avoidCollisions = true,
-  side = "bottom",
+  side = 'bottom',
   sideOffset = 8,
-  align = "start",
+  align = 'start',
   alignOffset = 0,
   ...props
 }: PopoverContentProps) => {
@@ -319,9 +325,9 @@ export const PopoverContent = ({
   });
 
   const resolvedTop =
-    typeof positionStyle.top === "number" ? positionStyle.top : undefined;
+    typeof positionStyle.top === 'number' ? positionStyle.top : undefined;
   const resolvedLeft =
-    typeof positionStyle.left === "number" ? positionStyle.left : undefined;
+    typeof positionStyle.left === 'number' ? positionStyle.left : undefined;
 
   useEffect(() => {
     if (!open) {
@@ -394,13 +400,13 @@ export const PopoverContent = ({
 
   const widthStyle = useMemo(() => {
     const _widthStyle: ViewStyle = {};
-    if (width === "full") {
-      _widthStyle.width = "100%";
+    if (width === 'full') {
+      _widthStyle.width = '100%';
     }
-    if (typeof width === "number" || width === "auto" || width.endsWith("%")) {
+    if (typeof width === 'number' || width === 'auto' || width.endsWith('%')) {
       _widthStyle.width = width as DimensionValue;
     }
-    if (width === "trigger") {
+    if (width === 'trigger') {
       _widthStyle.width = triggerPosition?.width as DimensionValue;
     }
     return _widthStyle;
@@ -412,7 +418,7 @@ export const PopoverContent = ({
   }, [positionStyle]);
 
   const platformStyle = useMemo(
-    () => (Platform.OS === "web" ? ({ position: "fixed" } as const) : null),
+    () => (Platform.OS === 'web' ? ({ position: 'fixed' } as const) : null),
     []
   );
 
@@ -427,15 +433,9 @@ export const PopoverContent = ({
   return (
     <Animated.View
       {...props}
-      className={cn("z-50 rounded-lg bg-background p-4 shadow-lg", className)}
+      className={cn('z-50 rounded-lg bg-background p-4 shadow-lg', className)}
       onLayout={onLayout}
-      style={[
-        platformStyle,
-        staticPositionStyle,
-        widthStyle,
-        animatedStyle,
-        style,
-      ]}
+      style={[platformStyle, staticPositionStyle, widthStyle, animatedStyle, style]}
     >
       {children}
     </Animated.View>

@@ -1,11 +1,5 @@
 import { type VariantProps } from 'class-variance-authority';
-import {
-  Children,
-  cloneElement,
-  createContext,
-  useContext,
-  useMemo,
-} from 'react';
+import { Children, cloneElement, createContext, useContext, useMemo } from 'react';
 import { Pressable, Text } from 'react-native';
 import {
   chipIconVariants,

@@ -210,26 +210,27 @@ export function CatalogDetailPanelBody({
     />
   ) : null;
 
-  const { printingRows, statsRow, metaAttributes } = buildCatalogDetailCollectionSections({
-    printings,
-    cardName: card.name,
-    hideCollectionActions,
-    collectionByVariant,
-    energy: card.energy,
-    might: card.might,
-    power: card.power,
-    cardType: card.type,
-    colors: card.colors,
-    activeRarity: activeVariant.rarity,
-    tags: card.tags,
-    onAddPrinting: (vn, isFoil) => {
-      detail.onAddToCollection(vn, isFoil);
-    },
-    onRemovePrinting: (vn, isFoil, qty) => {
-      if (qty <= 0) return;
-      adjustQuantity.mutate({ variantNumber: vn, delta: -1, isFoil });
-    },
-  });
+  const { printingRows, statsRow, metaAttributes } =
+    buildCatalogDetailCollectionSections({
+      printings,
+      cardName: card.name,
+      hideCollectionActions,
+      collectionByVariant,
+      energy: card.energy,
+      might: card.might,
+      power: card.power,
+      cardType: card.type,
+      colors: card.colors,
+      activeRarity: activeVariant.rarity,
+      tags: card.tags,
+      onAddPrinting: (vn, isFoil) => {
+        detail.onAddToCollection(vn, isFoil);
+      },
+      onRemovePrinting: (vn, isFoil, qty) => {
+        if (qty <= 0) return;
+        adjustQuantity.mutate({ variantNumber: vn, delta: -1, isFoil });
+      },
+    });
 
   const { events } = useCollectionRecentAdds(
     printings.map((printing) => printing.variantNumber),

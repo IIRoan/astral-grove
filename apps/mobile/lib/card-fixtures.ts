@@ -13,7 +13,7 @@ export const CARD_RULE_FIXTURES = {
   jinxDemolitionist: {
     variantNumber: 'OGN-030a',
     description:
-      '[ACCELERATE] (You may pay [1] [Fury] as an additional cost to have me enter ready.)\n[ASSAULT 2] (+2 [Might] while I\'m an attacker.)\nWhen you play me, discard 2.',
+      "[ACCELERATE] (You may pay [1] [Fury] as an additional cost to have me enter ready.)\n[ASSAULT 2] (+2 [Might] while I'm an attacker.)\nWhen you play me, discard 2.",
   },
   bladeOfTheRuinedKing: {
     variantNumber: 'SFD-178',
@@ -23,7 +23,7 @@ export const CARD_RULE_FIXTURES = {
   cleave: {
     variantNumber: 'OGN-005',
     description:
-      '[ACTION] (Play on your turn or in showdowns.)\n\nGive a unit [ASSAULT 3] this turn. (+3 [Might] while it\'s an attacker.)',
+      "[ACTION] (Play on your turn or in showdowns.)\n\nGive a unit [ASSAULT 3] this turn. (+3 [Might] while it's an attacker.)",
   },
   azirEmperor: {
     variantNumber: 'SFD-197',

@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { CARDMARKET_EXPORT_BASE_URL, CARDMARKET_RIFTBOUND_GAME_ID } from './cardmarket-export.js';
+import {
+  CARDMARKET_EXPORT_BASE_URL,
+  CARDMARKET_RIFTBOUND_GAME_ID,
+} from './cardmarket-export.js';
 
 const ProductSchema = z.object({
   idProduct: z.number().int(),

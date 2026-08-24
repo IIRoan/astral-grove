@@ -18,11 +18,11 @@ export function resolveAuthAdvanced(
     },
     ...(cookieDomain
       ? {
-        crossSubDomainCookies: {
-          enabled: true as const,
-          domain: cookieDomain,
-        },
-      }
+          crossSubDomainCookies: {
+            enabled: true as const,
+            domain: cookieDomain,
+          },
+        }
       : {}),
   };
 }

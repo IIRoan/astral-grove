@@ -11,7 +11,11 @@ import {
 } from '@/constants/operateType';
 import { collectionFinishKey } from '@riftbound/contracts';
 import type { CollectionOwnershipMap } from '@/utils/collectionOwnership';
-import { formatMarketTrend, formatPrintingPrice, ownedQuantityForPrinting } from '@/utils/variants';
+import {
+  formatMarketTrend,
+  formatPrintingPrice,
+  ownedQuantityForPrinting,
+} from '@/utils/variants';
 
 interface CatalogDetailPrintingRowsProps {
   printings: CardListPrinting[];

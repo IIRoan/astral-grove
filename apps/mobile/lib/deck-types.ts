@@ -110,13 +110,13 @@ export const DECK_SECTIONS: Array<{
   isMin?: boolean;
   optional?: boolean;
 }> = [
-    { key: 'legend', title: 'Legend', target: 1, single: true },
-    { key: 'champion', title: 'Champion', target: 1, single: true },
-    { key: 'mainDeck', title: 'Main', target: 39, isMin: true },
-    { key: 'runes', title: 'Runes', target: 12 },
-    { key: 'battlefields', title: 'Fields', target: 3 },
-    { key: 'sideboard', title: 'Side', target: 10, optional: true },
-  ];
+  { key: 'legend', title: 'Legend', target: 1, single: true },
+  { key: 'champion', title: 'Champion', target: 1, single: true },
+  { key: 'mainDeck', title: 'Main', target: 39, isMin: true },
+  { key: 'runes', title: 'Runes', target: 12 },
+  { key: 'battlefields', title: 'Fields', target: 3 },
+  { key: 'sideboard', title: 'Side', target: 10, optional: true },
+];
 
 /** Section targets for the active deck format (Constructed vs Pre-Rift). */
 export function deckSectionsForFormat(format: DeckFormat = 'constructed') {

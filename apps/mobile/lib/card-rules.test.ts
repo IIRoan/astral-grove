@@ -42,14 +42,24 @@ describe('parseKeywordToken', () => {
 describe('parseCardRules', () => {
   test('classifies Jinx card bracket tokens', () => {
     const parts = parseCardRules(
-      '[ACCELERATE] (You may pay [1] [Fury] as an additional cost to have me enter ready.)\n[ASSAULT 2] (+2 [Might] while I\'m an attacker.)'
+      "[ACCELERATE] (You may pay [1] [Fury] as an additional cost to have me enter ready.)\n[ASSAULT 2] (+2 [Might] while I'm an attacker.)"
     );
 
     expect(parts.filter((part) => part.type !== 'text')).toEqual([
-      { type: 'keyword', value: 'ACCELERATE', keywordBase: 'ACCELERATE', display: 'ACCELERATE' },
+      {
+        type: 'keyword',
+        value: 'ACCELERATE',
+        keywordBase: 'ACCELERATE',
+        display: 'ACCELERATE',
+      },
       { type: 'energy', value: '1' },
       { type: 'domain', value: 'Fury' },
-      { type: 'keyword', value: 'ASSAULT 2', keywordBase: 'ASSAULT', display: 'ASSAULT 2' },
+      {
+        type: 'keyword',
+        value: 'ASSAULT 2',
+        keywordBase: 'ASSAULT',
+        display: 'ASSAULT 2',
+      },
       { type: 'might', value: 'Might' },
     ]);
   });
@@ -94,7 +104,9 @@ describe('parseCardRules fixtures', () => {
 
   test('classifies uppercase might token', () => {
     const parts = parseCardRules('(+1 [MIGHT] while attacking.)');
-    expect(parts.filter((part) => part.type !== 'text')).toEqual([{ type: 'might', value: 'MIGHT' }]);
+    expect(parts.filter((part) => part.type !== 'text')).toEqual([
+      { type: 'might', value: 'MIGHT' },
+    ]);
   });
 
   test('classifies action keyword regardless of casing', () => {
@@ -124,7 +136,12 @@ describe('parseCardRules fixtures', () => {
   test('Azir classifies tap as icon and weaponmaster as keyword', () => {
     const parts = parseCardRules(CARD_RULE_FIXTURES.azirEmperor.description);
     expect(parts.filter((part) => part.type !== 'text')).toEqual([
-      { type: 'keyword', value: 'Weaponmaster', keywordBase: 'WEAPONMASTER', display: 'WEAPONMASTER' },
+      {
+        type: 'keyword',
+        value: 'Weaponmaster',
+        keywordBase: 'WEAPONMASTER',
+        display: 'WEAPONMASTER',
+      },
       { type: 'energy', value: '1' },
       { type: 'tap', value: 'Tap' },
       { type: 'might', value: 'Might' },
@@ -133,7 +150,7 @@ describe('parseCardRules fixtures', () => {
 
   test('expands fused Repeat cost into badge + energy pip', () => {
     const parts = parseCardRules(
-      '[Repeat 2] (You may pay the additional cost to repeat this spell\'s effect.)'
+      "[Repeat 2] (You may pay the additional cost to repeat this spell's effect.)"
     );
 
     expect(parts.filter((part) => part.type !== 'text')).toEqual([
@@ -144,7 +161,7 @@ describe('parseCardRules fixtures', () => {
 
   test('keeps separate Repeat energy and domain costs beside the keyword', () => {
     const parts = parseCardRules(
-      '[Repeat][1][Mind] (You may pay the additional cost to repeat this spell\'s effect.)'
+      "[Repeat][1][Mind] (You may pay the additional cost to repeat this spell's effect.)"
     );
 
     expect(parts.filter((part) => part.type !== 'text')).toEqual([
@@ -259,7 +276,7 @@ describe('groupInlineSegments', () => {
 
   test('keeps assault keyword with inline might bonus text grouped before icon', () => {
     const parts = parseCardRules(
-      'Give a unit [ASSAULT 3] this turn. (+3 [Might] while it\'s an attacker.)'
+      "Give a unit [ASSAULT 3] this turn. (+3 [Might] while it's an attacker.)"
     );
 
     expect(groupInlineSegments(parts)).toEqual([
@@ -279,7 +296,7 @@ describe('groupInlineSegments', () => {
       { type: 'might', value: 'Might' },
       {
         type: 'text-run',
-        parts: [{ type: 'text', value: ' while it\'s an attacker.)' }],
+        parts: [{ type: 'text', value: " while it's an attacker.)" }],
       },
     ]);
   });
@@ -287,7 +304,9 @@ describe('groupInlineSegments', () => {
 
 describe('summarizeRulesRender', () => {
   test('Ahri renders two might shield icons inline with text', () => {
-    expect(summarizeRulesRender(CARD_RULE_FIXTURES.ahriNineTailedFox.description)).toEqual([
+    expect(
+      summarizeRulesRender(CARD_RULE_FIXTURES.ahriNineTailedFox.description)
+    ).toEqual([
       { kind: 'text' },
       { kind: 'might' },
       { kind: 'text' },
@@ -297,18 +316,22 @@ describe('summarizeRulesRender', () => {
   });
 
   test('Sunlit Guardian renders shield keyword then might icon', () => {
-    expect(summarizeRulesRender(CARD_RULE_FIXTURES.sunlitGuardian.description)).toEqual([
-      { kind: 'keyword', base: 'SHIELD' },
-      { kind: 'text' },
-      { kind: 'might' },
-      { kind: 'text' },
-      { kind: 'keyword', base: 'TANK' },
-      { kind: 'text' },
-    ]);
+    expect(summarizeRulesRender(CARD_RULE_FIXTURES.sunlitGuardian.description)).toEqual(
+      [
+        { kind: 'keyword', base: 'SHIELD' },
+        { kind: 'text' },
+        { kind: 'might' },
+        { kind: 'text' },
+        { kind: 'keyword', base: 'TANK' },
+        { kind: 'text' },
+      ]
+    );
   });
 
   test('Jinx renders accelerate, energy, fury, assault, and might correctly', () => {
-    expect(summarizeRulesRender(CARD_RULE_FIXTURES.jinxDemolitionist.description)).toEqual([
+    expect(
+      summarizeRulesRender(CARD_RULE_FIXTURES.jinxDemolitionist.description)
+    ).toEqual([
       { kind: 'keyword', base: 'ACCELERATE' },
       { kind: 'text' },
       { kind: 'energy', value: '1' },
@@ -324,7 +347,9 @@ describe('summarizeRulesRender', () => {
   });
 
   test('Blade renders equip keyword and order domain icon', () => {
-    expect(summarizeRulesRender(CARD_RULE_FIXTURES.bladeOfTheRuinedKing.description)).toEqual([
+    expect(
+      summarizeRulesRender(CARD_RULE_FIXTURES.bladeOfTheRuinedKing.description)
+    ).toEqual([
       { kind: 'keyword', base: 'EQUIP' },
       { kind: 'text' },
       { kind: 'domain', name: 'Order' },

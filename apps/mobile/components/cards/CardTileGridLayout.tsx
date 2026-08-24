@@ -45,7 +45,11 @@ export function CardTileGridLayout({
       className={cn(
         'overflow-hidden border bg-card',
         CARD_ART_RADIUS_CLASS,
-        banned ? 'border-destructive/70' : selected ? 'border-foreground' : 'border-border'
+        banned
+          ? 'border-destructive/70'
+          : selected
+            ? 'border-foreground'
+            : 'border-border'
       )}
       style={style}
     >

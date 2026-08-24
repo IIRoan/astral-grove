@@ -93,7 +93,11 @@ const signatureWrongTag = mockCard({
   isSignature: true,
 });
 
-function eligible(deck: ReturnType<typeof createEmptyDeck>, section: DeckSectionKey, candidate: DeckCard) {
+function eligible(
+  deck: ReturnType<typeof createEmptyDeck>,
+  section: DeckSectionKey,
+  candidate: DeckCard
+) {
   return isCardEligibleForSection({ deck, section, candidateCard: candidate }).eligible;
 }
 
@@ -286,9 +290,18 @@ describe('deck-eligibility', () => {
     const deck = createEmptyDeck();
     deck.legend = legendFuryCalm;
     deck.champion = championJinx;
-    deck.battlefields.set('Field A', { card: mockCard({ name: 'Field A', type: 'Battlefield' }), count: 1 });
-    deck.battlefields.set('Field B', { card: mockCard({ name: 'Field B', type: 'Battlefield' }), count: 1 });
-    deck.battlefields.set('Field C', { card: mockCard({ name: 'Field C', type: 'Battlefield' }), count: 1 });
+    deck.battlefields.set('Field A', {
+      card: mockCard({ name: 'Field A', type: 'Battlefield' }),
+      count: 1,
+    });
+    deck.battlefields.set('Field B', {
+      card: mockCard({ name: 'Field B', type: 'Battlefield' }),
+      count: 1,
+    });
+    deck.battlefields.set('Field C', {
+      card: mockCard({ name: 'Field C', type: 'Battlefield' }),
+      count: 1,
+    });
 
     const fourth = mockCard({ name: 'Field D', type: 'Battlefield' });
     expect(eligible(deck, 'battlefields', fourth)).toBe(false);
@@ -309,8 +322,14 @@ describe('deck-eligibility', () => {
     deck.champion = championJinx;
 
     // Fill signature cap (3 matching signatures).
-    deck.mainDeck.set('Jinx Sig 1', { card: { ...signatureJinx, name: 'Jinx Sig 1' }, count: 1 });
-    deck.mainDeck.set('Jinx Sig 2', { card: { ...signatureJinx, name: 'Jinx Sig 2' }, count: 1 });
+    deck.mainDeck.set('Jinx Sig 1', {
+      card: { ...signatureJinx, name: 'Jinx Sig 1' },
+      count: 1,
+    });
+    deck.mainDeck.set('Jinx Sig 2', {
+      card: { ...signatureJinx, name: 'Jinx Sig 2' },
+      count: 1,
+    });
     deck.mainDeck.set(signatureJinx.name, { card: signatureJinx, count: 1 });
 
     expect(eligible(deck, 'mainDeck', signatureJinx)).toBe(false);
@@ -436,4 +455,3 @@ describe('deck-eligibility', () => {
     ).toBe(false);
   });
 });
-

@@ -40,7 +40,10 @@ function IdentitySlotBlock({
 }) {
   return (
     <View className={cn('min-w-0 gap-2', className)}>
-      <Text className="text-[13px] font-normal leading-4 text-foreground" numberOfLines={1}>
+      <Text
+        className="text-[13px] font-normal leading-4 text-foreground"
+        numberOfLines={1}
+      >
         {title}
       </Text>
       {children}
@@ -87,7 +90,7 @@ export function DeckIdentityHeader({
       single
       openSource={openSource}
       onPress={readOnly ? undefined : onChangeLegend}
-      onRemove={readOnly ? undefined : onRemoveLegend ?? onChangeLegend}
+      onRemove={readOnly ? undefined : (onRemoveLegend ?? onChangeLegend)}
     />
   ) : (
     <DeckCardSlot

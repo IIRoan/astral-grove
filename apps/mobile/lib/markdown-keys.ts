@@ -29,7 +29,9 @@ export function extendSiblingPath(path: string, token: Token): string {
 
 /** Stable key for a list item from its nested block tokens. */
 export function markdownListItemKey(listPath: string, itemTokens: Token[]): string {
-  const inline = itemTokens.find((t) => t.type === 'inline' || t.type === 'paragraph_open');
+  const inline = itemTokens.find(
+    (t) => t.type === 'inline' || t.type === 'paragraph_open'
+  );
   let fingerprint = '';
   if (inline?.type === 'inline' && inline.children?.length) {
     const parts: string[] = [];

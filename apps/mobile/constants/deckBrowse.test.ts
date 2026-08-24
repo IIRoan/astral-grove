@@ -13,7 +13,13 @@ import {
 const sampleFilterSets: FilterSnapshot['sets'] = [
   { id: 'ven', code: 'VEN', name: 'Vendetta', count: 30, printCount: 30 },
   { id: 'ogn', code: 'OGN', name: 'Origins', count: 354, printCount: 544 },
-  { id: 'sfd-nn', code: 'SFD-NN', name: 'Spiritforged | Nexus Night', count: 0, printCount: 33 },
+  {
+    id: 'sfd-nn',
+    code: 'SFD-NN',
+    name: 'Spiritforged | Nexus Night',
+    count: 0,
+    printCount: 33,
+  },
   { id: 'empty', code: 'EMP', name: 'Empty Set', count: 0, printCount: 0 },
 ];
 
@@ -28,7 +34,9 @@ describe('deckBrowseSetOptionsFromFilters', () => {
 
   test('normalizes missing set codes from filter ids', () => {
     expect(
-      deckBrowseSetOptionsFromFilters([{ id: 'wrld25', name: 'Worlds Bundle 2025', count: 4 }])
+      deckBrowseSetOptionsFromFilters([
+        { id: 'wrld25', name: 'Worlds Bundle 2025', count: 4 },
+      ])
     ).toEqual([{ code: 'WRLD25', name: 'Worlds Bundle 2025', count: 4 }]);
   });
 });
@@ -63,7 +71,9 @@ describe('formatDeckBrowseSetSelection', () => {
       { code: 'OGN', name: 'Origins', count: 544 },
     ]);
 
-    expect(formatDeckBrowseSetSelection(['VEN', 'OGN'], lookup)).toBe('Vendetta, Origins');
+    expect(formatDeckBrowseSetSelection(['VEN', 'OGN'], lookup)).toBe(
+      'Vendetta, Origins'
+    );
     expect(formatDeckBrowseSetSelection(['UNKNOWN'], lookup)).toBe('UNKNOWN');
   });
 });
@@ -90,9 +100,9 @@ describe('buildDeckBrowseFilterChips', () => {
       'Sets: Vendetta, Origins',
       'Has video',
     ]);
-    expect(chips[1]?.applyClear({ ...DEFAULT_DECK_BROWSE_FILTERS, sets: ['VEN', 'OGN'] })).toEqual(
-      DEFAULT_DECK_BROWSE_FILTERS
-    );
+    expect(
+      chips[1]?.applyClear({ ...DEFAULT_DECK_BROWSE_FILTERS, sets: ['VEN', 'OGN'] })
+    ).toEqual(DEFAULT_DECK_BROWSE_FILTERS);
   });
 });
 

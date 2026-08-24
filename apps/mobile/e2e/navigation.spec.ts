@@ -6,7 +6,9 @@ test.describe('desktop navigation', () => {
     await prepareSignedIn(context, page, '/search');
   });
 
-  test('side rail reaches collection, wishlist, decks, and settings', async ({ page }) => {
+  test('side rail reaches collection, wishlist, decks, and settings', async ({
+    page,
+  }) => {
     await goToTab(page, 'Collection');
     await expect(page.getByText('Your collection', { exact: true })).toBeVisible();
 

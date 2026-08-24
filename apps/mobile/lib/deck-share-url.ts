@@ -21,9 +21,6 @@ export function deckSharePath(deckId: string): `/decks/${string}` {
 }
 
 /** Absolute deck share URL; pass `webOrigin` on web so the link matches the current host. */
-export function buildDeckShareUrl(
-  deckId: string,
-  webOrigin?: string | null
-): string {
+export function buildDeckShareUrl(deckId: string, webOrigin?: string | null): string {
   return `${resolveAppOrigin(webOrigin)}${deckSharePath(deckId)}`;
 }

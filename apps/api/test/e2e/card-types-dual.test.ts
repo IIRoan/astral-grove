@@ -68,35 +68,35 @@ describe('dual-type card filters (Unit Gear regression)', () => {
         `/api/v1/cards?q=${encodeURIComponent(DUAL_TYPE_NAME)}&types=Unit,Gear,Spell&limit=10`
       )
     );
-    expect(deckBuilder.data.some((row) => row.variantNumber === DUAL_TYPE_VARIANT_NUMBER)).toBe(
-      true
-    );
+    expect(
+      deckBuilder.data.some((row) => row.variantNumber === DUAL_TYPE_VARIANT_NUMBER)
+    ).toBe(true);
 
     const unitOnly = CardsListResponse.parse(
       await apiJson<unknown>(
         `/api/v1/cards?q=${encodeURIComponent(DUAL_TYPE_NAME)}&types=Unit&limit=10`
       )
     );
-    expect(unitOnly.data.some((row) => row.variantNumber === DUAL_TYPE_VARIANT_NUMBER)).toBe(
-      true
-    );
+    expect(
+      unitOnly.data.some((row) => row.variantNumber === DUAL_TYPE_VARIANT_NUMBER)
+    ).toBe(true);
 
     const gearOnly = CardsListResponse.parse(
       await apiJson<unknown>(
         `/api/v1/cards?q=${encodeURIComponent(DUAL_TYPE_NAME)}&types=Gear&limit=10`
       )
     );
-    expect(gearOnly.data.some((row) => row.variantNumber === DUAL_TYPE_VARIANT_NUMBER)).toBe(
-      true
-    );
+    expect(
+      gearOnly.data.some((row) => row.variantNumber === DUAL_TYPE_VARIANT_NUMBER)
+    ).toBe(true);
 
     const spellOnly = CardsListResponse.parse(
       await apiJson<unknown>(
         `/api/v1/cards?q=${encodeURIComponent(DUAL_TYPE_NAME)}&types=Spell&limit=10`
       )
     );
-    expect(spellOnly.data.some((row) => row.variantNumber === DUAL_TYPE_VARIANT_NUMBER)).toBe(
-      false
-    );
+    expect(
+      spellOnly.data.some((row) => row.variantNumber === DUAL_TYPE_VARIANT_NUMBER)
+    ).toBe(false);
   });
 });

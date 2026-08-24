@@ -13,13 +13,13 @@ The Astral Grove exists because listing and updating a collection on Piltover Ar
 
 ### Product goals
 
-| Area | What The Astral Grove does | Why it matters |
-|------|-------------------|----------------|
-| **Collection** | Fast browse, add, remove, and quantity edits with local persistence | Core daily-use flow — must feel snappier than PA |
-| **Catalog & prices** | Cached card index, search, filters, Cardmarket price history | Served from our DB after hash-based sync from PA |
-| **Decks** | Build and validate decks locally; browse community lists from PA | Full deck builder with Riftbound legality rules |
-| **Deck import** | Import PA deck text, browse PA decks, copy upstream decks into owned decks | Meet users where their data already lives |
-| **Accounts** | Our own auth (Better Auth) and per-user data | Astral Grove users, not PA session passthrough |
+| Area                 | What The Astral Grove does                                                 | Why it matters                                   |
+| -------------------- | -------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Collection**       | Fast browse, add, remove, and quantity edits with local persistence        | Core daily-use flow — must feel snappier than PA |
+| **Catalog & prices** | Cached card index, search, filters, Cardmarket price history               | Served from our DB after hash-based sync from PA |
+| **Decks**            | Build and validate decks locally; browse community lists from PA           | Full deck builder with Riftbound legality rules  |
+| **Deck import**      | Import PA deck text, browse PA decks, copy upstream decks into owned decks | Meet users where their data already lives        |
+| **Accounts**         | Our own auth (Better Auth) and per-user data                               | Astral Grove users, not PA session passthrough   |
 
 ### What Piltover Archive owns (upstream)
 
@@ -34,13 +34,13 @@ Our API syncs this data into PostgreSQL (`sync-engine`, `card-cache`, `price-cac
 
 ### What The Astral Grove owns (our product)
 
-| Data | Stored in | Notes |
-|------|-----------|-------|
-| User accounts & sessions | Postgres + Better Auth | Independent from PA accounts |
-| User collection | `collection_items` | Fast CRUD via `/api/v1/collection` |
-| Owned decks | `user_decks` | Editable copies; survives even if upstream write fails |
-| Imported decks | `user_decks` with `upstream_id` | Copied from a PA deck via `POST /decks/:id/import` |
-| Catalog & price cache | Postgres | Refreshed from PA on hash change or cron |
+| Data                     | Stored in                       | Notes                                                  |
+| ------------------------ | ------------------------------- | ------------------------------------------------------ |
+| User accounts & sessions | Postgres + Better Auth          | Independent from PA accounts                           |
+| User collection          | `collection_items`              | Fast CRUD via `/api/v1/collection`                     |
+| Owned decks              | `user_decks`                    | Editable copies; survives even if upstream write fails |
+| Imported decks           | `user_decks` with `upstream_id` | Copied from a PA deck via `POST /decks/:id/import`     |
+| Catalog & price cache    | Postgres                        | Refreshed from PA on hash change or cron               |
 
 **Imported/upstream deck views are read-only.** Users edit by importing into an owned copy.
 
@@ -66,15 +66,15 @@ flowchart TB
 
 The codebase uses several names — agents should understand the mapping:
 
-| Name | Meaning |
-|------|---------|
-| **The Astral Grove** | Product name (Expo app, user-facing copy) |
-| **Piltover Archive / PA** | Upstream card & deck platform we integrate with |
-| **`@riftbound/*` packages** | Internal npm scope (historical codename — same monorepo) |
-| **`PA_API_KEY`, `PaClient`** | Env vars and code for the **PA external API** client |
-| **`piltoverarchive` repo folder** | Git checkout path — not the product name |
-| **`design/`** | Marketing site, separate from the Expo app |
-| **EAS identifiers** | Expo owner `astralgrove`, slug `astral-grove`, project `84e78cd9-68b6-4642-964f-2212b036d515`, scheme `astral-grove`, bundle/package `com.iroan.astralgrove` |
+| Name                              | Meaning                                                                                                                                                      |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **The Astral Grove**              | Product name (Expo app, user-facing copy)                                                                                                                    |
+| **Piltover Archive / PA**         | Upstream card & deck platform we integrate with                                                                                                              |
+| **`@riftbound/*` packages**       | Internal npm scope (historical codename — same monorepo)                                                                                                     |
+| **`PA_API_KEY`, `PaClient`**      | Env vars and code for the **PA external API** client                                                                                                         |
+| **`piltoverarchive` repo folder** | Git checkout path — not the product name                                                                                                                     |
+| **`design/`**                     | Marketing site, separate from the Expo app                                                                                                                   |
+| **EAS identifiers**               | Expo owner `astralgrove`, slug `astral-grove`, project `84e78cd9-68b6-4642-964f-2212b036d515`, scheme `astral-grove`, bundle/package `com.iroan.astralgrove` |
 
 When writing user-facing copy, prefer **The Astral Grove**. When reading upstream integration code, expect **Piltover Archive** terminology in comments and deck I/O (`importPiltoverArchive`, `exportPiltoverArchive`).
 
@@ -82,14 +82,14 @@ When writing user-facing copy, prefer **The Astral Grove**. When reading upstrea
 
 ## Repository map
 
-| Path | Package | Role |
-|------|---------|------|
-| `apps/mobile` | `@riftbound/mobile` | **The Astral Grove app** — Expo SDK 57 (iOS, Android, Web), Expo Router, TanStack Query, tetra-ui + Uniwind |
-| `apps/api` | `@riftbound/api` | The Astral Grove API — Elysia on Bun, Drizzle ORM, Better Auth, PA upstream sync |
-| `packages/contracts` | `@riftbound/contracts` | Shared Zod schemas + `z.infer` types for our API **and** PA payload shapes |
-| `packages/typescript-config` | `@riftbound/typescript-config` | Shared strict TS config |
-| `design/` | `astral-grove.com` | Marketing / landing site (Next.js — not the mobile client) |
-| `SPEC.md` | — | Architecture spec (may lag implementation — trust the code) |
+| Path                         | Package                        | Role                                                                                                        |
+| ---------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `apps/mobile`                | `@riftbound/mobile`            | **The Astral Grove app** — Expo SDK 57 (iOS, Android, Web), Expo Router, TanStack Query, tetra-ui + Uniwind |
+| `apps/api`                   | `@riftbound/api`               | The Astral Grove API — Elysia on Bun, Drizzle ORM, Better Auth, PA upstream sync                            |
+| `packages/contracts`         | `@riftbound/contracts`         | Shared Zod schemas + `z.infer` types for our API **and** PA payload shapes                                  |
+| `packages/typescript-config` | `@riftbound/typescript-config` | Shared strict TS config                                                                                     |
+| `design/`                    | `astral-grove.com`             | Marketing / landing site (Next.js — not the mobile client)                                                  |
+| `SPEC.md`                    | —                              | Architecture spec (may lag implementation — trust the code)                                                 |
 
 **Data flow:** The Astral Grove mobile → our API → PostgreSQL → (sync) → Piltover Archive external API.
 
@@ -141,15 +141,15 @@ bun run --cwd packages/contracts build
 
 ## Toolchain
 
-| Tool | Version / notes |
-|------|-----------------|
-| **Runtime** | [Bun](https://bun.sh) 1.2.x (`packageManager` in root `package.json`) |
-| **Monorepo** | Turborepo — tasks in `turbo.json` |
-| **Language** | TypeScript **strict** everywhere |
-| **Validation** | Zod 3 — shared via `@riftbound/contracts` |
-| **API** | Elysia + Drizzle + postgres.js |
-| **Mobile** | Expo 57, React 19, React Native New Architecture |
-| **DB** | PostgreSQL 16 (Docker Compose on port **5433**) |
+| Tool           | Version / notes                                                       |
+| -------------- | --------------------------------------------------------------------- |
+| **Runtime**    | [Bun](https://bun.sh) 1.2.x (`packageManager` in root `package.json`) |
+| **Monorepo**   | Turborepo — tasks in `turbo.json`                                     |
+| **Language**   | TypeScript **strict** everywhere                                      |
+| **Validation** | Zod 3 — shared via `@riftbound/contracts`                             |
+| **API**        | Elysia + Drizzle + postgres.js                                        |
+| **Mobile**     | Expo 57, React 19, React Native New Architecture                      |
+| **DB**         | PostgreSQL 16 (Docker Compose on port **5433**)                       |
 
 Install dependencies from the repo root:
 
@@ -207,17 +207,17 @@ Zod is the **contract layer** between API, mobile, and upstream payloads. Do not
 
 ### Where schemas live
 
-| Domain | File(s) in `packages/contracts/src/` |
-|--------|----------------------------------------|
-| HTTP responses / errors | `api.ts` |
-| Cards, catalog, pagination | `cards.ts` |
-| Prices | `prices.ts` |
-| Filters snapshot | `filters.ts` |
-| Collection + CSV | `collection.ts`, `collection-csv.ts` |
-| Deck rules & validation | `deck-rules.ts` |
-| Deck CRUD / list queries | `decks.ts` |
-| Upstream Piltover Archive shapes | `upstream.ts` |
-| Legality, variants, tags | `card-legality.ts`, `variant-utils.ts`, `champion-tags.ts` |
+| Domain                           | File(s) in `packages/contracts/src/`                       |
+| -------------------------------- | ---------------------------------------------------------- |
+| HTTP responses / errors          | `api.ts`                                                   |
+| Cards, catalog, pagination       | `cards.ts`                                                 |
+| Prices                           | `prices.ts`                                                |
+| Filters snapshot                 | `filters.ts`                                               |
+| Collection + CSV                 | `collection.ts`, `collection-csv.ts`                       |
+| Deck rules & validation          | `deck-rules.ts`                                            |
+| Deck CRUD / list queries         | `decks.ts`                                                 |
+| Upstream Piltover Archive shapes | `upstream.ts`                                              |
+| Legality, variants, tags         | `card-legality.ts`, `variant-utils.ts`, `champion-tags.ts` |
 
 Export new schemas from `packages/contracts/src/index.ts`.
 
@@ -279,11 +279,11 @@ packages/contracts/src/
 
 ### API test tiers
 
-| Tier | Location | Needs | Examples |
-|------|----------|-------|----------|
-| **Unit** | `apps/api/test/unit/` | Nothing external | `search.test.ts`, `deck-import.test.ts`, `hash` helpers |
-| **E2E** | `apps/api/test/e2e/` | Postgres (`riftbound_test` DB), API server | `decks-db.test.ts`, `auth.test.ts`, `collection-db.test.ts` |
-| **Upstream probe** | `apps/api/test/upstream/` | Network + `PA_API_KEY` | PA catalog probe |
+| Tier               | Location                  | Needs                                      | Examples                                                    |
+| ------------------ | ------------------------- | ------------------------------------------ | ----------------------------------------------------------- |
+| **Unit**           | `apps/api/test/unit/`     | Nothing external                           | `search.test.ts`, `deck-import.test.ts`, `hash` helpers     |
+| **E2E**            | `apps/api/test/e2e/`      | Postgres (`riftbound_test` DB), API server | `decks-db.test.ts`, `auth.test.ts`, `collection-db.test.ts` |
+| **Upstream probe** | `apps/api/test/upstream/` | Network + `PA_API_KEY`                     | PA catalog probe                                            |
 
 E2E flow (`apps/api/scripts/run-tests.ts`):
 
@@ -425,18 +425,18 @@ flowchart LR
 
 ## Do not
 
-| Avoid | Do instead |
-|-------|------------|
-| Skip `bun run typecheck` / `lint` / tests | Run scoped checks at minimum |
-| Duplicate Zod shapes outside `contracts` | Import from `@riftbound/contracts` |
-| `any` or unchecked `as` on JSON | `.parse()` / `.safeParse()` |
-| Call piltoverarchive.com from mobile | Use our API client |
-| Treat The Astral Grove as a PA fork or mirror | We are our own product; PA is upstream data only |
-| Edit imported/upstream decks in place | Import into an owned copy first |
-| `StyleSheet.create` / legacy theme in mobile | tetra-ui + Uniwind (see mobile AGENTS.md) |
-| Edit `dist/` or `drizzle/` generated output by hand | Regenerate from source |
-| Force-push `main` or amend pushed commits | New commits unless user requests |
-| Large unrelated formatting diffs | Keep PRs focused |
+| Avoid                                                                                           | Do instead                                                                                      |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Skip `bun run typecheck` / `lint` / tests                                                       | Run scoped checks at minimum                                                                    |
+| Duplicate Zod shapes outside `contracts`                                                        | Import from `@riftbound/contracts`                                                              |
+| `any` or unchecked `as` on JSON                                                                 | `.parse()` / `.safeParse()`                                                                     |
+| Call piltoverarchive.com from mobile                                                            | Use our API client                                                                              |
+| Treat The Astral Grove as a PA fork or mirror                                                   | We are our own product; PA is upstream data only                                                |
+| Edit imported/upstream decks in place                                                           | Import into an owned copy first                                                                 |
+| `StyleSheet.create` / legacy theme in mobile                                                    | tetra-ui + Uniwind (see mobile AGENTS.md)                                                       |
+| Edit `dist/` or `drizzle/` generated output by hand                                             | Regenerate from source                                                                          |
+| Force-push `main` or amend pushed commits                                                       | New commits unless user requests                                                                |
+| Large unrelated formatting diffs                                                                | Keep PRs focused                                                                                |
 | Destructive DB commands (`db:reset`, `DROP`, `TRUNCATE`, unscoped `DELETE`, `drizzle-kit drop`) | Forward migrations (`db:migrate`), scoped test cleanup only; ask user before prod-impacting ops |
 
 ---

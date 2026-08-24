@@ -42,20 +42,24 @@ describe('deck-io', () => {
 
   test('exports PiltoverArchive sections', () => {
     let deck = createEmptyDeck('Budget Jinx');
-    deck = addCardToDeck(deck, {
-      cardId: '1',
-      variantNumber: 'OGN-251',
-      name: 'Jinx - Loose Cannon',
-      type: 'Legend',
-      super: null,
-      tags: ['Jinx'],
-      colors: ['Fury', 'Chaos'],
-      energy: 0,
-      setCode: 'OGN',
-      rarity: 'Rare',
-      variantType: 'Standard',
-      isSignature: false,
-    }, { section: 'legend' });
+    deck = addCardToDeck(
+      deck,
+      {
+        cardId: '1',
+        variantNumber: 'OGN-251',
+        name: 'Jinx - Loose Cannon',
+        type: 'Legend',
+        super: null,
+        tags: ['Jinx'],
+        colors: ['Fury', 'Chaos'],
+        energy: 0,
+        setCode: 'OGN',
+        rarity: 'Rare',
+        variantType: 'Standard',
+        isSignature: false,
+      },
+      { section: 'legend' }
+    );
 
     const text = exportPiltoverArchive(deck);
     expect(text).toContain('Legend:\n1 Jinx, Loose Cannon');
@@ -135,7 +139,10 @@ describe('deck-io', () => {
       },
     };
 
-    const { deck, unresolved } = await importPiltoverArchive(SAMPLE, mockResolver(cards));
+    const { deck, unresolved } = await importPiltoverArchive(
+      SAMPLE,
+      mockResolver(cards)
+    );
     expect(unresolved).toEqual([]);
     expect(deck.legend?.name).toBe('Jinx - Loose Cannon');
     expect(deck.champion?.name).toBe('Jinx - Demolitionist');

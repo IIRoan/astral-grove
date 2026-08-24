@@ -170,8 +170,9 @@ export function useDeckMutations() {
       const previousLists = queryClient.getQueriesData<DeckState[]>({
         queryKey: ['decks', 'list'],
       });
-      queryClient.setQueriesData<DeckState[]>({ queryKey: ['decks', 'list'] }, (current) =>
-        current?.filter((deck) => deck.id !== id)
+      queryClient.setQueriesData<DeckState[]>(
+        { queryKey: ['decks', 'list'] },
+        (current) => current?.filter((deck) => deck.id !== id)
       );
       queryClient.removeQueries({ queryKey: deckQueryKeys.detail(id) });
       return { previousLists };
@@ -192,8 +193,13 @@ export function useDeckMutations() {
   });
 
   const importDeck = useMutation({
-    mutationFn: ({ sourceDeckId, format }: { sourceDeckId: string; format: DeckFormat }) =>
-      importDeckToAccount(sourceDeckId, format),
+    mutationFn: ({
+      sourceDeckId,
+      format,
+    }: {
+      sourceDeckId: string;
+      format: DeckFormat;
+    }) => importDeckToAccount(sourceDeckId, format),
     onSuccess: (saved) => {
       setDeckDetailCache(queryClient, saved);
       invalidate();
@@ -225,5 +231,12 @@ export function useDeckMutations() {
     onSuccess: invalidate,
   });
 
-  return { saveDeck, saveDeckNow, removeDeck, importDeck, duplicateOwnedDeck, createNewDeck };
+  return {
+    saveDeck,
+    saveDeckNow,
+    removeDeck,
+    importDeck,
+    duplicateOwnedDeck,
+    createNewDeck,
+  };
 }

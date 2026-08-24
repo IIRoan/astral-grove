@@ -31,13 +31,7 @@ interface DeckBrowseCardProps {
   importBusy?: boolean;
 }
 
-function MainDeckThumb({
-  entry,
-  imageUri,
-}: {
-  entry: DeckEntry;
-  imageUri: string;
-}) {
+function MainDeckThumb({ entry, imageUri }: { entry: DeckEntry; imageUri: string }) {
   return (
     <View
       accessibilityLabel={`${entry.count} ${entry.card.name}`}
@@ -65,7 +59,8 @@ export function DeckBrowseCard({
   const { deck: liveDeck } = useDeckLiveLegality(deck);
   const displayDeck = liveDeck ?? deck;
   const variantKey = deckVariantNumbersKey(displayDeck);
-  const { data: imageByVariant = new Map<string, string>() } = useDeckCardImages(variantKey);
+  const { data: imageByVariant = new Map<string, string>() } =
+    useDeckCardImages(variantKey);
   const legendUri = displayDeck.legend
     ? resolveDeckCardImageUrl(displayDeck.legend, imageByVariant)
     : '';
@@ -144,7 +139,10 @@ export function DeckBrowseCard({
               ) : null}
             </View>
             {summary ? (
-              <Text className="text-[10px] leading-3.5 text-muted-foreground" numberOfLines={1}>
+              <Text
+                className="text-[10px] leading-3.5 text-muted-foreground"
+                numberOfLines={1}
+              >
                 {summary}
               </Text>
             ) : null}
@@ -153,7 +151,9 @@ export function DeckBrowseCard({
           {mainDeckEntries.length > 0 ? (
             <View className="gap-1">
               <View className="flex-row items-center justify-between gap-2">
-                <Text className="text-[10px] font-normal text-muted-foreground">Main deck</Text>
+                <Text className="text-[10px] font-normal text-muted-foreground">
+                  Main deck
+                </Text>
                 {hiddenCount > 0 ? (
                   <Text className="font-mono text-[9px] text-muted-foreground">
                     +{hiddenCount} more
@@ -170,7 +170,10 @@ export function DeckBrowseCard({
               />
             </View>
           ) : descriptionPreview ? (
-            <Text className="text-[11px] leading-4 text-muted-foreground" numberOfLines={2}>
+            <Text
+              className="text-[11px] leading-4 text-muted-foreground"
+              numberOfLines={2}
+            >
               {descriptionPreview}
             </Text>
           ) : null}
@@ -192,7 +195,9 @@ export function DeckBrowseCard({
               })}
               {displayDeck.isLegal !== undefined || deckHasBannedCards(displayDeck) ? (
                 <DeckLegalityBadge
-                  isLegal={!deckHasBannedCards(displayDeck) && displayDeck.isLegal !== false}
+                  isLegal={
+                    !deckHasBannedCards(displayDeck) && displayDeck.isLegal !== false
+                  }
                   compact
                 />
               ) : null}

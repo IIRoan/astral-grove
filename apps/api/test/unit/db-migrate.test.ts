@@ -4,7 +4,9 @@ import { isTransientDbError } from '../../src/db/transient-errors.js';
 describe('isTransientDbError', () => {
   test('detects ETIMEDOUT on nested causes', () => {
     const root = new Error('Failed query');
-    const timeout = Object.assign(new Error('connect timed out'), { code: 'ETIMEDOUT' });
+    const timeout = Object.assign(new Error('connect timed out'), {
+      code: 'ETIMEDOUT',
+    });
     root.cause = timeout;
 
     expect(isTransientDbError(root)).toBe(true);

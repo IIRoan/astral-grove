@@ -7,7 +7,10 @@ import { DeckImportExportSheet } from '@/components/deck/DeckImportExportSheet';
 import { DeckImportLoadingOverlay } from '@/components/deck/DeckImportLoadingOverlay';
 import { DeckListCard } from '@/components/deck/DeckListCard';
 import { DECKS_SUB_NAV_CLEARANCE, DecksSubNav } from '@/components/deck/DecksSubNav';
-import { DecksListContent, DecksListLoadingFooter } from '@/components/deck/DecksListContent';
+import {
+  DecksListContent,
+  DecksListLoadingFooter,
+} from '@/components/deck/DecksListContent';
 import { DecksListHeader } from '@/components/deck/DecksListHeader';
 import { ScreenLayout, ScreenLayoutBody } from '@/components/shell/ScreenLayout';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -68,11 +71,19 @@ export function DecksListScreen({
 }: DecksListScreenProps) {
   const router = useRouter();
   const { removeDeck, importDeck, saveDeckNow, createNewDeck } = useDeckMutations();
-  const { data: decks = [], isLoading, isFetching = false, isError, refetch } = decksQuery;
+  const {
+    data: decks = [],
+    isLoading,
+    isFetching = false,
+    isError,
+    refetch,
+  } = decksQuery;
   const [importOpen, setImportOpen] = useState(false);
   const [importSaving, setImportSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<DeckState | null>(null);
-  const [pendingArchiveImport, setPendingArchiveImport] = useState<DeckState | null>(null);
+  const [pendingArchiveImport, setPendingArchiveImport] = useState<DeckState | null>(
+    null
+  );
   const importPlaceholderDeck = useMemo(() => createEmptyDeck(), []);
 
   const handleCreateDeck = async (format: DeckFormat) => {
@@ -113,7 +124,9 @@ export function DecksListScreen({
           deck={deck}
           onPress={() => router.push(`/decks/${deck.id}`)}
           onImport={() => handleArchiveImport(deck)}
-          importBusy={importDeck.isPending && importDeck.variables?.sourceDeckId === deck.id}
+          importBusy={
+            importDeck.isPending && importDeck.variables?.sourceDeckId === deck.id
+          }
         />
       ) : (
         <DeckListCard
@@ -133,7 +146,9 @@ export function DecksListScreen({
                 }
               : undefined
           }
-          importBusy={importDeck.isPending && importDeck.variables?.sourceDeckId === deck.id}
+          importBusy={
+            importDeck.isPending && importDeck.variables?.sourceDeckId === deck.id
+          }
         />
       ),
     [variant, router, importDeck.isPending, importDeck.variables?.sourceDeckId]
@@ -153,7 +168,9 @@ export function DecksListScreen({
               : 'Saving imported deck…'
           }
         />
-        <ScreenLayoutBody className={infiniteScroll ? 'min-h-0 flex-1 flex-col' : undefined}>
+        <ScreenLayoutBody
+          className={infiniteScroll ? 'min-h-0 flex-1 flex-col' : undefined}
+        >
           <DecksListHeader
             title={title}
             deckCountLabel={deckCountLabel}
@@ -226,9 +243,7 @@ export function DecksListScreen({
         }}
         title="Delete deck"
         description={
-          pendingDelete
-            ? `Delete “${pendingDelete.name}”? This cannot be undone.`
-            : ''
+          pendingDelete ? `Delete “${pendingDelete.name}”? This cannot be undone.` : ''
         }
         confirmLabel="Delete"
         cancelLabel="Cancel"

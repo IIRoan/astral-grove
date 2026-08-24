@@ -47,7 +47,10 @@ export function EmailVerificationSection({ className }: EmailVerificationSection
             <Text className="text-lg font-semibold tracking-tight text-foreground">
               Email verified
             </Text>
-            <Text className="font-mono text-[12px] text-muted-foreground" numberOfLines={1}>
+            <Text
+              className="font-mono text-[12px] text-muted-foreground"
+              numberOfLines={1}
+            >
               {email}
             </Text>
             <Text className="mt-1 text-sm text-muted-foreground">

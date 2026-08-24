@@ -9,7 +9,10 @@ import { createApp, type AppContext } from '../../src/app.js';
 import { loadEnv, type Env } from '../../src/env.js';
 import { filterSnapshots, syncState, variants } from '../../src/db/schema.js';
 import { entityHash } from '../../src/lib/hash.js';
-import { enrichedFilterSnapshot, expectedCatalogTotal } from '../fixtures/enriched-filters.js';
+import {
+  enrichedFilterSnapshot,
+  expectedCatalogTotal,
+} from '../fixtures/enriched-filters.js';
 
 const E2E_PORT = Number(process.env.E2E_PORT ?? 3099);
 const API_ROOT = join(import.meta.dir, '../..');
@@ -54,7 +57,8 @@ function disableTransactionalEmailForE2E(): void {
 
 /** Keep invite / reset link hosts deterministic in e2e (ignore developer PUBLIC_APP_URL). */
 function pinPublicAppUrlForE2E(): void {
-  process.env.PUBLIC_APP_URL = process.env.E2E_PUBLIC_APP_URL ?? 'http://localhost:7001';
+  process.env.PUBLIC_APP_URL =
+    process.env.E2E_PUBLIC_APP_URL ?? 'http://localhost:7001';
 }
 
 disableTransactionalEmailForE2E();
@@ -166,8 +170,7 @@ export async function setupE2E(): Promise<void> {
     try {
       const res = await fetch(`${baseUrl}/api/v1/health`);
       if (res.ok) break;
-    } catch {
-    }
+    } catch {}
     await Bun.sleep(200);
   }
 }

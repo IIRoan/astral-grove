@@ -22,7 +22,9 @@ describe('fontFamilyForClassName', () => {
   test('maps mono + weight to GeistMono faces', () => {
     expect(fontFamilyForClassName('font-mono')).toBe('GeistMono-Regular');
     expect(fontFamilyForClassName('font-mono font-medium')).toBe('GeistMono-Medium');
-    expect(fontFamilyForClassName('font-mono font-semibold')).toBe('GeistMono-SemiBold');
+    expect(fontFamilyForClassName('font-mono font-semibold')).toBe(
+      'GeistMono-SemiBold'
+    );
     expect(fontFamilyForClassName('font-mono font-black')).toBe(FONT_MONO.bold);
   });
 

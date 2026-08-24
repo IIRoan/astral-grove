@@ -115,26 +115,34 @@ export function CardDetailPage({
         <CardStat label="Might">
           <Stack direction="row" className="items-center gap-1.5">
             <MightIcon size={20} />
-            <Text className="text-xl font-black text-foreground">{formatStat(card.might)}</Text>
+            <Text className="text-xl font-black text-foreground">
+              {formatStat(card.might)}
+            </Text>
           </Stack>
         </CardStat>
         <Separator orientation="vertical" className="h-auto" />
         <CardStat label="Power">
-          <Text className="text-xl font-black text-foreground">{formatStat(card.power)}</Text>
+          <Text className="text-xl font-black text-foreground">
+            {formatStat(card.power)}
+          </Text>
         </CardStat>
       </View>
 
       <View className="px-8">
         <CardAttributeRow label="Type">
           <TypeIcon type={card.type} />
-          <Text className="text-[13px] font-medium text-muted-foreground">{card.type}</Text>
+          <Text className="text-[13px] font-medium text-muted-foreground">
+            {card.type}
+          </Text>
         </CardAttributeRow>
         {card.colors.length > 0 ? (
           <CardAttributeRow label="Color">
             {card.colors.map((c) => (
               <Stack key={c.id} direction="row" className="items-center gap-1.5">
                 <DomainIcon name={c.name} imageUrl={c.imageUrl} />
-                <Text className="text-[13px] font-medium text-muted-foreground">{c.name}</Text>
+                <Text className="text-[13px] font-medium text-muted-foreground">
+                  {c.name}
+                </Text>
               </Stack>
             ))}
           </CardAttributeRow>

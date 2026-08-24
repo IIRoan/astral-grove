@@ -115,7 +115,10 @@ export function GridCollectionControl({
           <ActivityIndicator size="small" className={OPERATE_CTA_SPINNER_CLASS} />
         ) : (
           <>
-            <PlusIcon className={cn('size-3.5', OPERATE_CTA_ICON_CLASS)} weight="bold" />
+            <PlusIcon
+              className={cn('size-3.5', OPERATE_CTA_ICON_CLASS)}
+              weight="bold"
+            />
             <Text className={OPERATE_CTA_LABEL_CLASS}>Add</Text>
           </>
         )}

@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { computeTrend, formatTrendLabel } from '@riftbound/contracts';
-import {
-  computePriceStats,
-  trendPrice,
-} from '../../src/lib/price-stats.js';
+import { computePriceStats, trendPrice } from '../../src/lib/price-stats.js';
 
 describe('price-stats', () => {
   test('trendPrice uses market trend, not cheapest listing', () => {

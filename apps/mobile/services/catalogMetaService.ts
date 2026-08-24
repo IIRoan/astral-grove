@@ -2,7 +2,10 @@ import type { QueryClient } from '@tanstack/react-query';
 import { catalogQueryKeys } from '@/src/api/queryKeys';
 import { api } from '@/src/api/client';
 import type { CatalogIndexCacheKey } from '@/services/catalogIndexService';
-import { getInMemoryCatalogIndex, readPersistedCatalogIndex } from '@/services/catalogIndexService';
+import {
+  getInMemoryCatalogIndex,
+  readPersistedCatalogIndex,
+} from '@/services/catalogIndexService';
 
 type CatalogMeta = {
   cachedAt: string;

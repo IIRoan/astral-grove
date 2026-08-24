@@ -7,7 +7,12 @@ import { deckArchiveViewUrl, deckBrowseSummaryLine } from '@/lib/deck-browse';
 import { openExternalUrl } from '@/lib/open-external';
 import { collectIllegalCardNames, deckHasBannedCards } from '@/lib/card-legality';
 import type { DeckState } from '@/lib/deck-types';
-import { ThemedIcon, BookOpenIcon, GitCompareIcon, VideoIcon } from '@/components/icons';
+import {
+  ThemedIcon,
+  BookOpenIcon,
+  GitCompareIcon,
+  VideoIcon,
+} from '@/components/icons';
 
 interface DeckViewInfoPanelProps {
   deck: DeckState;

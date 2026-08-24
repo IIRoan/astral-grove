@@ -42,7 +42,8 @@ function computeGridLayout(
   numColumns = Math.min(MAX_GRID_COLUMNS, numColumns);
 
   if (!fillAvailable) {
-    const minForEight = TARGET_GRID_COLUMNS * maxTileWidth + (TARGET_GRID_COLUMNS - 1) * gap;
+    const minForEight =
+      TARGET_GRID_COLUMNS * maxTileWidth + (TARGET_GRID_COLUMNS - 1) * gap;
     if (available >= minForEight) {
       numColumns = Math.max(TARGET_GRID_COLUMNS, numColumns);
     }
@@ -136,7 +137,9 @@ export function useResponsiveColumns(
     const subtractScreenPadding = !isMeasured;
 
     if (layout === 'list') {
-      const horizontalPad = subtractScreenPadding ? Layout.screenPaddingHorizontal * 2 : 0;
+      const horizontalPad = subtractScreenPadding
+        ? Layout.screenPaddingHorizontal * 2
+        : 0;
       return {
         numColumns: 1,
         contentWidth,

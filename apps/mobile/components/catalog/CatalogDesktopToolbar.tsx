@@ -1,8 +1,14 @@
 import { View } from 'react-native';
 import { CatalogActionBar } from '@/components/catalog/CatalogActionBar';
 import { CatalogActiveFilterChips } from '@/components/catalog/FilterSheet';
-import { FilterClearButton, FilterPopoverBar } from '@/components/filters/FilterPrimitives';
-import type { CatalogCollectionFilter, CatalogFilters } from '@/constants/catalogFilters';
+import {
+  FilterClearButton,
+  FilterPopoverBar,
+} from '@/components/filters/FilterPrimitives';
+import type {
+  CatalogCollectionFilter,
+  CatalogFilters,
+} from '@/constants/catalogFilters';
 import { DEFAULT_CATALOG_FILTERS } from '@/constants/catalogFilters';
 import type { CatalogSort } from '@/constants/catalogSort';
 import {
@@ -58,7 +64,10 @@ export function CatalogDesktopToolbar({
               <FilterClearButton
                 embedded
                 onPress={() =>
-                  onFiltersChange({ ...DEFAULT_CATALOG_FILTERS, simpleAdd: filters.simpleAdd })
+                  onFiltersChange({
+                    ...DEFAULT_CATALOG_FILTERS,
+                    simpleAdd: filters.simpleAdd,
+                  })
                 }
               />
             ) : null}
@@ -82,10 +91,7 @@ export function CatalogDesktopToolbar({
       </View>
 
       {filterActive ? (
-        <CatalogActiveFilterChips
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-        />
+        <CatalogActiveFilterChips filters={filters} onFiltersChange={onFiltersChange} />
       ) : null}
     </View>
   );

@@ -1,4 +1,9 @@
-import type { CardDetail, CardsListQuery, GlobalSearchQuery, PriceStatsBatchRequest } from '@riftbound/contracts';
+import type {
+  CardDetail,
+  CardsListQuery,
+  GlobalSearchQuery,
+  PriceStatsBatchRequest,
+} from '@riftbound/contracts';
 import {
   CardDetailResponse,
   CardsBatchResponse,

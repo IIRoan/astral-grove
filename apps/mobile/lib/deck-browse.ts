@@ -25,7 +25,10 @@ export function formatDeckStatCount(value: number): string {
   return `${(value / 1_000_000).toFixed(1)}m`;
 }
 
-export function formatDeckRelativeTime(updatedAtMs: number, nowMs = Date.now()): string {
+export function formatDeckRelativeTime(
+  updatedAtMs: number,
+  nowMs = Date.now()
+): string {
   const deltaMs = Math.max(0, nowMs - updatedAtMs);
   const minutes = Math.floor(deltaMs / 60_000);
   if (minutes < 1) return 'just now';

@@ -46,7 +46,11 @@ export function AuthBackdrop({ mode, variant = 'hero' }: AuthBackdropProps) {
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <Animated.View className="absolute inset-0" style={signInStyle} pointerEvents="none">
+      <Animated.View
+        className="absolute inset-0"
+        style={signInStyle}
+        pointerEvents="none"
+      >
         <Image
           source={AUTH_WALLPAPERS['sign-in']}
           contentFit="cover"
@@ -55,7 +59,11 @@ export function AuthBackdrop({ mode, variant = 'hero' }: AuthBackdropProps) {
           accessibilityIgnoresInvertColors
         />
       </Animated.View>
-      <Animated.View className="absolute inset-0" style={signUpStyle} pointerEvents="none">
+      <Animated.View
+        className="absolute inset-0"
+        style={signUpStyle}
+        pointerEvents="none"
+      >
         <Image
           source={AUTH_WALLPAPERS['sign-up']}
           contentFit="cover"

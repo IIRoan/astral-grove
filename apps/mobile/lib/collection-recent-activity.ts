@@ -6,9 +6,7 @@ import {
 } from '@riftbound/contracts';
 import { collectionQueryKeys } from '@/src/api/queryKeys';
 
-export type RecentActivitySnapshot = ReturnType<
-  QueryClient['getQueriesData']
->;
+export type RecentActivitySnapshot = ReturnType<QueryClient['getQueriesData']>;
 
 export function recentAddsQueryCoversVariant(
   queryKey: readonly unknown[],

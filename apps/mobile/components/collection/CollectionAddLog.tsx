@@ -36,7 +36,10 @@ function LogLine({
   const added = event.quantityDelta > 0;
   return (
     <View
-      className={cn(COLLECTION_ADD_LOG_ROW_CLASS, index > 0 && 'border-t border-border/60')}
+      className={cn(
+        COLLECTION_ADD_LOG_ROW_CLASS,
+        index > 0 && 'border-t border-border/60'
+      )}
     >
       <Text className={COLLECTION_ADD_LOG_TIME_CLASS}>
         {formatCollectionAddAt(event.at)}
@@ -101,12 +104,7 @@ export function CollectionAddLog({
         const actorName =
           showActor && event.actor.userId !== viewerUserId ? event.actor.name : null;
         return (
-          <LogLine
-            key={event.id}
-            event={event}
-            index={index}
-            actorName={actorName}
-          />
+          <LogLine key={event.id} event={event} index={index} actorName={actorName} />
         );
       })}
     </View>

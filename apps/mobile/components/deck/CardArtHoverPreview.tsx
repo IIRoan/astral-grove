@@ -140,13 +140,19 @@ export function CardArtHoverPreview({
     } else {
       previewLeft = Math.max(
         EDGE_PAD,
-        Math.min(anchor.x + anchor.width / 2 - previewWidth / 2, windowWidth - previewWidth - EDGE_PAD)
+        Math.min(
+          anchor.x + anchor.width / 2 - previewWidth / 2,
+          windowWidth - previewWidth - EDGE_PAD
+        )
       );
     }
 
     previewTop = Math.max(
       EDGE_PAD,
-      Math.min(anchor.y + anchor.height / 2 - previewHeight / 2, windowHeight - previewHeight - EDGE_PAD)
+      Math.min(
+        anchor.y + anchor.height / 2 - previewHeight / 2,
+        windowHeight - previewHeight - EDGE_PAD
+      )
     );
   }
 

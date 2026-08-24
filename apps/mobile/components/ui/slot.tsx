@@ -1,6 +1,6 @@
-import { Children, cloneElement, isValidElement } from "react";
-import type { Pressable as RNPressable, View as RNView } from "react-native";
-import { mergeRefs } from "@/lib/utils";
+import { Children, cloneElement, isValidElement } from 'react';
+import type { Pressable as RNPressable, View as RNView } from 'react-native';
+import { mergeRefs } from '@/lib/utils';
 
 const HANDLER_REGEX = /^on[A-Z]/;
 
@@ -16,14 +16,12 @@ const View = ({
   >;
 
   if (!isValidElement(child)) {
-    console.warn("View expects a single React element as children");
+    console.warn('View expects a single React element as children');
     return null;
   }
 
-  const childRef = "ref" in child ? child.ref : undefined;
-  const mergedRef = childRef
-    ? mergeRefs(ref, childRef as React.Ref<RNView>)
-    : ref;
+  const childRef = 'ref' in child ? child.ref : undefined;
+  const mergedRef = childRef ? mergeRefs(ref, childRef as React.Ref<RNView>) : ref;
 
   return cloneElement(child, {
     ...mergeProps(viewProps, child.props as AnyProps),
@@ -41,14 +39,12 @@ const Pressable = ({
   >;
 
   if (!isValidElement(child)) {
-    console.warn("Pressable expects a single React element as children");
+    console.warn('Pressable expects a single React element as children');
     return null;
   }
 
-  const childRef = "ref" in child ? child.ref : undefined;
-  const mergedRef = childRef
-    ? mergeRefs(ref, childRef as React.Ref<RNView>)
-    : ref;
+  const childRef = 'ref' in child ? child.ref : undefined;
+  const mergedRef = childRef ? mergeRefs(ref, childRef as React.Ref<RNView>) : ref;
 
   return cloneElement(child, {
     ...mergeProps(pressableProps, child.props as AnyProps),
@@ -63,8 +59,8 @@ function mergeHandler(
   if (
     slotPropValue &&
     childPropValue &&
-    typeof childPropValue === "function" &&
-    typeof slotPropValue === "function"
+    typeof childPropValue === 'function' &&
+    typeof slotPropValue === 'function'
   ) {
     return (...args: unknown[]) => {
       const result = childPropValue(...args);
@@ -80,7 +76,7 @@ function mergeStyle(slotPropValue: unknown, childPropValue: unknown) {
 }
 
 function mergeClassName(slotPropValue: unknown, childPropValue: unknown) {
-  return [slotPropValue, childPropValue].filter(Boolean).join(" ");
+  return [slotPropValue, childPropValue].filter(Boolean).join(' ');
 }
 
 function mergeProps(slotProps: AnyProps, childProps: AnyProps) {
@@ -97,9 +93,9 @@ function mergeProps(slotProps: AnyProps, childProps: AnyProps) {
 
     if (HANDLER_REGEX.test(propName)) {
       overrideProps[propName] = mergeHandler(slotPropValue, childPropValue);
-    } else if (propName === "style") {
+    } else if (propName === 'style') {
       overrideProps[propName] = mergeStyle(slotPropValue, childPropValue);
-    } else if (propName === "className") {
+    } else if (propName === 'className') {
       overrideProps[propName] = mergeClassName(slotPropValue, childPropValue);
     }
   }

@@ -1,14 +1,21 @@
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon, ThemedIcon } from '@/components/icons';
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ThemedIcon,
+} from '@/components/icons';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import type { ScrollView as ScrollViewType } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Popover,
-  PopoverContent,
-  PopoverPortal,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverPortal } from '@/components/ui/popover';
 import { Text } from '@/components/ui/text';
 import {
   CATALOG_TOOLBAR_CONTROL_ACTIVE_CLASS,
@@ -73,7 +80,9 @@ export function FilterToggleRow({
           <CheckIcon className="size-3.5 text-foreground" weight="bold" />
         </View>
       ) : (
-        <View className={cn('size-5 border border-border', FACTORY_RADIUS_CONTROL_CLASS)} />
+        <View
+          className={cn('size-5 border border-border', FACTORY_RADIUS_CONTROL_CLASS)}
+        />
       )}
     </Pressable>
   );
@@ -102,7 +111,9 @@ export function FilterStatChip({
       <Text
         className={cn(
           'font-mono text-sm',
-          active ? FILTER_OPTION_CHIP_ACTIVE_TEXT_CLASS : FILTER_OPTION_CHIP_IDLE_TEXT_CLASS
+          active
+            ? FILTER_OPTION_CHIP_ACTIVE_TEXT_CLASS
+            : FILTER_OPTION_CHIP_IDLE_TEXT_CLASS
         )}
       >
         {label}
@@ -199,7 +210,10 @@ export function FilterPopoverBar<T extends string>({
   const [triggerPosition, setTriggerPosition] = useState<TriggerPosition>();
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const viewportMaxHeight = Math.max(160, windowHeight - insets.top - insets.bottom - 96);
+  const viewportMaxHeight = Math.max(
+    160,
+    windowHeight - insets.top - insets.bottom - 96
+  );
   const activeSegment = segments.find((segment) => segment.id === openId);
 
   const handleTriggerPress = useCallback(
@@ -227,7 +241,9 @@ export function FilterPopoverBar<T extends string>({
       if (!(target instanceof Node)) return;
 
       const clickedTrigger = Object.values(triggerRefs.current).some((node) => {
-        const element = node as unknown as { contains?: (child: Node) => boolean } | null;
+        const element = node as unknown as {
+          contains?: (child: Node) => boolean;
+        } | null;
         return element?.contains?.(target) ?? false;
       });
       if (clickedTrigger) return;

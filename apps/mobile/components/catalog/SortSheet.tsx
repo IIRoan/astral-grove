@@ -30,7 +30,12 @@ interface SortSheetProps {
   onSortChange: (sort: CatalogSort) => void;
 }
 
-export function SortSheet({ visible, activeSort, onClose, onSortChange }: SortSheetProps) {
+export function SortSheet({
+  visible,
+  activeSort,
+  onClose,
+  onSortChange,
+}: SortSheetProps) {
   const reduceMotion = useReduceMotion();
 
   return (
@@ -65,7 +70,9 @@ export function SortSheet({ visible, activeSort, onClose, onSortChange }: SortSh
                     onSortChange({ sortBy: option.sortBy, dir: option.dir });
                   }}
                 >
-                  <Text className="text-sm font-normal text-foreground">{option.label}</Text>
+                  <Text className="text-sm font-normal text-foreground">
+                    {option.label}
+                  </Text>
                   {active ? (
                     <ThemedIcon icon={CheckIcon} size={18} color="foreground" />
                   ) : null}

@@ -44,11 +44,7 @@ export function PrintingPreviewStrip({
         item.variantType
       );
       const selected = item.variantNumber === selectedId;
-      const title = formatPrintingLabel(
-        item.variantLabel,
-        foil,
-        item.variantNumber
-      );
+      const title = formatPrintingLabel(item.variantLabel, foil, item.variantNumber);
       return (
         <Pressable
           className="max-w-[72px] items-center gap-1 active:opacity-80"
@@ -69,11 +65,17 @@ export function PrintingPreviewStrip({
             contentFit="cover"
             cachePolicy="memory-disk"
           />
-          <Text className="w-[72px] text-center text-[9px] font-semibold text-muted-foreground" numberOfLines={1}>
+          <Text
+            className="w-[72px] text-center text-[9px] font-semibold text-muted-foreground"
+            numberOfLines={1}
+          >
             {title}
           </Text>
           {item.price ? (
-            <Text className="text-center text-[9px] font-bold text-success" numberOfLines={1}>
+            <Text
+              className="text-center text-[9px] font-bold text-success"
+              numberOfLines={1}
+            >
               {item.price}
             </Text>
           ) : null}

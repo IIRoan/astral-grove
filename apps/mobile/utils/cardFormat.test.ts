@@ -26,10 +26,10 @@ describe('formatCardPrice', () => {
   });
 
   test('returns null when no market price exists', () => {
-    const price = formatCardPrice(
-      [{ market: null, low: 0.02, isFoil: false }],
-      { variantNumber: 'OGN-001', variantLabel: 'Standard' }
-    );
+    const price = formatCardPrice([{ market: null, low: 0.02, isFoil: false }], {
+      variantNumber: 'OGN-001',
+      variantLabel: 'Standard',
+    });
     expect(price).toBeNull();
   });
 });

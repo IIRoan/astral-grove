@@ -37,32 +37,33 @@ Before writing any code, extract design signals from the user's reference images
 
 ### → Extract these signals from each image
 
-| Signal | What to look for |
-|---|---|
-| **Mode** | Light or Dark background |
-| **Focal element** | What dominates the viewport? Massive typography, 3D object, full-bleed photography, product mockup, abstract shape, video, scattered floating elements |
-| **Typography style** | Serif, sans-serif, or mixed. Massive or restrained. Uppercase or mixed-case. Tight-tracked or normal. Italic presence |
-| **Text-to-image relationship** | Text sits ABOVE image (layered)? BESIDE it (split)? BEHIND a subject (masked)? INSIDE it (clipped)? INTERTWINED with inline images between words? |
-| **Layout gravity** | Where does visual weight sit? Center? Bottom-left? Split across edges? Full-bleed? |
-| **Color count** | Count distinct hues — award-winning heroes almost always use 2-3 max |
-| **Navigation style** | Floating pill? Flat horizontal? Split (logo left, links right)? Minimal (logo + menu only)? |
-| **Micro-details** | Rotating text badges, monospace metadata labels, glassmorphic cards, showreel links, CTA pill style |
+| Signal                         | What to look for                                                                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Mode**                       | Light or Dark background                                                                                                                               |
+| **Focal element**              | What dominates the viewport? Massive typography, 3D object, full-bleed photography, product mockup, abstract shape, video, scattered floating elements |
+| **Typography style**           | Serif, sans-serif, or mixed. Massive or restrained. Uppercase or mixed-case. Tight-tracked or normal. Italic presence                                  |
+| **Text-to-image relationship** | Text sits ABOVE image (layered)? BESIDE it (split)? BEHIND a subject (masked)? INSIDE it (clipped)? INTERTWINED with inline images between words?      |
+| **Layout gravity**             | Where does visual weight sit? Center? Bottom-left? Split across edges? Full-bleed?                                                                     |
+| **Color count**                | Count distinct hues — award-winning heroes almost always use 2-3 max                                                                                   |
+| **Navigation style**           | Floating pill? Flat horizontal? Split (logo left, links right)? Minimal (logo + menu only)?                                                            |
+| **Micro-details**              | Rotating text badges, monospace metadata labels, glassmorphic cards, showreel links, CTA pill style                                                    |
 
 ### → Output a Hero Extraction before generating code
 
 State in 2-3 lines exactly what you extracted:
 
-> *"Hero Extraction: Dark mode, centered 3D card carousel with CSS perspective as focal element, massive sans-serif heading below in mixed-case, monospace micro-label above, single ghost CTA, floating pill nav. Palette: off-black + white + one muted accent. Feels like: dark cinematic agency with depth-layered cards."*
+> _"Hero Extraction: Dark mode, centered 3D card carousel with CSS perspective as focal element, massive sans-serif heading below in mixed-case, monospace micro-label above, single ghost CTA, floating pill nav. Palette: off-black + white + one muted accent. Feels like: dark cinematic agency with depth-layered cards."_
 
 ### → If no reference images are provided
 
-Ask exactly ONE question: *"Do you want this hero closer to [dark cinematic] or [light editorial]? And what's the brand name + one-line value prop?"*
+Ask exactly ONE question: _"Do you want this hero closer to [dark cinematic] or [light editorial]? And what's the brand name + one-line value prop?"_
 
 If you can infer from context (e.g., user said "AI startup" or "luxury agency"), skip the question and declare your Hero Extraction.
 
 ### ✓ Quality Gate: Read
 
 Before moving to Phase 2, confirm:
+
 - You have extracted all 8 signals from the reference (or inferred them from the brief)
 - You have written the Hero Extraction summary
 - You know the mode (light/dark), the focal element, and the palette direction
@@ -77,7 +78,7 @@ Select ONE architecture from the six below that best matches the reference. Do n
 
 ### Architecture A: The Cinematic Center
 
-*Best for: dark cinematic agency sites, immersive product launches, atmospheric brand pages*
+_Best for: dark cinematic agency sites, immersive product launches, atmospheric brand pages_
 
 The heading sits centered in the viewport. A cinematic visual (3D render, product shot, atmospheric photography) fills the background or floats behind/around the text. The CTA is a single centered pill or ghost button below the heading.
 
@@ -97,7 +98,7 @@ The background visual uses `position: absolute; inset: 0` with `object-fit: cove
 
 ### Architecture B: The Asymmetric Split
 
-*Best for: bold agency homepages, AI/tech product launches, statement brand pages*
+_Best for: bold agency homepages, AI/tech product launches, statement brand pages_
 
 Massive heading on one side (usually left, occupying 55-65% width). Supporting content (subtext, CTA, or a visual asset) on the other side, vertically offset. The two halves do NOT align to the same baseline — deliberate vertical tension.
 
@@ -113,7 +114,7 @@ Use `items-end` on the left column and `items-start` on the right (or vice versa
 
 ### Architecture C: The Full-Bleed Subject
 
-*Best for: athlete/personal brand sites, product photography heroes, editorial fashion or lifestyle*
+_Best for: athlete/personal brand sites, product photography heroes, editorial fashion or lifestyle_
 
 A full-viewport photograph or 3D render IS the hero. Typography is overlaid directly on the image — either at the top-left, bottom-left, or bleeding across the bottom edge. No separate "text area" — the image and text coexist in the same spatial plane.
 
@@ -132,7 +133,7 @@ The text MUST be readable against the photo. Use either a gradient scrim layer O
 
 ### Architecture D: The Typographic Poster
 
-*Best for: creative studio portfolios, personal brand statements, typography-led editorial*
+_Best for: creative studio portfolios, personal brand statements, typography-led editorial_
 
 Typography IS the visual. There is no hero image. The heading itself, at viewport-bleeding scale, IS the graphic element. Words may be split across the viewport edges. Different weights, sizes, or italics within the same heading create visual texture.
 
@@ -149,7 +150,7 @@ Use `font-size: clamp(4rem, 12vw, 16rem)`. Words can be positioned with `text-al
 
 ### Architecture E: The Inline-Image Typography
 
-*Best for: creative agency hero sections, brand pages with personality, editorial homepages*
+_Best for: creative agency hero sections, brand pages with personality, editorial homepages_
 
 Massive typography with small, rounded images embedded BETWEEN words in the headline. The images sit inline at type-height, acting as visual punctuation. The heading reads as a sentence with tiny photo interruptions.
 
@@ -168,7 +169,7 @@ Massive typography with small, rounded images embedded BETWEEN words in the head
   display: inline-block;
   width: clamp(3rem, 5vw, 5rem);
   height: clamp(2rem, 3.5vw, 3.5rem);
-  border-radius: 9999px;       /* pill shape */
+  border-radius: 9999px; /* pill shape */
   object-fit: cover;
   vertical-align: middle;
   margin-inline: 0.25em;
@@ -181,7 +182,7 @@ On mobile, the inline images can either scale down with the text or stack below 
 
 ### Architecture F: The Layered Depth (Z-Axis Composition)
 
-*Best for: portfolio showcases, SaaS product demos, multi-project agency displays*
+_Best for: portfolio showcases, SaaS product demos, multi-project agency displays_
 
 Multiple visual elements (cards, images, UI mockups) are arranged at different depths using CSS `perspective` and `transform: rotateY() rotateX()`. A single element is "closest" (largest, front-center). Others recede into the background (smaller, rotated, lower opacity). Typography anchors the composition above or below.
 
@@ -219,6 +220,7 @@ Multiple visual elements (cards, images, UI mockups) are arranged at different d
 ### ✓ Quality Gate: Architecture
 
 Before moving to Phase 3, confirm:
+
 - You selected ONE architecture from A-F
 - Your selection matches the Hero Extraction from Phase 1
 - You are not blending two architectures
@@ -233,12 +235,12 @@ Hero headings are not "big text." They are architectural elements that structure
 
 **Font selection — pick ONE from the appropriate row:**
 
-| Vibe | Strong candidates (pick one) |
-|---|---|
-| Clean modern / tech / SaaS | `Geist`, `Satoshi`, `Cabinet Grotesk`, `Outfit`, `PP Neue Montreal` |
-| Bold statement / agency | `Clash Display`, `Cabinet Grotesk`, `Monument Extended`, `Sohne Breit` |
-| Editorial / luxury | `PP Editorial New`, `GT Sectra Display`, `Canela`, `Reckless Neue` (serif only when reference shows serif) |
-| Condensed / industrial | `Bebas Neue`, `Oswald`, `Barlow Condensed`, `Archivo Black` |
+| Vibe                       | Strong candidates (pick one)                                                                               |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Clean modern / tech / SaaS | `Geist`, `Satoshi`, `Cabinet Grotesk`, `Outfit`, `PP Neue Montreal`                                        |
+| Bold statement / agency    | `Clash Display`, `Cabinet Grotesk`, `Monument Extended`, `Sohne Breit`                                     |
+| Editorial / luxury         | `PP Editorial New`, `GT Sectra Display`, `Canela`, `Reckless Neue` (serif only when reference shows serif) |
+| Condensed / industrial     | `Bebas Neue`, `Oswald`, `Barlow Condensed`, `Archivo Black`                                                |
 
 ⚠ **Drift Warning:** `Inter`, `Roboto`, `Open Sans`, `Poppins`, `Arial`, and `Helvetica` are body fonts, not display fonts. Using them as a hero heading font produces generic output regardless of how good the layout is. If the reference uses one of these, verify carefully — at hero scale, Inter and Geist look nearly identical, and Geist is the display-grade choice.
 
@@ -270,11 +272,11 @@ Hero headings are not "big text." They are architectural elements that structure
 
 **Supporting text hierarchy:**
 
-| Element | Specification |
-|---|---|
-| **Eyebrow** (above heading) | `font-size: 0.75rem`, `letter-spacing: 0.12em`, `text-transform: uppercase`, monospace or geometric sans. Muted color (`text-white/50` dark, `text-zinc-500` light) |
-| **Subtext** (below heading) | `font-size: clamp(1rem, 1.25vw, 1.25rem)`, `max-width: 45ch`, `line-height: 1.6`, muted color. Never more than 20 words |
-| **CTA button** | Solid pill (`rounded-full px-8 py-3.5`) OR ghost pill (`rounded-full px-8 py-3.5 border border-white/20`). `font-size: 0.875rem`, `letter-spacing: 0.05em`, uppercase. ONE CTA max. No secondary "Learn more" links |
+| Element                     | Specification                                                                                                                                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Eyebrow** (above heading) | `font-size: 0.75rem`, `letter-spacing: 0.12em`, `text-transform: uppercase`, monospace or geometric sans. Muted color (`text-white/50` dark, `text-zinc-500` light)                                                 |
+| **Subtext** (below heading) | `font-size: clamp(1rem, 1.25vw, 1.25rem)`, `max-width: 45ch`, `line-height: 1.6`, muted color. Never more than 20 words                                                                                             |
+| **CTA button**              | Solid pill (`rounded-full px-8 py-3.5`) OR ghost pill (`rounded-full px-8 py-3.5 border border-white/20`). `font-size: 0.875rem`, `letter-spacing: 0.05em`, uppercase. ONE CTA max. No secondary "Learn more" links |
 
 ---
 
@@ -283,6 +285,7 @@ Hero headings are not "big text." They are architectural elements that structure
 Maximum 3 hues in the hero. This is not a suggestion — it is what separates award-winning heroes from busy ones.
 
 **Dark hero palette:**
+
 ```css
 /* BLUEPRINT: Dark hero atmosphere
    WHY: #0a0a0a reads as black but has enough data for 
@@ -296,10 +299,11 @@ Maximum 3 hues in the hero. This is not a suggestion — it is what separates aw
 ```
 
 **Light hero palette:**
+
 ```css
 .hero-light {
-  background: #FAFAF9; /* or #F5F5F0 or #FDFBF7 — warm cream, not pure white */
-  color: #1a1a1a;      /* or #111111 — near-black, not pure black */
+  background: #fafaf9; /* or #F5F5F0 or #FDFBF7 — warm cream, not pure white */
+  color: #1a1a1a; /* or #111111 — near-black, not pure black */
   /* Accent: one considered hue */
 }
 ```
@@ -313,6 +317,7 @@ Maximum 3 hues in the hero. This is not a suggestion — it is what separates aw
 Do not use flat `bg-black` or flat `bg-white`. Heroes need depth.
 
 **Dark mode — radial ambient glow:**
+
 ```css
 /* BLUEPRINT: Ambient glow
    WHY: A barely-visible radial gradient centered slightly 
@@ -323,12 +328,17 @@ Do not use flat `bg-black` or flat `bg-white`. Heroes need depth.
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 60% 50% at 50% 40%, rgba(255,255,255,0.03) 0%, transparent 70%);
+  background: radial-gradient(
+    ellipse 60% 50% at 50% 40%,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 70%
+  );
   pointer-events: none;
 }
 ```
 
 **Noise grain overlay:**
+
 ```css
 /* BLUEPRINT: Film grain
    WHY: Breaks the digital flatness of solid CSS backgrounds.
@@ -347,9 +357,12 @@ Do not use flat `bg-black` or flat `bg-white`. Heroes need depth.
 ```
 
 **Light mode — subtle warm radial:**
+
 ```css
 .hero-light {
-  background: radial-gradient(ellipse at 30% 20%, rgba(250,235,215,0.4) 0%, transparent 50%), #FAFAF9;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(250, 235, 215, 0.4) 0%, transparent 50%),
+    #fafaf9;
 }
 ```
 
@@ -368,21 +381,21 @@ Every hero MUST have an entry animation. Static mount looks broken.
 const heroVariants = {
   hidden: {},
   visible: {
-    transition: { staggerChildren: 0.12, delayChildren: 0.1 }
-  }
+    transition: { staggerChildren: 0.12, delayChildren: 0.1 },
+  },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 30, filter: "blur(8px)" },
+  hidden: { opacity: 0, y: 30, filter: 'blur(8px)' },
   visible: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
+    filter: 'blur(0px)',
     transition: {
       duration: 0.8,
-      ease: [0.16, 1, 0.3, 1]  // custom ease-out
-    }
-  }
+      ease: [0.16, 1, 0.3, 1], // custom ease-out
+    },
+  },
 };
 
 // Apply: <motion.div variants={heroVariants} initial="hidden" animate="visible">
@@ -395,6 +408,7 @@ const itemVariants = {
 **Sequence:** Background fades in first (0ms) → heading slides up + deblurs (100ms) → subtext slides up (220ms) → CTA slides up (340ms). Total reveal under 800ms.
 
 **CTA hover physics:**
+
 ```css
 /* BLUEPRINT: CTA hover
    WHY: translateY(-2px) creates a subtle lift. The custom 
@@ -405,7 +419,7 @@ const itemVariants = {
 }
 .hero-cta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 .hero-cta:active {
   transform: translateY(0) scale(0.98);
@@ -413,6 +427,7 @@ const itemVariants = {
 ```
 
 **Parallax structure (if reference implies it):**
+
 ```html
 <!-- BLUEPRINT: Parallax-ready DOM
      WHY: Separate layers let you apply different scroll 
@@ -424,13 +439,12 @@ const itemVariants = {
   <div class="hero-bg absolute inset-0 will-change-transform">
     <img ... class="w-full h-full object-cover" />
   </div>
-  <div class="hero-content relative z-10">
-    ...
-  </div>
+  <div class="hero-content relative z-10">...</div>
 </section>
 ```
 
 **Rotating text badge (if reference shows it):**
+
 ```css
 /* BLUEPRINT: Rotating badge
    WHY: 12s is slow enough to be ambient, not distracting.
@@ -443,10 +457,14 @@ const itemVariants = {
   animation: spin 12s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .rotating-badge { animation: none; }
+  .rotating-badge {
+    animation: none;
+  }
 }
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 ```
 
@@ -456,34 +474,35 @@ const itemVariants = {
 
 Every architecture MUST degrade cleanly below `768px`.
 
-| Element | Mobile behavior |
-|---|---|
-| **Heading** | Scale down via `clamp()`. Never smaller than `2rem` on mobile |
-| **Layout** | All multi-column splits collapse to `flex-col` or `grid-cols-1` |
-| **Inline images** (Architecture E) | Either scale proportionally with text or hide (`hidden md:inline-block`) |
+| Element                                   | Mobile behavior                                                                                    |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **Heading**                               | Scale down via `clamp()`. Never smaller than `2rem` on mobile                                      |
+| **Layout**                                | All multi-column splits collapse to `flex-col` or `grid-cols-1`                                    |
+| **Inline images** (Architecture E)        | Either scale proportionally with text or hide (`hidden md:inline-block`)                           |
 | **3D perspective cards** (Architecture F) | Remove all `rotateY`/`rotateX` transforms below `md`. Stack vertically or show only the focal card |
-| **Full-bleed images** (Architecture C) | Increase scrim gradient opacity for text readability |
-| **Touch targets** | All CTAs minimum `44px` tap target height |
-| **Horizontal overflow** | Wrap hero in `overflow-x-hidden` to prevent 3D-transformed elements from creating scrollbars |
+| **Full-bleed images** (Architecture C)    | Increase scrim gradient opacity for text readability                                               |
+| **Touch targets**                         | All CTAs minimum `44px` tap target height                                                          |
+| **Horizontal overflow**                   | Wrap hero in `overflow-x-hidden` to prevent 3D-transformed elements from creating scrollbars       |
 
 ---
 
 ### → Performance
 
-| Rule | Why |
-|---|---|
-| Animate ONLY `transform` and `opacity` | These are GPU-composited. Animating `top`, `left`, `width`, `height` triggers layout recalculation on every frame |
-| `will-change: transform` only on actively animating elements | Overusing `will-change` wastes GPU memory. Remove after animation completes |
-| `backdrop-filter: blur()` only on fixed/sticky elements | Applying blur to scrolling hero backgrounds tanks frame rate |
-| Hero image uses `loading="eager"` (or `priority` in Next.js) | The hero image is above-the-fold — lazy loading causes LCP failure |
-| Noise/grain on `position: fixed` pseudo-element | Never on a scrolling container — it repaints on every frame |
-| Gate ALL animations behind `prefers-reduced-motion` | Use Motion's `useReducedMotion()` or CSS `@media (prefers-reduced-motion: reduce)` |
+| Rule                                                         | Why                                                                                                               |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Animate ONLY `transform` and `opacity`                       | These are GPU-composited. Animating `top`, `left`, `width`, `height` triggers layout recalculation on every frame |
+| `will-change: transform` only on actively animating elements | Overusing `will-change` wastes GPU memory. Remove after animation completes                                       |
+| `backdrop-filter: blur()` only on fixed/sticky elements      | Applying blur to scrolling hero backgrounds tanks frame rate                                                      |
+| Hero image uses `loading="eager"` (or `priority` in Next.js) | The hero image is above-the-fold — lazy loading causes LCP failure                                                |
+| Noise/grain on `position: fixed` pseudo-element              | Never on a scrolling container — it repaints on every frame                                                       |
+| Gate ALL animations behind `prefers-reduced-motion`          | Use Motion's `useReducedMotion()` or CSS `@media (prefers-reduced-motion: reduce)`                                |
 
 ---
 
 ### ✓ Quality Gate: Build
 
 Before moving to Phase 4, confirm:
+
 - Architecture from Phase 2 was followed without blending
 - Heading font is a display font, not a body font
 - Heading uses fluid `clamp()` and is minimum `text-5xl` equivalent at desktop
@@ -504,71 +523,71 @@ Compare your hero against the reference (or against the Hero Extraction if no re
 
 ### Composition Diff
 
-| Check | PASS/FAIL |
-|---|---|
-| ONE focal point dominates the viewport (not 3+ competing elements) | |
-| Hero fits in one viewport on 1440x900 without scrolling to find CTA | |
-| Heading wraps to max 2-3 lines on desktop | |
-| Content is vertically centered or intentionally anchored (not shoved to the top) | |
-| Whitespace feels extreme and intentional (not cramped, not accidental) | |
+| Check                                                                            | PASS/FAIL |
+| -------------------------------------------------------------------------------- | --------- |
+| ONE focal point dominates the viewport (not 3+ competing elements)               |           |
+| Hero fits in one viewport on 1440x900 without scrolling to find CTA              |           |
+| Heading wraps to max 2-3 lines on desktop                                        |           |
+| Content is vertically centered or intentionally anchored (not shoved to the top) |           |
+| Whitespace feels extreme and intentional (not cramped, not accidental)           |           |
 
 ### Typography Diff
 
-| Check | PASS/FAIL |
-|---|---|
-| Heading font is NOT Inter, Roboto, Open Sans, Poppins, or Arial | |
-| Heading font-size uses fluid `clamp()` | |
-| Letter-spacing on heading is negative | |
-| Line-height on heading is below 1.1 | |
-| Subtext is max 20 words, muted color, constrained width | |
+| Check                                                           | PASS/FAIL |
+| --------------------------------------------------------------- | --------- |
+| Heading font is NOT Inter, Roboto, Open Sans, Poppins, or Arial |           |
+| Heading font-size uses fluid `clamp()`                          |           |
+| Letter-spacing on heading is negative                           |           |
+| Line-height on heading is below 1.1                             |           |
+| Subtext is max 20 words, muted color, constrained width         |           |
 
 ### Color Diff
 
-| Check | PASS/FAIL |
-|---|---|
-| Max 3 distinct hues in the entire hero | |
-| Background has atmosphere (grain, glow, warm tint) — not flat `bg-black` or `bg-white` | |
-| No AI-purple/blue gradient backgrounds | |
-| No neon accents, no mesh blobs, no rainbow | |
+| Check                                                                                  | PASS/FAIL |
+| -------------------------------------------------------------------------------------- | --------- |
+| Max 3 distinct hues in the entire hero                                                 |           |
+| Background has atmosphere (grain, glow, warm tint) — not flat `bg-black` or `bg-white` |           |
+| No AI-purple/blue gradient backgrounds                                                 |           |
+| No neon accents, no mesh blobs, no rainbow                                             |           |
 
 ### Component Diff
 
-| Check | PASS/FAIL |
-|---|---|
-| Maximum ONE CTA in the hero (no secondary "Learn more" links) | |
-| CTA has hover + active states with custom easing | |
-| No "Scroll to explore" / bouncing chevron / scroll indicators | |
-| No trust logos / "Used by" badges inside the hero | |
-| No version labels (v0.6, BETA) unless the brief is literally a product launch | |
-| No emojis anywhere | |
+| Check                                                                         | PASS/FAIL |
+| ----------------------------------------------------------------------------- | --------- |
+| Maximum ONE CTA in the hero (no secondary "Learn more" links)                 |           |
+| CTA has hover + active states with custom easing                              |           |
+| No "Scroll to explore" / bouncing chevron / scroll indicators                 |           |
+| No trust logos / "Used by" badges inside the hero                             |           |
+| No version labels (v0.6, BETA) unless the brief is literally a product launch |           |
+| No emojis anywhere                                                            |           |
 
 ### Motion Diff
 
-| Check | PASS/FAIL |
-|---|---|
-| Entry animation is present (not instant static mount) | |
-| Total entry reveal completes in under 800ms | |
-| `prefers-reduced-motion` is respected | |
-| No animation on `top`, `left`, `width`, or `height` | |
+| Check                                                 | PASS/FAIL |
+| ----------------------------------------------------- | --------- |
+| Entry animation is present (not instant static mount) |           |
+| Total entry reveal completes in under 800ms           |           |
+| `prefers-reduced-motion` is respected                 |           |
+| No animation on `top`, `left`, `width`, or `height`   |           |
 
 ### Mobile Diff
 
-| Check | PASS/FAIL |
-|---|---|
-| Layout collapses cleanly below 768px | |
-| No horizontal overflow | |
-| Touch targets minimum 44px | |
-| Heading minimum 2rem on mobile | |
-| Text is readable over images (scrim opacity increased if needed) | |
+| Check                                                            | PASS/FAIL |
+| ---------------------------------------------------------------- | --------- |
+| Layout collapses cleanly below 768px                             |           |
+| No horizontal overflow                                           |           |
+| Touch targets minimum 44px                                       |           |
+| Heading minimum 2rem on mobile                                   |           |
+| Text is readable over images (scrim opacity increased if needed) |           |
 
 ### Content Diff
 
-| Check | PASS/FAIL |
-|---|---|
-| No AI copywriting cliches ("Elevate", "Seamless", "Unleash", "Next-Gen", "Revolutionize") | |
-| No em-dashes — use periods, commas, or colons | |
-| No placeholder images using generic stock (use `picsum.photos/seed/{keyword}/{w}/{h}`) | |
-| The hero would not look out of place on awwwards.com | |
+| Check                                                                                     | PASS/FAIL |
+| ----------------------------------------------------------------------------------------- | --------- |
+| No AI copywriting cliches ("Elevate", "Seamless", "Unleash", "Next-Gen", "Revolutionize") |           |
+| No em-dashes — use periods, commas, or colons                                             |           |
+| No placeholder images using generic stock (use `picsum.photos/seed/{keyword}/{w}/{h}`)    |           |
+| The hero would not look out of place on awwwards.com                                      |           |
 
 ---
 

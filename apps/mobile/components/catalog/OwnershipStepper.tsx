@@ -15,7 +15,11 @@ import {
   type PrintingWithOwned,
 } from '@/utils/collectionPrintingPicker';
 import { cn } from '@/lib/utils';
-import { OPERATE_CTA_FILL_CLASS, OPERATE_CTA_ICON_CLASS, OPERATE_CTA_SPINNER_CLASS } from '@/constants/operateType';
+import {
+  OPERATE_CTA_FILL_CLASS,
+  OPERATE_CTA_ICON_CLASS,
+  OPERATE_CTA_SPINNER_CLASS,
+} from '@/constants/operateType';
 
 interface OwnershipStepperProps {
   owned: number;
@@ -105,11 +109,12 @@ export function OwnershipStepper({
           ? 'size-8'
           : 'size-7';
   /** Shared footprint so Add ↔ owned doesn't jump in detail rows. */
-  const controlWidth = compact && !gridSlot
-    ? detailTouch
-      ? 'min-w-[7.25rem]'
-      : 'min-w-[5.75rem]'
-    : undefined;
+  const controlWidth =
+    compact && !gridSlot
+      ? detailTouch
+        ? 'min-w-[7.25rem]'
+        : 'min-w-[5.75rem]'
+      : undefined;
 
   const addDefaultFinish = () => {
     if (pinnedSelectionId) {

@@ -268,7 +268,10 @@ describe('deck-add-catalog', () => {
     });
 
     expect(candidates).toHaveLength(2);
-    expect(candidates.map((c) => c.variantNumber).sort()).toEqual(['OGN-164', 'OGN-164a']);
+    expect(candidates.map((c) => c.variantNumber).sort()).toEqual([
+      'OGN-164',
+      'OGN-164a',
+    ]);
     expect(candidates.every((c) => c.super === 'Champion')).toBe(true);
   });
 

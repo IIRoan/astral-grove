@@ -155,7 +155,10 @@ describe('CardCacheService.mergeLocalOnlyVariants', () => {
       },
     ]);
 
-    expect(merged.variants.map((row) => row.variantNumber)).toEqual(['VEN-189', 'VEN-189*']);
+    expect(merged.variants.map((row) => row.variantNumber)).toEqual([
+      'VEN-189',
+      'VEN-189*',
+    ]);
     expect(merged.variants[1]?.cardmarketId).toBe(898161);
     expect(merged.variants[1]?.variantLabel).toBe('Overnumbered Signed');
   });
@@ -255,9 +258,9 @@ describe('CardCacheService.getByVariantNumber synthetic fallback', () => {
       loadDetail: async () => cachedDetail(),
     });
 
-    await expect(cards.getByVariantNumber('VEN-189', { refresh: true })).rejects.toBeInstanceOf(
-      PaApiError
-    );
+    await expect(
+      cards.getByVariantNumber('VEN-189', { refresh: true })
+    ).rejects.toBeInstanceOf(PaApiError);
   });
 
   test('rethrows 404 for ordinary printings instead of serving stale cache', async () => {
@@ -268,8 +271,8 @@ describe('CardCacheService.getByVariantNumber synthetic fallback', () => {
       loadDetail: async () => cachedDetail(),
     });
 
-    await expect(cards.getByVariantNumber('VEN-189', { refresh: true })).rejects.toBeInstanceOf(
-      PaApiError
-    );
+    await expect(
+      cards.getByVariantNumber('VEN-189', { refresh: true })
+    ).rejects.toBeInstanceOf(PaApiError);
   });
 });

@@ -15,7 +15,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useQueryClient } from '@tanstack/react-query';
-import type { AuthPanelVariant, AuthScreenLayout, Mode } from '@/components/auth/auth-types';
+import type {
+  AuthPanelVariant,
+  AuthScreenLayout,
+  Mode,
+} from '@/components/auth/auth-types';
 import { AuthSlabCorners } from '@/components/auth/AuthArtifacts';
 import { EmailVerificationForm } from '@/components/auth/EmailVerificationForm';
 import { PasswordRequirementsIndicator } from '@/components/auth/PasswordRequirementsIndicator';
@@ -27,6 +31,7 @@ import { Button, ButtonText } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Text } from '@/components/ui/text';
 import { TextInput } from '@/components/ui/text-input';
+import { UserBlobatar } from '@/components/ui/user-blobatar';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { useEmailVerificationRequired } from '@/hooks/useEmailVerificationRequired';
 import { useValueChangeFlag } from '@/hooks/useValueChangeFlag';
@@ -39,7 +44,10 @@ import { clearPersistedOwnedDecks } from '@/services/deckCacheService';
 import { clearPersistedWishlist } from '@/services/wishlistCacheService';
 import { clearLastCachedUserId } from '@/services/userCacheScope';
 import { migrateLocalCollectionToRemote } from '@/services/collectionService';
-import { invalidateUserDataQueries, removeUserDataQueries } from '@/src/api/queryClient';
+import {
+  invalidateUserDataQueries,
+  removeUserDataQueries,
+} from '@/src/api/queryClient';
 import { clearPersistedQueryClient } from '@/src/api/queryPersist';
 import { authClient } from '@/src/lib/auth-client';
 
@@ -69,7 +77,9 @@ function ModeSwitch({
   disabled?: boolean;
 }) {
   const reduceMotion = useReduceMotion();
-  const [layouts, setLayouts] = useState<Partial<Record<Mode, { x: number; width: number }>>>({});
+  const [layouts, setLayouts] = useState<
+    Partial<Record<Mode, { x: number; width: number }>>
+  >({});
   const indicatorX = useSharedValue(0);
   const indicatorWidth = useSharedValue(0);
   const hasMeasured = useSharedValue(0);
@@ -237,7 +247,11 @@ function AuthPasswordField({
         autoCorrect={false}
         spellCheck={false}
         autoComplete={
-          isSignUp ? 'new-password' : Platform.OS === 'web' ? 'current-password' : 'password'
+          isSignUp
+            ? 'new-password'
+            : Platform.OS === 'web'
+              ? 'current-password'
+              : 'password'
         }
         textContentType={isSignUp ? 'newPassword' : 'password'}
         passwordRules={
@@ -249,7 +263,9 @@ function AuthPasswordField({
         returnKeyType="go"
         submitBehavior="submit"
         enablesReturnKeyAutomatically
-        placeholder={isSignUp ? `At least ${String(MIN_PASSWORD_LENGTH)} characters` : 'Password'}
+        placeholder={
+          isSignUp ? `At least ${String(MIN_PASSWORD_LENGTH)} characters` : 'Password'
+        }
         accessibilityLabel="Password"
         accessibilityLabelledBy={labelId}
         {...webFieldProps(
@@ -310,7 +326,9 @@ export function AuthPanel({
   const [otpSentWithAuth, setOtpSentWithAuth] = useState(false);
   const [internalPendingEmail, setInternalPendingEmail] = useState<string | null>(null);
   const pendingVerificationEmail =
-    controlledPendingEmail !== undefined ? controlledPendingEmail : internalPendingEmail;
+    controlledPendingEmail !== undefined
+      ? controlledPendingEmail
+      : internalPendingEmail;
 
   const setPendingVerificationEmail = (next: string | null) => {
     if (controlledPendingEmail === undefined) {
@@ -321,7 +339,9 @@ export function AuthPanel({
 
   const verificationEmail =
     pendingVerificationEmail ??
-    (verificationRequired && session?.user?.emailVerified === false && session.user.email
+    (verificationRequired &&
+    session?.user?.emailVerified === false &&
+    session.user.email
       ? normalizeVerificationEmail(session.user.email)
       : null);
 
@@ -435,7 +455,9 @@ export function AuthPanel({
     setBusy(true);
     try {
       const webOrigin =
-        Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : null;
+        Platform.OS === 'web' && typeof window !== 'undefined'
+          ? window.location.origin
+          : null;
       const result = await authClient.requestPasswordReset({
         email: emailValue,
         redirectTo: resolvePasswordResetRedirectTo(webOrigin, emailValue),
@@ -488,7 +510,6 @@ export function AuthPanel({
   }
 
   if (session?.user && !verificationEmail) {
-    const initial = session.user.name?.charAt(0).toUpperCase() || '?';
     return isScreen ? null : (
       <View
         className={cn(
@@ -499,9 +520,12 @@ export function AuthPanel({
         <AuthSlabCorners />
         <View className="min-h-0 flex-1 flex-row items-stretch">
           <View className="w-[76px] items-center justify-center border-r border-border bg-background py-6">
-            <View className="size-12 items-center justify-center rounded-[3px] border border-border bg-card-panel">
-              <Text className="font-mono text-xl font-normal text-foreground">{initial}</Text>
-            </View>
+            <UserBlobatar
+              userId={session.user.id}
+              title={session.user.name || session.user.email}
+              size={48}
+              framed
+            />
           </View>
           <View className="min-w-0 flex-1 justify-between gap-4 px-4 py-4">
             <View className="gap-1">
@@ -511,7 +535,10 @@ export function AuthPanel({
               >
                 {session.user.name}
               </Text>
-              <Text className="font-mono text-[12px] text-muted-foreground" numberOfLines={1}>
+              <Text
+                className="font-mono text-[12px] text-muted-foreground"
+                numberOfLines={1}
+              >
                 {session.user.email}
               </Text>
             </View>

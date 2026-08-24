@@ -16,8 +16,7 @@ export function useCatalogIndex() {
 
   return useQuery({
     queryKey: catalogQueryKeys.index,
-    queryFn: () =>
-      syncCatalogIndex(() => resolveCatalogIndexCacheKey(queryClient)),
+    queryFn: () => syncCatalogIndex(() => resolveCatalogIndexCacheKey(queryClient)),
     staleTime: 10 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
     refetchOnMount: false,
@@ -31,20 +30,23 @@ export function useCatalogIndex() {
   });
 }
 
-export async function hydrateCatalogIndex(queryClient: ReturnType<typeof useQueryClient>) {
+export async function hydrateCatalogIndex(
+  queryClient: ReturnType<typeof useQueryClient>
+) {
   const persisted = await readPersistedCatalogIndex();
   if (persisted) {
     queryClient.setQueryData(catalogQueryKeys.index, persisted);
   }
 }
 
-export async function prefetchCatalogIndex(queryClient: ReturnType<typeof useQueryClient>) {
+export async function prefetchCatalogIndex(
+  queryClient: ReturnType<typeof useQueryClient>
+) {
   await hydrateCatalogIndex(queryClient);
   void prefetchCatalogMeta(queryClient);
   void queryClient.prefetchQuery({
     queryKey: catalogQueryKeys.index,
-    queryFn: () =>
-      syncCatalogIndex(() => resolveCatalogIndexCacheKey(queryClient)),
+    queryFn: () => syncCatalogIndex(() => resolveCatalogIndexCacheKey(queryClient)),
     staleTime: 10 * 60 * 1000,
   });
 }

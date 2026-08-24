@@ -135,7 +135,12 @@ describe('prices routes', () => {
     );
     const body = (await response.json()) as {
       data: unknown[];
-      meta: { cardmarketId: number | null; isFoil: boolean | null; days: number; rowCount: number };
+      meta: {
+        cardmarketId: number | null;
+        isFoil: boolean | null;
+        days: number;
+        rowCount: number;
+      };
     };
 
     expect(response.status).toBe(200);
@@ -186,7 +191,9 @@ describe('prices routes', () => {
         }),
       })
     );
-    const body = (await response.json()) as { meta: { days: number; rowCount: number } };
+    const body = (await response.json()) as {
+      meta: { days: number; rowCount: number };
+    };
 
     expect(response.status).toBe(200);
     expect(statsBatch).toHaveBeenCalledWith(

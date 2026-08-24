@@ -73,9 +73,10 @@ export async function pickAndImportCollectionCsv(
     message: 'Reading CSV file…',
   });
 
-  const csv = isWeb && typeof document !== 'undefined'
-    ? await pickCsvOnWeb()
-    : await readCsvFromDocumentPicker();
+  const csv =
+    isWeb && typeof document !== 'undefined'
+      ? await pickCsvOnWeb()
+      : await readCsvFromDocumentPicker();
 
   onProgress?.({
     phase: 'parsing',

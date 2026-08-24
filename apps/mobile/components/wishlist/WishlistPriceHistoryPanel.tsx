@@ -68,12 +68,16 @@ export function WishlistPriceHistoryPanel({
 
   if (points.length === 0) {
     return (
-      <View className={cn('rounded-[10px] border border-border bg-card p-3', className)}>
+      <View
+        className={cn('rounded-[10px] border border-border bg-card p-3', className)}
+      >
         <View className="flex-row items-center gap-3">
           <Text className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground">
             No trend history yet.
           </Text>
-          {cardmarketId != null ? <CardmarketIconButton cardmarketId={cardmarketId} /> : null}
+          {cardmarketId != null ? (
+            <CardmarketIconButton cardmarketId={cardmarketId} />
+          ) : null}
         </View>
       </View>
     );
@@ -98,7 +102,9 @@ export function WishlistPriceHistoryPanel({
             </Text>
           ) : null}
         </View>
-        {cardmarketId != null ? <CardmarketIconButton cardmarketId={cardmarketId} /> : null}
+        {cardmarketId != null ? (
+          <CardmarketIconButton cardmarketId={cardmarketId} />
+        ) : null}
       </View>
 
       <View className="flex-row gap-2">

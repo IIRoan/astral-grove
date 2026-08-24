@@ -79,14 +79,20 @@ export function CatalogDetailHeader({
           <View className="flex-row flex-wrap items-center gap-x-1.5 gap-y-0.5">
             {setCode ? (
               <>
-                <Text className="font-mono text-xs text-muted-foreground">{setCode}</Text>
+                <Text className="font-mono text-xs text-muted-foreground">
+                  {setCode}
+                </Text>
                 <Text className="text-xs text-muted-foreground">·</Text>
               </>
             ) : null}
             <RarityIcon rarity={activeRarity} size={14} />
-            <Text className="text-xs font-medium text-muted-foreground">{activeRarity}</Text>
+            <Text className="text-xs font-medium text-muted-foreground">
+              {activeRarity}
+            </Text>
           </View>
-          <Text className="font-mono text-xs text-archive-subtle">{activeVariantNumber}</Text>
+          <Text className="font-mono text-xs text-archive-subtle">
+            {activeVariantNumber}
+          </Text>
           {watchedElsewhereCount > 0 ? (
             <Text className="text-xs font-medium text-foreground">
               Also on wishlist: {watchedElsewhereCount} other printing

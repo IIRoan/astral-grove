@@ -62,8 +62,7 @@ export function estimateCatalogPageSize(
   const rowHeight = estimateCatalogRowHeight(layout, tileWidth, compact);
   const rows = rowsForViewport(viewportHeight, rowHeight, bufferRows);
 
-  const batch =
-    layout === 'list' ? rows : Math.max(numColumns, rows * numColumns);
+  const batch = layout === 'list' ? rows : Math.max(numColumns, rows * numColumns);
 
   return Math.min(MAX_CATALOG_PAGE_SIZE, Math.max(MIN_CATALOG_PAGE_SIZE, batch));
 }

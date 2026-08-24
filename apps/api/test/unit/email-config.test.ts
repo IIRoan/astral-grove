@@ -101,7 +101,11 @@ describe('sendTransactionalEmail', () => {
             ],
             [
               'Identity/get',
-              { list: [{ id: 'id1', email: 'noreply@solace.onl', name: 'The Astral Grove' }] },
+              {
+                list: [
+                  { id: 'id1', email: 'noreply@solace.onl', name: 'The Astral Grove' },
+                ],
+              },
               'i',
             ],
           ],
@@ -110,14 +114,22 @@ describe('sendTransactionalEmail', () => {
 
       expect(methods).toEqual(['Email/set', 'EmailSubmission/set']);
       const emailCreate = body.methodCalls[0]?.[1]?.create as {
-        draft1: { from: Array<{ email: string }>; to: Array<{ email: string }>; htmlBody: unknown };
+        draft1: {
+          from: Array<{ email: string }>;
+          to: Array<{ email: string }>;
+          htmlBody: unknown;
+        };
       };
       expect(emailCreate.draft1.from[0]?.email).toBe('noreply@solace.onl');
       expect(emailCreate.draft1.to[0]?.email).toBe('user@example.com');
       expect(emailCreate.draft1.htmlBody).toBeDefined();
 
       const submission = body.methodCalls[1]?.[1] as {
-        create: { s1: { envelope: { mailFrom: { email: string }; rcptTo: Array<{ email: string }> } } };
+        create: {
+          s1: {
+            envelope: { mailFrom: { email: string }; rcptTo: Array<{ email: string }> };
+          };
+        };
         onSuccessUpdateEmail: Record<string, unknown>;
       };
       expect(submission.create.s1.envelope.mailFrom.email).toBe('noreply@solace.onl');
@@ -159,7 +171,11 @@ describe('sendTransactionalEmail', () => {
           return jsonResponse({
             methodResponses: [
               ['Mailbox/get', { list: [{ id: 'drafts1', role: 'drafts' }] }, 'm'],
-              ['Identity/get', { list: [{ id: 'id1', email: 'noreply@solace.onl' }] }, 'i'],
+              [
+                'Identity/get',
+                { list: [{ id: 'id1', email: 'noreply@solace.onl' }] },
+                'i',
+              ],
             ],
           });
         }

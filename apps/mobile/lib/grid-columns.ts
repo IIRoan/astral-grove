@@ -32,7 +32,9 @@ export function isGridCardSize(value: unknown): value is GridCardSize {
   return value === 'large' || value === 'medium' || value === 'small';
 }
 
-export function resolveGridTileMaxWidth(size: GridCardSize = DEFAULT_GRID_CARD_SIZE): number {
+export function resolveGridTileMaxWidth(
+  size: GridCardSize = DEFAULT_GRID_CARD_SIZE
+): number {
   return GRID_CARD_SIZE_MAX_WIDTH[size];
 }
 

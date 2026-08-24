@@ -24,7 +24,9 @@ describe('THEME_ICON_COLOR_VARS', () => {
   });
 
   test('foreground and muted-foreground resolve to distinct variables', () => {
-    expect(THEME_ICON_COLOR_VARS.foreground).not.toBe(THEME_ICON_COLOR_VARS['muted-foreground']);
+    expect(THEME_ICON_COLOR_VARS.foreground).not.toBe(
+      THEME_ICON_COLOR_VARS['muted-foreground']
+    );
   });
 });
 

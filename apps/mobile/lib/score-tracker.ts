@@ -103,7 +103,9 @@ function defaultTeams(format: PlayFormat): Array<TeamId | undefined> {
   return ['a', 'b', 'a', 'b'];
 }
 
-export function createScoreTrackerState(formatId: PlayFormatId = 'duel'): ScoreTrackerState {
+export function createScoreTrackerState(
+  formatId: PlayFormatId = 'duel'
+): ScoreTrackerState {
   const format = getPlayFormat(formatId);
   const teams = defaultTeams(format);
 
@@ -142,8 +144,10 @@ export function evaluateWinners(
   if (format.teams) {
     const a = teamPoints(state.seats, 'a');
     const b = teamPoints(state.seats, 'b');
-    if (a >= format.victoryScore && a > b) return { winnerSeatId: null, winnerTeam: 'a' };
-    if (b >= format.victoryScore && b > a) return { winnerSeatId: null, winnerTeam: 'b' };
+    if (a >= format.victoryScore && a > b)
+      return { winnerSeatId: null, winnerTeam: 'a' };
+    if (b >= format.victoryScore && b > a)
+      return { winnerSeatId: null, winnerTeam: 'b' };
     // Keep the declared winner while they still sit at/above the victory score (trailing team can catch up).
     if (
       state.winnerTeam &&
@@ -185,9 +189,7 @@ export function setSeatLegend(
 ): ScoreTrackerState {
   return {
     ...state,
-    seats: state.seats.map((seat) =>
-      seat.id === seatId ? { ...seat, legend } : seat
-    ),
+    seats: state.seats.map((seat) => (seat.id === seatId ? { ...seat, legend } : seat)),
   };
 }
 
@@ -200,7 +202,10 @@ export function adjustPoints(
   const target = state.seats.find((seat) => seat.id === seatId);
   if (!target) return state;
 
-  const nextPoints = Math.max(0, Math.min(format.victoryScore + 4, target.points + delta));
+  const nextPoints = Math.max(
+    0,
+    Math.min(format.victoryScore + 4, target.points + delta)
+  );
 
   let seats: SeatState[];
   if (format.teams && target.team) {

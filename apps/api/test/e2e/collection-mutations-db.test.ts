@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import {
   CollectionItemResponse,
   CollectionListResponse,
@@ -91,11 +98,14 @@ describe('collection add/remove mutations', () => {
 
   test('add defaults to delta 1 and returns the updated item', async () => {
     const variantNumber = 'OGN-301';
-    const addRes = await authFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/add`, {
-      method: 'POST',
-      cookie,
-      body: JSON.stringify({}),
-    });
+    const addRes = await authFetch(
+      `/api/v1/collection/${encodeURIComponent(variantNumber)}/add`,
+      {
+        method: 'POST',
+        cookie,
+        body: JSON.stringify({}),
+      }
+    );
     expect(addRes.status).toBe(200);
     const body = CollectionItemResponse.parse(await addRes.json());
     expect(body.data?.variantNumber).toBe(variantNumber);
@@ -107,11 +117,14 @@ describe('collection add/remove mutations', () => {
   test('repeated adds accumulate quantity', async () => {
     const variantNumber = 'OGN-302';
     for (const delta of [1, 2, 3]) {
-      const res = await authFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/add`, {
-        method: 'POST',
-        cookie,
-        body: JSON.stringify({ delta }),
-      });
+      const res = await authFetch(
+        `/api/v1/collection/${encodeURIComponent(variantNumber)}/add`,
+        {
+          method: 'POST',
+          cookie,
+          body: JSON.stringify({ delta }),
+        }
+      );
       expect(res.status).toBe(200);
     }
     expect(await qty(variantNumber)).toBe(6);
@@ -155,11 +168,14 @@ describe('collection add/remove mutations', () => {
 
   test('remove on missing stack is a no-op that returns null', async () => {
     const variantNumber = 'OGN-304';
-    const res = await authFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/remove`, {
-      method: 'POST',
-      cookie,
-      body: JSON.stringify({ delta: 1 }),
-    });
+    const res = await authFetch(
+      `/api/v1/collection/${encodeURIComponent(variantNumber)}/remove`,
+      {
+        method: 'POST',
+        cookie,
+        body: JSON.stringify({ delta: 1 }),
+      }
+    );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ data: null });
     expect(await qty(variantNumber)).toBe(0);
@@ -167,11 +183,14 @@ describe('collection add/remove mutations', () => {
 
   test('PUT sets absolute quantity and list reflects it', async () => {
     const variantNumber = 'OGN-305';
-    const putRes = await authFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}`, {
-      method: 'PUT',
-      cookie,
-      body: JSON.stringify({ variantNumber, quantity: 4 }),
-    });
+    const putRes = await authFetch(
+      `/api/v1/collection/${encodeURIComponent(variantNumber)}`,
+      {
+        method: 'PUT',
+        cookie,
+        body: JSON.stringify({ variantNumber, quantity: 4 }),
+      }
+    );
     expect(putRes.status).toBe(200);
     const putBody = CollectionItemResponse.parse(await putRes.json());
     expect(putBody.data?.quantity).toBe(4);
@@ -179,16 +198,21 @@ describe('collection add/remove mutations', () => {
     const list = CollectionListResponse.parse(
       await (await authFetch('/api/v1/collection', { cookie })).json()
     );
-    expect(list.data.some((item) => item.variantNumber === variantNumber && item.quantity === 4)).toBe(
-      true
-    );
+    expect(
+      list.data.some(
+        (item) => item.variantNumber === variantNumber && item.quantity === 4
+      )
+    ).toBe(true);
     expect(list.meta.totalQuantity).toBeGreaterThanOrEqual(4);
 
-    const zeroRes = await authFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}`, {
-      method: 'PUT',
-      cookie,
-      body: JSON.stringify({ variantNumber, quantity: 0 }),
-    });
+    const zeroRes = await authFetch(
+      `/api/v1/collection/${encodeURIComponent(variantNumber)}`,
+      {
+        method: 'PUT',
+        cookie,
+        body: JSON.stringify({ variantNumber, quantity: 0 }),
+      }
+    );
     expect(zeroRes.status).toBe(200);
     expect(await zeroRes.json()).toEqual({ data: null });
     expect(await qty(variantNumber)).toBe(0);
@@ -228,11 +252,14 @@ describe('collection add/remove mutations', () => {
 
   test('unknown variant add fails without creating a row', async () => {
     const variantNumber = 'NOT-A-REAL-VARIANT-999';
-    const res = await authFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/add`, {
-      method: 'POST',
-      cookie,
-      body: JSON.stringify({ delta: 1 }),
-    });
+    const res = await authFetch(
+      `/api/v1/collection/${encodeURIComponent(variantNumber)}/add`,
+      {
+        method: 'POST',
+        cookie,
+        body: JSON.stringify({ delta: 1 }),
+      }
+    );
     expect(res.status).toBeGreaterThanOrEqual(400);
 
     const { db } = getContext();

@@ -1,6 +1,10 @@
 import type { BrowserContext, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
-import { installLocalApiOverride, signUpAndHydrateSession, type UiE2eUser } from './auth';
+import {
+  installLocalApiOverride,
+  signUpAndHydrateSession,
+  type UiE2eUser,
+} from './auth';
 
 /** Fresh signed-in browser context ready for UI flows. */
 export async function prepareSignedIn(
@@ -11,7 +15,9 @@ export async function prepareSignedIn(
   await installLocalApiOverride(context);
   const user = await signUpAndHydrateSession(context);
   await page.goto(path);
-  await expect(page.getByRole('tab', { name: 'Sign up' })).toHaveCount(0, { timeout: 45_000 });
+  await expect(page.getByRole('tab', { name: 'Sign up' })).toHaveCount(0, {
+    timeout: 45_000,
+  });
   return user;
 }
 

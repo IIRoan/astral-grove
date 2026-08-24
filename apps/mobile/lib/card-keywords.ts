@@ -68,7 +68,9 @@ export function isStatKeyword(label: string): boolean {
 }
 
 export function isDomainKeyword(label: string): boolean {
-  return DOMAIN_KEYWORD_NAMES.some((name) => name.toLowerCase() === label.toLowerCase());
+  return DOMAIN_KEYWORD_NAMES.some(
+    (name) => name.toLowerCase() === label.toLowerCase()
+  );
 }
 
 export function isTapToken(label: string): boolean {

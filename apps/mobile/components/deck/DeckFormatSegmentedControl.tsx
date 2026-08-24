@@ -55,7 +55,9 @@ export function DeckFormatSegmentedControl({
         })}
       </View>
       {active ? (
-        <Text className="text-[12px] leading-4 text-muted-foreground">{active.description}</Text>
+        <Text className="text-[12px] leading-4 text-muted-foreground">
+          {active.description}
+        </Text>
       ) : null}
     </View>
   );

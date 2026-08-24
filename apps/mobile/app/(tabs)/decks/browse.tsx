@@ -41,7 +41,8 @@ export default function BrowseDecksScreen() {
     [browseQuery.data?.pages]
   );
 
-  const hasActiveFilters = deckBrowseFiltersActive(filters) || debouncedQuery.trim().length > 0;
+  const hasActiveFilters =
+    deckBrowseFiltersActive(filters) || debouncedQuery.trim().length > 0;
 
   return (
     <>
@@ -70,23 +71,38 @@ export default function BrowseDecksScreen() {
             {isMobile ? (
               <View className="flex-row items-stretch gap-2">
                 <View className="min-w-0 flex-1">
-                  <DeckBrowseSortTrigger activeSort={sort} onPress={() => setSortOpen(true)} />
+                  <DeckBrowseSortTrigger
+                    activeSort={sort}
+                    onPress={() => setSortOpen(true)}
+                  />
                 </View>
                 <View className="min-w-0 flex-1">
-                  <DeckBrowseFilterTrigger filters={filters} onPress={() => setFilterOpen(true)} />
+                  <DeckBrowseFilterTrigger
+                    filters={filters}
+                    onPress={() => setFilterOpen(true)}
+                  />
                 </View>
               </View>
             ) : (
               <View className="flex-row items-start gap-3">
                 <View className="min-w-0 flex-1">
-                  <DeckBrowseDesktopFilterBar filters={filters} onFiltersChange={setFilters} />
+                  <DeckBrowseDesktopFilterBar
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                  />
                 </View>
                 <View className="shrink-0">
-                  <DeckBrowseSortTrigger activeSort={sort} onPress={() => setSortOpen(true)} />
+                  <DeckBrowseSortTrigger
+                    activeSort={sort}
+                    onPress={() => setSortOpen(true)}
+                  />
                 </View>
               </View>
             )}
-            <DeckBrowseActiveFilterChips filters={filters} onFiltersChange={setFilters} />
+            <DeckBrowseActiveFilterChips
+              filters={filters}
+              onFiltersChange={setFilters}
+            />
           </View>
         }
         infiniteScroll={{

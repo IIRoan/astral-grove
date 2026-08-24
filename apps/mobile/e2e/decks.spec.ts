@@ -8,7 +8,9 @@ test.describe('decks', () => {
 
   test('empty owned decks shows create CTA', async ({ page }) => {
     await expect(page.getByText('No decks yet')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('button', { name: 'Create your first deck' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Create your first deck' })
+    ).toBeVisible();
   });
 
   test('create deck opens legend picker', async ({ page }) => {
@@ -17,7 +19,9 @@ test.describe('decks', () => {
     await expect(page.getByPlaceholder('Search legends')).toBeVisible();
   });
 
-  test('selecting a legend opens the builder then returns a deck on Mine', async ({ page }) => {
+  test('selecting a legend opens the builder then returns a deck on Mine', async ({
+    page,
+  }) => {
     await page.getByRole('button', { name: 'Create your first deck' }).click();
     await expect(page.getByText('Choose your Legend')).toBeVisible({ timeout: 45_000 });
 
@@ -36,7 +40,9 @@ test.describe('decks', () => {
     await expect(page.getByLabel('Edit deck')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByLabel('Back to decks')).toBeVisible();
     await page.getByLabel('Back to decks').click();
-    await expect(page.getByText('My decks', { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('My decks', { exact: true })).toBeVisible({
+      timeout: 30_000,
+    });
     await expect(page.getByText('No decks yet')).toHaveCount(0);
     await expect(page.getByLabel(/New Deck\./)).toBeVisible({ timeout: 15_000 });
   });
@@ -46,8 +52,8 @@ test.describe('decks', () => {
     await expect(page.getByText('Browse decks', { exact: true }).first()).toBeVisible({
       timeout: 30_000,
     });
-    await expect(
-      page.getByPlaceholder('Search decks, legends, or tags')
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByPlaceholder('Search decks, legends, or tags')).toBeVisible({
+      timeout: 30_000,
+    });
   });
 });

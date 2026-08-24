@@ -1,6 +1,11 @@
 import type { DecksListQuery, DeckFormat } from '@riftbound/contracts';
 import { refreshDeckLegality } from '@/lib/enrich-deck-ban-dates';
-import { cloneDeck, createEmptyDeck, deserializeDeck, serializeDeck } from '@/lib/deck-card';
+import {
+  cloneDeck,
+  createEmptyDeck,
+  deserializeDeck,
+  serializeDeck,
+} from '@/lib/deck-card';
 import type { DeckState } from '@/lib/deck-types';
 import { logActionFailure } from '@/lib/logger';
 import {
@@ -14,14 +19,14 @@ import {
 
 export const DECK_AUTO_SAVE_MS = 800;
 
-export async function listDecks(options?: Partial<DecksListQuery>): Promise<DeckState[]> {
+export async function listDecks(
+  options?: Partial<DecksListQuery>
+): Promise<DeckState[]> {
   const remote = await fetchRemoteDecks(options);
   return remote.data.map(deserializeDeck);
 }
 
-export async function listDecksPage(
-  options?: Partial<DecksListQuery>
-): Promise<{
+export async function listDecksPage(options?: Partial<DecksListQuery>): Promise<{
   data: DeckState[];
   pagination?: Awaited<ReturnType<typeof fetchRemoteDecks>>['pagination'];
 }> {
@@ -79,7 +84,11 @@ const pendingRemoteDecks = new Map<string, DeckState>();
 const inFlightSaves = new Map<string, Promise<DeckState | null>>();
 
 export function hasPendingDeckSave(deckId: string): boolean {
-  return pendingRemoteDecks.has(deckId) || remoteSaveTimers.has(deckId) || inFlightSaves.has(deckId);
+  return (
+    pendingRemoteDecks.has(deckId) ||
+    remoteSaveTimers.has(deckId) ||
+    inFlightSaves.has(deckId)
+  );
 }
 
 export function queueRemoteDeckSave(deck: DeckState): void {
@@ -87,7 +96,10 @@ export function queueRemoteDeckSave(deck: DeckState): void {
   pendingRemoteDecks.set(deck.id, deck);
 }
 
-export function scheduleRemoteDeckSave(deck: DeckState, debounceMs = DECK_AUTO_SAVE_MS): void {
+export function scheduleRemoteDeckSave(
+  deck: DeckState,
+  debounceMs = DECK_AUTO_SAVE_MS
+): void {
   if (deck.readOnly) return;
   queueRemoteDeckSave(deck);
   const existing = remoteSaveTimers.get(deck.id);

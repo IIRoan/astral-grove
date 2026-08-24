@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { buildCardmarketProductUrl, CARDMARKET_RIFTBOUND_ORIGIN } from '@/lib/cardmarket';
+import {
+  buildCardmarketProductUrl,
+  CARDMARKET_RIFTBOUND_ORIGIN,
+} from '@/lib/cardmarket';
 
 describe('buildCardmarketProductUrl', () => {
   test('builds a Riftbound product deep link', () => {
@@ -10,6 +13,8 @@ describe('buildCardmarketProductUrl', () => {
 
   test('rejects non-positive ids', () => {
     expect(() => buildCardmarketProductUrl(0)).toThrow('Invalid Cardmarket product id');
-    expect(() => buildCardmarketProductUrl(-3)).toThrow('Invalid Cardmarket product id');
+    expect(() => buildCardmarketProductUrl(-3)).toThrow(
+      'Invalid Cardmarket product id'
+    );
   });
 });

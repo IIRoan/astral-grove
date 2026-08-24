@@ -4,14 +4,9 @@ import {
   CloudOffIcon,
   SearchIcon,
 } from '@/components/icons';
-import {
-  Empty,
-  EmptyDescription,
-} from '@/components/ui/empty';
+import { Empty, EmptyDescription } from '@/components/ui/empty';
 import { SearchSkeleton } from '@/components/search/SearchSkeleton';
-import {
-  SearchEmptyState,
-} from '@/components/search/SearchScreenEmpty';
+import { SearchEmptyState } from '@/components/search/SearchScreenEmpty';
 import type { CatalogFilters } from '@/constants/catalogFilters';
 import { catalogFiltersActive } from '@/constants/catalogFilters';
 import { isCatalogGridLoading } from '@/lib/catalog-loading';
@@ -115,7 +110,12 @@ export function SearchScreenListEmpty({
     );
   }
 
-  if (!isSearching && !browseCatalogLoading && filterActive && featuredFilteredLength === 0) {
+  if (
+    !isSearching &&
+    !browseCatalogLoading &&
+    filterActive &&
+    featuredFilteredLength === 0
+  ) {
     if (ownedFilterActive) {
       return (
         <SearchEmptyState

@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import {
   CollectionListResponse,
   CollectionQuantitiesResponse,
@@ -7,7 +14,12 @@ import {
 import { and, eq } from 'drizzle-orm';
 import { authFetch, cleanupTestUsers, signUpTestUser } from './helpers/auth.js';
 import { getContext } from './support.js';
-import { collectionItems, collectionMembers, userDecks, wishlistItems } from '../../src/db/schema.js';
+import {
+  collectionItems,
+  collectionMembers,
+  userDecks,
+  wishlistItems,
+} from '../../src/db/schema.js';
 
 setDefaultTimeout(120_000);
 
@@ -32,8 +44,12 @@ beforeAll(async () => {
     name: 'Isolation User B',
   });
 
-  const sessionA = await (await authFetch('/api/auth/get-session', { cookie: cookieA })).json();
-  const sessionB = await (await authFetch('/api/auth/get-session', { cookie: cookieB })).json();
+  const sessionA = await (
+    await authFetch('/api/auth/get-session', { cookie: cookieA })
+  ).json();
+  const sessionB = await (
+    await authFetch('/api/auth/get-session', { cookie: cookieB })
+  ).json();
   userIdA = sessionA.user.id as string;
   userIdB = sessionB.user.id as string;
 });
@@ -41,7 +57,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await cleanupTestUsers('test-db-isolation-%');
 });
-
 
 async function collectionIdForUser(uid: string): Promise<string | null> {
   const { db } = getContext();
@@ -127,13 +142,19 @@ describe('per-user database isolation', () => {
       .select({ notes: wishlistItems.notes })
       .from(wishlistItems)
       .where(
-        and(eq(wishlistItems.userId, userIdA), eq(wishlistItems.variantNumber, variantNumber))
+        and(
+          eq(wishlistItems.userId, userIdA),
+          eq(wishlistItems.variantNumber, variantNumber)
+        )
       );
     const rowsB = await db
       .select({ variantNumber: wishlistItems.variantNumber })
       .from(wishlistItems)
       .where(
-        and(eq(wishlistItems.userId, userIdB), eq(wishlistItems.variantNumber, variantNumber))
+        and(
+          eq(wishlistItems.userId, userIdB),
+          eq(wishlistItems.variantNumber, variantNumber)
+        )
       );
 
     expect(rowsA[0]?.notes).toBe('user A only');

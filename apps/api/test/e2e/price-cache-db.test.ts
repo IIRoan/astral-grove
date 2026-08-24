@@ -7,7 +7,10 @@ import {
   PriceStatsBatchResponse,
   PricesListResponse,
 } from '@riftbound/contracts';
-import { mapPriceGuideExportToRows, stablePriceRowId } from '../../src/lib/cardmarket-price-rows.js';
+import {
+  mapPriceGuideExportToRows,
+  stablePriceRowId,
+} from '../../src/lib/cardmarket-price-rows.js';
 import { CardmarketPriceGuideExportSchema } from '../../src/upstream/cardmarket-export.js';
 import { apiJson, getContext } from './support.js';
 import { priceDaily, prices, syncState } from '../../src/db/schema.js';
@@ -95,7 +98,9 @@ describe('price cache service reads', () => {
     });
 
     expect(history.rows.length).toBeGreaterThan(0);
-    expect(history.rows.every((row) => row.cardmarketId === sample!.cardmarketId)).toBe(true);
+    expect(history.rows.every((row) => row.cardmarketId === sample!.cardmarketId)).toBe(
+      true
+    );
     expect(history.rows.at(-1)?.priceDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
     const httpHistory = PriceHistoryResponse.parse(

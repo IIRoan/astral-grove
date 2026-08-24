@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import { CollectionListResponse } from '@riftbound/contracts';
 import { eq } from 'drizzle-orm';
 import { authFetch, cleanupTestUsers, signUpTestUser } from './helpers/auth.js';
@@ -32,7 +39,10 @@ describe('collection membership bootstrap', () => {
   test('first authenticated collection read creates owner membership row', async () => {
     const { db } = getContext();
     const before = await db
-      .select({ collectionId: collectionMembers.collectionId, role: collectionMembers.role })
+      .select({
+        collectionId: collectionMembers.collectionId,
+        role: collectionMembers.role,
+      })
       .from(collectionMembers)
       .where(eq(collectionMembers.userId, userId));
     expect(before).toHaveLength(0);
@@ -43,7 +53,10 @@ describe('collection membership bootstrap', () => {
     expect(Array.isArray(body.data)).toBe(true);
 
     const after = await db
-      .select({ collectionId: collectionMembers.collectionId, role: collectionMembers.role })
+      .select({
+        collectionId: collectionMembers.collectionId,
+        role: collectionMembers.role,
+      })
       .from(collectionMembers)
       .where(eq(collectionMembers.userId, userId));
     expect(after).toHaveLength(1);

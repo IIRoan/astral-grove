@@ -44,7 +44,10 @@ export function VariantFamilySwitcher({
       </Pressable>
 
       <View className="min-w-0 flex-1 items-center px-1">
-        <Text className="text-center text-sm font-normal text-foreground" numberOfLines={2}>
+        <Text
+          className="text-center text-sm font-normal text-foreground"
+          numberOfLines={2}
+        >
           {label}
         </Text>
         {total > 1 ? (

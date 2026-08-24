@@ -5,7 +5,11 @@ export const CARDMARKET_RIFTBOUND_GAME_ID = 22;
 export const CARDMARKET_EXPORT_BASE_URL =
   'https://downloads.s3.cardmarket.com/productCatalog';
 
-const nullableNumber = z.number().nullable().optional().transform((v) => v ?? null);
+const nullableNumber = z
+  .number()
+  .nullable()
+  .optional()
+  .transform((v) => v ?? null);
 
 const PriceGuideEntrySchema = z.object({
   idProduct: z.number().int(),

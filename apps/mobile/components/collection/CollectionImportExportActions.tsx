@@ -6,10 +6,7 @@ import {
 } from '@/components/icons';
 import { ActivityIndicator, Pressable, View, type DimensionValue } from 'react-native';
 import { useCSSVariable } from 'uniwind';
-import {
-  HoverTooltip,
-  ToolbarIconSlot,
-} from '@/components/ui/hover-tooltip';
+import { HoverTooltip, ToolbarIconSlot } from '@/components/ui/hover-tooltip';
 import {
   toolbarButtonSize,
   toolbarIconSize,
@@ -19,12 +16,11 @@ import { useCollectionImportExport } from '@/hooks/useCollectionImportExport';
 import { cn } from '@/lib/utils';
 
 const isDevCollectionToolsEnabled =
-  typeof __DEV__ !== 'undefined'
-    ? __DEV__
-    : process.env.NODE_ENV !== 'production';
+  typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
 
 function useImportExportUi(disabled: boolean) {
-  const { importCsv, exportCsv, clearCollection, importProgress } = useCollectionImportExport();
+  const { importCsv, exportCsv, clearCollection, importProgress } =
+    useCollectionImportExport();
 
   const busy = importCsv.isPending || exportCsv.isPending || clearCollection.isPending;
   const importResult = importCsv.data;
@@ -106,13 +102,13 @@ function ToolbarIconButton({
   );
 }
 
-export function CollectionImportExportToolbar({ disabled = false }: { disabled?: boolean }) {
-  const {
-    importCsv,
-    exportCsv,
-    clearCollection,
-    controlsDisabled,
-  } = useImportExportUi(disabled);
+export function CollectionImportExportToolbar({
+  disabled = false,
+}: {
+  disabled?: boolean;
+}) {
+  const { importCsv, exportCsv, clearCollection, controlsDisabled } =
+    useImportExportUi(disabled);
 
   return (
     <View className="shrink-0 flex-row items-center rounded-[3px] bg-card-panel p-0.5">
@@ -149,14 +145,13 @@ export function CollectionImportExportToolbar({ disabled = false }: { disabled?:
   );
 }
 
-export function CollectionImportExportStatus({ disabled = false }: { disabled?: boolean }) {
-  const {
-    importProgress,
-    importResult,
-    importError,
-    progressPercent,
-    hasStatus,
-  } = useImportExportUi(disabled);
+export function CollectionImportExportStatus({
+  disabled = false,
+}: {
+  disabled?: boolean;
+}) {
+  const { importProgress, importResult, importError, progressPercent, hasStatus } =
+    useImportExportUi(disabled);
 
   if (!hasStatus) return null;
 

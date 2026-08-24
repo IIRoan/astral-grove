@@ -13,7 +13,13 @@ import { cn } from '@/lib/utils';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { hapticPress } from '@/utils/haptics';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, View, type LayoutChangeEvent, type ListRenderItem } from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  View,
+  type LayoutChangeEvent,
+  type ListRenderItem,
+} from 'react-native';
 
 type PlayLegendPickerProps = {
   selectedVariantNumber?: string | null;
@@ -34,15 +40,8 @@ export function PlayLegendPicker({
     fillAvailable: true,
   });
 
-  const {
-    query,
-    setQuery,
-    legends,
-    loading,
-    loadingMore,
-    hasNextPage,
-    fetchNextPage,
-  } = useLegendCatalog();
+  const { query, setQuery, legends, loading, loadingMore, hasNextPage, fetchNextPage } =
+    useLegendCatalog();
 
   const onLayout = (event: LayoutChangeEvent) => {
     const next = Math.round(event.nativeEvent.layout.width);
@@ -73,9 +72,7 @@ export function PlayLegendPicker({
               disabled={loadingMore}
               onPress={fetchNextPage}
             >
-              <ButtonText>
-                {loadingMore ? 'Loading…' : 'Load more legends'}
-              </ButtonText>
+              <ButtonText>{loadingMore ? 'Loading…' : 'Load more legends'}</ButtonText>
             </Button>
           </View>
         ) : null}
@@ -89,9 +86,7 @@ export function PlayLegendPicker({
     ({ item }) => {
       const selected = item.variantNumber === selectedVariantNumber;
       const artLabel =
-        item.variantType && item.variantType !== 'Standard'
-          ? item.variantType
-          : null;
+        item.variantType && item.variantType !== 'Standard' ? item.variantType : null;
       return (
         <Pressable
           accessibilityRole="button"
@@ -136,7 +131,10 @@ export function PlayLegendPicker({
           >
             {item.name}
           </Text>
-          <Text className="font-mono text-[10px] text-muted-foreground" numberOfLines={1}>
+          <Text
+            className="font-mono text-[10px] text-muted-foreground"
+            numberOfLines={1}
+          >
             {artLabel ?? item.variantNumber}
           </Text>
         </Pressable>

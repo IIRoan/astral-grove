@@ -17,7 +17,10 @@ import { isCardBannedAt } from '@riftbound/contracts';
 import { getModalShellWidth } from '@/components/cards/cardModalLayout';
 import { VariantPriceSummary } from '@/components/catalog/VariantPriceSummary';
 import { PrintingPreviewStrip } from '@/components/cards/PrintingPreviewStrip';
-import { CollectionAddButton, CollectionQtyControls } from '@/components/collection/CollectionQtyControls';
+import {
+  CollectionAddButton,
+  CollectionQtyControls,
+} from '@/components/collection/CollectionQtyControls';
 import { CollectionAddLog } from '@/components/collection/CollectionAddLog';
 import { AppLoader } from '@/components/ui/app-loader';
 import { CardRulesText } from '@/components/riftbound/CardRulesText';
@@ -107,7 +110,10 @@ function ModalIconButton({
     <Button
       size="icon-sm"
       variant="ghost"
-      className={cn('size-8 shrink-0 rounded-[3px] p-0 active:bg-card-panel', className)}
+      className={cn(
+        'size-8 shrink-0 rounded-[3px] p-0 active:bg-card-panel',
+        className
+      )}
       onPress={onPress}
       accessibilityLabel={accessibilityLabel}
     >
@@ -303,17 +309,23 @@ function ModalInfoPanel({
           <ModalInlineStat label="Might">
             <Stack direction="row" className="items-center gap-1">
               <MightIcon size={isWide ? 14 : 13} />
-              <Text className="text-sm font-bold text-foreground">{formatStat(card.might)}</Text>
+              <Text className="text-sm font-bold text-foreground">
+                {formatStat(card.might)}
+              </Text>
             </Stack>
           </ModalInlineStat>
           <ModalInlineStat label="Power">
-            <Text className="text-sm font-bold text-foreground">{formatStat(card.power)}</Text>
+            <Text className="text-sm font-bold text-foreground">
+              {formatStat(card.power)}
+            </Text>
           </ModalInlineStat>
         </Stack>
 
         <Stack direction="row" className="flex-wrap items-center gap-x-1.5 gap-y-1">
           <TypeIcon type={card.type} size={14} />
-          <Text className="text-[12px] font-medium text-muted-foreground">{card.type}</Text>
+          <Text className="text-[12px] font-medium text-muted-foreground">
+            {card.type}
+          </Text>
           {card.colors[0] ? (
             <>
               <Text className="text-[12px] text-muted-foreground">·</Text>
@@ -420,10 +432,15 @@ function ModalInfoPanel({
   );
 }
 
-function getShellHeight(windowWidth: number, windowHeight: number, isWide: boolean): number {
+function getShellHeight(
+  windowWidth: number,
+  windowHeight: number,
+  isWide: boolean
+): number {
   const maxHeight = windowHeight - (isWide ? OVERLAY_PAD_Y_WIDE : OVERLAY_PAD_Y_NARROW);
   if (isWide) {
-    const cardHeight = Math.round(CARD_WIDTH_DESKTOP * CARD_ASPECT) + CARD_IMAGE_PAD * 2;
+    const cardHeight =
+      Math.round(CARD_WIDTH_DESKTOP * CARD_ASPECT) + CARD_IMAGE_PAD * 2;
     return Math.min(Math.max(cardHeight, 480), maxHeight);
   }
   const shellWidth = getModalShellWidth(windowWidth);

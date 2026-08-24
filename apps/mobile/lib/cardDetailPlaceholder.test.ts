@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import type { CardListItem } from '@riftbound/contracts';
-import { cardListItemToDetail, cardListItemToDetailResponse } from '@/lib/cardDetailPlaceholder';
+import {
+  cardListItemToDetail,
+  cardListItemToDetailResponse,
+} from '@/lib/cardDetailPlaceholder';
 import { findVariantByNumber } from '@/utils/variants';
 
 const listCard: CardListItem = {

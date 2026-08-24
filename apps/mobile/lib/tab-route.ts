@@ -1,11 +1,6 @@
 /** Canonical tab ids for bottom bar + side rail. */
 export type AppTabId =
-  | 'search'
-  | 'collection'
-  | 'wishlist'
-  | 'decks'
-  | 'play'
-  | 'settings';
+  'search' | 'collection' | 'wishlist' | 'decks' | 'play' | 'settings';
 
 /** Active primary tab from pathname (`includes` so `/collection` and `/(tabs)/collection` both match). */
 export function tabIdFromPathname(pathname: string): AppTabId {

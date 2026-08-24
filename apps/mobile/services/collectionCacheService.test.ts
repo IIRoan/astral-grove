@@ -19,11 +19,8 @@ const sampleEntry: CollectionEntry = {
   updatedAt: Date.now(),
 };
 
-const {
-  clearPersistedCollection,
-  persistCollection,
-  readPersistedCollection,
-} = await import('./collectionCacheService');
+const { clearPersistedCollection, persistCollection, readPersistedCollection } =
+  await import('./collectionCacheService');
 
 beforeEach(async () => {
   memoryStorage.clear();
@@ -45,7 +42,10 @@ describe('collectionCacheService', () => {
       cachedAt: Date.now() - 25 * 60 * 60 * 1000,
       entries: [sampleEntry],
     };
-    memoryStorage.store.set('riftbound_collection_cache', JSON.stringify(expiredPayload));
+    memoryStorage.store.set(
+      'riftbound_collection_cache',
+      JSON.stringify(expiredPayload)
+    );
 
     expect(await readPersistedCollection()).toBeNull();
     expect(memoryStorage.store.has('riftbound_collection_cache')).toBe(false);

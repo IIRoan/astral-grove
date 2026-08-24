@@ -81,7 +81,11 @@ describe('isCardBannedInDeck', () => {
   test('uses card ban date when provided', () => {
     const state = deck();
     expect(
-      isCardBannedInDeck(state, 'Obelisk', deckCard('Obelisk', '2020-01-01T00:00:00.000Z'))
+      isCardBannedInDeck(
+        state,
+        'Obelisk',
+        deckCard('Obelisk', '2020-01-01T00:00:00.000Z')
+      )
     ).toBe(true);
   });
 });
@@ -90,10 +94,7 @@ describe('collectIllegalCardNames', () => {
   test('collects unique illegal names from deck cards', () => {
     const state = deck({
       mainDeck: new Map([
-        [
-          'Banned',
-          { card: deckCard('Banned', '2020-01-01T00:00:00.000Z'), count: 2 },
-        ],
+        ['Banned', { card: deckCard('Banned', '2020-01-01T00:00:00.000Z'), count: 2 }],
       ]),
     });
     expect(collectIllegalCardNames(state)).toEqual(['Banned']);

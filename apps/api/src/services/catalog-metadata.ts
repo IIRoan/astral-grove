@@ -124,8 +124,13 @@ export class CatalogMetadataService {
   }
 
   /** Overlay foil printing counts from the local catalog so dashboards work before a re-probe. */
-  private async withLocalFoilPrintCounts(snapshot: FilterSnapshot): Promise<FilterSnapshot> {
-    if (snapshot.sets.length === 0 || snapshot.sets.every((set) => set.foilPrintCount != null)) {
+  private async withLocalFoilPrintCounts(
+    snapshot: FilterSnapshot
+  ): Promise<FilterSnapshot> {
+    if (
+      snapshot.sets.length === 0 ||
+      snapshot.sets.every((set) => set.foilPrintCount != null)
+    ) {
       return snapshot;
     }
 

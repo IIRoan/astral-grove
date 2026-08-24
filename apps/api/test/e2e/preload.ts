@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, setDefaultTimeout } from 'bun:test';
-import { teardownE2E, setupE2E, ensureCatalogSynced, ensurePricesSynced } from './support.js';
+import {
+  teardownE2E,
+  setupE2E,
+  ensureCatalogSynced,
+  ensurePricesSynced,
+} from './support.js';
 
 setDefaultTimeout(180_000);
 

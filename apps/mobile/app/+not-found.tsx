@@ -1,7 +1,12 @@
 import { Link, Stack } from 'expo-router';
 import { View } from 'react-native';
 import { Button, ButtonText } from '@/components/ui/button';
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty';
 import { Heading } from '@/components/ui/heading';
 
 export default function NotFoundScreen() {
@@ -14,7 +19,9 @@ export default function NotFoundScreen() {
             <EmptyTitle>
               <Heading level="4">This screen doesn&apos;t exist.</Heading>
             </EmptyTitle>
-            <EmptyDescription>Head back to the home screen to continue.</EmptyDescription>
+            <EmptyDescription>
+              Head back to the home screen to continue.
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
         <Link href="/" asChild>

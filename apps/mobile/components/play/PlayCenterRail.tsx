@@ -1,8 +1,4 @@
-import {
-  ArrowClockwiseIcon,
-  ChevronLeftIcon,
-  SettingsIcon,
-} from '@/components/icons';
+import { ArrowClockwiseIcon, ChevronLeftIcon, SettingsIcon } from '@/components/icons';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Text } from '@/components/ui/text';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
@@ -107,10 +103,7 @@ export function PlayCenterRail({
         <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
           {formatLabel}
         </Text>
-        <Text
-          className="font-mono text-[10px] text-muted-foreground"
-          numberOfLines={1}
-        >
+        <Text className="font-mono text-[10px] text-muted-foreground" numberOfLines={1}>
           {formatDescription}
         </Text>
       </View>

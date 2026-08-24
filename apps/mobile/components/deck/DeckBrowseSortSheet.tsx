@@ -58,7 +58,8 @@ export function DeckBrowseSortSheet({
             showsVerticalScrollIndicator={false}
           >
             {DECK_BROWSE_SORT_OPTIONS.map((option) => {
-              const active = deckBrowseSortKey(activeSort) === deckBrowseSortKey(option);
+              const active =
+                deckBrowseSortKey(activeSort) === deckBrowseSortKey(option);
               return (
                 <Pressable
                   key={deckBrowseSortKey(option)}
@@ -68,7 +69,9 @@ export function DeckBrowseSortSheet({
                     onClose();
                   }}
                 >
-                  <Text className="text-sm font-medium text-foreground">{option.label}</Text>
+                  <Text className="text-sm font-medium text-foreground">
+                    {option.label}
+                  </Text>
                   {active ? (
                     <ThemedIcon icon={CheckIcon} size={18} color="foreground" />
                   ) : null}

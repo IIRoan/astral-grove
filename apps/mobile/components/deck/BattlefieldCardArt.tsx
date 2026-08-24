@@ -22,7 +22,10 @@ export function BattlefieldCardArt({ uri, variantNumber }: BattlefieldCardArtPro
   const ready = width > 0 && height > 0;
 
   return (
-    <View className="absolute inset-0 items-center justify-center overflow-hidden" onLayout={onLayout}>
+    <View
+      className="absolute inset-0 items-center justify-center overflow-hidden"
+      onLayout={onLayout}
+    >
       {ready ? (
         <View
           style={{

@@ -38,22 +38,20 @@ export function DeckCreateMenu({ onCreate, children, className }: DeckCreateMenu
     }
   };
 
-  const trigger =
-    children ??
-    (
-      <Button className="w-auto" disabled={busy}>
-        {busy ? (
-          <ActivityIndicator />
-        ) : (
-          <>
-            <ButtonIcon>
-              <CalendarPlusIcon className="size-4 text-cta-foreground" />
-            </ButtonIcon>
-            <ButtonText>New</ButtonText>
-          </>
-        )}
-      </Button>
-    );
+  const trigger = children ?? (
+    <Button className="w-auto" disabled={busy}>
+      {busy ? (
+        <ActivityIndicator />
+      ) : (
+        <>
+          <ButtonIcon>
+            <CalendarPlusIcon className="size-4 text-cta-foreground" />
+          </ButtonIcon>
+          <ButtonText>New</ButtonText>
+        </>
+      )}
+    </Button>
+  );
 
   return (
     <View className={cn('relative shrink-0', className)}>
@@ -88,8 +86,13 @@ export function DeckCreateMenu({ onCreate, children, className }: DeckCreateMenu
                   className="rounded-[3px] px-2 py-1.5 active:bg-card-panel"
                   onPress={() => void handleSelect(option.value)}
                 >
-                  <Text className="text-sm text-popover-foreground">{option.label}</Text>
-                  <Text className="text-[11px] leading-4 text-muted-foreground" numberOfLines={2}>
+                  <Text className="text-sm text-popover-foreground">
+                    {option.label}
+                  </Text>
+                  <Text
+                    className="text-[11px] leading-4 text-muted-foreground"
+                    numberOfLines={2}
+                  >
                     {option.description}
                   </Text>
                 </Pressable>

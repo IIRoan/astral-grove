@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import {
   CollectionImportResponse,
   CollectionListResponse,
@@ -113,11 +120,14 @@ describe('collection database workflows', () => {
       body: JSON.stringify({ delta: 1 }),
     });
 
-    const putRes = await authFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}`, {
-      method: 'PUT',
-      cookie: cookieHeader,
-      body: JSON.stringify({ variantNumber, quantity: 0 }),
-    });
+    const putRes = await authFetch(
+      `/api/v1/collection/${encodeURIComponent(variantNumber)}`,
+      {
+        method: 'PUT',
+        cookie: cookieHeader,
+        body: JSON.stringify({ variantNumber, quantity: 0 }),
+      }
+    );
     expect(putRes.status).toBe(200);
 
     const quantitiesRes = await authFetch('/api/v1/collection/quantities', {
@@ -255,9 +265,24 @@ describe('collection database workflows', () => {
       cookie: cookieHeader,
       body: JSON.stringify({
         items: [
-          { variantNumber: 'OGN-010', quantity: 4, condition: 'near_mint', language: 'en' },
-          { variantNumber: 'OGN-011', quantity: 2, condition: 'near_mint', language: 'en' },
-          { variantNumber: 'OGN-012', quantity: 1, condition: 'near_mint', language: 'en' },
+          {
+            variantNumber: 'OGN-010',
+            quantity: 4,
+            condition: 'near_mint',
+            language: 'en',
+          },
+          {
+            variantNumber: 'OGN-011',
+            quantity: 2,
+            condition: 'near_mint',
+            language: 'en',
+          },
+          {
+            variantNumber: 'OGN-012',
+            quantity: 1,
+            condition: 'near_mint',
+            language: 'en',
+          },
         ],
       }),
     });
@@ -288,8 +313,18 @@ describe('collection database workflows', () => {
       cookie: cookieHeader,
       body: JSON.stringify({
         items: [
-          { variantNumber: 'OGN-020', quantity: 2, condition: 'near_mint', language: 'en' },
-          { variantNumber: 'OGN-021', quantity: 1, condition: 'lightly_played', language: 'en' },
+          {
+            variantNumber: 'OGN-020',
+            quantity: 2,
+            condition: 'near_mint',
+            language: 'en',
+          },
+          {
+            variantNumber: 'OGN-021',
+            quantity: 1,
+            condition: 'lightly_played',
+            language: 'en',
+          },
         ],
       }),
     });

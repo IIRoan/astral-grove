@@ -82,5 +82,7 @@ export function SmoothChevron({ open, children }: SmoothChevronProps) {
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
-  return <Animated.View style={[{ flexShrink: 0 }, animatedStyle]}>{children}</Animated.View>;
+  return (
+    <Animated.View style={[{ flexShrink: 0 }, animatedStyle]}>{children}</Animated.View>
+  );
 }

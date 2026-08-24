@@ -3,7 +3,12 @@ import { Elysia } from 'elysia';
 import { createSearchRoutes } from '../../src/routes/search.js';
 
 function createSearchApp(
-  globalSearch: (query: { q: string; types?: string; limit: number; page: number }) => Promise<{
+  globalSearch: (query: {
+    q: string;
+    types?: string;
+    limit: number;
+    page: number;
+  }) => Promise<{
     data: {
       cards?: {
         hits: Array<{
@@ -54,7 +59,9 @@ describe('search routes', () => {
     }));
 
     const app = createSearchApp(globalSearch);
-    const response = await app.handle(new Request('http://localhost/api/v1/search?q=Ahri'));
+    const response = await app.handle(
+      new Request('http://localhost/api/v1/search?q=Ahri')
+    );
 
     expect(response.status).toBe(200);
     expect(globalSearch).toHaveBeenCalledWith({

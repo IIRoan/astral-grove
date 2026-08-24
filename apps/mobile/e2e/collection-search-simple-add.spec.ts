@@ -32,22 +32,30 @@ test.describe('search collection · simple add', () => {
 
     await expect(printingOption(page, FOIL_CARD.standardId)).toHaveCount(0);
     await expect(printingOption(page, FOIL_CARD.foilId)).toHaveCount(0);
-    await expect(removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
+    await expect(
+      removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
 
     // Default finish is non-foil — remove targets it without asking.
     await removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await expect(printingOption(page, FOIL_CARD.foilId)).toHaveCount(0);
     await expect(printingOption(page, FOIL_CARD.standardId)).toHaveCount(0);
-    await expect(addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
+    await expect(
+      addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
   });
 
-  test('simple add still asks which finish to remove when both are owned', async ({ page }) => {
+  test('simple add still asks which finish to remove when both are owned', async ({
+    page,
+  }) => {
     await searchForCard(page, FOIL_CARD.query, FOIL_CARD.name);
 
     // Own foil first (picker path), then enable simple add and own standard.
     await addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await pickPrinting(page, FOIL_CARD.foilId);
-    await expect(addOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
+    await expect(
+      addOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
 
     await enableSimpleAdd(page);
 

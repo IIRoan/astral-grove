@@ -105,7 +105,9 @@ export function DeckShareMenu({
                 onPress={() => handleSelect('link')}
               >
                 <ThemedIcon icon={LinkIcon} size={16} color="muted-foreground" />
-                <Text className="text-sm text-popover-foreground">The Astral Grove link</Text>
+                <Text className="text-sm text-popover-foreground">
+                  The Astral Grove link
+                </Text>
               </Pressable>
             </PopoverClose>
 

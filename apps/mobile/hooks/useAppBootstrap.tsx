@@ -43,9 +43,12 @@ function useAppBootstrapController(signedInUserId: string | null): AppBootstrapS
   const coldStartStarted = useRef(false);
   const bootstrappedUserId = useRef<string | null>(null);
 
-  const markPhase = useCallback((phase: BootstrapPhase, status: BootstrapPhaseStatus) => {
-    setPhases((prev) => ({ ...prev, [phase]: status }));
-  }, []);
+  const markPhase = useCallback(
+    (phase: BootstrapPhase, status: BootstrapPhaseStatus) => {
+      setPhases((prev) => ({ ...prev, [phase]: status }));
+    },
+    []
+  );
 
   useEffect(() => {
     if (isRestoring || coldStartStarted.current) return;
@@ -95,7 +98,8 @@ function useAppBootstrapController(signedInUserId: string | null): AppBootstrapS
     () => ({
       phases,
       isRestoring,
-      isLocalReady: !isRestoring && (phases.local === 'done' || phases.local === 'error'),
+      isLocalReady:
+        !isRestoring && (phases.local === 'done' || phases.local === 'error'),
       isCatalogReady: phases.catalog === 'done',
       isUserReady: !signedInUserId || phases.user === 'done' || phases.user === 'error',
       isDeferredReady: phases.deferred === 'done',
@@ -114,7 +118,9 @@ export function AppBootstrapProvider({
 }) {
   const state = useAppBootstrapController(signedInUserId);
   return (
-    <AppBootstrapContext.Provider value={state}>{children}</AppBootstrapContext.Provider>
+    <AppBootstrapContext.Provider value={state}>
+      {children}
+    </AppBootstrapContext.Provider>
   );
 }
 

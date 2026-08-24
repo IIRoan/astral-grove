@@ -70,7 +70,9 @@ describe('catalogToolbarButtonClasses', () => {
 
 describe('catalogToolbarSegmentClasses', () => {
   test('selected segment gets panel fill', () => {
-    expect(catalogToolbarSegmentClasses(true)).toContain(CATALOG_TOOLBAR_SEGMENT_ACTIVE_CLASS);
+    expect(catalogToolbarSegmentClasses(true)).toContain(
+      CATALOG_TOOLBAR_SEGMENT_ACTIVE_CLASS
+    );
   });
 
   test('unselected segment stays transparent with press feedback', () => {

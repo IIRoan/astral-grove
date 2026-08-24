@@ -66,9 +66,7 @@ export function useCardSearch(
     void (async () => {
       const cached = await getCachedSearchResults(activeTerm);
       if (!cancelled) {
-        setInstantCache(
-          cached ? { term: activeTerm, response: cached } : null
-        );
+        setInstantCache(cached ? { term: activeTerm, response: cached } : null);
       }
     })();
 
@@ -78,12 +76,7 @@ export function useCardSearch(
   }, [activeTerm, enabled]);
 
   const result = useInfiniteQuery({
-    queryKey: cardQueryKeys.searchInfinite(
-      activeTerm,
-      sort.sortBy,
-      sort.dir,
-      filters
-    ),
+    queryKey: cardQueryKeys.searchInfinite(activeTerm, sort.sortBy, sort.dir, filters),
     queryFn: async ({ pageParam }) => {
       const params: Partial<CardsListQuery> = {
         q: activeTerm,
@@ -148,9 +141,7 @@ export function useCardSearch(
   }, [hasApiResults, apiItems, queryClient]);
 
   useEffect(() => {
-    const cards = hasApiResults
-      ? apiItems
-      : (instantCacheForTerm?.data ?? []);
+    const cards = hasApiResults ? apiItems : (instantCacheForTerm?.data ?? []);
     if (!cards.length) return;
     for (const card of cards.slice(0, 12)) {
       prefetchCardDetail(queryClient, card);
@@ -216,6 +207,7 @@ export function useCardSearch(
     refetch: result.refetch,
     searchNow,
     isLocalSearch: false,
-    isReconciling: enabled && result.isFetching && (hasInstantResults || items.length > 0),
+    isReconciling:
+      enabled && result.isFetching && (hasInstantResults || items.length > 0),
   };
 }

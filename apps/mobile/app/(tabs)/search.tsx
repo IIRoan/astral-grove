@@ -1,6 +1,4 @@
-import {
-  ScreenLayout,
-} from '@/components/shell/ScreenLayout';
+import { ScreenLayout } from '@/components/shell/ScreenLayout';
 import { useSearchScreenBody } from '@/hooks/useSearchScreenBody';
 
 export default function SearchScreen() {

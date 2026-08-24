@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import { DeckDetailResponse, DeckListResponse } from '@riftbound/contracts';
 import { and, eq } from 'drizzle-orm';
 import { authFetch, cleanupTestUsers, signUpTestUser } from './helpers/auth.js';
@@ -125,7 +132,9 @@ describe('owned deck database workflows', () => {
     });
     expect(row).toBeUndefined();
 
-    const listRes = await authFetch('/api/v1/decks?source=owned', { cookie: cookieHeader });
+    const listRes = await authFetch('/api/v1/decks?source=owned', {
+      cookie: cookieHeader,
+    });
     const list = DeckListResponse.parse(await listRes.json());
     expect(list.data.some((deck) => deck.id === deckId)).toBe(false);
   });

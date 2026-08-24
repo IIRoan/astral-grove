@@ -29,10 +29,7 @@ import type { CollectionEntry } from '@/services/collectionService';
 import { clearPersistedCollection } from '@/services/collectionCacheService';
 import { clearPersistedOwnedDecks } from '@/services/deckCacheService';
 import { clearPersistedWishlist } from '@/services/wishlistCacheService';
-import {
-  readLastCachedUserId,
-  writeLastCachedUserId,
-} from '@/services/userCacheScope';
+import { readLastCachedUserId, writeLastCachedUserId } from '@/services/userCacheScope';
 import { collectionEntryToCardListItem } from '@/utils/collectionDisplay';
 import { removeUserDataQueries } from '@/src/api/queryClient';
 import {
@@ -68,7 +65,9 @@ function collectionRowsForWarm(collection: CollectionEntry[]): CollectionEntry[]
 }
 
 async function warmCatalogImages(queryClient: QueryClient): Promise<void> {
-  const index = queryClient.getQueryData<{ items: CardListItem[] }>(catalogQueryKeys.index);
+  const index = queryClient.getQueryData<{ items: CardListItem[] }>(
+    catalogQueryKeys.index
+  );
   const items = getCatalogIndexItems(index);
   await prefetchImageUris(
     items.slice(0, CATALOG_IMAGE_WARM_COUNT).map((item) => item.imageUrl),
@@ -77,7 +76,9 @@ async function warmCatalogImages(queryClient: QueryClient): Promise<void> {
 }
 
 async function warmSearchCardDetails(queryClient: QueryClient): Promise<void> {
-  const index = queryClient.getQueryData<{ items: CardListItem[] }>(catalogQueryKeys.index);
+  const index = queryClient.getQueryData<{ items: CardListItem[] }>(
+    catalogQueryKeys.index
+  );
   const items = getCatalogIndexItems(index).slice(0, CATALOG_IMAGE_WARM_COUNT);
   for (const item of items) {
     prefetchCardDetail(queryClient, item);
@@ -114,7 +115,8 @@ async function warmUserImages(queryClient: QueryClient): Promise<void> {
   const wishlist =
     queryClient.getQueryData<Array<{ imageUrl?: string }>>(wishlistQueryKeys.all) ?? [];
   const wishlistPrices =
-    queryClient.getQueryData<Array<{ imageUrl?: string }>>(wishlistQueryKeys.prices) ?? [];
+    queryClient.getQueryData<Array<{ imageUrl?: string }>>(wishlistQueryKeys.prices) ??
+    [];
 
   const uris: Array<string | null | undefined> = [
     ...wishlist.map((entry) => entry.imageUrl),
@@ -142,7 +144,9 @@ export async function bootstrapCatalog(queryClient: QueryClient): Promise<void> 
 export { prefetchOwnedDecks, prefetchWishlist };
 
 /** Clear in-memory + disk account lists on user switch (disk caches are not user-scoped). */
-async function resetAccountCachesForUserSwitch(queryClient: QueryClient): Promise<void> {
+async function resetAccountCachesForUserSwitch(
+  queryClient: QueryClient
+): Promise<void> {
   removeUserDataQueries(queryClient);
   await Promise.all([
     clearPersistedCollection(),
@@ -213,7 +217,10 @@ export async function bootstrapDeferred(
   ];
 
   if (options?.signedIn) {
-    tasks.push(prefetchWishlistPrices(queryClient), prefetchDefaultDeckBrowse(queryClient));
+    tasks.push(
+      prefetchWishlistPrices(queryClient),
+      prefetchDefaultDeckBrowse(queryClient)
+    );
   }
 
   await Promise.allSettled(tasks);

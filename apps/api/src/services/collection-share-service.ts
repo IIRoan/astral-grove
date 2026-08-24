@@ -100,7 +100,7 @@ export class CollectionShareService {
   constructor(
     private readonly db: Database,
     private readonly publicAppUrl: string
-  ) { }
+  ) {}
 
   private inviteUrl(token: string): string {
     return buildCollectionInviteUrl(token, this.publicAppUrl);
@@ -590,10 +590,10 @@ export class CollectionShareService {
       role: role === 'member' ? 'member' : 'owner',
       partner: partnerRow
         ? {
-          userId: partnerRow.userId,
-          name: partnerRow.name,
-          email: partnerRow.email,
-        }
+            userId: partnerRow.userId,
+            name: partnerRow.name,
+            email: partnerRow.email,
+          }
         : null,
       pendingInvite,
     };

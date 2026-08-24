@@ -10,10 +10,7 @@ import type { CardListItem } from '@riftbound/contracts';
 import { CardTile } from '@/components/cards/CardTile';
 import { CatalogResultsTransition } from '@/components/catalog/CatalogResultsTransition';
 import { AppLoader } from '@/components/ui/app-loader';
-import {
-  catalogGridCellStyle,
-  catalogGridListStyle,
-} from '@/lib/catalog-grid-layout';
+import { catalogGridCellStyle, catalogGridListStyle } from '@/lib/catalog-grid-layout';
 import { cardListItemMatchesVariant } from '@/utils/variants';
 import type { CollectionOwnershipMap } from '@/utils/collectionOwnership';
 import { cn } from '@/lib/utils';
@@ -37,7 +34,9 @@ interface SearchCatalogListProps {
   resultsTransitionKey: string;
   sortPending: boolean;
   dismissKeyboard: () => void;
-  handleViewableItemsChanged: (info: { viewableItems: ViewToken<CardListItem>[] }) => void;
+  handleViewableItemsChanged: (info: {
+    viewableItems: ViewToken<CardListItem>[];
+  }) => void;
   viewabilityConfig: { itemVisiblePercentThreshold: number };
   handleCatalogScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   fetchMoreCatalog: () => void;

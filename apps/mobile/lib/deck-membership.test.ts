@@ -42,7 +42,9 @@ describe('deck-membership', () => {
       type: 'Unit',
     });
     expect(deckCardsMatch(standard, altArt)).toBe(false);
-    expect(deckCardsMatch(standard, { ...standard, name: 'Sett, Brawler ' })).toBe(true);
+    expect(deckCardsMatch(standard, { ...standard, name: 'Sett, Brawler ' })).toBe(
+      true
+    );
   });
 
   test('only the added printing counts as in-deck', () => {

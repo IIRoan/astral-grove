@@ -56,12 +56,14 @@ export async function cleanupTestUsers(emailLike: string): Promise<void> {
   try {
     const { db } = getContext();
     const predicate: SQL = like(userTable.email, emailLike);
-    const testUsers = await db.select({ id: userTable.id }).from(userTable).where(predicate);
+    const testUsers = await db
+      .select({ id: userTable.id })
+      .from(userTable)
+      .where(predicate);
     for (const user of testUsers) {
       await db.delete(sessionTable).where(eq(sessionTable.userId, user.id));
       await db.delete(accountTable).where(eq(accountTable.userId, user.id));
       await db.delete(userTable).where(eq(userTable.id, user.id));
     }
-  } catch {
-  }
+  } catch {}
 }

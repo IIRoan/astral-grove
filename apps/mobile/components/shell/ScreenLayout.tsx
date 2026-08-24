@@ -10,7 +10,11 @@ import {
 import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
 import { ListTopSpacer } from '@/components/ui/list-top-spacer';
 import { Layout } from '@/constants/Layout';
-import { CATALOG_DETAIL_GAP, SIDE_RAIL_WIDTH, useShowSideRail } from '@/hooks/useBreakpoint';
+import {
+  CATALOG_DETAIL_GAP,
+  SIDE_RAIL_WIDTH,
+  useShowSideRail,
+} from '@/hooks/useBreakpoint';
 import { useScreenInsets } from '@/hooks/useScreenInsets';
 import { cn } from '@/lib/utils';
 
@@ -64,7 +68,9 @@ function ScreenLayoutProvider({
   children: React.ReactNode;
 }) {
   return (
-    <ScreenLayoutContext.Provider value={value}>{children}</ScreenLayoutContext.Provider>
+    <ScreenLayoutContext.Provider value={value}>
+      {children}
+    </ScreenLayoutContext.Provider>
   );
 }
 
@@ -91,7 +97,8 @@ export function ScreenLayout({
   scrollProps,
   contentClassName,
 }: ScreenLayoutProps) {
-  const { paddingTop, paddingBottom, paddingBottomCompact, showRail } = useScreenInsets();
+  const { paddingTop, paddingBottom, paddingBottomCompact, showRail } =
+    useScreenInsets();
   const { contentWidth, measuredWidth, onContentLayout } = useMeasureContentWidth();
 
   const contextValue = useMemo(
@@ -103,7 +110,14 @@ export function ScreenLayout({
       paddingBottom,
       paddingBottomInline: paddingBottomCompact,
     }),
-    [contentWidth, measuredWidth, showRail, paddingTop, paddingBottom, paddingBottomCompact]
+    [
+      contentWidth,
+      measuredWidth,
+      showRail,
+      paddingTop,
+      paddingBottom,
+      paddingBottomCompact,
+    ]
   );
 
   const inner = (
@@ -183,7 +197,9 @@ export function ScreenSplit({
   return (
     <View className={cn('w-full flex-1 flex-row', className)} style={{ gap }}>
       <View className="min-h-0 min-w-0 flex-1 flex-col" onLayout={onMainLayout}>
-        <SplitMainContext.Provider value={mainWidth}>{children}</SplitMainContext.Provider>
+        <SplitMainContext.Provider value={mainWidth}>
+          {children}
+        </SplitMainContext.Provider>
       </View>
       {aside ? (
         <View
@@ -201,7 +217,11 @@ type ScreenLayoutBodyProps = ViewProps & {
   children: React.ReactNode;
 };
 
-export function ScreenLayoutBody({ children, className, ...props }: ScreenLayoutBodyProps) {
+export function ScreenLayoutBody({
+  children,
+  className,
+  ...props
+}: ScreenLayoutBodyProps) {
   return (
     <View className={cn('min-h-0 w-full flex-1', className)} {...props}>
       {children}

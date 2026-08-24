@@ -1,15 +1,8 @@
 import { useMemo } from 'react';
 import { useScreenLayout } from '@/components/shell/ScreenLayout';
-import {
-  computeFillGrid,
-  type FillGridOptions,
-} from '@/utils/fillGridLayout';
+import { computeFillGrid, type FillGridOptions } from '@/utils/fillGridLayout';
 
-export function useFillGridLayout({
-  minItemWidth,
-  maxColumns,
-  gap,
-}: FillGridOptions) {
+export function useFillGridLayout({ minItemWidth, maxColumns, gap }: FillGridOptions) {
   const { contentWidth } = useScreenLayout();
 
   return useMemo(

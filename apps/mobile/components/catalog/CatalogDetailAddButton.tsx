@@ -1,7 +1,12 @@
 import { ActivityIndicator, Pressable } from 'react-native';
 import { PlusIcon } from '@/components/icons';
 import { Text } from '@/components/ui/text';
-import { OPERATE_CTA_FILL_CLASS, OPERATE_CTA_ICON_CLASS, OPERATE_CTA_LABEL_CLASS, OPERATE_CTA_SPINNER_CLASS } from '@/constants/operateType';
+import {
+  OPERATE_CTA_FILL_CLASS,
+  OPERATE_CTA_ICON_CLASS,
+  OPERATE_CTA_LABEL_CLASS,
+  OPERATE_CTA_SPINNER_CLASS,
+} from '@/constants/operateType';
 import { cn } from '@/lib/utils';
 import { hapticPress } from '@/utils/haptics';
 

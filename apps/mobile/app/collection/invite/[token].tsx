@@ -6,6 +6,7 @@ import { ScreenLayout } from '@/components/shell/ScreenLayout';
 import { Button, ButtonText } from '@/components/ui/button';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Text } from '@/components/ui/text';
+import { UserBlobatar } from '@/components/ui/user-blobatar';
 import {
   useCollectionShareInvitePreview,
   useCollectionShareMutations,
@@ -14,7 +15,11 @@ import { RemoteApiError } from '@/src/api/authedClient';
 import { authClient } from '@/src/lib/auth-client';
 import type { CollectionShareAcceptMode } from '@riftbound/contracts';
 
-function confirmMode(mode: CollectionShareAcceptMode, yourQty: number, onConfirm: () => void) {
+function confirmMode(
+  mode: CollectionShareAcceptMode,
+  yourQty: number,
+  onConfirm: () => void
+) {
   if (mode === 'merge') {
     onConfirm();
     return;
@@ -92,9 +97,12 @@ function InviteAcceptBody({ token }: { token: string }) {
 
       {preview && isOwnInvite ? (
         <View className="mt-4 gap-3 rounded-[10px] border border-border bg-card px-4 py-4">
-          <Text className="text-base font-medium text-foreground">This is your invite</Text>
+          <Text className="text-base font-medium text-foreground">
+            This is your invite
+          </Text>
           <Text className="text-sm text-muted-foreground">
-            You can’t join your own shared collection. Send the link to your partner instead.
+            You can’t join your own shared collection. Send the link to your partner
+            instead.
           </Text>
           <Button
             variant="outline"
@@ -109,12 +117,22 @@ function InviteAcceptBody({ token }: { token: string }) {
 
       {preview && !isOwnInvite ? (
         <View className="mt-4 gap-4">
-          <Text className="text-base text-foreground">
-            {preview.inviter.name} invited you to share a collection.
-          </Text>
+          <View className="flex-row items-center gap-3">
+            <UserBlobatar
+              userId={preview.inviter.userId}
+              title={preview.inviter.name}
+              size={48}
+              framed
+            />
+            <Text className="min-w-0 flex-1 text-base text-foreground">
+              {preview.inviter.name} invited you to share a collection.
+            </Text>
+          </View>
 
           <View className="gap-1 rounded-[10px] border border-border bg-card px-4 py-3">
-            <Text className="text-sm font-medium text-foreground">Their collection</Text>
+            <Text className="text-sm font-medium text-foreground">
+              Their collection
+            </Text>
             <Text className="text-sm text-muted-foreground">
               {preview.theirItemCount.toLocaleString()} stacks ·{' '}
               {preview.theirTotalQuantity.toLocaleString()} cards
@@ -175,7 +193,9 @@ export default function CollectionInviteScreen() {
     return (
       <ScreenLayout>
         <ScreenHeader title="Join collection" />
-        <Text className="mt-4 text-sm text-muted-foreground">Missing invite token.</Text>
+        <Text className="mt-4 text-sm text-muted-foreground">
+          Missing invite token.
+        </Text>
       </ScreenLayout>
     );
   }

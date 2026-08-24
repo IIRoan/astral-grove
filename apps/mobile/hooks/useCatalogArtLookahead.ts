@@ -36,7 +36,10 @@ export function useCatalogArtLookahead<T extends ArtItem>({
   onScroll,
 }: UseCatalogArtLookaheadOptions<T>) {
   const { height: windowHeight } = useWindowDimensions();
-  const viewportHeight = useMemo(() => Math.max(320, windowHeight - 220), [windowHeight]);
+  const viewportHeight = useMemo(
+    () => Math.max(320, windowHeight - 220),
+    [windowHeight]
+  );
   const drawDistance = useMemo(
     () => catalogDrawDistance(viewportHeight),
     [viewportHeight]
@@ -97,7 +100,10 @@ export function useCatalogArtLookahead<T extends ArtItem>({
       if (velocityY <= 0) return;
 
       const rowHeight = estimateCatalogRowHeight(layout, tileWidth, compact);
-      const firstRow = Math.max(0, Math.floor(contentOffset.y / Math.max(1, rowHeight)));
+      const firstRow = Math.max(
+        0,
+        Math.floor(contentOffset.y / Math.max(1, rowHeight))
+      );
       const firstIndex = layout === 'list' ? firstRow : firstRow * numColumns;
       const visibleRows = Math.max(
         1,

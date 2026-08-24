@@ -145,11 +145,7 @@ export const Button = ({
 
 export const ButtonText = (props: ButtonChildProps) => {
   const ctx = useButtonContext();
-  const merged = cn(
-    buttonTextVariants(ctx),
-    ctx.busy && 'opacity-0',
-    props.className
-  );
+  const merged = cn(buttonTextVariants(ctx), ctx.busy && 'opacity-0', props.className);
 
   return (
     <Text

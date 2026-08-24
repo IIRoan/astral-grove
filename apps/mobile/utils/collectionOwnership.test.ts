@@ -76,7 +76,10 @@ describe('collectionOwnership', () => {
 
   test('mergeOwnershipRecords updates and keeps known-zero quantities', () => {
     expect(
-      mergeOwnershipRecords({ 'OGN-001': 1, 'OGN-002': 2 }, { 'OGN-001': 3, 'OGN-002': 0 })
+      mergeOwnershipRecords(
+        { 'OGN-001': 1, 'OGN-002': 2 },
+        { 'OGN-001': 3, 'OGN-002': 0 }
+      )
     ).toEqual({ 'OGN-001': 3, 'OGN-002': 0 });
   });
 

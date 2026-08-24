@@ -1,0 +1,12 @@
+---
+description: Clean code and one-line comments
+alwaysApply: true
+---
+
+# Clean code
+
+- Prefer clear names and small functions over comments.
+- Comment only non-obvious business rules. Every comment is one line.
+- No multi-line comment or JSDoc blocks.
+- No drive-by refactors, dead code, unused imports, or commented-out blocks.
+- Prefer typed errors and validation over silent coercion.

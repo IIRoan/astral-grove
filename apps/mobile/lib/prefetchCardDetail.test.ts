@@ -45,7 +45,11 @@ const batchCards = mock(async (variantNumbers: string[]) => ({
   ].filter((card) =>
     card.variants.some((variant) => variantNumbers.includes(variant.variantNumber))
   ),
-  meta: { found: variantNumbers.length, notFound: [] as string[], source: 'cache' as const },
+  meta: {
+    found: variantNumbers.length,
+    notFound: [] as string[],
+    source: 'cache' as const,
+  },
 }));
 
 const getCard = mock(async () => {

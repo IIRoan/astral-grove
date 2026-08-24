@@ -61,7 +61,9 @@ export function CatalogFilterSetsPanel({
           label={set.name}
           subtitle={`${set.code} · ${set.count.toLocaleString()} printings`}
           active={selectedSets.has(set.code)}
-          onPress={() => onUpdate({ sets: toggleCatalogFilterValue(filters.sets, set.code) })}
+          onPress={() =>
+            onUpdate({ sets: toggleCatalogFilterValue(filters.sets, set.code) })
+          }
           compact={compact}
         />
       ))}

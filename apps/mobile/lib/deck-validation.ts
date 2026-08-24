@@ -43,7 +43,12 @@ export function validateDeck(deck: DeckState): DeckValidationMessage[] {
 
 function countUnresolvedCards(deck: DeckState): number {
   let count = 0;
-  const sections = [deck.mainDeck, deck.runes, deck.battlefields, deck.sideboard] as const;
+  const sections = [
+    deck.mainDeck,
+    deck.runes,
+    deck.battlefields,
+    deck.sideboard,
+  ] as const;
   for (const section of sections) {
     for (const [, entry] of section) {
       if (isUnresolvedDeckVariant(entry.card.variantNumber)) {

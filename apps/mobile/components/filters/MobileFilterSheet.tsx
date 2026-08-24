@@ -103,7 +103,9 @@ export function MobileFilterSheet({
                     accessibilityLabel="Clear all filters"
                     className="shrink-0 active:opacity-70"
                   >
-                    <Text className="text-sm font-normal text-foreground">Clear all</Text>
+                    <Text className="text-sm font-normal text-foreground">
+                      Clear all
+                    </Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -162,7 +164,10 @@ export function FilterAccordionSection({
             {active ? <View className="size-1.5 rounded-full bg-foreground" /> : null}
           </View>
           {summary ? (
-            <Text className="mt-0.5 text-[12px] text-muted-foreground" numberOfLines={1}>
+            <Text
+              className="mt-0.5 text-[12px] text-muted-foreground"
+              numberOfLines={1}
+            >
               {summary}
             </Text>
           ) : null}
@@ -179,7 +184,10 @@ interface FilterAccordionGroupProps {
   children: ReactNode;
 }
 
-export function FilterAccordionGroup({ defaultOpen, children }: FilterAccordionGroupProps) {
+export function FilterAccordionGroup({
+  defaultOpen,
+  children,
+}: FilterAccordionGroupProps) {
   return (
     <View className="gap-2">
       <Accordion type="multiple" defaultValue={defaultOpen} collapsible>
@@ -218,7 +226,9 @@ export function FilterOptionChip({
       <Text
         className={cn(
           'text-sm',
-          active ? FILTER_OPTION_CHIP_ACTIVE_TEXT_CLASS : FILTER_OPTION_CHIP_IDLE_TEXT_CLASS
+          active
+            ? FILTER_OPTION_CHIP_ACTIVE_TEXT_CLASS
+            : FILTER_OPTION_CHIP_IDLE_TEXT_CLASS
         )}
         numberOfLines={1}
       >

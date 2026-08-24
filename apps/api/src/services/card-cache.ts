@@ -610,8 +610,7 @@ export class CardCacheService {
             this.variantIdResolveCache.set(variantId, match.variantNumber);
             return match.variantNumber;
           }
-        } catch {
-        }
+        } catch {}
       }
     }
 
@@ -880,7 +879,8 @@ export class CardCacheService {
 
   private async resolveReconcileResult(
     query: CardsListQuery,
-    localResult: { items: CardListItem[]; total: number; catalogHash?: string } | undefined,
+    localResult:
+      { items: CardListItem[]; total: number; catalogHash?: string } | undefined,
     upserted: number
   ): Promise<{ items: CardListItem[]; total: number; catalogHash: string }> {
     if (upserted > 0 || !localResult) {
@@ -909,7 +909,12 @@ export class CardCacheService {
       (localResult?.total ?? 0) === 0 || (localResult?.items.length ?? 0) === 0;
 
     // Skip prior successful checks only with local hits; empty local always re-queries upstream.
-    if (this.upstreamCheckCache.has(checkKey) && !query.refresh && !localEmpty && localResult) {
+    if (
+      this.upstreamCheckCache.has(checkKey) &&
+      !query.refresh &&
+      !localEmpty &&
+      localResult
+    ) {
       const catalogHash = localResult.catalogHash ?? (await this.getCatalogHash());
       return {
         result: { items: localResult.items, total: localResult.total, catalogHash },
@@ -1070,7 +1075,8 @@ export class CardCacheService {
       .split(',')
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean);
-    const includeCards = requestedTypes.length === 0 || requestedTypes.includes('cards');
+    const includeCards =
+      requestedTypes.length === 0 || requestedTypes.includes('cards');
     const includeDecks = requestedTypes.includes('decks');
 
     const data: GlobalSearchResponse['data'] = {};
@@ -1141,7 +1147,9 @@ export class CardCacheService {
     return this.searchLocalPostgres(query, catalogHash);
   }
 
-  private async loadColorNamesByCardIds(cardIds: string[]): Promise<Map<string, string[]>> {
+  private async loadColorNamesByCardIds(
+    cardIds: string[]
+  ): Promise<Map<string, string[]>> {
     if (cardIds.length === 0) return new Map();
 
     const colorRows = await this.db
@@ -1195,11 +1203,8 @@ export class CardCacheService {
 
     const mapStart = performance.now();
     const items = rows.map((row) =>
-      mapListItemFromDbRow(
-        row,
-        colorsByCard.get(row.cardId) ?? [],
-        priceRows,
-        (url) => this.images.rewriteImageUrl(url)
+      mapListItemFromDbRow(row, colorsByCard.get(row.cardId) ?? [], priceRows, (url) =>
+        this.images.rewriteImageUrl(url)
       )
     );
     const mapMs = performance.now() - mapStart;
@@ -1380,7 +1385,12 @@ export class CardCacheService {
       dbMs: Math.round(dbMs * 100) / 100,
     });
 
-    const { items: rawItems, colorsMs, pricesMs, mapMs } = await this.hydrateSlimRows(rows);
+    const {
+      items: rawItems,
+      colorsMs,
+      pricesMs,
+      mapMs,
+    } = await this.hydrateSlimRows(rows);
     const hydration = summarizeHydrationTimings({ colorsMs, pricesMs, mapMs });
     const resolvedCatalogHash = catalogHash ?? (await this.getCatalogHash());
 

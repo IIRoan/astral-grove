@@ -79,8 +79,7 @@ export function resolvePublicAppUrl(input: {
     if (auth.hostname !== 'localhost' && auth.hostname !== '127.0.0.1') {
       return auth.origin;
     }
-  } catch {
-    }
+  } catch {}
   return 'http://localhost:7001';
 }
 

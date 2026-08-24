@@ -1,7 +1,10 @@
 import { View } from 'react-native';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
-import { FACTORY_RADIUS_CONTROL_CLASS, FACTORY_RADIUS_PANEL_CLASS } from '@/constants/factoryShape';
+import {
+  FACTORY_RADIUS_CONTROL_CLASS,
+  FACTORY_RADIUS_PANEL_CLASS,
+} from '@/constants/factoryShape';
 import { cn } from '@/lib/utils';
 
 export function CatalogDetailPanelSkeleton() {

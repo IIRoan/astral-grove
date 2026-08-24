@@ -15,8 +15,12 @@ test.describe('wishlist', () => {
     await expect(wishlistBtn).toBeVisible({ timeout: 30_000 });
     await wishlistBtn.click();
 
-    await expect(page.getByText('Add which printing?')).toBeVisible({ timeout: 10_000 });
-    await page.locator('[data-slot="inline-list-item-title"]', { hasText: 'Standard' }).click();
+    await expect(page.getByText('Add which printing?')).toBeVisible({
+      timeout: 10_000,
+    });
+    await page
+      .locator('[data-slot="inline-list-item-title"]', { hasText: 'Standard' })
+      .click();
 
     await expect(
       page.getByRole('button', { name: /Remove from wishlist|Wishlisted/ })

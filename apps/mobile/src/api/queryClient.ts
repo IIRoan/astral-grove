@@ -38,7 +38,9 @@ export function createQueryClient(): QueryClient {
 }
 
 /** Refresh account-bound lists after sign-in or background sync. */
-export async function invalidateUserDataQueries(queryClient: QueryClient): Promise<void> {
+export async function invalidateUserDataQueries(
+  queryClient: QueryClient
+): Promise<void> {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: collectionQueryKeys.all, exact: true }),
     queryClient.invalidateQueries({ queryKey: collectionQueryKeys.ownershipRoot }),
@@ -64,7 +66,9 @@ export function removeUserDataQueries(queryClient: QueryClient): void {
 }
 
 /** Catalog index/meta can go stale after a server sync — nudge without wiping disk cache. */
-export async function invalidateCatalogQueries(queryClient: QueryClient): Promise<void> {
+export async function invalidateCatalogQueries(
+  queryClient: QueryClient
+): Promise<void> {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: catalogQueryKeys.index }),
     queryClient.invalidateQueries({ queryKey: catalogQueryKeys.meta }),

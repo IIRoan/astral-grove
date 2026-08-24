@@ -102,7 +102,11 @@ export function matchVariantsToProducts(
     return result;
   }
 
-  for (let index = 0; index < Math.min(sortedVariants.length, sortedProducts.length); index += 1) {
+  for (
+    let index = 0;
+    index < Math.min(sortedVariants.length, sortedProducts.length);
+    index += 1
+  ) {
     const variant = sortedVariants[index]!;
     const product = sortedProducts[index]!;
     result.set(variant.variantNumber, product.idProduct);
@@ -122,7 +126,10 @@ export function buildSetExpansionMap(
     if (!product) continue;
 
     const byExpansion = counts.get(row.setCode) ?? new Map<number, number>();
-    byExpansion.set(product.idExpansion, (byExpansion.get(product.idExpansion) ?? 0) + 1);
+    byExpansion.set(
+      product.idExpansion,
+      (byExpansion.get(product.idExpansion) ?? 0) + 1
+    );
     counts.set(row.setCode, byExpansion);
   }
 

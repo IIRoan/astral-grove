@@ -119,27 +119,24 @@ describe('mapCardDetail', () => {
         },
       ],
     };
-    const detail = mapCardDetail(
-      PaLogicalCard.parse(foilMissingId),
-      [
-        {
-          cardmarketId: 866723,
-          isFoil: false,
-          marketPrice: '0.07',
-          lowPrice: '0.02',
-          avg7Day: '0.07',
-          lastUpdated: '2026-01-01',
-        },
-        {
-          cardmarketId: 866723,
-          isFoil: true,
-          marketPrice: '0.22',
-          lowPrice: '0.02',
-          avg7Day: '0.31',
-          lastUpdated: '2026-01-01',
-        },
-      ]
-    );
+    const detail = mapCardDetail(PaLogicalCard.parse(foilMissingId), [
+      {
+        cardmarketId: 866723,
+        isFoil: false,
+        marketPrice: '0.07',
+        lowPrice: '0.02',
+        avg7Day: '0.07',
+        lastUpdated: '2026-01-01',
+      },
+      {
+        cardmarketId: 866723,
+        isFoil: true,
+        marketPrice: '0.22',
+        lowPrice: '0.02',
+        avg7Day: '0.31',
+        lastUpdated: '2026-01-01',
+      },
+    ]);
     const foil = detail.variants.find((v) => v.variantNumber === 'SFD-001-Foil');
     expect(foil?.cardmarketId).toBe(866723);
     expect(foil?.prices).toHaveLength(2);

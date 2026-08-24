@@ -99,7 +99,10 @@ function createCardCacheHarness() {
     db,
     pa,
     { getRowsForCardmarketIds: async () => [] } as never,
-    { rewriteCard: (card: PaLogicalCard) => card, rewriteImageUrl: (url: string) => url } as never
+    {
+      rewriteCard: (card: PaLogicalCard) => card,
+      rewriteImageUrl: (url: string) => url,
+    } as never
   );
 
   const originalUpsert = cards.upsertFromUpstream.bind(cards);
@@ -115,7 +118,10 @@ describe('CardCacheService.resolveVariantNumberByUpstreamId', () => {
   test('discovers missing variants from upstream catalog list pages', async () => {
     const { cards, upsertCalls } = createCardCacheHarness();
 
-    const variantNumber = await cards.resolveVariantNumberByUpstreamId(VARIANT_ID, CARD_ID);
+    const variantNumber = await cards.resolveVariantNumberByUpstreamId(
+      VARIANT_ID,
+      CARD_ID
+    );
 
     expect(variantNumber).toBe(VARIANT_NUMBER);
     expect(upsertCalls).toHaveLength(1);
@@ -192,11 +198,16 @@ describe('CardCacheService.mapItem marketplace overlay', () => {
     // Private helper — list/index mapping must not discard DB overlays.
     const item = (
       cards as unknown as {
-        mapItem: typeof cards extends never ? never : (
-          card: PaLogicalCard,
-          variant: (typeof logical.variants)[0],
-          priceRows: typeof priceRows
-        ) => { cardmarketId: number | null; priceEur: { market: number | null } | null };
+        mapItem: typeof cards extends never
+          ? never
+          : (
+              card: PaLogicalCard,
+              variant: (typeof logical.variants)[0],
+              priceRows: typeof priceRows
+            ) => {
+              cardmarketId: number | null;
+              priceEur: { market: number | null } | null;
+            };
       }
     ).mapItem(logical, overlaid, priceRows);
 

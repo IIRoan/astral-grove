@@ -10,7 +10,9 @@ export class WishlistService {
     private readonly images: ImageStoreService
   ) {}
 
-  async listForUser(userId: string): Promise<{ items: WishlistItemDto[]; total: number }> {
+  async listForUser(
+    userId: string
+  ): Promise<{ items: WishlistItemDto[]; total: number }> {
     const rows = await this.db
       .select({
         id: wishlistItems.id,
@@ -96,7 +98,10 @@ export class WishlistService {
     await this.db
       .delete(wishlistItems)
       .where(
-        and(eq(wishlistItems.userId, userId), eq(wishlistItems.variantNumber, variantNumber))
+        and(
+          eq(wishlistItems.userId, userId),
+          eq(wishlistItems.variantNumber, variantNumber)
+        )
       );
   }
 }

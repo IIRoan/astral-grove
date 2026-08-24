@@ -103,7 +103,12 @@ describe('collectionStats', () => {
   it('lists sets from the API snapshot, not a hardcoded catalog', () => {
     const collection = [
       entry({ variantNumber: 'OGN-001', name: 'Card A', setCode: 'OGN', quantity: 1 }),
-      entry({ variantNumber: 'VEN-001', name: 'New Card', setCode: 'VEN', quantity: 1 }),
+      entry({
+        variantNumber: 'VEN-001',
+        name: 'New Card',
+        setCode: 'VEN',
+        quantity: 1,
+      }),
     ];
 
     const merged = mergeSetStats(
@@ -112,10 +117,7 @@ describe('collectionStats', () => {
         { code: 'VEN', name: 'Vendetta', count: 30 },
         { code: 'OGN', name: 'Origins', count: 354 },
       ],
-      (code) =>
-        code === 'OGN'
-          ? { name: 'Origins', released: 'Oct 2025' }
-          : undefined
+      (code) => (code === 'OGN' ? { name: 'Origins', released: 'Oct 2025' } : undefined)
     );
 
     expect(merged.map((set) => set.code)).toEqual(['VEN', 'OGN']);
@@ -131,7 +133,14 @@ describe('collectionStats', () => {
 
   it('includes owned sets missing from the API snapshot', () => {
     const merged = mergeSetStats(
-      [entry({ variantNumber: 'VEN-001', name: 'New Card', setCode: 'VEN', quantity: 2 })],
+      [
+        entry({
+          variantNumber: 'VEN-001',
+          name: 'New Card',
+          setCode: 'VEN',
+          quantity: 2,
+        }),
+      ],
       [{ code: 'OGN', name: 'Origins', count: 354 }]
     );
 
@@ -141,14 +150,24 @@ describe('collectionStats', () => {
 
   it('splits non-foil and foil ownership with separate denominators', () => {
     const collection = [
-      entry({ variantNumber: 'OGN-001', name: 'Card A', setCode: 'OGN', isFoil: false }),
+      entry({
+        variantNumber: 'OGN-001',
+        name: 'Card A',
+        setCode: 'OGN',
+        isFoil: false,
+      }),
       entry({
         variantNumber: 'OGN-001-Foil',
         name: 'Card A',
         setCode: 'OGN',
         isFoil: true,
       }),
-      entry({ variantNumber: 'OGN-002', name: 'Card B', setCode: 'OGN', isFoil: false }),
+      entry({
+        variantNumber: 'OGN-002',
+        name: 'Card B',
+        setCode: 'OGN',
+        isFoil: false,
+      }),
     ];
 
     const [origins] = mergeSetStats(collection, [

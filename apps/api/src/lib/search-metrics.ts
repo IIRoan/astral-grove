@@ -20,7 +20,11 @@ function roundMs(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function write(level: LogLevel, event: SearchMetricEvent, fields: Record<string, unknown>): void {
+function write(
+  level: LogLevel,
+  event: SearchMetricEvent,
+  fields: Record<string, unknown>
+): void {
   if (!isSearchMetricsEnabled()) return;
 
   const payload = {
@@ -38,7 +42,9 @@ function write(level: LogLevel, event: SearchMetricEvent, fields: Record<string,
   console.log(line);
 }
 
-export function summarizeCardsListQuery(query: CardsListQuery): Record<string, unknown> {
+export function summarizeCardsListQuery(
+  query: CardsListQuery
+): Record<string, unknown> {
   return {
     q: query.q?.trim() || null,
     page: query.page,
@@ -57,7 +63,9 @@ export function summarizeCardsListQuery(query: CardsListQuery): Record<string, u
   };
 }
 
-export function summarizeGlobalSearchQuery(query: GlobalSearchQuery): Record<string, unknown> {
+export function summarizeGlobalSearchQuery(
+  query: GlobalSearchQuery
+): Record<string, unknown> {
   return {
     q: query.q.trim(),
     page: query.page,
@@ -96,7 +104,9 @@ export type HydrationTimings = {
   mapMs: number;
 };
 
-export function summarizeHydrationTimings(timings: HydrationTimings): Record<string, number> {
+export function summarizeHydrationTimings(
+  timings: HydrationTimings
+): Record<string, number> {
   const colorsMs = roundMs(timings.colorsMs);
   const pricesMs = roundMs(timings.pricesMs);
   const mapMs = roundMs(timings.mapMs);

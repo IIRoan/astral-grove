@@ -18,8 +18,7 @@ export function resolveSsl(
     if (sslmode === 'require' || sslmode === 'verify-full' || sslmode === 'verify-ca') {
       return 'require';
     }
-  } catch {
-  }
+  } catch {}
   return isProduction ? 'require' : undefined;
 }
 

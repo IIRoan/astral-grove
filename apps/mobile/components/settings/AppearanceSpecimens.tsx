@@ -173,7 +173,11 @@ function GridLayoutPreview({ cards }: { cards: CardListItem[] }) {
       >
         {slots.map((card, index) => (
           <View
-            key={card ? `${card.variantNumber}-grid-${String(index)}` : `grid-slot-${index}`}
+            key={
+              card
+                ? `${card.variantNumber}-grid-${String(index)}`
+                : `grid-slot-${index}`
+            }
             style={{ width: GRID_TILE_WIDTH }}
           >
             {card ? (

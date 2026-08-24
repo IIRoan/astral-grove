@@ -60,7 +60,10 @@ export function CatalogFilterSheet({
   const queryClient = useQueryClient();
   const activeCount = countCatalogFilters(filters);
   const accordionKey = visible ? 'open' : 'closed';
-  const defaultOpen = useMemo(() => defaultOpenSegments(filters), [filters, accordionKey]);
+  const defaultOpen = useMemo(
+    () => defaultOpenSegments(filters),
+    [filters, accordionKey]
+  );
 
   useEffect(() => {
     if (!visible) return;

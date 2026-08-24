@@ -92,7 +92,10 @@ export const DeckCatalogGridTile = memo(function DeckCatalogGridTile({
         >
           {imageUri ? (
             horizontal ? (
-              <BattlefieldCardArt uri={imageUri} variantNumber={candidate.variantNumber} />
+              <BattlefieldCardArt
+                uri={imageUri}
+                variantNumber={candidate.variantNumber}
+              />
             ) : (
               <DeckCardArt uri={imageUri} variantNumber={candidate.variantNumber} />
             )

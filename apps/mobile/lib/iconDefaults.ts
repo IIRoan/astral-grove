@@ -39,7 +39,9 @@ export function iconSizeFromStyle(style: StyleNode): number | undefined {
 }
 
 /** Drop width/height so Phosphor's `size` owns metrics (avoids CSS downscale blur). */
-export function iconStyleWithoutBoxSize(style: StyleNode): StyleProp<ViewStyle> | undefined {
+export function iconStyleWithoutBoxSize(
+  style: StyleNode
+): StyleProp<ViewStyle> | undefined {
   if (style == null || style === false) return undefined;
   if (Array.isArray(style)) {
     const next = compactMap(style, (entry) => {

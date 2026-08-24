@@ -2,7 +2,14 @@ import type postgres from 'postgres';
 import { isTransientDbError } from './transient-errors.js';
 
 const DEFAULT_MAX_ATTEMPTS = 3;
-const CHAINABLE_QUERY_METHODS = new Set(['values', 'raw', 'simple', 'describe', 'cursor', 'forEach']);
+const CHAINABLE_QUERY_METHODS = new Set([
+  'values',
+  'raw',
+  'simple',
+  'describe',
+  'cursor',
+  'forEach',
+]);
 
 type QueryFactory = () => Promise<unknown>;
 
@@ -29,8 +36,13 @@ async function runWithRetry<T>(run: () => Promise<T>, maxAttempts: number): Prom
   throw lastError;
 }
 
-function wrapPendingQuery(createQuery: QueryFactory, maxAttempts: number): Promise<unknown> {
-  const chain: Array<(query: postgres.PendingQuery<readonly postgres.Row[]>) => unknown> = [];
+function wrapPendingQuery(
+  createQuery: QueryFactory,
+  maxAttempts: number
+): Promise<unknown> {
+  const chain: Array<
+    (query: postgres.PendingQuery<readonly postgres.Row[]>) => unknown
+  > = [];
 
   const buildQuery = () => {
     let query = createQuery() as postgres.PendingQuery<readonly postgres.Row[]>;
@@ -45,12 +57,15 @@ function wrapPendingQuery(createQuery: QueryFactory, maxAttempts: number): Promi
   const proxy = new Proxy({} as postgres.PendingQuery<readonly postgres.Row[]>, {
     get(_target, prop) {
       if (prop === 'then') {
-        return (onFulfilled?: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
-          execute().then(onFulfilled, onRejected);
+        return (
+          onFulfilled?: (value: unknown) => unknown,
+          onRejected?: (reason: unknown) => unknown
+        ) => execute().then(onFulfilled, onRejected);
       }
 
       if (prop === 'catch') {
-        return (onRejected?: (reason: unknown) => unknown) => execute().catch(onRejected);
+        return (onRejected?: (reason: unknown) => unknown) =>
+          execute().catch(onRejected);
       }
 
       if (prop === 'finally') {

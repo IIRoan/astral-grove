@@ -116,11 +116,7 @@ export function PlaySetupSheet({
                       </InlineListItemDescription>
                       {selected ? (
                         <InlineListItemAddon align="inline-end">
-                          <ThemedIcon
-                            icon={CheckIcon}
-                            size={18}
-                            color="foreground"
-                          />
+                          <ThemedIcon icon={CheckIcon} size={18} color="foreground" />
                         </InlineListItemAddon>
                       ) : null}
                     </InlineListItem>

@@ -21,9 +21,6 @@ export type InputAddonProps = React.ComponentProps<typeof View> &
     children: React.ReactNode;
   };
 
-export type InputAddonChild =
-  | React.ReactElement<InputAddonProps>
-  | null
-  | false;
+export type InputAddonChild = React.ReactElement<InputAddonProps> | null | false;
 
 export type InputAddonChildren = InputAddonChild | InputAddonChild[];

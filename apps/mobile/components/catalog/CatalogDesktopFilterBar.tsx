@@ -1,5 +1,8 @@
 import { View } from 'react-native';
-import { FilterClearButton, FilterPopoverBar } from '@/components/filters/FilterPrimitives';
+import {
+  FilterClearButton,
+  FilterPopoverBar,
+} from '@/components/filters/FilterPrimitives';
 import {
   catalogFiltersActive,
   DEFAULT_CATALOG_FILTERS,
@@ -35,7 +38,10 @@ export function CatalogDesktopFilterBar({
       {catalogFiltersActive(filters) ? (
         <FilterClearButton
           onPress={() =>
-            onFiltersChange({ ...DEFAULT_CATALOG_FILTERS, simpleAdd: filters.simpleAdd })
+            onFiltersChange({
+              ...DEFAULT_CATALOG_FILTERS,
+              simpleAdd: filters.simpleAdd,
+            })
           }
         />
       ) : null}

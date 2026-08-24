@@ -3,7 +3,7 @@ import { describe, expect, mock, test, beforeEach } from 'bun:test';
 const Platform = { OS: 'ios' as string };
 const openBrowserAsync = mock(async (_url: string) => ({ type: 'dismiss' as const }));
 const openURL = mock(async (_url: string) => true);
-const hapticPress = mock(async () => { });
+const hapticPress = mock(async () => {});
 
 mock.module('react-native', () => ({
   Platform,

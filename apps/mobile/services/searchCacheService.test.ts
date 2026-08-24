@@ -5,7 +5,8 @@ import { createMemoryAsyncStorage } from '../test/memory-async-storage';
 const memoryStorage = createMemoryAsyncStorage();
 memoryStorage.install();
 
-const { cacheSearchResults, getCachedSearchResults } = await import('./searchCacheService');
+const { cacheSearchResults, getCachedSearchResults } =
+  await import('./searchCacheService');
 
 const sampleResponse = {
   data: [
@@ -65,10 +66,7 @@ describe('searchCacheService', () => {
       cachedAt: Date.now() - 2 * 60 * 60 * 1000,
       response: sampleResponse,
     };
-    memoryStorage.store.set(
-      'riftbound_search_cache',
-      JSON.stringify([expiredEntry])
-    );
+    memoryStorage.store.set('riftbound_search_cache', JSON.stringify([expiredEntry]));
 
     expect(await getCachedSearchResults('viktor')).toBeNull();
   });

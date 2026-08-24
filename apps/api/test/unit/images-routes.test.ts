@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { Elysia } from 'elysia';
 import { createImagesRoutes } from '../../src/routes/images.js';
-import type { ImageStoreService, ServeImageResult } from '../../src/services/image-store.js';
+import type {
+  ImageStoreService,
+  ServeImageResult,
+} from '../../src/services/image-store.js';
 
 function createImagesApp(serve: ImageStoreService['serveImage']) {
   const images = { serveImage: serve } as ImageStoreService;

@@ -151,13 +151,13 @@ export class DeckService {
     const importedItems: DeckListItem[] = [];
     let pagination:
       | {
-        total: number;
-        page: number;
-        limit: number;
-        totalPages: number;
-        hasNext: boolean;
-        hasPrevious: boolean;
-      }
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+          hasNext: boolean;
+          hasPrevious: boolean;
+        }
       | undefined;
 
     if (this.deckSync && source !== 'owned') {

@@ -115,7 +115,10 @@ export function CatalogFilterSegmentPanel({
     rarityOptions,
   } = useCatalogFilterOptions();
 
-  const selectedColors = useMemo(() => toMembershipSet(filters.colors), [filters.colors]);
+  const selectedColors = useMemo(
+    () => toMembershipSet(filters.colors),
+    [filters.colors]
+  );
   const selectedSets = useMemo(() => toMembershipSet(filters.sets), [filters.sets]);
   const selectedTypes = useMemo(() => toMembershipSet(filters.types), [filters.types]);
   const selectedSupertypes = useMemo(
@@ -146,7 +149,9 @@ export function CatalogFilterSegmentPanel({
     return (
       <View className="items-center py-8">
         <AppLoader size="md" />
-        <Text className="mt-3 text-sm text-archive-subtle">Loading filter options…</Text>
+        <Text className="mt-3 text-sm text-archive-subtle">
+          Loading filter options…
+        </Text>
       </View>
     );
   }

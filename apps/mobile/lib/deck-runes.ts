@@ -6,7 +6,10 @@ import type { DeckCard, DeckState } from '@/lib/deck-types';
 export const DEFAULT_RUNE_SPLIT = 6;
 
 export function findRuneEntryForDomain(
-  runes: ReadonlyMap<string, DeckState['runes'] extends Map<string, infer E> ? E : never>,
+  runes: ReadonlyMap<
+    string,
+    DeckState['runes'] extends Map<string, infer E> ? E : never
+  >,
   domain: string
 ) {
   for (const [, entry] of runes) {
@@ -58,7 +61,10 @@ export function seedDefaultRuneSplit(
 
   let next = deck;
   if (firstDomain === secondDomain) {
-    return addCardToDeck(next, firstCard, { section: 'runes', count: splitPerDomain * 2 });
+    return addCardToDeck(next, firstCard, {
+      section: 'runes',
+      count: splitPerDomain * 2,
+    });
   }
 
   const secondCard = runeCardsByDomain.get(secondDomain);

@@ -3,7 +3,9 @@ export const ALLOWED_THUMB_WIDTHS = [96, 160, 240, 320] as const;
 
 export type AllowedThumbWidth = (typeof ALLOWED_THUMB_WIDTHS)[number];
 
-export function parseThumbWidth(raw: string | null | undefined): AllowedThumbWidth | undefined {
+export function parseThumbWidth(
+  raw: string | null | undefined
+): AllowedThumbWidth | undefined {
   if (!raw) return undefined;
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed)) return undefined;

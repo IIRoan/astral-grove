@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import { authFetch, cleanupTestUsers, signUpTestUser } from './helpers/auth.js';
 
 setDefaultTimeout(120_000);
@@ -84,7 +91,9 @@ describe('deck route error handling', () => {
     });
     expect(putRes.status).toBe(200);
 
-    const listRes = await authFetch('/api/v1/decks?source=owned&q=Owned%20Filter', { cookie });
+    const listRes = await authFetch('/api/v1/decks?source=owned&q=Owned%20Filter', {
+      cookie,
+    });
     expect(listRes.status).toBe(200);
     const body = (await listRes.json()) as {
       data: Array<{ id: string; source: string }>;

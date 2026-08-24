@@ -1,4 +1,7 @@
-import type { CollectionLiveChangeReason, CollectionLiveChangedEvent } from '@riftbound/contracts';
+import type {
+  CollectionLiveChangeReason,
+  CollectionLiveChangedEvent,
+} from '@riftbound/contracts';
 
 export type CollectionLiveListener = (event: CollectionLiveChangedEvent) => void;
 
@@ -13,7 +16,7 @@ export class CollectionLiveLimitError extends Error {
 export class CollectionLiveHub {
   private readonly listeners = new Map<string, Set<CollectionLiveListener>>();
 
-  constructor(private readonly maxPerCollection = 8) { }
+  constructor(private readonly maxPerCollection = 8) {}
 
   subscribe(collectionId: string, listener: CollectionLiveListener): () => void {
     let set = this.listeners.get(collectionId);

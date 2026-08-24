@@ -200,7 +200,9 @@ export class CardmarketIdBackfillService {
       if (expansionId == null) continue;
 
       const expansionProducts = productsByExpansion.get(String(expansionId)) ?? [];
-      const products = expansionProducts.filter((product) => product.name === first.cardName);
+      const products = expansionProducts.filter(
+        (product) => product.name === first.cardName
+      );
       if (products.length === 0) continue;
 
       const usedIds = new Set(
@@ -208,7 +210,11 @@ export class CardmarketIdBackfillService {
           .map((row) => row.cardmarketId)
           .filter((id): id is number => id != null)
       );
-      const leftovers = leftoverCardmarketProducts(products, usedIds, priceRankByProduct);
+      const leftovers = leftoverCardmarketProducts(
+        products,
+        usedIds,
+        priceRankByProduct
+      );
       const leftover = leftovers[0];
       if (!leftover) continue;
 
@@ -217,9 +223,13 @@ export class CardmarketIdBackfillService {
         first.cardName,
         signedVn
       );
-      const synthetic = buildSyntheticSignedOvernumbered(parentVariant, leftover.idProduct, {
-        imageUrl: signatureImageUrl,
-      });
+      const synthetic = buildSyntheticSignedOvernumbered(
+        parentVariant,
+        leftover.idProduct,
+        {
+          imageUrl: signatureImageUrl,
+        }
+      );
       const now = new Date();
 
       const inserted = await this.db
@@ -259,7 +269,8 @@ export class CardmarketIdBackfillService {
       if (cardRow) {
         const logical = cardRow.upstreamRaw as PaLogicalCard;
         const alreadyListed = logical.variants.some(
-          (row) => row.variantNumber.toLowerCase() === synthetic.variantNumber.toLowerCase()
+          (row) =>
+            row.variantNumber.toLowerCase() === synthetic.variantNumber.toLowerCase()
         );
         if (!alreadyListed) {
           const nextVariants = [...logical.variants, synthetic].sort((a, b) =>

@@ -5,12 +5,7 @@ import { Text } from '@/components/ui/text';
 import { hapticPress } from '@/utils/haptics';
 
 export type StatusKeyword =
-  | 'valid'
-  | 'warning'
-  | 'error'
-  | 'imported'
-  | 'legal'
-  | 'illegal';
+  'valid' | 'warning' | 'error' | 'imported' | 'legal' | 'illegal';
 
 const STATUS_KEYWORDS: Record<StatusKeyword, { label: string; keywordBase: string }> = {
   valid: { label: 'VALID', keywordBase: 'ACCELERATE' },
@@ -30,7 +25,11 @@ export function StatusKeywordBadge({
 }) {
   const config = STATUS_KEYWORDS[status];
   return (
-    <KeywordBadge label={config.label} keywordBase={config.keywordBase} compact={compact} />
+    <KeywordBadge
+      label={config.label}
+      keywordBase={config.keywordBase}
+      compact={compact}
+    />
   );
 }
 
@@ -51,7 +50,11 @@ export function ContentKeywordBadge({
 }) {
   const config = CONTENT_KEYWORDS[type];
   return (
-    <KeywordBadge label={config.label} keywordBase={config.keywordBase} compact={compact} />
+    <KeywordBadge
+      label={config.label}
+      keywordBase={config.keywordBase}
+      compact={compact}
+    />
   );
 }
 
@@ -106,7 +109,10 @@ export function QuantityPip({
       >
         <Text
           className="font-extrabold text-black"
-          style={{ fontSize: Math.max(9, Math.round(size * 0.46)), lineHeight: Math.round(size * 0.5) }}
+          style={{
+            fontSize: Math.max(9, Math.round(size * 0.46)),
+            lineHeight: Math.round(size * 0.5),
+          }}
         >
           {value}
         </Text>

@@ -83,7 +83,9 @@ function DeckCardSlotInner({
           </View>
         </View>
         {label ? (
-          <Text className="px-0.5 text-center text-[11px] text-muted-foreground">{label}</Text>
+          <Text className="px-0.5 text-center text-[11px] text-muted-foreground">
+            {label}
+          </Text>
         ) : null}
       </Pressable>
     );
@@ -110,13 +112,23 @@ function DeckCardSlotInner({
           className={cn(
             'aspect-[5/7] w-full items-center justify-center border border-dashed bg-card-panel',
             CARD_ART_RADIUS_CLASS,
-            isIdentity ? 'border-foreground' : isLocked ? 'border-border/60 opacity-60' : 'border-border'
+            isIdentity
+              ? 'border-foreground'
+              : isLocked
+                ? 'border-border/60 opacity-60'
+                : 'border-border'
           )}
         >
           <ThemedIcon
             icon={isIdentity ? StarIcon : isLocked ? LockIcon : PlusIcon}
             size={22}
-            color={isLocked ? 'muted-foreground' : isIdentity ? 'muted-foreground' : 'foreground'}
+            color={
+              isLocked
+                ? 'muted-foreground'
+                : isIdentity
+                  ? 'muted-foreground'
+                  : 'foreground'
+            }
           />
         </View>
         {label ? (
@@ -227,7 +239,10 @@ function DeckCardSlotInner({
   );
 }
 
-function deckCardSlotPropsEqual(prev: DeckCardSlotProps, next: DeckCardSlotProps): boolean {
+function deckCardSlotPropsEqual(
+  prev: DeckCardSlotProps,
+  next: DeckCardSlotProps
+): boolean {
   return (
     prev.variant === next.variant &&
     prev.tileWidth === next.tileWidth &&

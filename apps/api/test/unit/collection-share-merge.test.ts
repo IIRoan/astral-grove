@@ -40,12 +40,32 @@ describe('mergeCollectionStacks', () => {
   test('sums quantities on matching variant/condition/language', () => {
     const merged = mergeCollectionStacks(
       [
-        { variantNumber: 'OGN-001', condition: 'near_mint', language: 'en', quantity: 2 },
-        { variantNumber: 'OGN-002', condition: 'near_mint', language: 'en', quantity: 1 },
+        {
+          variantNumber: 'OGN-001',
+          condition: 'near_mint',
+          language: 'en',
+          quantity: 2,
+        },
+        {
+          variantNumber: 'OGN-002',
+          condition: 'near_mint',
+          language: 'en',
+          quantity: 1,
+        },
       ],
       [
-        { variantNumber: 'OGN-001', condition: 'near_mint', language: 'en', quantity: 3 },
-        { variantNumber: 'OGN-003', condition: 'near_mint', language: 'en', quantity: 5 },
+        {
+          variantNumber: 'OGN-001',
+          condition: 'near_mint',
+          language: 'en',
+          quantity: 3,
+        },
+        {
+          variantNumber: 'OGN-003',
+          condition: 'near_mint',
+          language: 'en',
+          quantity: 5,
+        },
       ]
     );
 
@@ -72,23 +92,41 @@ describe('mergeCollectionStacks', () => {
 
   test('keeps different condition or language stacks separate', () => {
     const merged = mergeCollectionStacks(
-      [{ variantNumber: 'OGN-001', condition: 'near_mint', language: 'en', quantity: 1 }],
       [
-        { variantNumber: 'OGN-001', condition: 'lightly_played', language: 'en', quantity: 2 },
-        { variantNumber: 'OGN-001', condition: 'near_mint', language: 'de', quantity: 3 },
+        {
+          variantNumber: 'OGN-001',
+          condition: 'near_mint',
+          language: 'en',
+          quantity: 1,
+        },
+      ],
+      [
+        {
+          variantNumber: 'OGN-001',
+          condition: 'lightly_played',
+          language: 'en',
+          quantity: 2,
+        },
+        {
+          variantNumber: 'OGN-001',
+          condition: 'near_mint',
+          language: 'de',
+          quantity: 3,
+        },
       ]
     );
 
     expect(merged).toHaveLength(3);
-    expect(merged.find((s) => s.condition === 'near_mint' && s.language === 'en')?.quantity).toBe(
-      1
-    );
     expect(
-      merged.find((s) => s.condition === 'lightly_played' && s.language === 'en')?.quantity
+      merged.find((s) => s.condition === 'near_mint' && s.language === 'en')?.quantity
+    ).toBe(1);
+    expect(
+      merged.find((s) => s.condition === 'lightly_played' && s.language === 'en')
+        ?.quantity
     ).toBe(2);
-    expect(merged.find((s) => s.condition === 'near_mint' && s.language === 'de')?.quantity).toBe(
-      3
-    );
+    expect(
+      merged.find((s) => s.condition === 'near_mint' && s.language === 'de')?.quantity
+    ).toBe(3);
   });
 
   test('returns source stacks when target is empty', () => {
@@ -161,7 +199,9 @@ describe('collection share contracts', () => {
   });
 
   test('accept request requires mode', () => {
-    expect(CollectionShareAcceptRequest.parse({ mode: 'merge' })).toEqual({ mode: 'merge' });
+    expect(CollectionShareAcceptRequest.parse({ mode: 'merge' })).toEqual({
+      mode: 'merge',
+    });
     expect(() => CollectionShareAcceptRequest.parse({})).toThrow();
   });
 

@@ -149,9 +149,13 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
       }
       setNewEmail(normalized);
       setEmailAwaitingOtp(true);
-      setEmailNote('If that address can receive mail, a verification code is on the way.');
+      setEmailNote(
+        'If that address can receive mail, a verification code is on the way.'
+      );
     } catch (err) {
-      setEmailError(err instanceof Error ? err.message : 'Could not send verification code');
+      setEmailError(
+        err instanceof Error ? err.message : 'Could not send verification code'
+      );
     } finally {
       setEmailBusy(false);
     }
@@ -164,7 +168,9 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
     const normalized = normalizeVerificationEmail(newEmail);
     const code = normalizeVerificationOtp(emailOtp);
     if (!isCompleteVerificationOtp(code)) {
-      setEmailError(`Enter the ${String(EMAIL_VERIFICATION_OTP_LENGTH)}-digit code from your email`);
+      setEmailError(
+        `Enter the ${String(EMAIL_VERIFICATION_OTP_LENGTH)}-digit code from your email`
+      );
       return;
     }
     setEmailBusy(true);
@@ -183,7 +189,9 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
       await invalidateUserDataQueries(queryClient);
       toast.success('Email updated and verified');
     } catch (err) {
-      setEmailError(err instanceof Error ? err.message : 'Could not verify and change email');
+      setEmailError(
+        err instanceof Error ? err.message : 'Could not verify and change email'
+      );
     } finally {
       setEmailBusy(false);
     }
@@ -242,7 +250,9 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
       setPasswordNote('Password updated. Other sessions were signed out.');
       toast.success('Password updated');
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : 'Could not change password');
+      setPasswordError(
+        err instanceof Error ? err.message : 'Could not change password'
+      );
     } finally {
       setPasswordBusy(false);
     }
@@ -254,7 +264,9 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
     setResetBusy(true);
     try {
       const webOrigin =
-        Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : null;
+        Platform.OS === 'web' && typeof window !== 'undefined'
+          ? window.location.origin
+          : null;
       const result = await authClient.requestPasswordReset({
         email: user.email,
         redirectTo: resolvePasswordResetRedirectTo(webOrigin, user.email),
@@ -265,7 +277,9 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
       }
       setPasswordNote('If this account can receive mail, a reset link is on the way.');
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : 'Could not send reset email');
+      setPasswordError(
+        err instanceof Error ? err.message : 'Could not send reset email'
+      );
     } finally {
       setResetBusy(false);
     }
@@ -297,7 +311,10 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
           <Text className="font-mono text-[11px] font-medium uppercase tracking-[-0.24px] text-muted-foreground">
             Sign-in email
           </Text>
-          <Text className="text-base font-semibold tracking-tight text-foreground" selectable>
+          <Text
+            className="text-base font-semibold tracking-tight text-foreground"
+            selectable
+          >
             {email}
           </Text>
           <Text className="text-sm text-muted-foreground">
@@ -320,8 +337,8 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
             {!emailAwaitingOtp ? (
               <View className="gap-4">
                 <Text className="text-sm leading-5 text-muted-foreground">
-                  We will send a verification code to the new address. Your sign-in email updates
-                  only after that code confirms.
+                  We will send a verification code to the new address. Your sign-in
+                  email updates only after that code confirms.
                 </Text>
                 <View className="gap-2">
                   <Label nativeID={emailId}>New email</Label>
@@ -361,7 +378,10 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
                 ) : null}
 
                 {emailNote ? (
-                  <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+                  <Text
+                    className="text-sm text-muted-foreground"
+                    accessibilityLiveRegion="polite"
+                  >
                     {emailNote}
                   </Text>
                 ) : null}
@@ -379,7 +399,8 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
             ) : (
               <View className="gap-4">
                 <Text className="text-sm leading-5 text-muted-foreground">
-                  Enter the {String(EMAIL_VERIFICATION_OTP_LENGTH)}-digit verification code sent to{' '}
+                  Enter the {String(EMAIL_VERIFICATION_OTP_LENGTH)}-digit verification
+                  code sent to{' '}
                   <Text className="font-medium text-foreground">
                     {normalizeVerificationEmail(newEmail)}
                   </Text>
@@ -392,7 +413,10 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
                     value={emailOtp}
                     onChangeText={(value) => {
                       setEmailOtp(
-                        normalizeVerificationOtp(value).slice(0, EMAIL_VERIFICATION_OTP_LENGTH)
+                        normalizeVerificationOtp(value).slice(
+                          0,
+                          EMAIL_VERIFICATION_OTP_LENGTH
+                        )
                       );
                       setEmailError(null);
                     }}
@@ -430,7 +454,10 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
                 ) : null}
 
                 {emailNote ? (
-                  <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+                  <Text
+                    className="text-sm text-muted-foreground"
+                    accessibilityLiveRegion="polite"
+                  >
                     {emailNote}
                   </Text>
                 ) : null}
@@ -562,7 +589,10 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
             ) : null}
 
             {passwordNote ? (
-              <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+              <Text
+                className="text-sm text-muted-foreground"
+                accessibilityLiveRegion="polite"
+              >
                 {passwordNote}
               </Text>
             ) : null}

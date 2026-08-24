@@ -137,7 +137,8 @@ export function CatalogDetailScrollBody({
               <WishlistPriceHistoryPanel
                 item={{
                   ...priceHistory.panelItem,
-                  cardmarketId: priceHistory.panelItem.cardmarketId ?? activeCardmarketId,
+                  cardmarketId:
+                    priceHistory.panelItem.cardmarketId ?? activeCardmarketId,
                 }}
                 className="border-0 bg-transparent p-0"
               />
@@ -162,7 +163,6 @@ export function CatalogDetailScrollBody({
           </View>
         </>
       ) : null}
-
     </View>
   );
 }

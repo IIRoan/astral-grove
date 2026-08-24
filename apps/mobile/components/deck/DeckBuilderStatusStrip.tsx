@@ -90,7 +90,9 @@ export function DeckBuilderStatusStrip({
       >
         <View className="mb-1.5 flex-row items-end justify-between gap-2">
           <View className="min-w-0 flex-1">
-            <Text className="text-[12px] font-medium text-muted-foreground">Main deck</Text>
+            <Text className="text-[12px] font-medium text-muted-foreground">
+              Main deck
+            </Text>
             <View className="mt-0.5 flex-row items-baseline gap-1">
               <Text
                 className={cn(
@@ -141,7 +143,9 @@ export function DeckBuilderStatusStrip({
               )}
             >
               <View className="mb-1.5 flex-row items-center justify-between gap-2">
-                <Text className="text-[12px] font-medium text-muted-foreground">{label}</Text>
+                <Text className="text-[12px] font-medium text-muted-foreground">
+                  {label}
+                </Text>
                 <View className="flex-row items-center gap-1.5">
                   <Text
                     className={cn(

@@ -7,8 +7,7 @@ export const chipVariants = cva(
       variant: {
         default: 'border border-border bg-card-panel active:opacity-80',
         secondary: 'bg-card-panel active:opacity-80',
-        destructive:
-          'bg-destructive active:bg-destructive/80 dark:bg-destructive/60',
+        destructive: 'bg-destructive active:bg-destructive/80 dark:bg-destructive/60',
         outline: 'border border-border bg-transparent active:bg-card-panel',
       },
     },

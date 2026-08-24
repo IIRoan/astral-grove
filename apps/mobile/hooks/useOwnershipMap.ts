@@ -27,8 +27,5 @@ export function useOwnershipMap(options?: {
     enabled,
   });
 
-  return useMemo(
-    () => (data ? ownershipMapFromRecord(data) : EMPTY_MAP),
-    [data]
-  );
+  return useMemo(() => (data ? ownershipMapFromRecord(data) : EMPTY_MAP), [data]);
 }

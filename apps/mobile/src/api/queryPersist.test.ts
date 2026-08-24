@@ -8,7 +8,8 @@ mock.module('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
-const { shouldPersistQuery, QUERY_PERSIST_KEY } = await import('@/src/api/queryPersist');
+const { shouldPersistQuery, QUERY_PERSIST_KEY } =
+  await import('@/src/api/queryPersist');
 
 describe('queryPersist', () => {
   test('persists filters, collection, wishlist, and catalog meta', () => {

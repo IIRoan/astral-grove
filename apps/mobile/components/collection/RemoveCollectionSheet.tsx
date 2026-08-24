@@ -66,7 +66,9 @@ export function RemoveCollectionSheet({
                   }}
                 >
                   <InlineListItemTitle>{item.label}</InlineListItemTitle>
-                  <InlineListItemDescription>{item.variantNumber}</InlineListItemDescription>
+                  <InlineListItemDescription>
+                    {item.variantNumber}
+                  </InlineListItemDescription>
                   <InlineListItemAddon align="inline-end">
                     <Text className="text-[13px] font-normal text-ring">
                       {item.quantity > 1 ? `−1 (×${String(item.quantity)})` : 'Remove'}

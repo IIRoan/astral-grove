@@ -39,7 +39,7 @@ describe('score-tracker formats', () => {
     let state = createScoreTrackerState('duel');
     const seatA = state.seats[0]!.id;
     state = setSeatLegend(state, seatA, {
-      name: "Jinx - Loose Cannon",
+      name: 'Jinx - Loose Cannon',
       variantNumber: 'OGN-123',
       imageUrl: null,
     });

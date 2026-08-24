@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
 /** Audit local card cache vs PA; catches stale rows when sync fingerprint skips upserts. Exit 1 on remaining mismatches. */
-import { PaLogicalCard, type PaLogicalCard as PaLogicalCardType } from '@riftbound/contracts';
+import {
+  PaLogicalCard,
+  type PaLogicalCard as PaLogicalCardType,
+} from '@riftbound/contracts';
 import { eq } from 'drizzle-orm';
 import { createDb } from '../src/db/client.js';
 import { cards, variants } from '../src/db/schema.js';
@@ -210,7 +213,9 @@ function compareLogicalCards(
   pushDiff(diffs, 'colors', localColors, upstreamColors);
 
   const localVariantMap = new Map(local.variants.map((v) => [v.variantNumber, v]));
-  const upstreamVariantMap = new Map(upstream.variants.map((v) => [v.variantNumber, v]));
+  const upstreamVariantMap = new Map(
+    upstream.variants.map((v) => [v.variantNumber, v])
+  );
 
   const allVariantNumbers = [
     ...new Set([...localVariantMap.keys(), ...upstreamVariantMap.keys()]),
@@ -241,7 +246,7 @@ function compareLogicalCards(
       });
       continue;
     }
-      if (paVariantHash(localVariant) !== paVariantHash(upstreamVariant)) {
+    if (paVariantHash(localVariant) !== paVariantHash(upstreamVariant)) {
       const before = diffs.length;
       pushDiff(
         diffs,
@@ -341,9 +346,7 @@ async function loadLocalCards(
   return byCard;
 }
 
-async function listAllUpstreamVariantNumbers(
-  pa: PaClient
-): Promise<string[]> {
+async function listAllUpstreamVariantNumbers(pa: PaClient): Promise<string[]> {
   const variantNumbers: string[] = [];
   let page = 1;
   const limit = 100;
@@ -374,11 +377,7 @@ function levenshtein(a: string, b: string): number {
     for (let j = 1; j <= b.length; j += 1) {
       const temp = prev[j]!;
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      prev[j] = Math.min(
-        prev[j]! + 1,
-        prev[j - 1]! + 1,
-        prior + cost
-      );
+      prev[j] = Math.min(prev[j]! + 1, prev[j - 1]! + 1, prior + cost);
       prior = temp;
     }
   }
@@ -397,7 +396,10 @@ function matchesNameFilter(
   for (const name of names) {
     if (name.includes(nameFilter)) return true;
     // Tolerate small typos so `--name stargazer` still finds local "Stagazer".
-    if (Math.abs(name.length - nameFilter.length) <= 2 && levenshtein(name, nameFilter) <= 2) {
+    if (
+      Math.abs(name.length - nameFilter.length) <= 2 &&
+      levenshtein(name, nameFilter) <= 2
+    ) {
       return true;
     }
     for (const word of name.split(/\s+/)) {
@@ -568,7 +570,11 @@ async function main() {
 
       if (
         args.nameFilter &&
-        !matchesNameFilter(args.nameFilter, result.probe.local?.name ?? '', upstream.name)
+        !matchesNameFilter(
+          args.nameFilter,
+          result.probe.local?.name ?? '',
+          upstream.name
+        )
       ) {
         return;
       }
@@ -615,7 +621,7 @@ async function main() {
         };
       }
 
-        const localForDiff: PaLogicalCardType = {
+      const localForDiff: PaLogicalCardType = {
         ...localLogical,
         id: local.id,
         name: local.name,

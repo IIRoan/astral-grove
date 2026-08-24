@@ -30,12 +30,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-const SEAT_SURFACE = [
-  'bg-card',
-  'bg-card-panel',
-  'bg-background',
-  'bg-card',
-] as const;
+const SEAT_SURFACE = ['bg-card', 'bg-card-panel', 'bg-background', 'bg-card'] as const;
 
 type PlayerScoreSeatProps = {
   seat: SeatState;
@@ -162,7 +157,10 @@ function ScoreHalf({
   }, [etchScale, highlight, reduceMotion]);
 
   const pressOut = useCallback(() => {
-    highlight.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) });
+    highlight.value = withTiming(0, {
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+    });
     if (!reduceMotion) {
       etchScale.value = withSpring(1, MOTION.bouncy);
     }
@@ -196,9 +194,7 @@ function ScoreHalf({
         pointerEvents="none"
         className={cn(
           'absolute bottom-0 top-0 z-[5] w-1/2 justify-center',
-          kind === 'minus'
-            ? 'left-0 items-start pl-4'
-            : 'right-0 items-end pr-4'
+          kind === 'minus' ? 'left-0 items-start pl-4' : 'right-0 items-end pr-4'
         )}
       >
         <ScoreEtch kind={kind} compact={compact} animatedStyle={etchStyle} />
@@ -277,10 +273,7 @@ function VictoryBanner({ compact }: { compact: boolean }) {
       pointerEvents="none"
     >
       <Text
-        className={cn(
-          'font-semibold text-foreground',
-          compact ? 'text-xs' : 'text-sm'
-        )}
+        className={cn('font-semibold text-foreground', compact ? 'text-xs' : 'text-sm')}
       >
         Victory
       </Text>

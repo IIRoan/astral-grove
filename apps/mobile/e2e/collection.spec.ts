@@ -26,7 +26,9 @@ test.describe('collection', () => {
     await searchForCard(page, FOIL_CARD.query, FOIL_CARD.name);
     await addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await pickPrinting(page, FOIL_CARD.standardId);
-    await expect(removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible();
+    await expect(
+      removeOneButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
+    ).toBeVisible();
 
     await goToTab(page, 'Collection');
     const ownedRow = page.getByRole('button', {

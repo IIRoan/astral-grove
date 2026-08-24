@@ -41,6 +41,8 @@ describe('deck-rules over HTTP', () => {
     expect(res.status).toBe(200);
     const body = DeckValidateResponse.parse(await res.json());
     expect(body.data.hasErrors).toBe(true);
-    expect(body.data.messages.some((message) => message.code === 'missing_legend')).toBe(true);
+    expect(
+      body.data.messages.some((message) => message.code === 'missing_legend')
+    ).toBe(true);
   });
 });

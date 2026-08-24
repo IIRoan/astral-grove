@@ -59,7 +59,11 @@ export function DeckFormatPickerSheet({
   }, [busy, format, onConfirm, onOpenChange]);
 
   return (
-    <AppSheet open={open} onOpenChange={(next) => (!next ? close() : onOpenChange(next))} dismissible={!busy}>
+    <AppSheet
+      open={open}
+      onOpenChange={(next) => (!next ? close() : onOpenChange(next))}
+      dismissible={!busy}
+    >
       <AppSheetPortal name="deck-format-picker">
         <AppSheetOverlay />
         <AppSheetContent>
@@ -67,7 +71,9 @@ export function DeckFormatPickerSheet({
             <AppSheetTitle>{title}</AppSheetTitle>
           </AppSheetHeader>
           <AppSheetBody className="gap-4 pb-2">
-            <Text className="text-sm leading-snug text-muted-foreground">{description}</Text>
+            <Text className="text-sm leading-snug text-muted-foreground">
+              {description}
+            </Text>
             <View className="gap-2">
               <Text className="text-sm font-normal text-foreground">Format</Text>
               <DeckFormatSegmentedControl
@@ -79,10 +85,20 @@ export function DeckFormatPickerSheet({
           </AppSheetBody>
           <AppSheetFooter>
             <View className="w-full flex-row items-center gap-2">
-              <Button variant="outline" className="w-auto flex-1" onPress={close} disabled={busy}>
+              <Button
+                variant="outline"
+                className="w-auto flex-1"
+                onPress={close}
+                disabled={busy}
+              >
                 <ButtonText>Cancel</ButtonText>
               </Button>
-              <Button className="w-auto flex-[1.4]" busy={busy} disabled={busy} onPress={() => void handleConfirm()}>
+              <Button
+                className="w-auto flex-[1.4]"
+                busy={busy}
+                disabled={busy}
+                onPress={() => void handleConfirm()}
+              >
                 <ButtonText>{busy ? 'Working…' : confirmLabel}</ButtonText>
               </Button>
             </View>

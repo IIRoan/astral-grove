@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import { authFetch, cleanupTestUsers, signUpTestUser } from './helpers/auth.js';
 
 setDefaultTimeout(120_000);
@@ -23,11 +30,14 @@ afterAll(async () => {
 describe('wishlist error handling', () => {
   test('PUT /wishlist/:variantNumber fails for unknown variant without creating a row', async () => {
     const variantNumber = 'ZZZ-NOT-A-REAL-CARD-999';
-    const res = await authFetch(`/api/v1/wishlist/${encodeURIComponent(variantNumber)}`, {
-      method: 'PUT',
-      cookie,
-      body: JSON.stringify({ variantNumber, priority: 1 }),
-    });
+    const res = await authFetch(
+      `/api/v1/wishlist/${encodeURIComponent(variantNumber)}`,
+      {
+        method: 'PUT',
+        cookie,
+        body: JSON.stringify({ variantNumber, priority: 1 }),
+      }
+    );
     expect(res.status).toBeGreaterThanOrEqual(400);
   });
 

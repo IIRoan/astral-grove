@@ -44,7 +44,9 @@ describe('CollectionLiveHub', () => {
     const hub = new CollectionLiveHub(1);
     const collectionId = '44444444-4444-4444-4444-444444444444';
     const unsub = hub.subscribe(collectionId, () => undefined);
-    expect(() => hub.subscribe(collectionId, () => undefined)).toThrow('Too many live listeners');
+    expect(() => hub.subscribe(collectionId, () => undefined)).toThrow(
+      'Too many live listeners'
+    );
     unsub();
   });
 });

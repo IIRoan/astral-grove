@@ -21,7 +21,10 @@ export function useDeckBrowseFilterOptions(): {
     [filtersQuery.data?.sets]
   );
 
-  const setNameByCode = useMemo(() => deckBrowseSetNameLookup(setOptions), [setOptions]);
+  const setNameByCode = useMemo(
+    () => deckBrowseSetNameLookup(setOptions),
+    [setOptions]
+  );
 
   const { isLoading } = filtersQueryUiState(filtersQuery);
 
@@ -36,7 +39,9 @@ export function useDeckBrowseFilters(): [
   DeckBrowseFilters,
   (filters: DeckBrowseFilters) => void,
 ] {
-  const [filters, setFilters] = useState<DeckBrowseFilters>(DEFAULT_DECK_BROWSE_FILTERS);
+  const [filters, setFilters] = useState<DeckBrowseFilters>(
+    DEFAULT_DECK_BROWSE_FILTERS
+  );
   const { setOptions } = useDeckBrowseFilterOptions();
   const availableSetCodes = useMemo(
     () => setOptions.map((option) => option.code),

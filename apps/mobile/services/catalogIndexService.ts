@@ -178,10 +178,7 @@ export function shouldReplaceCatalogPrices(
 export async function mergeCatalogIndexItems(items: CardListItem[]): Promise<number> {
   if (items.length === 0) return 0;
 
-  const current =
-    memoryIndex ??
-    (await readPersistedCatalogIndex()) ??
-    null;
+  const current = memoryIndex ?? (await readPersistedCatalogIndex()) ?? null;
   if (!current) return 0;
 
   const byVariant = new Map(
@@ -210,11 +207,9 @@ export async function mergeCatalogIndexItems(items: CardListItem[]): Promise<num
 
   if (changed === 0) return 0;
 
-  await persistCatalogIndex(
-    current.catalogHash,
-    current.pricesCatalogHash,
-    [...byVariant.values()]
-  );
+  await persistCatalogIndex(current.catalogHash, current.pricesCatalogHash, [
+    ...byVariant.values(),
+  ]);
   return changed;
 }
 

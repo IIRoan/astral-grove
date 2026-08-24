@@ -43,7 +43,9 @@ export async function fetchRemoteDecks(
 
 export async function fetchRemoteDeck(deckId: string): Promise<DeckListItem | null> {
   try {
-    const res = await authedFetch<unknown>(`/api/v1/decks/${encodeURIComponent(deckId)}`);
+    const res = await authedFetch<unknown>(
+      `/api/v1/decks/${encodeURIComponent(deckId)}`
+    );
     return DeckDetailResponse.parse(res).data;
   } catch (error) {
     if (error instanceof RemoteApiError && error.status === 404) return null;
@@ -52,17 +54,23 @@ export async function fetchRemoteDeck(deckId: string): Promise<DeckListItem | nu
 }
 
 export async function remoteUpsertDeck(deck: StoredDeckPayload): Promise<DeckListItem> {
-  const res = await authedFetch<unknown>(`/api/v1/decks/${encodeURIComponent(deck.id)}`, {
-    method: 'PUT',
-    body: deck,
-  });
+  const res = await authedFetch<unknown>(
+    `/api/v1/decks/${encodeURIComponent(deck.id)}`,
+    {
+      method: 'PUT',
+      body: deck,
+    }
+  );
   return DeckDetailResponse.parse(res).data;
 }
 
 export async function remoteImportDeck(deckId: string): Promise<DeckListItem> {
-  const res = await authedFetch<unknown>(`/api/v1/decks/${encodeURIComponent(deckId)}/import`, {
-    method: 'POST',
-  });
+  const res = await authedFetch<unknown>(
+    `/api/v1/decks/${encodeURIComponent(deckId)}/import`,
+    {
+      method: 'POST',
+    }
+  );
   return DeckDetailResponse.parse(res).data;
 }
 

@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test, setDefaultTimeout } from 'bun:test';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from 'bun:test';
 import {
   CollectionListResponse,
   CollectionQuantitiesResponse,
@@ -37,8 +44,12 @@ beforeAll(async () => {
     name: 'Share User B',
   });
 
-  const sessionA = await (await authFetch('/api/auth/get-session', { cookie: cookieA })).json();
-  const sessionB = await (await authFetch('/api/auth/get-session', { cookie: cookieB })).json();
+  const sessionA = await (
+    await authFetch('/api/auth/get-session', { cookie: cookieA })
+  ).json();
+  const sessionB = await (
+    await authFetch('/api/auth/get-session', { cookie: cookieB })
+  ).json();
   userIdA = sessionA.user.id as string;
   userIdB = sessionB.user.id as string;
 });
@@ -318,8 +329,12 @@ describe('shared collection invite flows', () => {
     );
     expect(listF.data.some((i) => i.variantNumber === 'OGN-220')).toBe(false);
 
-    const sessionF = await (await authFetch('/api/auth/get-session', { cookie: cookieF })).json();
-    const sessionE = await (await authFetch('/api/auth/get-session', { cookie: cookieE })).json();
+    const sessionF = await (
+      await authFetch('/api/auth/get-session', { cookie: cookieF })
+    ).json();
+    const sessionE = await (
+      await authFetch('/api/auth/get-session', { cookie: cookieE })
+    ).json();
     const idE = await collectionIdForUser(sessionE.user.id as string);
     const idF = await collectionIdForUser(sessionF.user.id as string);
     expect(idE).not.toBe(idF);
@@ -327,9 +342,9 @@ describe('shared collection invite flows', () => {
     const listE = CollectionListResponse.parse(
       await (await authFetch('/api/v1/collection', { cookie: cookieE })).json()
     );
-    expect(listE.data.some((i) => i.variantNumber === 'OGN-220' && i.quantity === 4)).toBe(
-      true
-    );
+    expect(
+      listE.data.some((i) => i.variantNumber === 'OGN-220' && i.quantity === 4)
+    ).toBe(true);
 
     const statusE = CollectionShareStatusResponse.parse(
       await (await authFetch('/api/v1/collection/share', { cookie: cookieE })).json()
@@ -369,7 +384,9 @@ describe('shared collection invite flows', () => {
       { cookie: cookieG }
     );
     expect(selfPreviewRes.status).toBe(200);
-    const selfPreview = CollectionShareInvitePreviewResponse.parse(await selfPreviewRes.json());
+    const selfPreview = CollectionShareInvitePreviewResponse.parse(
+      await selfPreviewRes.json()
+    );
     expect(selfPreview.data.canAccept).toBe(false);
     expect(selfPreview.data.reason).toMatch(/own invite/i);
 

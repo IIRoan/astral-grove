@@ -42,7 +42,9 @@ type CardArtImageProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-function initialImageStatus(uri: string | null | undefined): 'loading' | 'loaded' | 'error' {
+function initialImageStatus(
+  uri: string | null | undefined
+): 'loading' | 'loaded' | 'error' {
   if (!uri) return 'error';
   return isSessionImageLoaded(uri) ? 'loaded' : 'loading';
 }
@@ -148,7 +150,8 @@ function CardArtImageInner({
     (animated: boolean) => {
       showShimmerRef.current = false;
       setShowShimmer(false);
-      overlayOpacity.value = animated && !instant ? withTiming(0, { duration: FADE_MS }) : 0;
+      overlayOpacity.value =
+        animated && !instant ? withTiming(0, { duration: FADE_MS }) : 0;
     },
     [instant, overlayOpacity]
   );
@@ -212,7 +215,11 @@ function CardArtImageInner({
 
   const showPlaceholderBg = !loaderSuppressed && status !== 'loaded' && !sessionCached;
   const imageTransition =
-    instant || loaderSuppressed ? 0 : progressive && placeholderUri ? transition : transition;
+    instant || loaderSuppressed
+      ? 0
+      : progressive && placeholderUri
+        ? transition
+        : transition;
 
   return (
     <View

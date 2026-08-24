@@ -1,4 +1,14 @@
-import { and, count, desc, eq, inArray, isNotNull, lt, ne, type SQL } from 'drizzle-orm';
+import {
+  and,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  lt,
+  ne,
+  type SQL,
+} from 'drizzle-orm';
 import type {
   CollectionAuditAction,
   CollectionAuditEvent,
@@ -86,7 +96,7 @@ function toAuditEvent(row: {
 }
 
 export class CollectionAuditService {
-  constructor(private readonly db: Database) { }
+  constructor(private readonly db: Database) {}
 
   async record(event: CollectionAuditWrite): Promise<void> {
     await this.recordMany([event]);
