@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dataMetaResponse, IsoDateTimeString } from './common.js';
 
 const FilterCount = z.object({
   id: z.string(),
@@ -9,7 +10,7 @@ const FilterCount = z.object({
 const SetFilter = FilterCount.extend({
   code: z.string().optional(),
   printCount: z.number().int().optional(),
-  /** Foil printings: foil_only + explicit foil siblings. */
+  // Foil printings include foil_only and explicit foil siblings.
   foilPrintCount: z.number().int().optional(),
 });
 
@@ -22,15 +23,15 @@ export const FilterSnapshot = z.object({
   variants: z.array(FilterCount),
 });
 
-export const FiltersResponse = z.object({
-  data: FilterSnapshot,
-  meta: z.object({
-    cachedAt: z.string().datetime(),
+export const FiltersResponse = dataMetaResponse(
+  FilterSnapshot,
+  z.object({
+    cachedAt: IsoDateTimeString,
     catalogHash: z.string(),
-    /** Changes when Cardmarket price sync updates local prices — invalidates catalog index cache. */
+    // Price sync updates this hash and invalidates the catalog index cache.
     pricesCatalogHash: z.string(),
     variantCount: z.number().int().nonnegative(),
-  }),
-});
+  })
+);
 
 export type FilterSnapshot = z.infer<typeof FilterSnapshot>;

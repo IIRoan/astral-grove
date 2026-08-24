@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  dataMetaResponse,
+  IsoDateString,
+  IsoDateTimeString,
+  QueryBooleanString,
+} from './common.js';
 
 export const PriceRow = z.object({
   id: z.string().uuid(),
@@ -13,7 +19,7 @@ export const PriceRow = z.object({
   avg1Day: z.number().nullable(),
   avg7Day: z.number().nullable(),
   avg30Day: z.number().nullable(),
-  lastUpdated: z.string().datetime(),
+  lastUpdated: IsoDateTimeString,
 });
 
 export const PriceDailyPoint = z.object({
@@ -21,7 +27,7 @@ export const PriceDailyPoint = z.object({
   isFoil: z.boolean(),
   provider: z.literal('cardmarket'),
   currency: z.literal('EUR'),
-  priceDate: z.string().date(),
+  priceDate: IsoDateString,
   lowPrice: z.number().nullable(),
   marketPrice: z.number().nullable(),
   midPrice: z.number().nullable(),
@@ -54,19 +60,13 @@ export const PriceStats = z.object({
 export const PricesListQuery = z.object({
   cardmarketId: z.coerce.number().int().optional(),
   variantNumber: z.string().optional(),
-  isFoil: z
-    .union([z.literal('true'), z.literal('false')])
-    .transform((v) => v === 'true')
-    .optional(),
+  isFoil: QueryBooleanString.optional(),
 });
 
 export const PriceHistoryQuery = z.object({
   cardmarketId: z.coerce.number().int().optional(),
   variantNumber: z.string().optional(),
-  isFoil: z
-    .union([z.literal('true'), z.literal('false')])
-    .transform((v) => v === 'true')
-    .optional(),
+  isFoil: QueryBooleanString.optional(),
   days: z.coerce.number().int().positive().max(365).default(30),
 });
 
@@ -84,32 +84,32 @@ export const PriceStatsBatchRequest = z.object({
   days: z.coerce.number().int().positive().max(365).default(30),
 });
 
-export const PricesListResponse = z.object({
-  data: z.array(PriceRow),
-  meta: z.object({
+export const PricesListResponse = dataMetaResponse(
+  z.array(PriceRow),
+  z.object({
     pricesCatalogHash: z.string(),
-    lastSyncedAt: z.string().datetime().nullable(),
+    lastSyncedAt: IsoDateTimeString.nullable(),
     rowCount: z.number().int(),
-  }),
-});
+  })
+);
 
-export const PriceHistoryResponse = z.object({
-  data: z.array(PriceDailyPoint),
-  meta: z.object({
+export const PriceHistoryResponse = dataMetaResponse(
+  z.array(PriceDailyPoint),
+  z.object({
     cardmarketId: z.number().int().nullable(),
     isFoil: z.boolean().nullable(),
     days: z.number().int(),
     rowCount: z.number().int(),
-  }),
-});
+  })
+);
 
-export const PriceStatsBatchResponse = z.object({
-  data: z.array(PriceStats),
-  meta: z.object({
+export const PriceStatsBatchResponse = dataMetaResponse(
+  z.array(PriceStats),
+  z.object({
     days: z.number().int(),
     rowCount: z.number().int(),
-  }),
-});
+  })
+);
 
 export type PriceRow = z.infer<typeof PriceRow>;
 export type PriceDailyPoint = z.infer<typeof PriceDailyPoint>;

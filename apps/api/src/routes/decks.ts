@@ -2,6 +2,7 @@ import { Elysia } from 'elysia';
 import { DeckDetailResponse, DeckListResponse, DeckUpsertRequest, DecksListQuery } from '@riftbound/contracts';
 import type { Auth } from '../auth.js';
 import { logActionFailure } from '../lib/logger.js';
+import { parseRequest } from '../lib/request-validation.js';
 import { getSessionUser, unauthorized } from '../lib/session.js';
 import type { DeckService } from '../services/deck-service.js';
 import { DeckReadOnlyError } from '../services/deck-service.js';
@@ -21,7 +22,7 @@ export function createDecksRoutes(decks: DeckService, auth: Auth) {
         return unauthorized();
       }
       try {
-        const parsed = DecksListQuery.parse({
+        const parsed = parseRequest(DecksListQuery, {
           ...query,
           source: typeof query.source === 'string' ? query.source : 'all',
         });
@@ -103,7 +104,7 @@ export function createDecksRoutes(decks: DeckService, auth: Auth) {
         set.status = 401;
         return unauthorized();
       }
-      const parsed = DeckUpsertRequest.parse({ ...(body as object), id: params.id });
+      const parsed = parseRequest(DeckUpsertRequest, { ...(body as object), id: params.id });
       if (parsed.id !== params.id) {
         set.status = 400;
         return { error: 'Deck id mismatch' };

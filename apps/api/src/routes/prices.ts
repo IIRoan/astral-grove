@@ -14,6 +14,7 @@ import {
   baseVariantNumberForCardmarket,
   resolveCardmarketIdFromMap,
 } from '../lib/variant-cardmarket.js';
+import { parseRequest } from '../lib/request-validation.js';
 
 async function resolveCardmarketId(
   db: Database,
@@ -48,19 +49,19 @@ async function resolveCardmarketId(
 export function createPricesRoutes(prices: PriceCacheService, db: Database) {
   return new Elysia({ prefix: '/api/v1/prices' })
     .get('/', { detail: { tags: ['prices'] } }, async ({ query }) => {
-      const parsed = PricesListQuery.parse(query);
+      const parsed = parseRequest(PricesListQuery, query);
       const cardmarketId = await resolveCardmarketId(
         db,
         parsed.variantNumber,
         parsed.cardmarketId
       );
-    
+
       const listQuery: { cardmarketId?: number; isFoil?: boolean } = {};
       if (cardmarketId !== undefined) listQuery.cardmarketId = cardmarketId;
       if (parsed.isFoil !== undefined) listQuery.isFoil = parsed.isFoil;
-    
+
       const result = await prices.list(listQuery);
-    
+
       return {
         data: result.rows,
         meta: {
@@ -71,13 +72,13 @@ export function createPricesRoutes(prices: PriceCacheService, db: Database) {
       };
     })
     .get('/history', { detail: { tags: ['prices'] } }, async ({ query }) => {
-      const parsed = PriceHistoryQuery.parse(query);
+      const parsed = parseRequest(PriceHistoryQuery, query);
       const cardmarketId = await resolveCardmarketId(
         db,
         parsed.variantNumber,
         parsed.cardmarketId
       );
-    
+
       if (cardmarketId === undefined) {
         return PriceHistoryResponse.parse({
           data: [],
@@ -89,7 +90,7 @@ export function createPricesRoutes(prices: PriceCacheService, db: Database) {
           },
         });
       }
-    
+
       const historyQuery: {
         cardmarketId: number;
         isFoil?: boolean;
@@ -99,9 +100,9 @@ export function createPricesRoutes(prices: PriceCacheService, db: Database) {
         days: parsed.days,
       };
       if (parsed.isFoil !== undefined) historyQuery.isFoil = parsed.isFoil;
-    
+
       const result = await prices.dailyHistory(historyQuery);
-    
+
       return PriceHistoryResponse.parse({
         data: result.rows,
         meta: {
@@ -113,7 +114,7 @@ export function createPricesRoutes(prices: PriceCacheService, db: Database) {
       });
     })
     .post('/stats/batch', { detail: { tags: ['prices'] } }, async ({ body }) => {
-      const parsed = PriceStatsBatchRequest.parse(body);
+      const parsed = parseRequest(PriceStatsBatchRequest, body);
       const stats = await prices.statsBatch(
         parsed.items.map((item) => {
           const row: {
@@ -129,7 +130,7 @@ export function createPricesRoutes(prices: PriceCacheService, db: Database) {
         }),
         parsed.days
       );
-    
+
       return PriceStatsBatchResponse.parse({
         data: stats,
         meta: {

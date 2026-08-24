@@ -7,10 +7,7 @@ import { sql } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { isAdminAuthorization } from '../lib/admin-token.js';
 import { isEmailConfigured } from '../lib/email.js';
-
-function adminUnauthorized() {
-  return { error: 'UNAUTHORIZED' as const, message: 'Admin token required' };
-}
+import { setApiError, unauthorizedResponse } from '../lib/api-error.js';
 
 export function createSyncRoutes(
   sync: SyncEngine,
@@ -21,23 +18,20 @@ export function createSyncRoutes(
   return new Elysia({ prefix: '/api/v1/sync' })
     .get('/status', async ({ headers, set }) => {
       if (!isAdminAuthorization(env, headers.authorization)) {
-        set.status = 401;
-        return adminUnauthorized();
+        return setApiError(set, unauthorizedResponse('Admin token required'));
       }
       return { data: await sync.getStatus() };
     })
     .post('/catalog', async ({ headers, set }) => {
       if (!isAdminAuthorization(env, headers.authorization)) {
-        set.status = 401;
-        return adminUnauthorized();
+        return setApiError(set, unauthorizedResponse('Admin token required'));
       }
       const result = await sync.syncCatalog();
       return { data: result };
     })
     .post('/prices', async ({ headers, set }) => {
       if (!isAdminAuthorization(env, headers.authorization)) {
-        set.status = 401;
-        return adminUnauthorized();
+        return setApiError(set, unauthorizedResponse('Admin token required'));
       }
       console.log(
         `[prices] Admin sync requested via POST /api/v1/sync/prices (game=${String(env.CARDMARKET_GAME_ID)})`

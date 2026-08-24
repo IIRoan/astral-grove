@@ -400,8 +400,9 @@ flowchart LR
 1. **Read** relevant code and existing tests before editing
 2. **Minimize scope** — match surrounding style; no drive-by refactors
 3. **Contracts first** when the wire format changes
-4. **Run checks** (see Quality gate)
-5. **Do not commit** unless the user asks
+4. **Write or update tests first** when changing behavior, then implement to green
+5. **Run checks** (see Quality gate)
+6. **Do not commit** unless the user asks
 
 ---
 
@@ -410,9 +411,15 @@ flowchart LR
 - **ES modules** — `import`/`export`, `.js` extensions in API/contracts transpiled output
 - **Naming:** `camelCase` functions/vars, `PascalCase` types/components, `kebab-case` files in routes
 - **Imports:** type-only imports separated (`import type`)
-- **Comments:** only for non-obvious business rules (legality, sync, auth edge cases)
+- **Comments:** only for non-obvious business rules, and keep each comment to one line
 - **Errors:** prefer typed errors and contract validation messages over silent coercion
 - **No secrets** in code — use `.env` (API) or `EXPO_PUBLIC_*` (mobile)
+
+### Cleanup standards
+
+- Keep Zod schemas composable and centralized with shared helpers instead of repeated inline primitives
+- Add or extend backend unit tests for every cleanup or behavior change, and leave them passing
+- Prefer TDD for contract, route, and service changes so failing expectations drive the refactor
 
 ---
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dataResponse, IsoDateTimeString } from './common.js';
 
 export const CollectionShareAcceptMode = z.enum(['use_theirs', 'merge']);
 export type CollectionShareAcceptMode = z.infer<typeof CollectionShareAcceptMode>;
@@ -17,7 +18,7 @@ export const CollectionSharePartner = CollectionSharePerson.extend({
 export type CollectionSharePartner = z.infer<typeof CollectionSharePartner>;
 
 export const CollectionSharePendingInvite = z.object({
-  expiresAt: z.string().datetime(),
+  expiresAt: IsoDateTimeString,
   token: z.string().optional(),
   url: z.string().optional(),
 });
@@ -35,23 +36,19 @@ export const CollectionShareStatus = z.object({
 
 export type CollectionShareStatus = z.infer<typeof CollectionShareStatus>;
 
-export const CollectionShareStatusResponse = z.object({
-  data: CollectionShareStatus,
-});
+export const CollectionShareStatusResponse = dataResponse(CollectionShareStatus);
 
 export type CollectionShareStatusResponse = z.infer<typeof CollectionShareStatusResponse>;
 
 export const CollectionShareInviteCreate = z.object({
   token: z.string(),
   url: z.string(),
-  expiresAt: z.string().datetime(),
+  expiresAt: IsoDateTimeString,
 });
 
 export type CollectionShareInviteCreate = z.infer<typeof CollectionShareInviteCreate>;
 
-export const CollectionShareInviteCreateResponse = z.object({
-  data: CollectionShareInviteCreate,
-});
+export const CollectionShareInviteCreateResponse = dataResponse(CollectionShareInviteCreate);
 
 export type CollectionShareInviteCreateResponse = z.infer<
   typeof CollectionShareInviteCreateResponse
@@ -59,7 +56,7 @@ export type CollectionShareInviteCreateResponse = z.infer<
 
 export const CollectionShareInvitePreview = z.object({
   token: z.string(),
-  expiresAt: z.string().datetime(),
+  expiresAt: IsoDateTimeString,
   inviter: CollectionSharePerson,
   theirItemCount: z.number().int().nonnegative(),
   theirTotalQuantity: z.number().int().nonnegative(),
@@ -71,9 +68,9 @@ export const CollectionShareInvitePreview = z.object({
 
 export type CollectionShareInvitePreview = z.infer<typeof CollectionShareInvitePreview>;
 
-export const CollectionShareInvitePreviewResponse = z.object({
-  data: CollectionShareInvitePreview,
-});
+export const CollectionShareInvitePreviewResponse = dataResponse(
+  CollectionShareInvitePreview
+);
 
 export type CollectionShareInvitePreviewResponse = z.infer<
   typeof CollectionShareInvitePreviewResponse
@@ -85,14 +82,10 @@ export const CollectionShareAcceptRequest = z.object({
 
 export type CollectionShareAcceptRequest = z.infer<typeof CollectionShareAcceptRequest>;
 
-export const CollectionShareAcceptResponse = z.object({
-  data: CollectionShareStatus,
-});
+export const CollectionShareAcceptResponse = dataResponse(CollectionShareStatus);
 
 export type CollectionShareAcceptResponse = z.infer<typeof CollectionShareAcceptResponse>;
 
-export const CollectionShareLeaveResponse = z.object({
-  data: CollectionShareStatus,
-});
+export const CollectionShareLeaveResponse = dataResponse(CollectionShareStatus);
 
 export type CollectionShareLeaveResponse = z.infer<typeof CollectionShareLeaveResponse>;

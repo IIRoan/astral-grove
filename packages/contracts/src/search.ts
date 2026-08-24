@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { VariantNumber } from './cards.js';
+import { dataMetaResponse } from './common.js';
 
 export const SearchEntityType = z.enum(['cards', 'decks', 'navigation', 'actions']);
 
@@ -28,8 +29,8 @@ export const SearchHitDeck = z.object({
   textMatch: z.number().optional(),
 });
 
-export const GlobalSearchResponse = z.object({
-  data: z.object({
+export const GlobalSearchResponse = dataMetaResponse(
+  z.object({
     cards: z
       .object({
         hits: z.array(SearchHitCard),
@@ -43,11 +44,11 @@ export const GlobalSearchResponse = z.object({
       })
       .optional(),
   }),
-  meta: z.object({
+  z.object({
     tookMs: z.number().int().nonnegative(),
     catalogHash: z.string(),
-  }),
-});
+  })
+);
 
 export type SearchEntityType = z.infer<typeof SearchEntityType>;
 export type GlobalSearchQuery = z.infer<typeof GlobalSearchQuery>;

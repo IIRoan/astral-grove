@@ -3,11 +3,12 @@ import { CardsBatchRequest, CardsListQuery } from '@riftbound/contracts';
 import type { CardCacheService } from '../services/card-cache.js';
 import type { Env } from '../env.js';
 import { isAdminAuthorization } from '../lib/admin-token.js';
+import { parseRequest } from '../lib/request-validation.js';
 
 export function createCardsRoutes(cards: CardCacheService, env: Env) {
   return new Elysia({ prefix: '/api/v1/cards' })
     .get('/', { detail: { tags: ['cards'] } }, async ({ query, set, request }) => {
-      const parsed = CardsListQuery.parse(query);
+      const parsed = parseRequest(CardsListQuery, query);
       const refresh =
         parsed.refresh === true &&
         isAdminAuthorization(env, request.headers.get('authorization'));
@@ -60,7 +61,7 @@ export function createCardsRoutes(cards: CardCacheService, env: Env) {
       };
     })
     .post('/batch', { detail: { tags: ['cards'] } }, async ({ body }) => {
-      const { variantNumbers } = CardsBatchRequest.parse(body);
+      const { variantNumbers } = parseRequest(CardsBatchRequest, body);
       const result = await cards.batchGet(variantNumbers);
       return {
         data: result.found,

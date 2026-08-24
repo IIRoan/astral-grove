@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dataMetaResponse, QueryBooleanString } from './common.js';
 
 export const VariantNumber = z
   .string()
@@ -91,7 +92,7 @@ export const CardsListQuery = z.object({
   q: z.string().max(200).optional(),
   sets: z.string().optional(),
   colors: z.string().optional(),
-  /** colors match: `all` = must include every listed; `within` = every card color in set (colorless ok; deck identity). */
+  // all requires every listed color; within keeps cards inside the chosen identity.
   colorMode: z.enum(['all', 'within']).default('all'),
   types: z.string().optional(),
   super: z.string().optional(),
@@ -109,24 +110,18 @@ export const CardsListQuery = z.object({
     .enum(['name', 'energy', 'variantNumber', 'releaseDate', 'price'])
     .default('name'),
   dir: z.enum(['asc', 'desc']).default('asc'),
-  refresh: z
-    .union([z.literal('true'), z.literal('false')])
-    .transform((v) => v === 'true')
-    .optional(),
-  excludeTokens: z
-    .union([z.literal('true'), z.literal('false')])
-    .transform((v) => v === 'true')
-    .optional(),
+  refresh: QueryBooleanString.optional(),
+  excludeTokens: QueryBooleanString.optional(),
 });
 
-export const CardsListResponse = z.object({
-  data: z.array(CardListItem),
-  meta: z.object({
+export const CardsListResponse = dataMetaResponse(
+  z.array(CardListItem),
+  z.object({
     pagination: Pagination,
     source: z.enum(['cache', 'mixed', 'upstream']),
     catalogHash: z.string(),
-  }),
-});
+  })
+);
 
 export const CardDetailResponse = z.object({
   data: CardDetail,
@@ -140,24 +135,24 @@ export const CardsBatchRequest = z.object({
   variantNumbers: z.array(VariantNumber).min(1).max(100),
 });
 
-export const CardsBatchResponse = z.object({
-  data: z.array(CardDetail),
-  meta: z.object({
+export const CardsBatchResponse = dataMetaResponse(
+  z.array(CardDetail),
+  z.object({
     found: z.number().int(),
     notFound: z.array(z.string()),
     source: z.enum(['cache', 'mixed', 'upstream']),
-  }),
-});
+  })
+);
 
-export const CatalogIndexResponse = z.object({
-  data: z.array(CardListItem),
-  meta: z.object({
+export const CatalogIndexResponse = dataMetaResponse(
+  z.array(CardListItem),
+  z.object({
     catalogHash: z.string(),
     pricesCatalogHash: z.string(),
     total: z.number().int().nonnegative(),
     source: z.enum(['cache']),
-  }),
-});
+  })
+);
 
 export type CatalogIndexResponse = z.infer<typeof CatalogIndexResponse>;
 

@@ -8,6 +8,7 @@ import {
   deckValidationIsValid,
   validateRiftboundDeck,
 } from '@riftbound/contracts';
+import { parseRequest } from '../lib/request-validation.js';
 
 export function createDeckRulesRoutes() {
   return new Elysia({ prefix: '/api/v1/deck-rules' })
@@ -30,7 +31,7 @@ export function createDeckRulesRoutes() {
       }),
       detail: { tags: ['deck-rules'] },
     }, ({ body }) => {
-      const input = DeckValidateInput.parse(body);
+      const input = parseRequest(DeckValidateInput, body);
       const messages = validateRiftboundDeck(input);
       return DeckValidateResponse.parse({
         data: {

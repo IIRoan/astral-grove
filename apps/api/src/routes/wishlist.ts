@@ -8,6 +8,7 @@ import {
 } from '@riftbound/contracts';
 import type { Auth } from '../auth.js';
 import { logActionFailure } from '../lib/logger.js';
+import { parseRequest } from '../lib/request-validation.js';
 import { getSessionUser, unauthorized } from '../lib/session.js';
 import type { WishlistService } from '../services/wishlist-service.js';
 
@@ -51,7 +52,7 @@ export function createWishlistRoutes(wishlist: WishlistService, auth: Auth) {
         set.status = 401;
         return unauthorized();
       }
-      const parsed = WishlistUpsertRequest.parse({
+      const parsed = parseRequest(WishlistUpsertRequest, {
         ...(body as z.infer<typeof _UpsertBody>),
         variantNumber: params.variantNumber,
       });

@@ -30,6 +30,7 @@ import {
   CollectionLiveLimitError,
   type CollectionLiveHub,
 } from '../services/collection-live-hub.js';
+import { parseRequest } from '../lib/request-validation.js';
 
 const AdjustBody = z.object({
   delta: z.number().int().positive().optional(),
@@ -174,7 +175,7 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const parsed = CollectionAuditListQuery.parse(query);
+        const parsed = parseRequest(CollectionAuditListQuery, query);
         const result = await audit.listForCollection(collectionId, parsed, user.id);
         return CollectionAuditListResponse.parse({
           data: result.events,
@@ -195,7 +196,7 @@ export function createCollectionRoutes(
           set.status = 401;
           return unauthorized();
         }
-        const parsed = CollectionAuditListQuery.parse(query);
+        const parsed = parseRequest(CollectionAuditListQuery, query);
         const result = await audit.listForActor(user.id, parsed);
         return CollectionAuditListResponse.parse({
           data: result.events,
@@ -217,7 +218,7 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const { variantNumbers } = CollectionRecentAddsRequest.parse(body);
+        const { variantNumbers } = parseRequest(CollectionRecentAddsRequest, body);
         const rows = await audit.recentAddsForVariants(collectionId, variantNumbers);
         return CollectionRecentAddsResponse.parse({ data: rows });
       }
@@ -249,7 +250,7 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const { variantNumbers } = CollectionQuantitiesRequest.parse(body);
+        const { variantNumbers } = parseRequest(CollectionQuantitiesRequest, body);
         const rows = await collection.quantitiesForVariants(
           collectionId,
           variantNumbers
@@ -267,7 +268,7 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const parsed = CollectionUpsertRequest.parse({
+        const parsed = parseRequest(CollectionUpsertRequest, {
           ...(body as z.infer<typeof _UpsertBody>),
           variantNumber: params.variantNumber,
         });
@@ -384,7 +385,7 @@ export function createCollectionRoutes(
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
         const condition = CardCondition.safeParse(query.condition).success
-          ? CardCondition.parse(query.condition)
+          ? parseRequest(CardCondition, query.condition)
           : 'near_mint';
         const isFoilQuery =
           query.isFoil === 'true' ? true : query.isFoil === 'false' ? false : undefined;
@@ -428,7 +429,7 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const { items } = CollectionBatchSyncRequest.parse(body);
+        const { items } = parseRequest(CollectionBatchSyncRequest, body);
         const result = await collection.batchSync(collectionId, items, {
           userId: user.id,
           action: 'batch',
@@ -460,7 +461,7 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const parsed = CollectionImportRequest.parse(body);
+        const parsed = parseRequest(CollectionImportRequest, body);
         if (parsed.items && parsed.items.length > 0) {
           const result = await collection.importItems(
             collectionId,

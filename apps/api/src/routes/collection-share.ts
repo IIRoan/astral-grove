@@ -8,24 +8,12 @@ import {
   CollectionShareStatusResponse,
 } from '@riftbound/contracts';
 import type { Auth } from '../auth.js';
+import { parseRequest } from '../lib/request-validation.js';
 import { getSessionUser, unauthorized } from '../lib/session.js';
 import {
   CollectionShareError,
   type CollectionShareService,
 } from '../services/collection-share-service.js';
-
-function shareErrorStatus(error: CollectionShareError): number {
-  switch (error.code) {
-    case 'NOT_FOUND':
-      return 404;
-    case 'CONFLICT':
-      return 409;
-    case 'FORBIDDEN':
-      return 403;
-    default:
-      return 400;
-  }
-}
 
 export function createCollectionShareRoutes(share: CollectionShareService, auth: Auth) {
   return new Elysia({ prefix: '/api/v1/collection/share' })
@@ -49,7 +37,7 @@ export function createCollectionShareRoutes(share: CollectionShareService, auth:
         return CollectionShareInviteCreateResponse.parse({ data: invite });
       } catch (error) {
         if (error instanceof CollectionShareError) {
-          set.status = shareErrorStatus(error);
+          set.status = error.httpStatus;
           return { error: error.code, message: error.message };
         }
         throw error;
@@ -75,7 +63,7 @@ export function createCollectionShareRoutes(share: CollectionShareService, auth:
         return CollectionShareInvitePreviewResponse.parse({ data: preview });
       } catch (error) {
         if (error instanceof CollectionShareError) {
-          set.status = shareErrorStatus(error);
+          set.status = error.httpStatus;
           return { error: error.code, message: error.message };
         }
         throw error;
@@ -87,13 +75,13 @@ export function createCollectionShareRoutes(share: CollectionShareService, auth:
         set.status = 401;
         return unauthorized();
       }
-      const parsed = CollectionShareAcceptRequest.parse(body);
+      const parsed = parseRequest(CollectionShareAcceptRequest, body);
       try {
         const status = await share.acceptInvite(user.id, params.token, parsed.mode);
         return CollectionShareAcceptResponse.parse({ data: status });
       } catch (error) {
         if (error instanceof CollectionShareError) {
-          set.status = shareErrorStatus(error);
+          set.status = error.httpStatus;
           return { error: error.code, message: error.message };
         }
         throw error;
@@ -110,7 +98,7 @@ export function createCollectionShareRoutes(share: CollectionShareService, auth:
         return CollectionShareLeaveResponse.parse({ data: status });
       } catch (error) {
         if (error instanceof CollectionShareError) {
-          set.status = shareErrorStatus(error);
+          set.status = error.httpStatus;
           return { error: error.code, message: error.message };
         }
         throw error;

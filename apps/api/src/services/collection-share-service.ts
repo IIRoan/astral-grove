@@ -23,6 +23,8 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_MEMBERS = 2;
 
 export class CollectionShareError extends Error {
+  readonly httpStatus: number;
+
   constructor(
     message: string,
     readonly code:
@@ -30,6 +32,14 @@ export class CollectionShareError extends Error {
   ) {
     super(message);
     this.name = 'CollectionShareError';
+    this.httpStatus =
+      code === 'NOT_FOUND'
+        ? 404
+        : code === 'CONFLICT'
+          ? 409
+          : code === 'FORBIDDEN'
+            ? 403
+            : 400;
   }
 }
 

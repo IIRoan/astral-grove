@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Pagination } from './cards.js';
+import { dataResponse, dataMetaResponse, QueryBooleanString } from './common.js';
 import { DeckCardInput, DeckEntryInput, DeckFormat } from './deck-rules.js';
 
 export const DeckSortField = z.enum([
@@ -12,42 +13,27 @@ export const DeckSortField = z.enum([
 
 export const DecksListQuery = z.object({
   q: z.string().max(200).optional(),
-  /** Forwarded upstream as `legend:<name>` in the search query. */
+  // Forwarded upstream as legend:<name> in the search query.
   legend: z.string().optional(),
-  /** Each set prefix forwarded as `set:<prefix>`. */
+  // Each set prefix is forwarded as set:<prefix>.
   sets: z.string().optional(),
-  isLegal: z
-    .union([z.literal('true'), z.literal('false')])
-    .transform((v) => v === 'true')
-    .optional(),
-  hasGuide: z
-    .union([z.literal('true'), z.literal('false')])
-    .transform((v) => v === 'true')
-    .optional(),
-  hasVideo: z
-    .union([z.literal('true'), z.literal('false')])
-    .transform((v) => v === 'true')
-    .optional(),
-  hasMatchups: z
-    .union([z.literal('true'), z.literal('false')])
-    .transform((v) => v === 'true')
-    .optional(),
+  isLegal: QueryBooleanString.optional(),
+  hasGuide: QueryBooleanString.optional(),
+  hasVideo: QueryBooleanString.optional(),
+  hasMatchups: QueryBooleanString.optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(50).default(25),
   sort: DeckSortField.default('trending'),
   dir: z.enum(['asc', 'desc']).default('desc'),
   source: z.enum(['owned', 'imported', 'all']).default('all'),
-  preview: z
-    .union([z.literal('true'), z.literal('false')])
-    .transform((v) => v === 'true')
-    .optional(),
+  preview: QueryBooleanString.optional(),
 });
 
 export const StoredDeckPayload = z.object({
   id: z.string().min(1),
   name: z.string(),
   description: z.string().optional(),
-  /** Defaults to Constructed for older payloads. */
+  // Defaults to constructed for older payloads.
   format: DeckFormat.default('constructed'),
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
@@ -57,9 +43,9 @@ export const StoredDeckPayload = z.object({
   runes: z.array(DeckEntryInput),
   battlefields: z.array(DeckEntryInput),
   sideboard: z.array(DeckEntryInput),
-  /** PA deck id after successful upstream sync of *our* copy. */
+  // Upstream deck id after successful sync of our owned copy.
   upstreamId: z.string().optional(),
-  /** Community deck this owned copy was imported from (duplicate-import detection; never a write/delete target). */
+  // Tracks the community deck source for duplicate-import detection.
   importedFromId: z.string().optional(),
   syncWarnings: z.array(z.string()).optional(),
 });
@@ -83,19 +69,17 @@ export const DeckListItem = StoredDeckPayload.extend({
 
 export const DeckUpsertRequest = StoredDeckPayload;
 
-export const DeckListResponse = z.object({
-  data: z.array(DeckListItem),
-  meta: z.object({
+export const DeckListResponse = dataMetaResponse(
+  z.array(DeckListItem),
+  z.object({
     total: z.number().int(),
     owned: z.number().int(),
     imported: z.number().int(),
     pagination: Pagination.optional(),
-  }),
-});
+  })
+);
 
-export const DeckDetailResponse = z.object({
-  data: DeckListItem,
-});
+export const DeckDetailResponse = dataResponse(DeckListItem);
 
 export type StoredDeckPayload = z.infer<typeof StoredDeckPayload>;
 export type DeckListItem = z.infer<typeof DeckListItem>;
