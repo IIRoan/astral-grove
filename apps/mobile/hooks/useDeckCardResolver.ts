@@ -1,5 +1,10 @@
-import { useMemo } from 'react';
+import { useRef } from 'react';
 import { api } from '@/src/api/client';
+import {
+  EMPTY_COLLECTION_BY_NAME,
+  reuseCollectionByCardName,
+  type CollectionQuantityEntry,
+} from '@/lib/collection-by-name';
 import { deckCardFromDetail } from '@/lib/deck-card';
 import type { DeckCard } from '@/lib/deck-types';
 
@@ -42,13 +47,9 @@ export async function resolveDeckCardByVariant(
 }
 
 export function useCollectionByCardName(
-  collection: ReadonlyArray<{ name: string; quantity: number }>
+  collection: ReadonlyArray<CollectionQuantityEntry> | undefined
 ): ReadonlyMap<string, number> {
-  return useMemo(() => {
-    const map = new Map<string, number>();
-    for (const entry of collection) {
-      map.set(entry.name, (map.get(entry.name) ?? 0) + entry.quantity);
-    }
-    return map;
-  }, [collection]);
+  const previous = useRef(EMPTY_COLLECTION_BY_NAME);
+  previous.current = reuseCollectionByCardName(previous.current, collection);
+  return previous.current;
 }

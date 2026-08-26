@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { addCardToDeck, createEmptyDeck, deckCardFromDetail } from '@/lib/deck-card';
-import { validateDeck, deckOwnershipBorderClass } from '@/lib/deck-validation';
+import {
+  validateDeck,
+  deckOwnershipBorderClass,
+  deckOwnershipTotals,
+} from '@/lib/deck-validation';
 import type { DeckCard } from '@/lib/deck-types';
 
 describe('deckOwnershipBorderClass', () => {
@@ -11,6 +15,44 @@ describe('deckOwnershipBorderClass', () => {
     expect(deckOwnershipBorderClass(1, 3)).toBe('border-ownership-partial');
     expect(deckOwnershipBorderClass(3, 3)).toBe('border-ownership-complete');
     expect(deckOwnershipBorderClass(4, 3)).toBe('border-ownership-complete');
+  });
+});
+
+describe('deckOwnershipTotals', () => {
+  test('returns null when collection is unknown', () => {
+    const deck = createEmptyDeck();
+    deck.legend = mockCard({ name: 'Jinx - Loose Cannon', type: 'Legend' });
+    expect(deckOwnershipTotals(deck, new Map())).toBeNull();
+  });
+
+  test('counts legend, champion, main, and sideboard when collection is ready', () => {
+    const deck = createEmptyDeck();
+    deck.legend = mockCard({ name: 'Legend', type: 'Legend' });
+    deck.champion = mockCard({ name: 'Champion', type: 'Unit', super: 'Champion' });
+    deck.mainDeck.set('Unit', {
+      card: mockCard({ name: 'Unit' }),
+      count: 3,
+    });
+    deck.sideboard.set('Side', {
+      card: mockCard({ name: 'Side' }),
+      count: 2,
+    });
+    deck.runes.set('Rune', {
+      card: mockCard({ name: 'Rune', type: 'Rune' }),
+      count: 12,
+    });
+
+    const totals = deckOwnershipTotals(
+      deck,
+      new Map([
+        ['Legend', 1],
+        ['Champion', 1],
+        ['Unit', 1],
+        ['Side', 2],
+      ]),
+      true
+    );
+    expect(totals).toEqual({ owned: 5, required: 7, missing: 2 });
   });
 });
 

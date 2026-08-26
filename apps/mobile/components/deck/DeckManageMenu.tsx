@@ -24,6 +24,7 @@ interface DeckManageMenuProps {
   duplicateBusy?: boolean;
   className?: string;
   triggerClassName?: string;
+  showLabel?: boolean;
 }
 
 export function DeckManageMenu({
@@ -32,6 +33,7 @@ export function DeckManageMenu({
   duplicateBusy = false,
   className,
   triggerClassName,
+  showLabel = false,
 }: DeckManageMenuProps) {
   const [open, setOpen] = useState(false);
 
@@ -43,19 +45,24 @@ export function DeckManageMenu({
         <PopoverTrigger asChild>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Deck options"
+            accessibilityLabel={showLabel ? 'More' : 'Deck options'}
             accessibilityState={{ expanded: open, disabled: duplicateBusy }}
             disabled={duplicateBusy}
             className={cn(
-              'size-9 shrink-0 items-center justify-center rounded-[3px] border border-border bg-card active:bg-card-panel',
+              'shrink-0 items-center justify-center rounded-[3px] border border-border bg-card active:bg-card-panel',
+              showLabel ? 'h-8 flex-row gap-1.5 px-2.5' : 'size-9',
               open && 'border-foreground',
               duplicateBusy && 'opacity-50',
               triggerClassName
             )}
-            onPress={() => {
+            onPress={(event) => {
+              event.stopPropagation?.();
               hapticPress();
             }}
           >
+            {showLabel ? (
+              <Text className="text-sm font-bold text-foreground">More</Text>
+            ) : null}
             <ThemedIcon icon={EllipsisVerticalIcon} size={18} color="foreground" />
           </Pressable>
         </PopoverTrigger>

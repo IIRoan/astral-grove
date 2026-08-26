@@ -79,7 +79,7 @@ export function useDeckBuilderPanels({
     () => computeDeckStats(deck, catalogPower),
     [deck, catalogPower]
   );
-  const collectionByName = useCollectionByCardName(collection ?? []);
+  const collectionByName = useCollectionByCardName(collection);
   const variantKey = deckVariantNumbersKey(deck);
   const { data: imageByVariant } = useDeckCardImages(variantKey);
   const images = useMemo(() => imageByVariant ?? EMPTY_IMAGE_MAP, [imageByVariant]);

@@ -507,6 +507,9 @@ export class DeckSyncService {
           legend: payload.legend ?? item.legend,
           champion: payload.champion,
           mainDeck: payload.mainDeck,
+          runes: payload.runes,
+          battlefields: payload.battlefields,
+          sideboard: payload.sideboard,
         };
       } catch {
         return item;

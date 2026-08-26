@@ -39,7 +39,12 @@ export type DeckStatBucket = {
   byDomain: DeckStatDomainSlice[];
   /** Primary-domain stack so segments sum to `count`. */
   stack: DeckStatDomainSlice[];
+  /** Axis label when it differs from `value` (e.g. list 6+ overflow). */
+  label?: string;
 };
+
+/** Last discrete energy cost on owned-deck list curves; higher costs fold in. */
+export const LIST_ENERGY_CAP = 6;
 
 export type DeckStatMixKind = 'domain' | 'type' | 'colorless' | 'rarity' | 'mix';
 
@@ -395,6 +400,37 @@ export function computeDeckStats(
       { key: 'signature', label: 'Signature', count: signatureCount },
     ],
   };
+}
+
+function mergeDomainSlices(
+  slices: readonly DeckStatDomainSlice[]
+): DeckStatDomainSlice[] {
+  const counts = new Map<string, number>();
+  for (const slice of slices) {
+    counts.set(slice.domain, (counts.get(slice.domain) ?? 0) + slice.count);
+  }
+  return domainSlices(counts);
+}
+
+/** Fold energy 6+ into one overflow bucket for dense list rows. */
+export function collapseEnergyBuckets(
+  buckets: readonly DeckStatBucket[],
+  cap = LIST_ENERGY_CAP
+): DeckStatBucket[] {
+  const byValue = new Map(buckets.map((bucket) => [bucket.value, bucket]));
+  const collapsed: DeckStatBucket[] = [];
+  for (let value = 0; value < cap; value += 1) {
+    collapsed.push(byValue.get(value) ?? { value, count: 0, byDomain: [], stack: [] });
+  }
+  const overflow = buckets.filter((bucket) => bucket.value >= cap);
+  collapsed.push({
+    value: cap,
+    count: overflow.reduce((sum, bucket) => sum + bucket.count, 0),
+    byDomain: mergeDomainSlices(overflow.flatMap((bucket) => bucket.byDomain)),
+    stack: mergeDomainSlices(overflow.flatMap((bucket) => bucket.stack)),
+    label: `${cap}+`,
+  });
+  return collapsed;
 }
 
 export function catalogPowerByCard(

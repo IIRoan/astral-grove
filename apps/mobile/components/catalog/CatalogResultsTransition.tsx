@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
@@ -18,6 +18,7 @@ interface CatalogResultsTransitionProps {
   transitionKey: string;
   className?: string;
   style?: StyleProp<ViewStyle>;
+  fill?: boolean;
   children: ReactNode;
 }
 
@@ -25,13 +26,19 @@ export function CatalogResultsTransition({
   transitionKey,
   className,
   style,
+  fill = true,
   children,
 }: CatalogResultsTransitionProps) {
   const reduceMotion = useReduceMotion();
   const opacity = useSharedValue(1);
   const translateY = useSharedValue(0);
+  const isFirstKey = useRef(true);
 
   useEffect(() => {
+    if (isFirstKey.current) {
+      isFirstKey.current = false;
+      return;
+    }
     if (reduceMotion) {
       opacity.value = 1;
       translateY.value = 0;
@@ -49,8 +56,14 @@ export function CatalogResultsTransition({
   }));
 
   return (
-    <View className={cn('min-h-0 flex-1 overflow-hidden', className)} style={style}>
-      <Animated.View className="min-h-0 flex-1" style={animatedStyle}>
+    <View
+      className={cn(fill && 'min-h-0 flex-1 overflow-hidden', className)}
+      style={style}
+    >
+      <Animated.View
+        className={fill ? 'min-h-0 flex-1' : undefined}
+        style={animatedStyle}
+      >
         {children}
       </Animated.View>
     </View>

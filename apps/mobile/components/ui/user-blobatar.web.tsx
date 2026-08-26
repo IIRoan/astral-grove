@@ -1,4 +1,4 @@
-import { Blobatar } from '@blobatar/react-native';
+import { Blobatar } from 'blobatar/react';
 import { View } from 'react-native';
 import { blobatarPlatformPassthrough } from '@/components/ui/user-blobatar-passthrough';
 import { FACTORY_RADIUS_CONTROL_CLASS } from '@/constants/factoryShape';

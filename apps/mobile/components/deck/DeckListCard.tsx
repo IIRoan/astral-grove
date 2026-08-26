@@ -1,297 +1,441 @@
-import { ThemedIcon, StarIcon, TrashIcon } from '@/components/icons';
-import { memo, useMemo } from 'react';
+import { ThemedIcon, PencilIcon } from '@/components/icons';
+import { memo, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { CardArtHoverPreview } from '@/components/deck/CardArtHoverPreview';
-import { DeckCardArt } from '@/components/deck/DeckCardArt';
+import { DeckFormatBadge } from '@/components/deck/DeckFormatBadge';
+import { DeckLegalityBadge } from '@/components/deck/DeckLegalityBadge';
+import { DeckListEnergyCurve } from '@/components/deck/DeckListEnergyCurve';
+import { DeckListItemMotion } from '@/components/deck/DeckListItemMotion';
+import { DeckManageMenu } from '@/components/deck/DeckManageMenu';
+import {
+  DeckLegendPortrait,
+  LEGEND_GRID_BANNER,
+  LEGEND_RAIL_MIN_HEIGHT_NARROW,
+  LEGEND_RAIL_MIN_HEIGHT_WIDE,
+  LEGEND_RAIL_NARROW,
+  LEGEND_RAIL_WIDE,
+} from '@/components/deck/DeckLegendRail';
+import { DomainIcon } from '@/components/riftbound/CardIcons';
 import { PressableScale } from '@/components/ui/pressable-scale';
+import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
-import { getSectionCount, resolveDeckCardImageUrl } from '@/lib/deck-card';
-import type { DeckEntry, DeckState } from '@/lib/deck-types';
+import { useDeckLiveLegality } from '@/hooks/useBanDatesByVariant';
+import { useMobileLayout } from '@/hooks/useBreakpoint';
 import { useDeckCardImages } from '@/hooks/useDeckCardImages';
+import {
+  EMPTY_COLLECTION_BY_NAME,
+  collectionByNameEqual,
+} from '@/lib/collection-by-name';
+import { getSectionCount, resolveDeckCardImageUrl } from '@/lib/deck-card';
+import { deckSectionProgress } from '@/lib/deck-display';
+import type { DeckListLayout } from '@/lib/deck-list';
+import { deckListStatus } from '@/lib/deck-list-status';
+import { computeDeckStats } from '@/lib/deck-stats';
+import type { DeckState } from '@/lib/deck-types';
 import { hapticPress } from '@/utils/haptics';
 import { cn } from '@/lib/utils';
 
-const LEGEND_SIZE = 72;
-const PREVIEW_SIZE = 38;
-const PREVIEW_LIMIT = 12;
+const DOMAIN_ICON_WIDE = 32;
+const DOMAIN_ICON_NARROW = 24;
 
 interface DeckListCardProps {
   deck: DeckState;
   onPress: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
   onImport?: () => void;
+  onDuplicate?: () => void;
   importBusy?: boolean;
+  duplicateBusy?: boolean;
+  collectionByName?: ReadonlyMap<string, number>;
+  collectionReady?: boolean;
+  layout?: DeckListLayout;
+  motionIndex?: number;
 }
 
-const UPDATED_AT_FORMAT = new Intl.DateTimeFormat(undefined, {
+const EDITED_DAY_FORMAT = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   day: 'numeric',
+  year: 'numeric',
 });
 
-function formatUpdatedAt(updatedAt: number): string {
+const EDITED_TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
+const CREATED_AT_FORMAT = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+function formatTimestamp(value: number, formatter: Intl.DateTimeFormat): string {
+  if (!Number.isFinite(value) || value <= 0) return '';
   try {
-    return UPDATED_AT_FORMAT.format(new Date(updatedAt));
+    return formatter.format(new Date(value));
   } catch {
     return '';
   }
 }
 
-function CardThumb({
-  imageUri,
-  variantNumber,
-  count,
-  fallbackIcon = false,
-  size,
+function formatEditedAt(value: number): string {
+  const day = formatTimestamp(value, EDITED_DAY_FORMAT);
+  const time = formatTimestamp(value, EDITED_TIME_FORMAT);
+  if (!day) return '';
+  return time ? `${day} · ${time}` : day;
+}
+
+function StatusMark({
+  tone,
 }: {
-  imageUri: string;
-  variantNumber?: string;
-  count?: number;
-  fallbackIcon?: boolean;
-  size: number;
+  tone: 'complete' | 'attention' | 'incomplete' | 'illegal';
 }) {
-  const thumb = (
-    <View className="relative">
-      <View
-        className={cn(
-          'overflow-hidden border border-white/10 bg-background',
-          CARD_ART_RADIUS_CLASS
-        )}
-        style={{ width: size, height: Math.round(size * 1.4) }}
-      >
-        {imageUri && variantNumber ? (
-          <DeckCardArt uri={imageUri} variantNumber={variantNumber} />
-        ) : (
-          <View className="flex-1 items-center justify-center bg-card-panel">
-            {fallbackIcon ? (
-              <ThemedIcon icon={StarIcon} size={18} color="muted-foreground" />
-            ) : null}
-          </View>
-        )}
-      </View>
-      {count != null && count > 1 ? (
-        <View className="absolute -bottom-1 -right-1 rounded bg-background/95 px-1 py-px">
-          <Text className="font-mono text-[9px] font-normal text-foreground">
-            ×{count}
-          </Text>
-        </View>
-      ) : null}
-    </View>
-  );
-
-  if (!imageUri || !variantNumber) return thumb;
-
   return (
-    <CardArtHoverPreview imageUri={imageUri} variantNumber={variantNumber}>
-      {thumb}
-    </CardArtHoverPreview>
+    <View
+      className={cn(
+        'mt-1 size-1.5 rounded-full',
+        tone === 'complete'
+          ? 'bg-success'
+          : tone === 'illegal'
+            ? 'bg-destructive'
+            : 'bg-warning'
+      )}
+    />
   );
 }
 
 function DeckListCardInner({
   deck,
   onPress,
+  onEdit,
   onDelete,
   onImport,
+  onDuplicate,
   importBusy = false,
+  duplicateBusy = false,
+  collectionByName,
+  collectionReady = false,
+  layout = 'list',
+  motionIndex = 0,
 }: DeckListCardProps) {
+  const compact = useMobileLayout();
+  const grid = layout === 'grid';
   const readOnly = deck.readOnly === true;
-
-  const previewEntries = useMemo((): DeckEntry[] => {
-    return [...deck.mainDeck.values()]
-      .sort((a, b) => {
-        if (a.card.energy !== b.card.energy) return a.card.energy - b.card.energy;
-        return a.card.name.localeCompare(b.card.name);
-      })
-      .slice(0, PREVIEW_LIMIT);
-  }, [deck.mainDeck]);
+  const railWidth = compact ? LEGEND_RAIL_NARROW : LEGEND_RAIL_WIDE;
+  const [gridBannerWidth, setGridBannerWidth] = useState(railWidth);
+  const ownedCollection = collectionByName ?? EMPTY_COLLECTION_BY_NAME;
+  const { deck: liveDeck } = useDeckLiveLegality(deck);
+  const displayDeck = liveDeck ?? deck;
 
   const imageVariants = useMemo(() => {
-    const variants = [
-      deck.legend?.variantNumber,
-      deck.champion?.variantNumber,
-      ...previewEntries.map((entry) => entry.card.variantNumber),
-    ].filter((value): value is string => Boolean(value));
-    return [...new Set(variants)].sort().join('|');
-  }, [deck.legend?.variantNumber, deck.champion?.variantNumber, previewEntries]);
+    const variant = displayDeck.legend?.variantNumber;
+    return variant ?? '';
+  }, [displayDeck.legend?.variantNumber]);
 
   const { data: imageByVariant = new Map<string, string>() } =
     useDeckCardImages(imageVariants);
 
-  const mainCount = getSectionCount(deck, 'mainDeck') + (deck.champion ? 1 : 0);
-  const runeCount = getSectionCount(deck, 'runes');
-  const battlefieldCount = getSectionCount(deck, 'battlefields');
-  const sideCount = getSectionCount(deck, 'sideboard');
-  const uniqueMain = deck.mainDeck.size;
-  const updatedLabel = formatUpdatedAt(deck.updatedAt);
+  const stats = useMemo(() => computeDeckStats(displayDeck), [displayDeck]);
+  const status = useMemo(
+    () => deckListStatus(displayDeck, ownedCollection, collectionReady),
+    [displayDeck, ownedCollection, collectionReady]
+  );
+  const main = deckSectionProgress(displayDeck, 'mainDeck');
+  const runeCount = getSectionCount(displayDeck, 'runes');
+  const battlefieldCount = getSectionCount(displayDeck, 'battlefields');
+  const sideCount = getSectionCount(displayDeck, 'sideboard');
+  const editedLabel = formatEditedAt(displayDeck.updatedAt);
+  const createdLabel = formatTimestamp(displayDeck.createdAt, CREATED_AT_FORMAT);
+  const legendColors = displayDeck.legend?.colors ?? [];
+  const showIllegalBadge = status.tone === 'illegal';
 
-  const legendUri = deck.legend
-    ? resolveDeckCardImageUrl(deck.legend, imageByVariant)
-    : '';
-  const championUri = deck.champion
-    ? resolveDeckCardImageUrl(deck.champion, imageByVariant)
+  const legendUri = displayDeck.legend
+    ? resolveDeckCardImageUrl(displayDeck.legend, imageByVariant)
     : '';
 
-  const formatLabel = deck.format === 'pre-rift' ? 'Pre-Rift' : 'Constructed';
-  const identityLine = deck.legend
-    ? `${formatLabel} · ${deck.legend.name}${deck.champion ? ` · ${deck.champion.name}` : ''}`
+  const formatLabel = displayDeck.format === 'pre-rift' ? 'Pre-Rift' : 'Constructed';
+  const identityLine = displayDeck.legend
+    ? `${formatLabel} · ${displayDeck.legend.name}${displayDeck.champion ? ` · ${displayDeck.champion.name}` : ''}`
     : `${formatLabel} · No legend selected`;
 
-  const description = deck.description?.trim() ?? '';
-  const remainingMain = Math.max(0, uniqueMain - previewEntries.length);
+  const openDeck = () => {
+    hapticPress();
+    onPress();
+  };
 
-  return (
-    <PressableScale
+  const editDeck = () => {
+    hapticPress();
+    onEdit?.();
+  };
+
+  const listArt = (
+    <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${deck.name}. ${identityLine}`}
-      onPress={() => {
-        hapticPress();
-        onPress();
+      accessibilityLabel={`Open ${displayDeck.name}`}
+      onPress={openDeck}
+      className="shrink-0 self-stretch overflow-hidden"
+      style={{
+        width: railWidth,
+        minHeight: compact
+          ? LEGEND_RAIL_MIN_HEIGHT_NARROW
+          : LEGEND_RAIL_MIN_HEIGHT_WIDE,
       }}
-      className="overflow-hidden rounded-[10px] border border-border bg-card"
-      contentClassName="overflow-hidden"
-      depth={0.985}
     >
-      <View className="gap-3 p-3.5">
-        <View className="flex-row gap-3">
-          <View className="flex-row items-end gap-1.5">
-            <CardThumb
-              imageUri={legendUri}
-              variantNumber={deck.legend?.variantNumber}
-              fallbackIcon
-              size={LEGEND_SIZE}
-            />
-            {deck.champion ? (
-              <CardThumb
-                imageUri={championUri}
-                variantNumber={deck.champion.variantNumber}
-                size={Math.round(LEGEND_SIZE * 0.72)}
-              />
-            ) : null}
-          </View>
+      <DeckLegendPortrait
+        imageUri={legendUri}
+        variantNumber={displayDeck.legend?.variantNumber}
+        fallbackIcon
+        width={railWidth}
+        height={compact ? LEGEND_RAIL_MIN_HEIGHT_NARROW : LEGEND_RAIL_MIN_HEIGHT_WIDE}
+        fill
+        fade="right"
+      />
+    </Pressable>
+  );
 
-          <View className="min-w-0 flex-1 justify-between gap-2">
-            <View className="flex-row items-start gap-2">
-              <View className="min-w-0 flex-1">
-                <Text
-                  className="text-[15px] font-semibold leading-5 text-foreground"
-                  numberOfLines={1}
-                >
-                  {deck.name}
-                </Text>
-                <Text
-                  className="mt-0.5 text-[12px] leading-4 text-muted-foreground"
-                  numberOfLines={1}
-                >
-                  {identityLine}
-                </Text>
-                {description ? (
-                  <Text
-                    className="mt-1 text-[12px] leading-4 text-muted-foreground"
-                    numberOfLines={2}
-                  >
-                    {description}
-                  </Text>
-                ) : null}
-              </View>
+  const gridArt = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${displayDeck.name}`}
+      onPress={openDeck}
+      className="w-full overflow-hidden border-b border-border"
+      style={{ height: LEGEND_GRID_BANNER }}
+      onLayout={(event) => {
+        const nextWidth = Math.round(event.nativeEvent.layout.width);
+        if (nextWidth > 0 && nextWidth !== gridBannerWidth) {
+          setGridBannerWidth(nextWidth);
+        }
+      }}
+    >
+      <DeckLegendPortrait
+        imageUri={legendUri}
+        variantNumber={displayDeck.legend?.variantNumber}
+        fallbackIcon
+        width={gridBannerWidth}
+        fill
+        fade="bottom"
+      />
+    </Pressable>
+  );
 
-              {onDelete ? (
-                <Pressable
-                  accessibilityLabel={`Delete ${deck.name}`}
-                  hitSlop={6}
-                  className="size-8 shrink-0 items-center justify-center rounded-[3px] active:bg-destructive/10"
-                  onPress={(event) => {
-                    event.stopPropagation?.();
-                    hapticPress();
-                    onDelete();
-                  }}
-                >
-                  <ThemedIcon icon={TrashIcon} size={17} color="muted-foreground" />
-                </Pressable>
-              ) : null}
-            </View>
-
-            <View className="gap-0.5">
-              <Text className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                Main {mainCount}
-                {uniqueMain > 0 ? ` · ${uniqueMain} unique` : ''}
-                {' · '}Runes {runeCount}
-                {' · '}Fields {battlefieldCount}
-                {sideCount > 0 ? ` · Side ${sideCount}` : ''}
-              </Text>
-              <View className="flex-row flex-wrap items-center gap-x-2 gap-y-0.5">
-                {readOnly ? (
-                  <Text className="text-[11px] font-medium text-muted-foreground">
-                    Imported
-                  </Text>
-                ) : null}
-                {updatedLabel ? (
-                  <Text className="text-[11px] text-muted-foreground">
-                    Edited {updatedLabel}
-                  </Text>
-                ) : null}
-                {deck.legend?.colors?.length ? (
-                  <Text className="text-[11px] text-muted-foreground" numberOfLines={1}>
-                    {deck.legend.colors.join(' · ')}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          </View>
+  const identity = (
+    <View
+      className={cn(
+        'min-w-0 gap-4',
+        compact || grid ? 'w-full flex-1' : 'w-[17rem] shrink-0'
+      )}
+    >
+      <View className="gap-2">
+        <View className="flex-row items-center gap-1.5">
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={`${displayDeck.name}. ${identityLine}. ${status.title}. ${status.caption}`}
+            onPress={openDeck}
+            className="min-w-0 flex-1"
+            depth={0.985}
+          >
+            <Text
+              className="text-[18px] font-semibold leading-6 text-foreground"
+              numberOfLines={1}
+            >
+              {displayDeck.name}
+            </Text>
+          </PressableScale>
+          {onEdit ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${displayDeck.name}`}
+              className="size-8 shrink-0 items-center justify-center rounded-[3px] active:bg-card-panel"
+              onPress={editDeck}
+            >
+              <ThemedIcon icon={PencilIcon} size={16} color="muted-foreground" />
+            </Pressable>
+          ) : null}
         </View>
-
-        {previewEntries.length > 0 ? (
-          <View className="flex-row flex-wrap items-end gap-1.5">
-            {previewEntries.map((entry) => (
-              <CardThumb
-                key={entry.card.variantNumber}
-                imageUri={resolveDeckCardImageUrl(entry.card, imageByVariant)}
-                variantNumber={entry.card.variantNumber}
-                count={entry.count}
-                size={PREVIEW_SIZE}
+        <View className="flex-row flex-wrap items-center gap-1.5">
+          <DeckFormatBadge format={displayDeck.format} />
+          <View className="rounded-[3px] border border-border bg-card-panel px-2 py-0.5">
+            <Text className="font-mono text-[12px] font-medium tabular-nums text-foreground">
+              {main.current}/{main.target}
+            </Text>
+          </View>
+          {showIllegalBadge ? <DeckLegalityBadge isLegal={false} compact /> : null}
+        </View>
+      </View>
+      <View className="gap-2">
+        {legendColors.length > 0 ? (
+          <View className="flex-row flex-wrap items-center gap-2">
+            {legendColors.map((color) => (
+              <DomainIcon
+                key={color}
+                name={color}
+                size={compact ? DOMAIN_ICON_NARROW : DOMAIN_ICON_WIDE}
               />
             ))}
-            {remainingMain > 0 ? (
-              <View
-                className={cn(
-                  'items-center justify-center border border-dashed border-border bg-card-panel',
-                  CARD_ART_RADIUS_CLASS
-                )}
-                style={{ width: PREVIEW_SIZE, height: Math.round(PREVIEW_SIZE * 1.4) }}
-              >
-                <Text className="font-mono text-[11px] font-normal text-muted-foreground">
-                  +{remainingMain}
-                </Text>
-              </View>
-            ) : null}
           </View>
         ) : (
-          <Text className="text-[12px] text-muted-foreground">
-            {readOnly
-              ? 'Open to view the full imported deck'
-              : 'No main deck cards yet · Edit to add cards'}
+          <Text
+            className="text-[12px] leading-4 text-muted-foreground"
+            numberOfLines={1}
+          >
+            {displayDeck.legend ? 'No domain identity' : 'No legend selected'}
           </Text>
         )}
+        <Text className="font-mono text-[11px] tabular-nums text-muted-foreground">
+          Runes {runeCount}/12 · Fields {battlefieldCount}/3
+          {sideCount > 0 ? ` · Side ${sideCount}` : ''}
+        </Text>
+      </View>
+    </View>
+  );
 
-        {readOnly && onImport ? (
-          <Pressable
-            accessibilityLabel={`Import ${deck.name} to my decks`}
-            accessibilityState={{ disabled: importBusy }}
-            className="self-start rounded-[3px] border border-border px-2.5 py-1.5 active:bg-card-panel"
-            disabled={importBusy}
-            onPress={(event) => {
-              event.stopPropagation?.();
-              hapticPress();
-              onImport();
-            }}
-          >
-            <Text className="text-[12px] font-medium text-foreground">
-              {importBusy ? 'Importing…' : 'Import to my decks'}
+  const timestamps =
+    grid || !(editedLabel || createdLabel) ? null : (
+      <View className={cn('gap-3.5', compact ? undefined : 'min-w-[11rem] flex-1')}>
+        {editedLabel ? (
+          <View className="gap-1">
+            <Text className="font-mono text-[11px] font-medium uppercase tracking-[-0.24px] text-muted-foreground">
+              Last edited
             </Text>
-          </Pressable>
+            <Text className="text-[16px] font-semibold leading-5 text-foreground">
+              {editedLabel}
+            </Text>
+          </View>
+        ) : null}
+        {createdLabel ? (
+          <View className="gap-1">
+            <Text className="font-mono text-[11px] font-medium uppercase tracking-[-0.24px] text-muted-foreground">
+              Created
+            </Text>
+            <Text className="text-[16px] font-semibold leading-5 text-foreground">
+              {createdLabel}
+            </Text>
+          </View>
         ) : null}
       </View>
+    );
+
+  const readout = (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={`${status.title}. ${status.caption}`}
+      onPress={openDeck}
+      className={cn('gap-2', compact || grid ? 'w-full' : 'w-[11.5rem] shrink-0')}
+      contentClassName="gap-2"
+      depth={0.985}
+    >
+      <View className="flex-row items-start gap-1.5">
+        <StatusMark tone={status.tone} />
+        <View className="min-w-0 flex-1">
+          <Text
+            className={cn(
+              'text-[13px] font-semibold leading-4',
+              status.tone === 'illegal' ? 'text-destructive' : 'text-foreground'
+            )}
+          >
+            {status.title}
+          </Text>
+          <Text className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+            {status.caption}
+          </Text>
+        </View>
+      </View>
+      {stats.cardCount > 0 ? <DeckListEnergyCurve buckets={stats.energy} /> : null}
     </PressableScale>
+  );
+
+  const actions = (
+    <View
+      className={cn(
+        compact || grid
+          ? 'w-full flex-row flex-wrap items-center gap-1.5'
+          : 'w-[7.75rem] shrink-0 gap-1.5'
+      )}
+    >
+      <Button
+        size="sm"
+        className={compact || grid ? 'min-w-[5.5rem] flex-1' : 'w-full'}
+        onPress={(event) => {
+          event.stopPropagation?.();
+          openDeck();
+        }}
+        accessibilityLabel={`Open ${displayDeck.name}`}
+      >
+        <ButtonText>Open deck</ButtonText>
+      </Button>
+      {readOnly && onImport ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className={compact || grid ? 'min-w-[5.5rem] flex-1' : 'w-full'}
+          disabled={importBusy}
+          accessibilityLabel={`Import ${displayDeck.name} to my decks`}
+          onPress={(event) => {
+            event.stopPropagation?.();
+            hapticPress();
+            onImport();
+          }}
+        >
+          <ButtonText>{importBusy ? 'Importing…' : 'Import'}</ButtonText>
+        </Button>
+      ) : null}
+      {!readOnly && onDuplicate ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className={compact || grid ? 'min-w-[5.5rem] flex-1' : 'w-full'}
+          disabled={duplicateBusy}
+          accessibilityLabel={`Duplicate ${displayDeck.name}`}
+          onPress={(event) => {
+            event.stopPropagation?.();
+            hapticPress();
+            onDuplicate();
+          }}
+        >
+          <ButtonText>{duplicateBusy ? 'Duplicating…' : 'Duplicate'}</ButtonText>
+        </Button>
+      ) : null}
+      {onDelete ? (
+        <DeckManageMenu
+          showLabel
+          onDelete={onDelete}
+          className={compact || grid ? undefined : 'w-full'}
+          triggerClassName={compact || grid ? undefined : 'h-8 w-full'}
+        />
+      ) : null}
+    </View>
+  );
+
+  return (
+    <DeckListItemMotion index={motionIndex}>
+      <View className="overflow-hidden rounded-[10px] border border-border bg-card">
+        {grid ? (
+          <>
+            {gridArt}
+            <View className="gap-3 p-3.5">
+              {identity}
+              {readout}
+              {actions}
+            </View>
+          </>
+        ) : (
+          <View className="flex-row items-stretch">
+            {listArt}
+            <View
+              className={cn(
+                'min-w-0 flex-1 gap-3 p-3.5',
+                compact ? undefined : 'flex-row items-stretch justify-between gap-6'
+              )}
+            >
+              {identity}
+              {timestamps}
+              {readout}
+              {actions}
+            </View>
+          </View>
+        )}
+      </View>
+    </DeckListItemMotion>
   );
 }
 
@@ -304,9 +448,18 @@ function deckListCardPropsEqual(
     prev.deck.updatedAt === next.deck.updatedAt &&
     prev.deck.name === next.deck.name &&
     prev.deck.format === next.deck.format &&
+    prev.deck.isLegal === next.deck.isLegal &&
+    prev.deck.readOnly === next.deck.readOnly &&
+    prev.layout === next.layout &&
+    prev.motionIndex === next.motionIndex &&
     prev.importBusy === next.importBusy &&
+    prev.duplicateBusy === next.duplicateBusy &&
+    prev.collectionReady === next.collectionReady &&
+    collectionByNameEqual(prev.collectionByName, next.collectionByName) &&
     Boolean(prev.onDelete) === Boolean(next.onDelete) &&
-    Boolean(prev.onImport) === Boolean(next.onImport)
+    Boolean(prev.onImport) === Boolean(next.onImport) &&
+    Boolean(prev.onDuplicate) === Boolean(next.onDuplicate) &&
+    Boolean(prev.onEdit) === Boolean(next.onEdit)
   );
 }
 

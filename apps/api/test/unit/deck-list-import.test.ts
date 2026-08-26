@@ -170,6 +170,9 @@ describe('DeckSyncService.listImportedDeckSummaries', () => {
         champion: null;
         legend: null;
         mainDeck: Array<{ card: { name: string }; count: number }>;
+        runes: Array<{ card: { name: string }; count: number }>;
+        battlefields: Array<{ card: { name: string }; count: number }>;
+        sideboard: Array<{ card: { name: string }; count: number }>;
       }>;
     };
     syncInternals.getUpstreamDeckDetail = async (deckId: string) => {
@@ -180,6 +183,9 @@ describe('DeckSyncService.listImportedDeckSummaries', () => {
       champion: null,
       legend: null,
       mainDeck: [{ card: { name: 'Preview Card' }, count: 3 }],
+      runes: [{ card: { name: 'Fury Rune' }, count: 12 }],
+      battlefields: [{ card: { name: 'The Arena' }, count: 1 }],
+      sideboard: [],
     });
 
     const result = await deckSync.listImportedDeckSummaries({
@@ -197,6 +203,8 @@ describe('DeckSyncService.listImportedDeckSummaries', () => {
     expect(detailCalls).toBe(2);
     expect(result.items[0]?.mainDeck).toHaveLength(1);
     expect(result.items[0]?.mainDeck[0]?.card.name).toBe('Preview Card');
+    expect(result.items[0]?.runes).toHaveLength(1);
+    expect(result.items[0]?.battlefields).toHaveLength(1);
   });
 
   test('reuses legend card cache across list entries', async () => {

@@ -1,28 +1,22 @@
 import { CompassIcon, LibraryIcon } from '@/components/icons';
 import { usePathname, useRouter } from 'expo-router';
-import {
-  FLOATING_PILL_NAV_CLEARANCE,
-  FloatingPillNav,
-  type FloatingPillNavItem,
-} from '@/components/shell/FloatingPillNav';
+import { CatalogSegmentedControl } from '@/components/catalog/CatalogSegmentedControl';
+import { useMobileLayout } from '@/hooks/useBreakpoint';
 
-/** @deprecated Prefer FLOATING_PILL_NAV_CLEARANCE — kept for existing deck list imports. */
-export const DECKS_SUB_NAV_CLEARANCE = FLOATING_PILL_NAV_CLEARANCE;
-
-const NAV_ITEMS: readonly FloatingPillNavItem<'mine' | 'browse'>[] = [
+const NAV_ITEMS = [
   {
-    id: 'mine',
+    id: 'mine' as const,
     label: 'Mine',
     accessibilityLabel: 'My decks',
     icon: LibraryIcon,
   },
   {
-    id: 'browse',
+    id: 'browse' as const,
     label: 'Browse',
     accessibilityLabel: 'Browse decks',
     icon: CompassIcon,
   },
-];
+] as const;
 
 function isBrowseDecksPath(pathname: string): boolean {
   return pathname.includes('/decks/browse');
@@ -31,15 +25,19 @@ function isBrowseDecksPath(pathname: string): boolean {
 export function DecksSubNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const isMobile = useMobileLayout();
   const browseActive = isBrowseDecksPath(pathname);
 
   return (
-    <FloatingPillNav
-      items={NAV_ITEMS}
+    <CatalogSegmentedControl
       value={browseActive ? 'browse' : 'mine'}
       onChange={(id) => {
-        router.push(id === 'browse' ? '/(tabs)/decks/browse' : '/(tabs)/decks');
+        router.replace(id === 'browse' ? '/(tabs)/decks/browse' : '/(tabs)/decks');
       }}
+      options={NAV_ITEMS}
+      mobile={isMobile}
+      accessibilityRole="tablist"
+      segmentAccessibilityRole="tab"
     />
   );
 }

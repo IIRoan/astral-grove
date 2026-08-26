@@ -147,7 +147,7 @@ export function DeckStatsHistogram({
                   compact ? 'text-[10px] leading-3' : 'text-[11px] leading-4'
                 )}
               >
-                {bucket.value}
+                {bucket.label ?? bucket.value}
               </Text>
             </View>
           ))}

@@ -68,6 +68,38 @@ export function ownedCountForCardName(
   return collectionByName.get(name) ?? 0;
 }
 
+export type DeckOwnershipTotals = {
+  owned: number;
+  required: number;
+  missing: number;
+};
+
+/** Legend, champion, main, and sideboard copies vs collection. Null when ownership is unknown. */
+export function deckOwnershipTotals(
+  deck: DeckState,
+  collectionByName: ReadonlyMap<string, number>,
+  collectionReady = false
+): DeckOwnershipTotals | null {
+  if (!collectionReady && collectionByName.size === 0) return null;
+
+  let owned = 0;
+  let required = 0;
+  const add = (name: string, count: number) => {
+    required += count;
+    const have = collectionReady
+      ? (collectionByName.get(name) ?? 0)
+      : ownedCountForCardName(name, collectionByName);
+    if (have != null) owned += Math.min(have, count);
+  };
+
+  if (deck.legend) add(deck.legend.name, 1);
+  if (deck.champion) add(deck.champion.name, 1);
+  for (const entry of deck.mainDeck.values()) add(entry.card.name, entry.count);
+  for (const entry of deck.sideboard.values()) add(entry.card.name, entry.count);
+
+  return { owned, required, missing: Math.max(0, required - owned) };
+}
+
 /** Collection-coverage border for deck art; null when ownership unknown or card not in deck. */
 export function deckOwnershipBorderClass(
   owned: number | null,

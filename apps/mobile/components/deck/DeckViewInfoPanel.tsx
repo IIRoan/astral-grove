@@ -6,6 +6,7 @@ import { Text } from '@/components/ui/text';
 import { deckArchiveViewUrl, deckBrowseSummaryLine } from '@/lib/deck-browse';
 import { openExternalUrl } from '@/lib/open-external';
 import { collectIllegalCardNames, deckHasBannedCards } from '@/lib/card-legality';
+import { deckListStatus } from '@/lib/deck-list-status';
 import type { DeckState } from '@/lib/deck-types';
 import {
   ThemedIcon,
@@ -23,7 +24,8 @@ export function DeckViewInfoPanel({ deck }: DeckViewInfoPanelProps) {
   const archiveUrl = deckArchiveViewUrl(deck.id);
   const illegalNames = collectIllegalCardNames(deck);
   const hasBannedCards = deckHasBannedCards(deck);
-  const tournamentLegal = !hasBannedCards;
+  const status = deckListStatus(deck, new Map(), false);
+  const tournamentLegal = status.tone !== 'illegal';
 
   return (
     <View className="gap-3">
@@ -34,6 +36,10 @@ export function DeckViewInfoPanel({ deck }: DeckViewInfoPanelProps) {
         {hasBannedCards ? (
           <Text className="text-[12px] leading-5 text-muted-foreground">
             Illegal cards: {illegalNames.join(', ')}
+          </Text>
+        ) : status.tone !== 'complete' ? (
+          <Text className="text-[12px] leading-5 text-muted-foreground">
+            {status.caption}
           </Text>
         ) : null}
       </View>

@@ -47,7 +47,7 @@ export function DeckCreateMenu({ onCreate, children, className }: DeckCreateMenu
           <ButtonIcon>
             <CalendarPlusIcon className="size-4 text-cta-foreground" />
           </ButtonIcon>
-          <ButtonText>New</ButtonText>
+          <ButtonText>New deck</ButtonText>
         </>
       )}
     </Button>

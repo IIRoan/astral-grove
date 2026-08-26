@@ -1,23 +1,36 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { View, type ListRenderItem } from 'react-native';
+import { CatalogResultsTransition } from '@/components/catalog/CatalogResultsTransition';
 import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
 import { DeckBrowseCard } from '@/components/deck/DeckBrowseCard';
 import { DeckImportExportSheet } from '@/components/deck/DeckImportExportSheet';
 import { DeckImportLoadingOverlay } from '@/components/deck/DeckImportLoadingOverlay';
 import { DeckListCard } from '@/components/deck/DeckListCard';
-import { DECKS_SUB_NAV_CLEARANCE, DecksSubNav } from '@/components/deck/DecksSubNav';
+import { DecksListHeader } from '@/components/deck/DecksListHeader';
+import { DecksListOwnedToolbar } from '@/components/deck/DecksListOwnedToolbar';
+import { DecksSubNav } from '@/components/deck/DecksSubNav';
 import {
   DecksListContent,
   DecksListLoadingFooter,
 } from '@/components/deck/DecksListContent';
-import { DecksListHeader } from '@/components/deck/DecksListHeader';
+import { DecksPaneTransition } from '@/components/deck/DecksPaneTransition';
 import { ScreenLayout, ScreenLayoutBody } from '@/components/shell/ScreenLayout';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DeckFormatPickerSheet } from '@/components/deck/DeckFormatPickerSheet';
+import { useCollection } from '@/hooks/useCollection';
+import { useCollectionByCardName } from '@/hooks/useDeckCardResolver';
 import { useDeckMutations } from '@/hooks/useDecks';
 import { createEmptyDeck } from '@/lib/deck-card';
-import { enterCreatedDeckEditor } from '@/lib/deck-navigation';
+import { enterCreatedDeckEditor, deckEditHref } from '@/lib/deck-navigation';
+import {
+  countDecksByFormat,
+  filterDecksByFormat,
+  sortOwnedDecks,
+  type DeckListLayout,
+  type OwnedDeckFormatFilter,
+  type OwnedDeckSort,
+} from '@/lib/deck-list';
 import type { DeckState } from '@/lib/deck-types';
 import type { DeckFormat } from '@riftbound/contracts';
 import { hapticPress } from '@/utils/haptics';
@@ -70,7 +83,11 @@ export function DecksListScreen({
   variant = 'default',
 }: DecksListScreenProps) {
   const router = useRouter();
-  const { removeDeck, importDeck, saveDeckNow, createNewDeck } = useDeckMutations();
+  const { removeDeck, importDeck, saveDeckNow, createNewDeck, duplicateOwnedDeck } =
+    useDeckMutations();
+  const collectionQuery = useCollection();
+  const collectionByName = useCollectionByCardName(collectionQuery.data);
+  const collectionReady = collectionQuery.isSuccess;
   const {
     data: decks = [],
     isLoading,
@@ -84,25 +101,44 @@ export function DecksListScreen({
   const [pendingArchiveImport, setPendingArchiveImport] = useState<DeckState | null>(
     null
   );
+  const [formatFilter, setFormatFilter] = useState<OwnedDeckFormatFilter>('all');
+  const [sort, setSort] = useState<OwnedDeckSort>('edited');
+  const [layout, setLayout] = useState<DeckListLayout>('list');
   const importPlaceholderDeck = useMemo(() => createEmptyDeck(), []);
+  const owned = variant === 'default';
 
   const handleCreateDeck = async (format: DeckFormat) => {
     const deck = await createNewDeck.mutateAsync({ format });
     enterCreatedDeckEditor(router, deck.id);
   };
 
-  const handleArchiveImport = (deck: DeckState) => {
+  const handleArchiveImport = useCallback((deck: DeckState) => {
     setPendingArchiveImport(deck);
-  };
+  }, []);
+
+  const formatCounts = useMemo(() => countDecksByFormat(decks), [decks]);
+  const visibleDecks = useMemo(() => {
+    if (!owned) return decks;
+    return sortOwnedDecks(filterDecksByFormat(decks, formatFilter), sort);
+  }, [decks, formatFilter, owned, sort]);
 
   const archiveImportBusy = importDeck.isPending;
-  const showRefreshing = isFetching && decks.length > 0;
+  const showRefreshing = isFetching && visibleDecks.length > 0;
+  const formatFilteredEmpty =
+    owned && formatFilter !== 'all' && decks.length > 0 && visibleDecks.length === 0;
+  const formatFilterLabel = formatFilter === 'pre-rift' ? 'Pre-Rift' : 'Constructed';
+  const listEmptyTitle = formatFilteredEmpty
+    ? `No ${formatFilterLabel} decks`
+    : emptyTitle;
+  const listEmptyDescription = formatFilteredEmpty
+    ? 'Switch format or create a new list in this ruleset.'
+    : emptyDescription;
   const deckCountLabel =
-    decks.length === 0
+    visibleDecks.length === 0
       ? subtitle
-      : decks.length === 1
+      : visibleDecks.length === 1
         ? '1 deck'
-        : `${decks.length} decks`;
+        : `${visibleDecks.length} decks`;
 
   const listFooter = useMemo(
     () => (
@@ -111,17 +147,18 @@ export function DecksListScreen({
           isFetchingNextPage={Boolean(infiniteScroll?.isFetchingNextPage)}
           showRefreshing={showRefreshing}
         />
-        <ListBottomSpacer height={8 + (showSubNav ? DECKS_SUB_NAV_CLEARANCE : 0)} />
+        <ListBottomSpacer height={8} />
       </>
     ),
-    [infiniteScroll?.isFetchingNextPage, showRefreshing, showSubNav]
+    [infiniteScroll?.isFetchingNextPage, showRefreshing]
   );
 
   const renderDeckItem = useCallback<ListRenderItem<DeckState>>(
-    ({ item: deck }) =>
+    ({ item: deck, index }) =>
       variant === 'browse' ? (
         <DeckBrowseCard
           deck={deck}
+          motionIndex={index}
           onPress={() => router.push(`/decks/${deck.id}`)}
           onImport={() => handleArchiveImport(deck)}
           importBusy={
@@ -131,7 +168,16 @@ export function DecksListScreen({
       ) : (
         <DeckListCard
           deck={deck}
+          layout={layout}
+          motionIndex={index}
           onPress={() => router.push(`/decks/${deck.id}`)}
+          onEdit={
+            deck.readOnly
+              ? undefined
+              : () => {
+                  router.push(deckEditHref(deck.id));
+                }
+          }
           onDelete={
             deck.readOnly
               ? undefined
@@ -146,12 +192,36 @@ export function DecksListScreen({
                 }
               : undefined
           }
+          onDuplicate={
+            deck.readOnly
+              ? undefined
+              : () => {
+                  void duplicateOwnedDeck.mutateAsync(deck);
+                }
+          }
           importBusy={
             importDeck.isPending && importDeck.variables?.sourceDeckId === deck.id
           }
+          duplicateBusy={
+            duplicateOwnedDeck.isPending && duplicateOwnedDeck.variables?.id === deck.id
+          }
+          collectionByName={collectionByName}
+          collectionReady={collectionReady}
         />
       ),
-    [variant, router, importDeck.isPending, importDeck.variables?.sourceDeckId]
+    [
+      variant,
+      layout,
+      router,
+      handleArchiveImport,
+      importDeck.isPending,
+      importDeck.variables?.sourceDeckId,
+      duplicateOwnedDeck.mutateAsync,
+      duplicateOwnedDeck.isPending,
+      duplicateOwnedDeck.variables?.id,
+      collectionByName,
+      collectionReady,
+    ]
   );
 
   return (
@@ -184,33 +254,70 @@ export function DecksListScreen({
               setImportOpen(true);
             }}
             onCreateDeck={handleCreateDeck}
+            nav={showSubNav ? <DecksSubNav /> : null}
+            ownedToolbar={
+              owned ? (
+                <DecksListOwnedToolbar
+                  formatFilter={formatFilter}
+                  onFormatFilterChange={setFormatFilter}
+                  formatCounts={formatCounts}
+                  sort={sort}
+                  onSortChange={setSort}
+                  layout={layout}
+                  onLayoutChange={setLayout}
+                />
+              ) : null
+            }
             browseToolbar={browseToolbar}
             shrinkHeader={Boolean(infiniteScroll)}
           />
 
-          <DecksListContent
-            variant={variant}
-            decks={decks}
-            query={query}
-            queryStatus={{ isLoading, isFetching, isError }}
-            emptyActions={{ showCreate, showImport, showSubNav }}
-            refetch={refetch}
-            emptyTitle={emptyTitle}
-            emptyDescription={emptyDescription}
-            infiniteScroll={infiniteScroll}
-            onDeckPress={(deckId) => router.push(`/decks/${deckId}`)}
-            onDeleteDeck={setPendingDelete}
-            onArchiveImport={handleArchiveImport}
-            importBusyDeckId={importDeck.variables?.sourceDeckId}
-            importBusy={importDeck.isPending}
-            onCreateDeck={handleCreateDeck}
-            onImportPress={() => {
-              hapticPress();
-              setImportOpen(true);
-            }}
-            listFooter={listFooter}
-            renderDeckItem={renderDeckItem}
-          />
+          <DecksPaneTransition
+            pane={owned ? 'mine' : 'browse'}
+            fill={Boolean(infiniteScroll)}
+          >
+            <CatalogResultsTransition
+              transitionKey={
+                owned
+                  ? `${formatFilter}:${sort}:${layout}:${query}`
+                  : `${query}:${browseToolbar ? 'browse' : 'list'}`
+              }
+              fill={Boolean(infiniteScroll)}
+            >
+              <DecksListContent
+                variant={variant}
+                layout={owned ? layout : 'list'}
+                decks={visibleDecks}
+                query={query}
+                queryStatus={{ isLoading, isFetching, isError }}
+                emptyActions={{ showCreate, showImport }}
+                refetch={refetch}
+                emptyTitle={listEmptyTitle}
+                emptyDescription={listEmptyDescription}
+                infiniteScroll={infiniteScroll}
+                onDeckPress={(deckId) => router.push(`/decks/${deckId}`)}
+                onEditDeck={(deckId) => router.push(deckEditHref(deckId))}
+                onDeleteDeck={setPendingDelete}
+                onArchiveImport={handleArchiveImport}
+                importBusyDeckId={importDeck.variables?.sourceDeckId}
+                importBusy={importDeck.isPending}
+                onDuplicateDeck={(deck) => {
+                  void duplicateOwnedDeck.mutateAsync(deck);
+                }}
+                duplicateBusyDeckId={duplicateOwnedDeck.variables?.id}
+                duplicateBusy={duplicateOwnedDeck.isPending}
+                collectionByName={collectionByName}
+                collectionReady={collectionReady}
+                onCreateDeck={handleCreateDeck}
+                onImportPress={() => {
+                  hapticPress();
+                  setImportOpen(true);
+                }}
+                listFooter={listFooter}
+                renderDeckItem={renderDeckItem}
+              />
+            </CatalogResultsTransition>
+          </DecksPaneTransition>
         </ScreenLayoutBody>
 
         {showImport ? (
@@ -233,8 +340,6 @@ export function DecksListScreen({
           />
         ) : null}
       </ScreenLayout>
-
-      {showSubNav ? <DecksSubNav /> : null}
 
       <ConfirmDialog
         open={pendingDelete != null}

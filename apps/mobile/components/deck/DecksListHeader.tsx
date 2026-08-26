@@ -17,6 +17,8 @@ interface DecksListHeaderProps {
   showImport: boolean;
   onImportPress: () => void;
   onCreateDeck: (format: DeckFormat) => Promise<void>;
+  nav?: ReactNode;
+  ownedToolbar?: ReactNode;
   browseToolbar?: ReactNode;
   shrinkHeader?: boolean;
 }
@@ -31,6 +33,8 @@ export function DecksListHeader({
   showImport,
   onImportPress,
   onCreateDeck,
+  nav,
+  ownedToolbar,
   browseToolbar,
   shrinkHeader,
 }: DecksListHeaderProps) {
@@ -58,7 +62,7 @@ export function DecksListHeader({
                   onImportPress();
                 }}
               >
-                <ButtonText>Import</ButtonText>
+                <ButtonText>Import deck</ButtonText>
               </Button>
             ) : null}
             {showCreate ? <DeckCreateMenu onCreate={onCreateDeck} /> : null}
@@ -75,6 +79,13 @@ export function DecksListHeader({
         autoCapitalize="none"
         returnKeyType="search"
       />
+
+      {nav || ownedToolbar ? (
+        <View className="flex-row flex-wrap items-center gap-2">
+          {nav}
+          {ownedToolbar}
+        </View>
+      ) : null}
 
       {browseToolbar}
     </View>

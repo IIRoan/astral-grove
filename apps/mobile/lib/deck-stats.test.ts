@@ -2,10 +2,12 @@ import { describe, expect, test } from 'bun:test';
 import { createEmptyDeck } from '@/lib/deck-card';
 import {
   catalogPowerByCard,
+  collapseEnergyBuckets,
   computeDeckStats,
   countScaleMax,
   countScaleTicks,
   formatDeckStatAverage,
+  LIST_ENERGY_CAP,
   peakBucketIndex,
 } from '@/lib/deck-stats';
 import type { DeckCard } from '@/lib/deck-types';
@@ -274,5 +276,33 @@ describe('peakBucketIndex', () => {
     const filled = computeDeckStats(deck);
     expect(peakBucketIndex(stats.energy)).toBe(0);
     expect(peakBucketIndex(filled.energy)).toBe(3);
+  });
+});
+
+describe('collapseEnergyBuckets', () => {
+  test('folds 6+ into a labeled overflow while keeping 0–5', () => {
+    const deck = createEmptyDeck();
+    deck.mainDeck.set('Low', { card: card({ name: 'Low', energy: 2 }), count: 3 });
+    deck.mainDeck.set('Six', { card: card({ name: 'Six', energy: 6 }), count: 2 });
+    deck.mainDeck.set('Eight', { card: card({ name: 'Eight', energy: 8 }), count: 1 });
+    const collapsed = collapseEnergyBuckets(computeDeckStats(deck).energy);
+    expect(collapsed.map((bucket) => bucket.label ?? String(bucket.value))).toEqual([
+      '0',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6+',
+    ]);
+    expect(collapsed[2]?.count).toBe(3);
+    expect(collapsed[LIST_ENERGY_CAP]?.count).toBe(3);
+    expect(collapsed[LIST_ENERGY_CAP]?.label).toBe('6+');
+  });
+
+  test('pads missing low costs so the list axis stays stable', () => {
+    const collapsed = collapseEnergyBuckets([]);
+    expect(collapsed).toHaveLength(LIST_ENERGY_CAP + 1);
+    expect(collapsed.every((bucket) => bucket.count === 0)).toBe(true);
   });
 });

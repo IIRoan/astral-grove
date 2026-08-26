@@ -15,8 +15,8 @@ export default function DecksLayout() {
         fullScreenGestureEnabled: Platform.OS === 'ios',
       }}
     >
-      <Stack.Screen name="index" />
-      <Stack.Screen name="browse" />
+      <Stack.Screen name="index" options={{ animation: 'none' }} />
+      <Stack.Screen name="browse" options={{ animation: 'none' }} />
       <Stack.Screen name="create" />
       {/* Edge-swipe only — full-screen back fights vertical deck scrolling. */}
       <Stack.Screen name="[id]" options={{ fullScreenGestureEnabled: false }} />
