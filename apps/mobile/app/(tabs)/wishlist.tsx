@@ -27,7 +27,10 @@ import { useWishlistPrices, type WishlistPriceItem } from '@/hooks/useWishlistPr
 import { cn } from '@/lib/utils';
 import { openCard } from '@/utils/cardNavigation';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
-import { CARDMARKET_PRICE_DETAIL_NOTE } from '@riftbound/contracts';
+import {
+  CARDMARKET_PRICE_DETAIL_NOTE,
+  matchesSearchHaystack,
+} from '@riftbound/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 
 /** Compact list thumb — portrait card crop with explicit size for native Image. */
@@ -48,12 +51,11 @@ function trendDelta(item: WishlistPriceItem): number {
 }
 
 function matchesQuery(item: WishlistPriceItem, query: string): boolean {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q) return true;
-  return (
-    item.name.toLowerCase().includes(q) ||
-    item.variantNumber.toLowerCase().includes(q) ||
-    (item.priceFilterLabel?.toLowerCase().includes(q) ?? false)
+  return matchesSearchHaystack(
+    [item.name, item.variantNumber, item.priceFilterLabel ?? ''].join(' '),
+    q
   );
 }
 

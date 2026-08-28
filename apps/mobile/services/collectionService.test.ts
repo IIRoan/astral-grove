@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { CardListItem } from '@riftbound/contracts';
+import type { CollectionEntry } from './collectionService';
 
 process.env.EXPO_PUBLIC_API_URL = 'http://localhost:7000';
 
@@ -60,8 +61,12 @@ const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
 
 globalThis.fetch = fetchMock as typeof fetch;
 
-const { addDetailToCollection, addToCollection, updateCollectionQuantity } =
-  await import('./collectionService');
+const {
+  addDetailToCollection,
+  addToCollection,
+  updateCollectionQuantity,
+  filterCollection,
+} = await import('./collectionService');
 const { getCollectedPrintingsForDetailCard, getCollectedPrintingsForListCard } =
   await import('@/utils/collectionRemove');
 const { remoteAddToCollection, remoteAddToWishlist, remoteRemoveFromWishlist } =
@@ -338,5 +343,40 @@ describe('collection quantity floors', () => {
     );
 
     expect(rows).toEqual([]);
+  });
+});
+
+describe('filterCollection', () => {
+  const ambessa: CollectionEntry = {
+    variantNumber: 'VEN-153',
+    name: 'Ambessa, Matriarch of War',
+    imageUrl: 'https://example.com/ambessa.webp',
+    setCode: 'VEN',
+    rarity: 'Rare',
+    type: 'Legend',
+    variantLabel: 'Standard',
+    isFoil: false,
+    quantity: 1,
+    addedAt: 0,
+    updatedAt: 0,
+  };
+
+  test('matches the second word of a punctuated title', () => {
+    expect(filterCollection([ambessa], 'ambessa matriarch')).toEqual([ambessa]);
+    expect(filterCollection([ambessa], 'matriarch')).toEqual([ambessa]);
+  });
+
+  test('matches a one-letter typo of Ambessa', () => {
+    expect(filterCollection([ambessa], 'embessa')).toEqual([ambessa]);
+  });
+
+  test('matches Stagazer when the query is stargazer', () => {
+    const stagazer: CollectionEntry = {
+      ...ambessa,
+      variantNumber: 'VEN-098',
+      name: 'Stagazer',
+      type: 'Unit',
+    };
+    expect(filterCollection([stagazer], 'stargazer')).toEqual([stagazer]);
   });
 });

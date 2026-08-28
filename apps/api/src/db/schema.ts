@@ -14,8 +14,15 @@ import {
   primaryKey,
   index,
   uniqueIndex,
+  customType,
 } from 'drizzle-orm/pg-core';
 import { user } from './auth-schema.js';
+
+const realArray = customType<{ data: number[]; driverData: number[] }>({
+  dataType() {
+    return 'real[]';
+  },
+});
 
 export const sets = pgTable('sets', {
   id: uuid('id').primaryKey(),
@@ -48,6 +55,9 @@ export const cards = pgTable('cards', {
   maxCopies: smallint('max_copies'),
   banEffectiveDate: timestamp('ban_effective_date', { withTimezone: true }),
   contentHash: char('content_hash', { length: 64 }).notNull(),
+  embedding: realArray('embedding'),
+  embeddingModel: text('embedding_model'),
+  embeddedHash: char('embedded_hash', { length: 64 }),
   upstreamRaw: jsonb('upstream_raw').notNull(),
   fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

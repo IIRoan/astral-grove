@@ -19,6 +19,7 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     TRUSTED_ORIGINS: ['https://astral-grove.com'],
     PUBLIC_APP_URL: 'https://astral-grove.com',
     CATALOG_WARMUP_ON_START: false,
+    EMBEDDING_PROVIDER: 'none',
     CARDMARKET_GAME_ID: 22,
     DB_POOL_MAX: 5,
     ...overrides,

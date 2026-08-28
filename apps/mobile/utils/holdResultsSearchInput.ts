@@ -20,8 +20,8 @@ export function syncHoldResultsSearchState(
   if (state.holdingFrom !== null && state.holdingFrom === committed) {
     return state;
   }
-  // While focused, ignore parent echoes of the same committed value (avoids caret reset on web).
-  if (state.focused && state.holdingFrom === null && state.draft === committed) {
+  // Focused editing: ignore lagged parent echoes so in-flight keystrokes are not overwritten.
+  if (state.focused && state.holdingFrom === null) {
     return state;
   }
   if (state.draft === committed && state.holdingFrom === null) {
@@ -34,9 +34,19 @@ export function focusHoldResultsSearchState(
   state: HoldResultsSearchState,
   committed: string
 ): HoldResultsSearchState {
+  if (state.focused) {
+    return state;
+  }
   if (state.draft.length === 0 && committed.length === 0) {
     return { ...state, focused: true };
   }
+  return { draft: '', holdingFrom: committed, focused: true };
+}
+
+/** `/` while focused: empty the draft without committing or dropping focus. */
+export function holdClearHoldResultsSearchState(
+  committed: string
+): HoldResultsSearchState {
   return { draft: '', holdingFrom: committed, focused: true };
 }
 

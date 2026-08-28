@@ -8,6 +8,9 @@ import type {
 } from '@riftbound/contracts';
 import {
   PaCardsListResponse,
+  fuseSearchResultIds,
+  matchesSearchHaystack,
+  sortByLexicalRelevance,
   type PaLogicalCard,
   type PaVariant,
 } from '@riftbound/contracts';
@@ -26,6 +29,7 @@ import {
 import type { PriceCacheService } from './price-cache.js';
 import type { ImageStoreService } from './image-store.js';
 import { buildCardSearchCondition, buildSearchRelevanceOrder } from '../lib/search.js';
+import { rankEmbeddings, type EmbeddingService } from './embeddings.js';
 import {
   logSearchCacheHit,
   logSearchComplete,
@@ -130,7 +134,8 @@ export class CardCacheService {
     private readonly db: Database,
     private readonly pa: PaClient,
     private readonly prices: PriceCacheService,
-    private readonly images: ImageStoreService
+    private readonly images: ImageStoreService,
+    private readonly embeddings: EmbeddingService | null = null
   ) {}
 
   private async priceRowsForLogicalCard(card: PaLogicalCard) {
@@ -336,6 +341,14 @@ export class CardCacheService {
         await this.upsertVariant(tx, card.id, variant, now);
       }
     });
+
+    if (this.embeddings) {
+      try {
+        await this.embeddings.upsertCardEmbedding(card);
+      } catch (error) {
+        console.warn(`Embedding skipped for ${card.name}:`, error);
+      }
+    }
 
     return true;
   }
@@ -1399,6 +1412,8 @@ export class CardCacheService {
       let grouped = groupCardListItems(rawItems);
       if (query.sortBy === 'price') {
         grouped = sortCardListItemsByPrice(grouped, query.dir);
+      } else if (query.q?.trim()) {
+        grouped = await this.rerankSearchHits(query.q, grouped, resolvedCatalogHash);
       }
       const groupMs = performance.now() - groupStart;
       let total = grouped.length;
@@ -1531,5 +1546,94 @@ export class CardCacheService {
       catalogHash,
       pricesCatalogHash,
     };
+  }
+
+  async backfillEmbeddings(): Promise<number> {
+    if (!this.embeddings) return 0;
+    return this.embeddings.embedMissing();
+  }
+
+  private async rerankSearchHits(
+    query: string,
+    grouped: CardListItem[],
+    catalogHash: string
+  ): Promise<CardListItem[]> {
+    if (!this.embeddings?.isEnabled()) {
+      return sortByLexicalRelevance(grouped, query);
+    }
+
+    const queryVector = await this.embeddings.embedQuery(query);
+    if (!queryVector) return grouped;
+
+    const stored = await this.embeddings.embeddingsForCatalog(catalogHash);
+    if (stored.length === 0) return grouped;
+
+    const vectorCardIds = rankEmbeddings(queryVector, stored).map((row) => row.id);
+    if (vectorCardIds.length === 0) return grouped;
+
+    const present = new Set(grouped.map((item) => item.cardId));
+    const extraIds = vectorCardIds.filter((id) => !present.has(id)).slice(0, 16);
+    let merged = grouped;
+    if (extraIds.length > 0) {
+      const extra = await this.loadGroupedByCardIds(extraIds);
+      merged = [
+        ...grouped,
+        ...extra.filter((item) =>
+          matchesSearchHaystack(
+            `${item.name} ${item.type} ${item.super ?? ''} ${item.variantNumber}`,
+            query
+          )
+        ),
+      ];
+    }
+
+    const byVariant = new Map(merged.map((item) => [item.variantNumber, item]));
+    const lexicalIds = grouped.map((item) => item.variantNumber);
+    const vectorRank = new Map(vectorCardIds.map((id, index) => [id, index]));
+    const vectorIds = [...merged]
+      .filter((item) => vectorRank.has(item.cardId))
+      .sort(
+        (left, right) =>
+          (vectorRank.get(left.cardId) ?? 999) - (vectorRank.get(right.cardId) ?? 999)
+      )
+      .map((item) => item.variantNumber);
+
+    const fused = fuseSearchResultIds(lexicalIds, vectorIds, byVariant, query);
+    return fused.flatMap((id) => {
+      const item = byVariant.get(id);
+      return item ? [item] : [];
+    });
+  }
+
+  private async loadGroupedByCardIds(cardIds: string[]): Promise<CardListItem[]> {
+    if (cardIds.length === 0) return [];
+    const rows = await this.db
+      .select({
+        cardId: cards.id,
+        name: cards.name,
+        type: cards.type,
+        super: cards.super,
+        energy: cards.energy,
+        might: cards.might,
+        power: cards.power,
+        banEffectiveDate: cards.banEffectiveDate,
+        variantId: variants.id,
+        variantNumber: variants.variantNumber,
+        rarity: variants.rarity,
+        variantType: variants.variantType,
+        foilMode: variants.foilMode,
+        variantLabel: variants.variantLabel,
+        imageUrl: variants.imageUrl,
+        cardmarketId: variants.cardmarketId,
+        tcgplayerId: variants.tcgplayerId,
+        setCode: sets.code,
+      })
+      .from(variants)
+      .innerJoin(cards, eq(variants.cardId, cards.id))
+      .innerJoin(sets, eq(variants.setId, sets.id))
+      .where(inArray(cards.id, cardIds))
+      .orderBy(asc(cards.name), asc(variants.variantNumber));
+    const { items } = await this.hydrateSlimRows(rows);
+    return groupCardListItems(items);
   }
 }

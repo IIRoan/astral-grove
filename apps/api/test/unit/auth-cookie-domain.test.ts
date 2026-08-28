@@ -16,6 +16,7 @@ function env(overrides: Partial<Env>): Env {
     TRUSTED_ORIGINS: ['https://app.example.com'],
     PUBLIC_APP_URL: 'https://app.example.com',
     CATALOG_WARMUP_ON_START: false,
+    EMBEDDING_PROVIDER: 'none',
     DB_POOL_MAX: 5,
     ...overrides,
   };

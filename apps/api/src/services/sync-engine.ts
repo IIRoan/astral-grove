@@ -62,6 +62,11 @@ export class SyncEngine {
           ),
           lastSuccessAt: existing.lastSuccessAt ?? now,
         });
+        try {
+          await this.cards.backfillEmbeddings();
+        } catch (error) {
+          console.warn('[sync] Embedding backfill skipped:', error);
+        }
         return {
           changed: false,
           pages: 0,
@@ -150,6 +155,14 @@ export class SyncEngine {
       });
 
       this.cards.invalidateSearchCache();
+      try {
+        const embedded = await this.cards.backfillEmbeddings();
+        if (embedded > 0) {
+          console.log(`[sync] Embedded ${String(embedded)} catalog cards for search`);
+        }
+      } catch (error) {
+        console.warn('[sync] Embedding backfill skipped:', error);
+      }
 
       console.log(
         `[sync] Catalog sync complete: ${String(syncedCardIds.size)} logical cards, ${String(pages)} pages, ${String(syncedVariantRows)} printings`

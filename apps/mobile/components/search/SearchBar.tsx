@@ -1,4 +1,4 @@
-import { forwardRef, memo, useCallback, useRef } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -7,6 +7,7 @@ import {
   type TextInput,
   type TextInputKeyPressEventData,
   type TextInputProps,
+  type TextInputSubmitEditingEventData,
 } from 'react-native';
 import {
   InputAddon,
@@ -51,6 +52,7 @@ export const SearchBar = memo(function SearchBar({
     onChangeText: onDraftChange,
     onClear: clearDraftAndCommit,
     onHoldClear,
+    flush,
   } = useHoldResultsSearchInput(value, onChangeText);
 
   const draftRef = useLatestRef(draft);
@@ -109,6 +111,14 @@ export const SearchBar = memo(function SearchBar({
     [clearDraftKeepResults, enableSlashFocus]
   );
 
+  const handleSubmitEditing = useCallback(
+    (event: NativeSyntheticEvent<TextInputSubmitEditingEventData>) => {
+      flush();
+      onSubmitEditing?.(event);
+    },
+    [flush, onSubmitEditing]
+  );
+
   // Keep end-addon slots mounted — toggling Pressable children remounts the field on web.
   const showClear = draft.length > 0 || value.length > 0;
 
@@ -125,7 +135,7 @@ export const SearchBar = memo(function SearchBar({
         returnKeyType="search"
         autoCapitalize="none"
         autoCorrect={false}
-        onSubmitEditing={onSubmitEditing}
+        onSubmitEditing={handleSubmitEditing}
         autoFocus={autoFocus}
         shortcutHint={enableSlashFocus ? '/' : undefined}
       >

@@ -1,4 +1,5 @@
 import type { DeckFormat } from '@riftbound/contracts';
+import { matchesSearchHaystack } from '@riftbound/contracts';
 import type { DeckState } from '@/lib/deck-types';
 
 export type OwnedDeckFormatFilter = 'all' | DeckFormat;
@@ -6,20 +7,20 @@ export type OwnedDeckSort = 'edited' | 'created' | 'name';
 export type DeckListLayout = 'list' | 'grid';
 
 export function filterDecksByQuery(decks: DeckState[], query: string): DeckState[] {
-  const needle = query.trim().toLowerCase();
+  const needle = query.trim();
   if (!needle) return decks;
 
-  return decks.filter((deck) => {
-    const haystack = [
-      deck.name,
-      deck.description,
-      deck.legend?.name ?? '',
-      deck.champion?.name ?? '',
-    ]
-      .join(' ')
-      .toLowerCase();
-    return haystack.includes(needle);
-  });
+  return decks.filter((deck) =>
+    matchesSearchHaystack(
+      [
+        deck.name,
+        deck.description,
+        deck.legend?.name ?? '',
+        deck.champion?.name ?? '',
+      ].join(' '),
+      needle
+    )
+  );
 }
 
 export function filterDecksByFormat(

@@ -64,7 +64,7 @@ describe('resolveCatalogDisplayItems', () => {
     ).toEqual(browse);
   });
 
-  test('hides previous search hits while the draft is still debouncing', () => {
+  test('keeps previous search hits while the draft is still debouncing', () => {
     expect(
       resolveCatalogDisplayItems({
         hasSearchInput: true,
@@ -75,7 +75,7 @@ describe('resolveCatalogDisplayItems', () => {
         isFetching: false,
         searchItemsLength: previousSearch.length,
       })
-    ).toEqual([]);
+    ).toEqual(previousSearch);
   });
 
   test('shows a skeleton-empty list while the first search page is in flight', () => {

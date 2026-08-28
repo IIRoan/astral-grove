@@ -3,6 +3,7 @@ import { createEmptyDeck } from '@/lib/deck-card';
 import {
   countDecksByFormat,
   filterDecksByFormat,
+  filterDecksByQuery,
   sortOwnedDecks,
 } from '@/lib/deck-list';
 
@@ -22,6 +23,30 @@ describe('owned deck list helpers', () => {
     const preRift = createEmptyDeck('Pre-Rift list', '', 'pre-rift');
     expect(filterDecksByFormat([constructed, preRift], 'pre-rift')).toEqual([preRift]);
     expect(filterDecksByFormat([constructed, preRift], 'all')).toHaveLength(2);
+  });
+
+  test('matches a legend title second word despite punctuation', () => {
+    const deck = {
+      ...createEmptyDeck('Ambessa aggro'),
+      legend: {
+        cardId: 'legend-1',
+        variantNumber: 'VEN-153',
+        name: 'Ambessa, Matriarch of War',
+        type: 'Legend',
+        super: null,
+        tags: ['Ambessa'],
+        colors: ['Body'],
+        energy: 0,
+        setCode: 'VEN',
+        rarity: 'Rare',
+        variantType: 'Standard',
+        isSignature: false,
+      },
+    };
+    expect(
+      filterDecksByQuery([deck], 'ambessa matriarch').map((item) => item.name)
+    ).toEqual(['Ambessa aggro']);
+    expect(filterDecksByQuery([deck], 'matriarch')).toHaveLength(1);
   });
 
   test('sorts by last edited, created, and name', () => {

@@ -88,6 +88,56 @@ const ekko = {
 
 const catalog = [vi, jinx, ekko];
 
+const ambessaLegend = {
+  ...vi,
+  cardId: '00000000-0000-0000-0000-000000000153',
+  variantNumber: 'VEN-153',
+  name: 'Ambessa, Matriarch of War',
+  type: 'Legend',
+  setCode: 'VEN',
+  printings: [
+    {
+      variantNumber: 'VEN-153',
+      variantLabel: 'Standard',
+      isFoil: false,
+      priceEur: null,
+    },
+  ],
+} satisfies CardListItem;
+
+const ambessaChampion = {
+  ...ambessaLegend,
+  cardId: '00000000-0000-0000-0000-000000000084',
+  variantNumber: 'VEN-084',
+  name: 'Ambessa, The Wolf',
+  type: 'Unit',
+  super: 'Champion',
+  printings: [
+    {
+      variantNumber: 'VEN-084',
+      variantLabel: 'Standard',
+      isFoil: false,
+      priceEur: null,
+    },
+  ],
+} satisfies CardListItem;
+
+const hungryWolf = {
+  ...ambessaLegend,
+  cardId: '00000000-0000-0000-0000-000000000125',
+  variantNumber: 'VEN-125',
+  name: 'Hungry Wolf',
+  type: 'Unit',
+  printings: [
+    {
+      variantNumber: 'VEN-125',
+      variantLabel: 'Standard',
+      isFoil: false,
+      priceEur: null,
+    },
+  ],
+} satisfies CardListItem;
+
 describe('catalogSearch', () => {
   test('tokenizeSearchQuery splits on whitespace', () => {
     expect(tokenizeSearchQuery('  vi   destruct  ')).toEqual(['vi', 'destruct']);
@@ -97,9 +147,150 @@ describe('catalogSearch', () => {
     expect(tokenizeSearchQuery('   ')).toEqual([]);
   });
 
+  test('searchCatalogItems ranks Stagazer first for the query stargazer', () => {
+    const fallingStar = {
+      ...vi,
+      cardId: '00000000-0000-0000-0000-000000000029',
+      variantNumber: 'OGN-029',
+      name: 'Falling Star',
+      type: 'Spell',
+    } satisfies CardListItem;
+    const stagazer = {
+      ...vi,
+      cardId: '00000000-0000-0000-0000-000000000098',
+      variantNumber: 'VEN-098',
+      name: 'Stagazer',
+      type: 'Unit',
+    } satisfies CardListItem;
+    const results = searchCatalogItems(
+      [fallingStar, stagazer],
+      'stargazer',
+      DEFAULT_CATALOG_SORT,
+      10
+    );
+    expect(results[0]?.name).toBe('Stagazer');
+    expect(results.map((card) => card.name)).toEqual(['Stagazer']);
+  });
+
+  test('searchCatalogItems matches the Ambessa legend from the typo embessa', () => {
+    const results = searchCatalogItems(
+      [hungryWolf, ambessaChampion, ambessaLegend],
+      'embessa',
+      DEFAULT_CATALOG_SORT,
+      10
+    );
+    expect(results[0]?.variantNumber).toBe('VEN-153');
+    expect(results.map((card) => card.name)).toEqual(
+      expect.arrayContaining(['Ambessa, Matriarch of War'])
+    );
+  });
+
+  test('searchCatalogItems ranks Ambessa legend ahead of the champion unit', () => {
+    const results = searchCatalogItems(
+      [hungryWolf, ambessaChampion, ambessaLegend],
+      'ambessa',
+      DEFAULT_CATALOG_SORT,
+      10
+    );
+    expect(results.map((card) => card.variantNumber)).toEqual(['VEN-153', 'VEN-084']);
+  });
+
+  test('searchCatalogItems matches a second title word and type intent', () => {
+    const pool = [hungryWolf, ambessaChampion, ambessaLegend];
+    expect(
+      searchCatalogItems(pool, 'matriarch', DEFAULT_CATALOG_SORT, 10).map(
+        (card) => card.variantNumber
+      )
+    ).toEqual(['VEN-153']);
+    expect(
+      searchCatalogItems(pool, 'ambessa matriarch', DEFAULT_CATALOG_SORT, 10).map(
+        (card) => card.variantNumber
+      )
+    ).toEqual(['VEN-153']);
+    expect(
+      searchCatalogItems(pool, 'ambessa legend', DEFAULT_CATALOG_SORT, 10).map(
+        (card) => card.variantNumber
+      )
+    ).toEqual(['VEN-153']);
+  });
+
+  test('searchCatalogItems matches spinner as the second word of Soul Spinner', () => {
+    const spinner = {
+      ...vi,
+      name: 'Soul Spinner',
+      variantNumber: 'OGN-010',
+    } satisfies CardListItem;
+    expect(
+      searchCatalogItems([spinner, jinx], 'spinner', DEFAULT_CATALOG_SORT, 10).map(
+        (card) => card.name
+      )
+    ).toEqual(['Soul Spinner']);
+    expect(
+      searchCatalogItems([spinner], 'soulspinner', DEFAULT_CATALOG_SORT, 10)
+    ).toHaveLength(1);
+  });
+
   test('searchCatalogItems prefers prefix name matches', () => {
     const results = searchCatalogItems(catalog, 'vi', DEFAULT_CATALOG_SORT, 10);
     expect(results.map((card) => card.name)).toEqual(['Vi Destructive']);
+  });
+
+  test('searchCatalogItems ranks Vi ahead of Viktor and Sivir', () => {
+    const viktor = {
+      ...vi,
+      cardId: '00000000-0000-0000-0000-000000000265',
+      variantNumber: 'OGN-265',
+      name: 'Viktor, Herald of the Arcane',
+      type: 'Legend',
+    } satisfies CardListItem;
+    const sivir = {
+      ...vi,
+      cardId: '00000000-0000-0000-0000-000000000200',
+      variantNumber: 'OGN-200',
+      name: 'Sivir, the Battle Mistress',
+      type: 'Legend',
+    } satisfies CardListItem;
+    expect(
+      searchCatalogItems([sivir, viktor, vi], 'vi', DEFAULT_CATALOG_SORT, 10).map(
+        (card) => card.name
+      )
+    ).toEqual([
+      'Vi Destructive',
+      'Viktor, Herald of the Arcane',
+      'Sivir, the Battle Mistress',
+    ]);
+  });
+
+  test('searchCatalogItems keeps plate name hits and drops letter-scrap noise', () => {
+    const platewyrm = {
+      ...vi,
+      cardId: '00000000-0000-0000-0000-000000000075',
+      variantNumber: 'VEN-075',
+      name: 'Platewyrm Egg',
+      type: 'Gear',
+    } satisfies CardListItem;
+    const hexplate = {
+      ...vi,
+      cardId: '00000000-0000-0000-0000-000000000073',
+      variantNumber: 'SFD-073',
+      name: 'Experimental Hexplate',
+      type: 'Gear',
+    } satisfies CardListItem;
+    const poro = {
+      ...vi,
+      cardId: '00000000-0000-0000-0000-000000000024',
+      variantNumber: 'VEN-024',
+      name: 'Affectionate Poro',
+      type: 'Unit',
+    } satisfies CardListItem;
+    expect(
+      searchCatalogItems(
+        [poro, hexplate, platewyrm],
+        'plate',
+        DEFAULT_CATALOG_SORT,
+        10
+      ).map((card) => card.name)
+    ).toEqual(['Platewyrm Egg', 'Experimental Hexplate']);
   });
 
   test('searchCatalogItems matches variant numbers and set codes', () => {

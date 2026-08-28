@@ -1,14 +1,13 @@
-import type { CardListItem } from '@riftbound/contracts';
+import {
+  lexicalRelevanceScore,
+  matchesSearchHaystack,
+  tokenizeSearchQuery,
+  type CardListItem,
+} from '@riftbound/contracts';
 import type { CatalogSort } from '@/constants/catalogSort';
 import { getCardMaxMarketPrice, getCardPrintings } from '@/utils/variants';
 
-export function tokenizeSearchQuery(raw: string): string[] {
-  return raw
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((token) => token.length > 0);
-}
+export { tokenizeSearchQuery };
 
 function buildSearchBlob(card: CardListItem): string {
   const printings = getCardPrintings(card);
@@ -16,6 +15,7 @@ function buildSearchBlob(card: CardListItem): string {
     card.name,
     card.variantNumber,
     card.type,
+    card.super ?? '',
     card.variantType,
     card.setCode,
     card.rarity,
@@ -24,30 +24,7 @@ function buildSearchBlob(card: CardListItem): string {
   for (const printing of printings) {
     parts.push(printing.variantNumber, printing.variantLabel);
   }
-  return parts.join(' ').toLowerCase();
-}
-
-function matchesAllTokens(blob: string, tokens: readonly string[]): boolean {
-  if (tokens.length === 0) return true;
-  return tokens.every((token) => blob.includes(token));
-}
-
-function relevanceScore(card: CardListItem, query: string): number {
-  const trimmed = query.trim().toLowerCase();
-  if (!trimmed) return 0;
-
-  const name = card.name.toLowerCase();
-  const variantNumber = card.variantNumber.toLowerCase();
-  const labels = getCardPrintings(card).map((printing) =>
-    printing.variantLabel.toLowerCase()
-  );
-
-  if (name.startsWith(trimmed)) return 0;
-  if (variantNumber.startsWith(trimmed)) return 1;
-  if (labels.some((label) => label.includes(trimmed))) return 2;
-  if (name.includes(trimmed)) return 3;
-  if (variantNumber.includes(trimmed)) return 4;
-  return 5;
+  return parts.join(' ');
 }
 
 function compareBySort(a: CardListItem, b: CardListItem, sort: CatalogSort): number {
@@ -65,7 +42,6 @@ function compareBySort(a: CardListItem, b: CardListItem, sort: CatalogSort): num
       return diff || a.name.localeCompare(b.name);
     }
     case 'releaseDate':
-      // Not supported in the UI — keep a stable name fallback if an old client asks.
       return a.name.localeCompare(b.name) * dir;
     default:
       return a.name.localeCompare(b.name) * dir;
@@ -91,16 +67,16 @@ export function searchCatalogItems(
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const tokens = tokenizeSearchQuery(trimmed);
   const matches = items.filter((card) =>
-    matchesAllTokens(buildSearchBlob(card), tokens)
+    matchesSearchHaystack(buildSearchBlob(card), trimmed)
   );
 
   const sorted = matches.slice().sort((a, b) => {
     if (sort.sortBy === 'price') {
       return compareBySort(a, b, sort);
     }
-    const relevance = relevanceScore(a, trimmed) - relevanceScore(b, trimmed);
+    const relevance =
+      lexicalRelevanceScore(a, trimmed) - lexicalRelevanceScore(b, trimmed);
     if (relevance !== 0) return relevance;
     return compareBySort(a, b, sort);
   });

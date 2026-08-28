@@ -159,9 +159,10 @@ export function useCardSearch(
   );
 
   const rawItems = useMemo(() => {
-    // Draft lags committed/debounced term — don't leak previous hits while typing.
-    if (!inputMatchesActive) return [];
     if (hasApiResults) return apiItems;
+    if (!inputMatchesActive) {
+      return instantCacheForTerm?.data ?? apiItems;
+    }
     if (result.isFetching && !instantCacheForTerm) return [];
     return instantCacheForTerm?.data ?? apiItems;
   }, [

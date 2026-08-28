@@ -33,7 +33,7 @@ export type CatalogDisplayItemsInput<T> = {
   searchItemsLength: number;
 };
 
-/** Return search hits only for the settled query; empty while debouncing/first page so prior hits don't flash. */
+/** Return search hits for the settled query; keep the last hits while the draft is catching up. */
 export function resolveCatalogDisplayItems<T>({
   hasSearchInput,
   searchItems,
@@ -44,7 +44,7 @@ export function resolveCatalogDisplayItems<T>({
   searchItemsLength,
 }: CatalogDisplayItemsInput<T>): T[] {
   if (!hasSearchInput) return browseItems;
-  if (searchPending) return [];
+  if (searchPending) return searchItems;
   const waitingForFirstPage = searchItemsLength === 0 && (isLoading || isFetching);
   if (waitingForFirstPage) return [];
   return searchItems;

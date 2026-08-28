@@ -23,14 +23,23 @@ describe('tokenizeSearchQuery', () => {
     expect(tokenizeSearchQuery('   ')).toEqual([]);
   });
 
-  test('preserves single-character tokens', () => {
-    expect(tokenizeSearchQuery('a b')).toEqual(['a', 'b']);
+  test('drops stopwords so second-word titles still AND-match', () => {
+    expect(tokenizeSearchQuery('matriarch of war')).toEqual(['matriarch', 'war']);
+  });
+
+  test('strips type-intent tokens from identity AND list', () => {
+    expect(tokenizeSearchQuery('ambessa legend')).toEqual(['ambessa']);
   });
 });
 
 describe('buildCardSearchCondition', () => {
   test('returns undefined for blank queries', () => {
     expect(buildCardSearchCondition('   ')).toBeUndefined();
+  });
+
+  test('rejects stopword-only queries instead of listing the catalog', () => {
+    const compiled = compile(buildCardSearchCondition('the of a')!);
+    expect(compiled.sql.toLowerCase()).toContain('false');
   });
 
   test('builds a SQL fragment for one or more tokens', () => {
@@ -43,7 +52,7 @@ describe('buildCardSearchCondition', () => {
     const compact = compile(buildCardSearchCondition('soulspinner')!);
 
     for (const compiled of [spaced, compact]) {
-      expect(compiled.sql.toLowerCase()).toContain('replace(lower(');
+      expect(compiled.sql.toLowerCase()).toContain('regexp_replace');
       expect(compiled.params).toContain('%soulspinner%');
     }
   });
@@ -61,6 +70,32 @@ describe('buildCardSearchCondition', () => {
     expect(compiled.params).toContain('%signed%');
     expect(compiled.params).toContain(wholeWordPattern('signed'));
   });
+
+  test('treats legend as a type intent, not a name token', () => {
+    const compiled = compile(buildCardSearchCondition('ambessa legend')!);
+    expect(compiled.params).toContain('%ambessa%');
+    expect(compiled.sql.toLowerCase()).toContain('super');
+  });
+
+  test('includes trigram similarity fallback for typo queries', () => {
+    const compiled = compile(buildCardSearchCondition('ambeza')!);
+    expect(compiled.sql.toLowerCase()).toContain('similarity');
+    expect(compiled.sql.toLowerCase()).toContain('unnest');
+    expect(compiled.params).toContain('ambeza');
+  });
+
+  test('scores typos against comparable-length name words, not letter scraps', () => {
+    const compiled = compile(buildCardSearchCondition('plate')!);
+    expect(compiled.sql.toLowerCase()).toContain('similarity');
+    expect(compiled.sql.toLowerCase()).toContain('char_length');
+    expect(compiled.sql.toLowerCase()).not.toContain('word_similarity');
+  });
+
+  test('scores typos against the card name, not the type/tags blob', () => {
+    const compiled = compile(buildCardSearchCondition('embessa')!);
+    expect(compiled.sql.toLowerCase()).toContain('similarity');
+    expect(compiled.sql.toLowerCase()).not.toContain("|| ' ' ||");
+  });
 });
 
 describe('wholeWordPattern', () => {
@@ -77,8 +112,36 @@ describe('buildSearchRelevanceOrder', () => {
 
   test('ranks space-insensitive name matches', () => {
     const compiled = compile(buildSearchRelevanceOrder('soul spinner'));
-    expect(compiled.sql.toLowerCase()).toContain('replace(lower(');
-    expect(compiled.params).toContain('soulspinner%');
-    expect(compiled.params).toContain('%soulspinner%');
+    expect(compiled.sql.toLowerCase()).toContain('regexp_replace');
+    expect(compiled.params.some((value) => String(value).includes('soulspinner'))).toBe(
+      true
+    );
+  });
+
+  test('boosts legend family matches for a champion name query', () => {
+    const compiled = compile(buildSearchRelevanceOrder('ambessa'));
+    expect(compiled.sql.toLowerCase()).toContain('legend');
+    expect(compiled.sql.toLowerCase()).toContain('champion');
+  });
+
+  test('ranks any name word prefix, not only the start of the title', () => {
+    const compiled = compile(buildSearchRelevanceOrder('matriarch'));
+    expect(compiled.params.some((value) => String(value).includes('matriarch'))).toBe(
+      true
+    );
+    expect(compiled.sql).toContain(' THEN 5');
+  });
+
+  test('ranks exact first-word identity ahead of a 2-letter name prefix', () => {
+    const compiled = compile(buildSearchRelevanceOrder('vi'));
+    expect(compiled.sql.toLowerCase()).toContain('split_part');
+    expect(compiled.sql).toContain(' THEN 3');
+    expect(compiled.sql.toLowerCase()).not.toContain('tags');
+  });
+
+  test('boosts close name typos like stargazer → Stagazer', () => {
+    const compiled = compile(buildSearchRelevanceOrder('stargazer'));
+    expect(compiled.sql.toLowerCase()).toContain('similarity');
+    expect(compiled.params).toContain('stargazer');
   });
 });

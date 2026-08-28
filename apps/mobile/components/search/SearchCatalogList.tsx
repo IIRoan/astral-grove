@@ -1,5 +1,10 @@
 import { useMemo } from 'react';
-import { View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import {
+  Platform,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import {
   FlashList,
   type FlashListRef,
@@ -172,8 +177,8 @@ export function SearchCatalogList({
             contentContainerStyle={{ flexGrow: 1 }}
             ListEmptyComponent={listEmpty}
             keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            onScrollBeginDrag={dismissKeyboard}
+            keyboardDismissMode={Platform.OS === 'web' ? 'none' : 'on-drag'}
+            onScrollBeginDrag={Platform.OS === 'web' ? undefined : dismissKeyboard}
             onViewableItemsChanged={handleViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
             onScroll={handleCatalogScroll}

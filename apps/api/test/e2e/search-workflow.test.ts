@@ -140,4 +140,83 @@ describe('mobile search workflow', () => {
       first.data.map((card) => card.variantNumber)
     );
   });
+
+  test('ambessa ranks the legend first and second-word titles still match', async () => {
+    const ambessa = CardsListResponse.parse(
+      await (await authFetch('/api/v1/cards?q=ambessa&limit=10&page=1')).json()
+    );
+    if (ambessa.data.length === 0) return;
+
+    expect(ambessa.data[0]?.type.toLowerCase()).toBe('legend');
+    expect(ambessa.data[0]?.name.toLowerCase()).toContain('ambessa');
+
+    const secondWord = CardsListResponse.parse(
+      await (await authFetch('/api/v1/cards?q=matriarch&limit=10&page=1')).json()
+    );
+    expect(
+      secondWord.data.some((card) => card.name.toLowerCase().includes('matriarch'))
+    ).toBe(true);
+
+    const typed = CardsListResponse.parse(
+      await (await authFetch('/api/v1/cards?q=ambessa%20legend&limit=10&page=1')).json()
+    );
+    expect(typed.data.length).toBeGreaterThan(0);
+    expect(typed.data.every((card) => card.type.toLowerCase().includes('legend'))).toBe(
+      true
+    );
+  });
+
+  test('embessa typo still returns the Ambessa legend', async () => {
+    const misspelled = CardsListResponse.parse(
+      await (await authFetch('/api/v1/cards?q=embessa&limit=10&page=1')).json()
+    );
+    expect(misspelled.data.length).toBeGreaterThan(0);
+    expect(misspelled.data[0]?.name.toLowerCase()).toContain('ambessa');
+    expect(misspelled.data[0]?.type.toLowerCase()).toBe('legend');
+  });
+
+  test('vi ranks the Vi champion ahead of Sivir and Viktor', async () => {
+    const result = CardsListResponse.parse(
+      await (await authFetch('/api/v1/cards?q=vi&limit=10&page=1')).json()
+    );
+    if (result.data.length === 0) return;
+
+    const firstWord = (name: string) =>
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .trim()
+        .split(/\s+/)[0] ?? '';
+
+    const names = result.data.map((card) => card.name);
+    const viIndex = names.findIndex((name) => firstWord(name) === 'vi');
+    const viktorIndex = names.findIndex((name) => firstWord(name) === 'viktor');
+    const sivirIndex = names.findIndex((name) => firstWord(name) === 'sivir');
+
+    expect(viIndex).toBe(0);
+    if (viktorIndex >= 0) expect(viIndex).toBeLessThan(viktorIndex);
+    if (sivirIndex >= 0) expect(viIndex).toBeLessThan(sivirIndex);
+  });
+
+  test('stargazer ranks the catalog name Stagazer first', async () => {
+    const result = CardsListResponse.parse(
+      await (await authFetch('/api/v1/cards?q=stargazer&limit=10&page=1')).json()
+    );
+    expect(result.data.some((card) => card.name.toLowerCase() === 'stagazer')).toBe(
+      true
+    );
+    expect(result.data[0]?.name.toLowerCase()).toBe('stagazer');
+  });
+
+  test('plate ranks name hits and does not return Affectionate Poro', async () => {
+    const result = CardsListResponse.parse(
+      await (await authFetch('/api/v1/cards?q=plate&limit=10&page=1')).json()
+    );
+    const names = result.data.map((card) => card.name);
+    expect(names.some((name) => name.toLowerCase() === 'affectionate poro')).toBe(
+      false
+    );
+    expect(names[0]?.toLowerCase()).toContain('plate');
+    expect(names.some((name) => name.toLowerCase().includes('platewyrm'))).toBe(true);
+  });
 });

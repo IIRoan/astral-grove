@@ -17,6 +17,7 @@ function env(overrides: Partial<Env> = {}): Env {
     TRUSTED_ORIGINS: ['http://localhost:7001'],
     PUBLIC_APP_URL: 'http://localhost:7001',
     CATALOG_WARMUP_ON_START: false,
+    EMBEDDING_PROVIDER: 'none',
     CARDMARKET_GAME_ID: 22,
     DB_POOL_MAX: 5,
     ...overrides,

@@ -56,6 +56,9 @@ const EnvSchema = z.object({
   STALWART_JMAP_PASSWORD: z.string().min(1).optional(),
   EMAIL_FROM: z.string().email().optional(),
   EMAIL_FROM_NAME: z.string().min(1).optional(),
+  EMBEDDING_PROVIDER: z.enum(['local', 'openai', 'none']).default('local'),
+  EMBEDDING_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_KEY: z.string().min(1).optional(),
 });
 
 export type Env = Omit<z.infer<typeof EnvSchema>, 'PUBLIC_APP_URL'> & {
@@ -92,6 +95,8 @@ export function loadEnv(): Env {
 
   const env = parsed.data;
 
+  const embeddingKey = env.EMBEDDING_API_KEY ?? env.OPENAI_API_KEY;
+
   return {
     ...env,
     DB_POOL_MAX: env.DB_POOL_MAX ?? (env.NODE_ENV === 'production' ? 10 : 20),
@@ -102,5 +107,6 @@ export function loadEnv(): Env {
     }),
     CATALOG_WARMUP_ON_START:
       env.CATALOG_WARMUP_ON_START || env.NODE_ENV === 'development',
+    ...(embeddingKey ? { EMBEDDING_API_KEY: embeddingKey } : {}),
   };
 }

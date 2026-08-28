@@ -21,6 +21,7 @@ const s3Env: Env = {
   TRUSTED_ORIGINS: [],
   PUBLIC_APP_URL: 'http://localhost:7001',
   CATALOG_WARMUP_ON_START: false,
+  EMBEDDING_PROVIDER: 'none',
   DB_POOL_MAX: 5,
   S3_ENDPOINT: 'https://account.eu.r2.cloudflarestorage.com',
   S3_REGION: 'auto',

@@ -1,5 +1,5 @@
 import type { CardListItem } from '@riftbound/contracts';
-import { isCardBannedAt } from '@riftbound/contracts';
+import { isCardBannedAt, matchesSearchHaystack } from '@riftbound/contracts';
 import {
   findVariantByNumber,
   getCardPrintings,
@@ -217,13 +217,13 @@ export function filterCollection(
   entries: CollectionEntry[],
   query: string
 ): CollectionEntry[] {
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if (!q) return entries;
-  return entries.filter(
-    (e) =>
-      e.name.toLowerCase().includes(q) ||
-      e.variantNumber.toLowerCase().includes(q) ||
-      e.setCode.toLowerCase().includes(q)
+  return entries.filter((entry) =>
+    matchesSearchHaystack(
+      [entry.name, entry.variantNumber, entry.setCode, entry.type ?? ''].join(' '),
+      q
+    )
   );
 }
 

@@ -70,4 +70,22 @@ describe('searchCacheService', () => {
 
     expect(await getCachedSearchResults('viktor')).toBeNull();
   });
+
+  test('caches two-character names like Vi', async () => {
+    await cacheSearchResults('Vi', sampleResponse);
+    expect(await getCachedSearchResults('vi')).not.toBeNull();
+  });
+
+  test('does not cache empty misses so a later API fix can surface', async () => {
+    const empty: CardsListResponse = {
+      ...sampleResponse,
+      data: [],
+      meta: {
+        ...sampleResponse.meta,
+        pagination: { ...sampleResponse.meta.pagination, total: 0 },
+      },
+    };
+    await cacheSearchResults('embessa', empty);
+    expect(await getCachedSearchResults('embessa')).toBeNull();
+  });
 });

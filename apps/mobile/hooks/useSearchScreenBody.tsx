@@ -351,6 +351,7 @@ export function useSearchScreenBody(): React.ReactElement {
     if (!splitLayout) return;
     setDrawerPresentation(null);
     if (displayItems.length === 0) {
+      if (searchPending || isLoading || isFetching) return;
       setSelectedVariant(null);
       return;
     }
@@ -360,7 +361,14 @@ export function useSearchScreenBody(): React.ReactElement {
     if (!stillVisible) {
       setSelectedVariant(displayItems[0]?.variantNumber ?? null);
     }
-  }, [displayItems, selectedVariant, splitLayout]);
+  }, [
+    displayItems,
+    selectedVariant,
+    splitLayout,
+    searchPending,
+    isLoading,
+    isFetching,
+  ]);
 
   const handleSelectCard = useCallback(
     (variantNumber: string) => {
@@ -633,9 +641,12 @@ export function useSearchScreenBody(): React.ReactElement {
 
   const pageMaxWidth = splitLayout ? undefined : contentWidth;
 
-  const handleSubmitSearch = useCallback(() => {
-    searchNow();
-  }, [searchNow]);
+  const handleSubmitSearch = useCallback(
+    (event?: { nativeEvent: { text: string } }) => {
+      searchNow(event?.nativeEvent.text);
+    },
+    [searchNow]
+  );
 
   const handleSortPress = useCallback(() => {
     setSortSheetOpen(true);

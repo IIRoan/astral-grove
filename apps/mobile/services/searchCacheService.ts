@@ -12,7 +12,7 @@ type CachedSearchEntry = {
   response: CardsListResponse;
 };
 
-export const MIN_SEARCH_LENGTH = 3;
+export const MIN_SEARCH_LENGTH = 2;
 
 async function readResultsCache(): Promise<CachedSearchEntry[]> {
   try {
@@ -43,6 +43,7 @@ export async function cacheSearchResults(
 ): Promise<void> {
   const key = query.trim().toLowerCase();
   if (key.length < MIN_SEARCH_LENGTH) return;
+  if (response.data.length === 0) return;
 
   const entries = (await readResultsCache()).filter((e) => e.query !== key);
   entries.unshift({
