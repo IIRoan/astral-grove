@@ -4,6 +4,7 @@ import type {
   WishlistItem,
 } from '@riftbound/contracts';
 import {
+  chunkArray,
   CollectionImportResponse,
   CollectionListResponse,
   CollectionQuantitiesResponse,
@@ -14,15 +15,11 @@ import { authedFetch, authedFetchText, parseOrThrow } from '@/src/api/authedClie
 
 export { RemoteApiError } from '@/src/api/authedClient';
 
-export async function fetchRemoteCollection(): Promise<CollectionItem[]> {
-  const res = await authedFetch<{ data: CollectionItem[] }>('/api/v1/collection');
-  return parseOrThrow('collection.list.parse', CollectionListResponse, res).data;
-}
+const COLLECTION_VARIANT_BATCH_SIZE = 200;
 
-export async function fetchRemoteCollectionQuantities(
+async function postCollectionQuantitiesBatch(
   variantNumbers: string[]
 ): Promise<Array<{ variantNumber: string; isFoil: boolean; quantity: number }>> {
-  if (variantNumbers.length === 0) return [];
   const res = await authedFetch<{
     data: Array<{ variantNumber: string; isFoil: boolean; quantity: number }>;
   }>('/api/v1/collection/quantities', {
@@ -33,10 +30,9 @@ export async function fetchRemoteCollectionQuantities(
     .data;
 }
 
-export async function fetchRemoteCollectionRecentAdds(
+async function postCollectionRecentAddsBatch(
   variantNumbers: string[]
 ): Promise<CollectionActivityEvent[]> {
-  if (variantNumbers.length === 0) return [];
   const res = await authedFetch<{ data: CollectionActivityEvent[] }>(
     '/api/v1/collection/recent-adds',
     {
@@ -46,6 +42,41 @@ export async function fetchRemoteCollectionRecentAdds(
   );
   return parseOrThrow('collection.recentAdds.parse', CollectionRecentAddsResponse, res)
     .data;
+}
+
+export async function fetchRemoteCollection(): Promise<CollectionItem[]> {
+  const res = await authedFetch<{ data: CollectionItem[] }>('/api/v1/collection');
+  return parseOrThrow('collection.list.parse', CollectionListResponse, res).data;
+}
+
+export async function fetchRemoteCollectionQuantities(
+  variantNumbers: string[]
+): Promise<Array<{ variantNumber: string; isFoil: boolean; quantity: number }>> {
+  const unique = [...new Set(variantNumbers.filter(Boolean))];
+  if (unique.length === 0) return [];
+  const chunks = chunkArray(unique, COLLECTION_VARIANT_BATCH_SIZE);
+  if (chunks.length === 1) {
+    return postCollectionQuantitiesBatch(chunks[0] ?? []);
+  }
+  const batches = await Promise.all(
+    chunks.map((chunk) => postCollectionQuantitiesBatch(chunk))
+  );
+  return batches.flat();
+}
+
+export async function fetchRemoteCollectionRecentAdds(
+  variantNumbers: string[]
+): Promise<CollectionActivityEvent[]> {
+  const unique = [...new Set(variantNumbers.filter(Boolean))];
+  if (unique.length === 0) return [];
+  const chunks = chunkArray(unique, COLLECTION_VARIANT_BATCH_SIZE);
+  if (chunks.length === 1) {
+    return postCollectionRecentAddsBatch(chunks[0] ?? []);
+  }
+  const batches = await Promise.all(
+    chunks.map((chunk) => postCollectionRecentAddsBatch(chunk))
+  );
+  return batches.flat();
 }
 
 export async function remoteAddToCollection(

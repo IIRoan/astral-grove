@@ -302,5 +302,6 @@ export function useCardDetail(
     closeRemoveSheet: closeSheet,
     onRemoveSheetPrinting: onSheetRemovePrinting,
     onRemoveSheetAll: onSheetRemoveAll,
+    collectionByVariant,
   };
 }

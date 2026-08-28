@@ -1,14 +1,7 @@
-import { useMemo } from 'react';
 import type { CardListItem } from '@riftbound/contracts';
 import { CatalogDetailPanelBody } from '@/components/catalog/CatalogDetailPanelBody';
 import { CatalogDetailPanelSkeleton } from '@/components/catalog/CatalogDetailPanelSkeleton';
 import { useCardDetail } from '@/hooks/useCardDetail';
-import { useCollection, useCollectionOwnership } from '@/hooks/useCollection';
-import {
-  collectVariantNumbers,
-  ownershipMapFromCollection,
-  preferCollectionOwnership,
-} from '@/utils/collectionOwnership';
 import type { WishlistPriceItem } from '@/hooks/useWishlistPrices';
 import { useVariantPriceHistory } from '@/hooks/useVariantPriceHistory';
 import { isFoilVariant } from '@/utils/variants';
@@ -31,21 +24,7 @@ export function CatalogDetailPanel({
   hidePriceHistory = false,
 }: CatalogDetailPanelProps) {
   const detail = useCardDetail(variantNumber, { listItem: catalogListItem });
-  const { data: collectionEntries = [] } = useCollection();
-  const detailVariants = useMemo(() => {
-    if (detail.card) {
-      return detail.card.variants.map((variant) => variant.variantNumber);
-    }
-    if (catalogListItem)
-      return collectVariantNumbers([catalogListItem], [variantNumber]);
-    return [variantNumber];
-  }, [catalogListItem, detail.card, variantNumber]);
-  const { collectionByVariant: fetchedOwnership } =
-    useCollectionOwnership(detailVariants);
-  const collectionByVariant = useMemo(() => {
-    const fromCollection = ownershipMapFromCollection(collectionEntries);
-    return preferCollectionOwnership(fetchedOwnership, fromCollection);
-  }, [collectionEntries, fetchedOwnership]);
+  const collectionByVariant = detail.collectionByVariant;
 
   const activeVariantNumber = detail.activeVariant?.variantNumber;
   const activeIsFoil = detail.activeVariant

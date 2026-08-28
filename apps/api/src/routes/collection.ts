@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { Elysia, sse } from 'elysia';
 import {
   CardCondition,
+  chunkArray,
   CollectionAuditListQuery,
   CollectionAuditListResponse,
   CollectionBatchSyncRequest,
@@ -9,9 +10,7 @@ import {
   CollectionImportResponse,
   CollectionListResponse,
   CollectionItemResponse,
-  CollectionQuantitiesRequest,
   CollectionQuantitiesResponse,
-  CollectionRecentAddsRequest,
   CollectionRecentAddsResponse,
   CollectionUpsertRequest,
   type CollectionLiveChangeReason,
@@ -40,6 +39,28 @@ const AdjustBody = z.object({
 });
 
 const _UpsertBody = CollectionUpsertRequest.omit({ variantNumber: true });
+
+const COLLECTION_VARIANT_LOOKUP_BATCH_SIZE = 200;
+const COLLECTION_VARIANT_LOOKUP_MAX = 5000;
+
+const CollectionVariantLookupRequest = z.object({
+  variantNumbers: z.array(z.string().min(1)).max(COLLECTION_VARIANT_LOOKUP_MAX),
+});
+
+async function quantitiesForVariantLookup(
+  collection: CollectionService,
+  collectionId: string,
+  variantNumbers: readonly string[]
+) {
+  const unique = [...new Set(variantNumbers)];
+  if (unique.length === 0) return [];
+
+  const rows: Array<{ variantNumber: string; isFoil: boolean; quantity: number }> = [];
+  for (const chunk of chunkArray(unique, COLLECTION_VARIANT_LOOKUP_BATCH_SIZE)) {
+    rows.push(...(await collection.quantitiesForVariants(collectionId, chunk)));
+  }
+  return rows;
+}
 
 const HEARTBEAT_MS = 25_000;
 
@@ -218,7 +239,7 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const { variantNumbers } = parseRequest(CollectionRecentAddsRequest, body);
+        const { variantNumbers } = parseRequest(CollectionVariantLookupRequest, body);
         const rows = await audit.recentAddsForVariants(collectionId, variantNumbers);
         return CollectionRecentAddsResponse.parse({ data: rows });
       }
@@ -250,8 +271,9 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const { variantNumbers } = parseRequest(CollectionQuantitiesRequest, body);
-        const rows = await collection.quantitiesForVariants(
+        const { variantNumbers } = parseRequest(CollectionVariantLookupRequest, body);
+        const rows = await quantitiesForVariantLookup(
+          collection,
           collectionId,
           variantNumbers
         );

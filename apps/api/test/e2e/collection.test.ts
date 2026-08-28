@@ -245,6 +245,19 @@ describe('collection import/export', () => {
     expect(body.data).toHaveLength(3);
   });
 
+  test('POST /api/v1/collection/quantities accepts more than 200 variants', async () => {
+    const variantNumbers = Array.from({ length: 205 }, (_, index) => `OGN-${String(index + 1).padStart(3, '0')}`);
+    const res = await authFetch('/api/v1/collection/quantities', {
+      method: 'POST',
+      cookie: cookieHeader,
+      body: JSON.stringify({ variantNumbers }),
+    });
+    expect(res.status).toBe(200);
+    const body = CollectionQuantitiesResponse.parse(await res.json());
+    expect(body.data).toHaveLength(variantNumbers.length);
+    expect(body.data.every((row) => row.quantity >= 0)).toBe(true);
+  });
+
   test('DELETE /api/v1/collection/all clears the collection in non-production', async () => {
     const res = await authFetch('/api/v1/collection/all', {
       method: 'DELETE',

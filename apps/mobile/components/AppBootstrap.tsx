@@ -1,8 +1,10 @@
+import { useApiKeepAlive } from '@/hooks/useApiKeepAlive';
 import { useCollectionLiveSync } from '@/hooks/useCollectionLiveSync';
 import { AppBootstrapProvider } from '@/hooks/useAppBootstrap';
 import { authClient } from '@/src/lib/auth-client';
 
 function AppBootstrapEffects({ signedIn }: { signedIn: boolean }) {
+  useApiKeepAlive(signedIn);
   useCollectionLiveSync(signedIn);
   return null;
 }

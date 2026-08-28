@@ -58,4 +58,24 @@ describe('CollectionService.quantitiesForVariants', () => {
       { variantNumber: 'VEN-074', isFoil: true, quantity: 5 },
     ]);
   });
+
+  test('coerces non-integer quantities before returning', async () => {
+    const db = {
+      select: () => ({
+        from: () => ({
+          where: async () => [
+            { variantNumber: 'OGN-001', quantity: '4' as unknown as number, isFoil: false },
+            { variantNumber: 'OGN-002', quantity: -2, isFoil: false },
+          ],
+        }),
+      }),
+    } as unknown as Database;
+
+    const service = new CollectionService(db, {} as never, {} as never, {} as never);
+
+    expect(await service.quantitiesForVariants('collection-1', ['OGN-001', 'OGN-002'])).toEqual([
+      { variantNumber: 'OGN-001', isFoil: false, quantity: 4 },
+      { variantNumber: 'OGN-002', isFoil: false, quantity: 0 },
+    ]);
+  });
 });

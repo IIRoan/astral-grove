@@ -24,6 +24,12 @@ import {
 } from './collection-audit-service.js';
 import { VariantResolver } from './variant-resolver.js';
 
+function normalizeCollectionQuantity(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.trunc(parsed));
+}
+
 /** foil_mode is finish availability, not "this row is foil"; only foil_only (or explicit foil sibling under both) counts as foil. */
 export function isCollectionVariantFoil(
   foilMode: string,
@@ -158,15 +164,16 @@ export class CollectionService {
     >();
     for (const row of rows) {
       const isFoil = Boolean(row.isFoil);
+      const quantity = normalizeCollectionQuantity(row.quantity);
       const key = `${row.variantNumber}\0${isFoil ? '1' : '0'}`;
       const existing = byFinish.get(key);
       if (existing) {
-        existing.quantity += row.quantity;
+        existing.quantity += quantity;
       } else {
         byFinish.set(key, {
           variantNumber: row.variantNumber,
           isFoil,
-          quantity: row.quantity,
+          quantity,
         });
       }
     }

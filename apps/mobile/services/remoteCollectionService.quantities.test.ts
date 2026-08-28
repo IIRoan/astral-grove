@@ -63,4 +63,14 @@ describe('fetchRemoteCollectionQuantities', () => {
     expect(rows).toEqual([]);
     expect(requests).toHaveLength(0);
   });
+
+  test('chunks variant numbers into batches of 200', async () => {
+    const variantNumbers = Array.from({ length: 205 }, (_, index) => `OGN-${String(index + 1).padStart(3, '0')}`);
+
+    await fetchRemoteCollectionQuantities(variantNumbers);
+
+    expect(requests).toHaveLength(2);
+    expect(JSON.parse(String(requests[0]?.init?.body)).variantNumbers).toHaveLength(200);
+    expect(JSON.parse(String(requests[1]?.init?.body)).variantNumbers).toHaveLength(5);
+  });
 });

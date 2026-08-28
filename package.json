@@ -8,6 +8,7 @@
     "dev:backend": "bun run --cwd apps/api dev",
     "dev:api": "bun run dev:backend",
     "dev:mobile": "bun run --cwd apps/mobile dev",
+    "deploy:prisma:api": "bunx @prisma/cli@3.0.0-beta.30 app deploy --framework bun --entry apps/api/src/index.ts",
     "cloudflared": "bun scripts/dev-tunnel.mjs",
     "build": "turbo build",
     "lint": "eslint \"apps/**/*.{ts,tsx,js,mjs}\" \"packages/**/*.{ts,tsx,js,mjs}\" \"design/**/*.{ts,tsx,js,mjs}\" --ignore-pattern \"**/dist/**\" --ignore-pattern \"**/.next/**\"",
@@ -34,6 +35,7 @@
     "@eslint/js": "^9.28.0",
     "eslint": "^9.28.0",
     "prettier": "^3.5.3",
+    "railway": "^3.11.0",
     "turbo": "^2.5.4",
     "typescript": "6.0.3",
     "typescript-eslint": "^8.66.0"
