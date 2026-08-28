@@ -33,10 +33,7 @@ describe('holdResultsSearchInput', () => {
   });
 
   test('typing after focus drops the hold', () => {
-    const focused = focusHoldResultsSearchState(
-      createHoldResultsSearchState('OGN-015'),
-      'OGN-015'
-    );
+    focusHoldResultsSearchState(createHoldResultsSearchState('OGN-015'), 'OGN-015');
     expect(changeHoldResultsSearchState('Jinx')).toEqual({
       draft: 'Jinx',
       holdingFrom: null,
@@ -79,10 +76,7 @@ describe('holdResultsSearchInput', () => {
   });
 
   test('typing a new query after focus-hold ignores the previous committed value', () => {
-    const focused = focusHoldResultsSearchState(
-      createHoldResultsSearchState('OGN-015'),
-      'OGN-015'
-    );
+    focusHoldResultsSearchState(createHoldResultsSearchState('OGN-015'), 'OGN-015');
     const typing = changeHoldResultsSearchState('j');
     expect(syncHoldResultsSearchState(typing, 'OGN-015')).toEqual(typing);
   });

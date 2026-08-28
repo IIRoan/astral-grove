@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { Elysia } from 'elysia';
 import { z } from 'zod';
 import { createErrorPlugin } from '../../src/plugins/error-handler.js';
 import { parseRequest } from '../../src/lib/request-validation.js';
@@ -68,5 +69,15 @@ describe('errorPlugin', () => {
     const body = (await res.json()) as { error: string; message: string };
     expect(body.error).toBe('INTERNAL_ERROR');
     expect(body.message).toBe('An unexpected error occurred');
+  });
+
+  test('maps validation errors from nested route plugins', async () => {
+    const nested = new Elysia({ prefix: '/nested' }).get('/bad', () => {
+      parseRequest(z.object({ q: z.string().min(1) }), {});
+    });
+    const res = await createErrorPlugin()
+      .use(nested)
+      .handle(new Request('http://localhost/nested/bad'));
+    expect(res.status).toBe(422);
   });
 });

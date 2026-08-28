@@ -114,6 +114,10 @@ export const CardsListQuery = z.object({
   excludeTokens: QueryBooleanString.optional(),
 });
 
+export const CardsDetailQuery = z.object({
+  refresh: QueryBooleanString.optional(),
+});
+
 export const CardsListResponse = dataMetaResponse(
   z.array(CardListItem),
   z.object({
@@ -163,4 +167,7 @@ export type CardListItem = z.infer<typeof CardListItem>;
 export type VariantDetail = z.infer<typeof VariantDetail>;
 export type CardDetail = z.infer<typeof CardDetail>;
 export type CardsListQuery = z.infer<typeof CardsListQuery>;
+export type CardsDetailQuery = z.infer<typeof CardsDetailQuery>;
 export type CardsListResponse = z.infer<typeof CardsListResponse>;
+export type CardDetailResponse = z.infer<typeof CardDetailResponse>;
+export type CardsBatchResponse = z.infer<typeof CardsBatchResponse>;

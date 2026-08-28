@@ -7,6 +7,17 @@ export class RequestValidationError extends Error {
   }
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function mergeRequestBody(
+  body: unknown,
+  extra: Record<string, unknown>
+): Record<string, unknown> {
+  return { ...(isPlainObject(body) ? body : {}), ...extra };
+}
+
 export function parseRequest<TSchema extends z.ZodTypeAny>(
   schema: TSchema,
   input: unknown

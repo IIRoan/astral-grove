@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { cosineSimilarity } from '@riftbound/contracts';
 import {
   localEmbed,
   rankEmbeddings,

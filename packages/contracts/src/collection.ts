@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dataResponse, QueryBooleanString } from './common.js';
 
 export const CardCondition = z.enum([
   'mint',
@@ -54,9 +55,36 @@ export const CollectionUpsertRequest = z.object({
 
 export type CollectionUpsertRequest = z.infer<typeof CollectionUpsertRequest>;
 
+export const CollectionAdjustRequest = z.object({
+  delta: z.number().int().positive().optional().default(1),
+  condition: CardCondition.optional().default('near_mint'),
+  language: z.string().max(16).optional().default('en'),
+  isFoil: z.boolean().optional(),
+});
+
+export type CollectionAdjustRequest = z.infer<typeof CollectionAdjustRequest>;
+
+export const CollectionDeleteQuery = z.object({
+  condition: CardCondition.optional().default('near_mint'),
+  language: z.string().max(16).optional().default('en'),
+  isFoil: QueryBooleanString.optional(),
+});
+
+export type CollectionDeleteQuery = z.infer<typeof CollectionDeleteQuery>;
+
 export const CollectionBatchSyncRequest = z.object({
   items: z.array(CollectionUpsertRequest).max(500),
 });
+
+export const CollectionBatchSyncResponse = dataResponse(
+  z.object({ synced: z.number().int().nonnegative() })
+);
+export type CollectionBatchSyncResponse = z.infer<typeof CollectionBatchSyncResponse>;
+
+export const CollectionClearResponse = dataResponse(
+  z.object({ removed: z.number().int().nonnegative() })
+);
+export type CollectionClearResponse = z.infer<typeof CollectionClearResponse>;
 
 export const CollectionListResponse = z.object({
   data: z.array(CollectionItem),
@@ -70,11 +98,19 @@ export const CollectionItemResponse = z.object({
   data: CollectionItem,
 });
 
-export const CollectionQuantitiesRequest = z.object({
-  variantNumbers: z.array(z.string().min(1)).max(200),
+export const COLLECTION_VARIANT_LOOKUP_MAX = 5000;
+export const COLLECTION_VARIANT_LOOKUP_BATCH_SIZE = 200;
+
+export const CollectionVariantNumbersRequest = z.object({
+  variantNumbers: z.array(z.string().min(1)).max(COLLECTION_VARIANT_LOOKUP_MAX),
 });
 
-export type CollectionQuantitiesRequest = z.infer<typeof CollectionQuantitiesRequest>;
+export type CollectionVariantNumbersRequest = z.infer<
+  typeof CollectionVariantNumbersRequest
+>;
+
+export const CollectionQuantitiesRequest = CollectionVariantNumbersRequest;
+export type CollectionQuantitiesRequest = CollectionVariantNumbersRequest;
 
 export const CollectionQuantityRow = z.object({
   variantNumber: z.string(),

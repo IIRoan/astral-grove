@@ -3,8 +3,6 @@ import { PaLogicalCard } from '@riftbound/contracts';
 import {
   getSearchGroupKey,
   groupCardListItems,
-  groupCatalogListItems,
-  isFoilVariant,
   mapCardDetail,
   mapListItem,
   mapListItemFromDbRow,
@@ -79,15 +77,6 @@ const priceRows = [
     lastUpdated: '2026-01-01',
   },
 ];
-
-describe('isFoilVariant', () => {
-  test('detects foil from number, label, or type', () => {
-    expect(isFoilVariant('OGN-001-Foil')).toBe(true);
-    expect(isFoilVariant('OGN-001', 'Foil')).toBe(true);
-    expect(isFoilVariant('OGN-001', 'Standard', 'Foil Finish')).toBe(true);
-    expect(isFoilVariant('OGN-001', 'Standard')).toBe(false);
-  });
-});
 
 describe('mapPriceRows', () => {
   test('filters by cardmarket id and parses decimals', () => {
@@ -290,14 +279,11 @@ describe('groupCardListItems', () => {
     expect(grouped[0]?.variantNumber).toBe('OGN-001');
   });
 
-  test('splits catalog-grouped rows so promo and overnumbered stay separate', () => {
+  test('splits promo and overnumbered while merging foil with standard', () => {
     const rows = logical.variants.map((entry) =>
       mapListItem(logical, entry, priceRows)
     );
-    const catalogGrouped = groupCatalogListItems(rows);
-    expect(catalogGrouped).toHaveLength(1);
-
-    const grouped = groupCardListItems(catalogGrouped);
+    const grouped = groupCardListItems(rows);
     expect(grouped.length).toBeGreaterThan(1);
     for (const row of grouped) {
       const labels = new Set(row.printings.map((printing) => printing.variantLabel));
@@ -315,18 +301,6 @@ describe('groupCardListItems', () => {
       }
     }
   });
-});
-
-describe('groupCatalogListItems', () => {
-  test('merges all printings for the same logical card', () => {
-    const rows = logical.variants.map((entry) =>
-      mapListItem(logical, entry, priceRows)
-    );
-    const grouped = groupCatalogListItems(rows);
-    expect(grouped).toHaveLength(1);
-    expect(grouped[0]?.printings).toHaveLength(3);
-    expect(grouped[0]?.variantNumber).toBe('OGN-001');
-  });
 
   test('drops synthetic same-VN foil when a real -Foil sibling is present', () => {
     const std = { ...logical.variants[0]!, foilMode: 'both' };
@@ -339,7 +313,7 @@ describe('groupCatalogListItems', () => {
     );
     expect(stdItem.printings).toHaveLength(2);
 
-    const grouped = groupCatalogListItems([stdItem, foilItem]);
+    const grouped = groupCardListItems([stdItem, foilItem]);
     expect(grouped).toHaveLength(1);
     expect(grouped[0]?.printings.map((p) => p.variantNumber)).toEqual([
       'OGN-001',

@@ -20,7 +20,6 @@ import {
   formatPrintingLabel,
   findVariantByNumber,
   getSearchGroupVariants,
-  isFoilVariant,
   cardListItemMatchesVariant,
   pickVariantDisplayPrice,
   expandVariantFinishPrintings,

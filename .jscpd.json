@@ -1,0 +1,27 @@
+{
+  "threshold": 5,
+  "minLines": 15,
+  "minTokens": 70,
+  "gitignore": true,
+  "format": ["javascript", "typescript", "tsx", "jsx"],
+  "reporters": ["console"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/.expo/**",
+    "**/coverage/**",
+    "**/android/**",
+    "**/ios/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/test/**",
+    "**/e2e/**",
+    "**/drizzle/**",
+    "design/**",
+    ".agents/**",
+    ".impeccable/**",
+    "apps/mobile/.impeccable/**",
+    "apps/mobile/lib/fixtures/**"
+  ]
+}

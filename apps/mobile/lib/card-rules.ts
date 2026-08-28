@@ -42,25 +42,6 @@ export function cardRulesPartKey(part: CardRulesPart): string {
   }
 }
 
-export type InlineTextRunPart =
-  | { type: 'text'; value: string }
-  | {
-      type: 'keyword';
-      value: string;
-      keywordBase: string;
-      display: string;
-    }
-  | { type: 'energy'; value: string }
-  | { type: 'stat'; value: string };
-
-export type InlineSegment =
-  | { type: 'text-run'; parts: InlineTextRunPart[] }
-  | { type: 'domain'; value: string }
-  | { type: 'might'; value: string }
-  | { type: 'tap'; value: string }
-  | { type: 'rune'; value: string }
-  | { type: 'stat'; value: string };
-
 /** Keywords that print trailing energy/domain/rune costs inside the badge. */
 export const KEYWORD_BANNER_COST_BASES = new Set(['REPEAT', 'EQUIP']);
 
@@ -132,7 +113,7 @@ function expandRepeatKeyword(part: CardRulesPart): CardRulesPart[] {
   ];
 }
 
-export function isKeywordBannerCostPart(
+function isKeywordBannerCostPart(
   part: CardRulesPart
 ): part is Extract<CardRulesPart, { type: 'energy' | 'domain' | 'rune' }> {
   return part.type === 'energy' || part.type === 'domain' || part.type === 'rune';
@@ -221,41 +202,6 @@ export function summarizeRulesRender(text: string): RulesRenderToken[] {
   }
 
   return tokens;
-}
-
-function isTextRunPart(part: CardRulesPart): part is InlineTextRunPart {
-  return (
-    part.type === 'text' ||
-    part.type === 'keyword' ||
-    part.type === 'energy' ||
-    part.type === 'stat'
-  );
-}
-
-/** @deprecated Prefer rendering all parts inside one Text node for inline flow. */
-export function groupInlineSegments(parts: CardRulesPart[]): InlineSegment[] {
-  const segments: InlineSegment[] = [];
-  let run: InlineTextRunPart[] = [];
-
-  const flushRun = () => {
-    if (run.length > 0) {
-      segments.push({ type: 'text-run', parts: run });
-      run = [];
-    }
-  };
-
-  for (const part of parts) {
-    if (isTextRunPart(part)) {
-      run.push(part);
-      continue;
-    }
-
-    flushRun();
-    segments.push(part);
-  }
-
-  flushRun();
-  return segments;
 }
 
 export function isInlineIconPart(

@@ -1,5 +1,14 @@
 import { Elysia } from 'elysia';
-import { CardsBatchRequest, CardsListQuery } from '@riftbound/contracts';
+import {
+  CardDetailResponse,
+  CardsBatchRequest,
+  CardsBatchResponse,
+  CardsDetailQuery,
+  CardsListQuery,
+  CardsListResponse,
+  CatalogIndexResponse,
+  VariantNumber,
+} from '@riftbound/contracts';
 import type { CardCacheService } from '../services/card-cache.js';
 import type { Env } from '../env.js';
 import { isAdminAuthorization } from '../lib/admin-token.js';
@@ -19,7 +28,7 @@ export function createCardsRoutes(cards: CardCacheService, env: Env) {
         set.headers['cache-control'] = 'public, max-age=300, stale-while-revalidate=60';
       }
 
-      return {
+      return CardsListResponse.parse({
         data: result.items,
         meta: {
           pagination: {
@@ -33,47 +42,47 @@ export function createCardsRoutes(cards: CardCacheService, env: Env) {
           source: result.source,
           catalogHash: result.catalogHash,
         },
-      };
+      });
     })
     .get('/index', { detail: { tags: ['cards'] } }, async ({ set }) => {
       const result = await cards.listIndex();
       set.headers['cache-control'] = 'public, max-age=300, stale-while-revalidate=60';
-      return {
+      return CatalogIndexResponse.parse({
         data: result.items,
         meta: {
           catalogHash: result.catalogHash,
           pricesCatalogHash: result.pricesCatalogHash,
           total: result.total,
-          source: 'cache' as const,
+          source: 'cache',
         },
-      };
+      });
     })
     .get(
       '/:variantNumber',
       { detail: { tags: ['cards'] } },
       async ({ params, query, request }) => {
+        const variantNumber = parseRequest(VariantNumber, params.variantNumber);
+        const parsed = parseRequest(CardsDetailQuery, query);
         const refresh =
-          query.refresh === 'true' &&
+          parsed.refresh === true &&
           isAdminAuthorization(env, request.headers.get('authorization'));
-        const result = await cards.getByVariantNumber(params.variantNumber, {
-          refresh,
-        });
-        return {
+        const result = await cards.getByVariantNumber(variantNumber, { refresh });
+        return CardDetailResponse.parse({
           data: result.detail,
           meta: { source: result.source, contentHash: result.contentHash },
-        };
+        });
       }
     )
     .post('/batch', { detail: { tags: ['cards'] } }, async ({ body }) => {
       const { variantNumbers } = parseRequest(CardsBatchRequest, body);
       const result = await cards.batchGet(variantNumbers);
-      return {
+      return CardsBatchResponse.parse({
         data: result.found,
         meta: {
           found: result.found.length,
           notFound: result.notFound,
           source: result.source,
         },
-      };
+      });
     });
 }

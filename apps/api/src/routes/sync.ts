@@ -1,4 +1,10 @@
 import { Elysia } from 'elysia';
+import {
+  HealthResponse,
+  SyncCatalogResponse,
+  SyncPricesResponse,
+  SyncStatusResponse,
+} from '@riftbound/contracts';
 import type { Env } from '../env.js';
 import type { SyncEngine } from '../services/sync-engine.js';
 import type { PriceCacheService } from '../services/price-cache.js';
@@ -20,14 +26,13 @@ export function createSyncRoutes(
       if (!isAdminAuthorization(env, headers.authorization)) {
         return setApiError(set, unauthorizedResponse('Admin token required'));
       }
-      return { data: await sync.getStatus() };
+      return SyncStatusResponse.parse({ data: await sync.getStatus() });
     })
     .post('/catalog', async ({ headers, set }) => {
       if (!isAdminAuthorization(env, headers.authorization)) {
         return setApiError(set, unauthorizedResponse('Admin token required'));
       }
-      const result = await sync.syncCatalog();
-      return { data: result };
+      return SyncCatalogResponse.parse({ data: await sync.syncCatalog() });
     })
     .post('/prices', async ({ headers, set }) => {
       if (!isAdminAuthorization(env, headers.authorization)) {
@@ -48,7 +53,7 @@ export function createSyncRoutes(
       } else {
         console.log('[prices] Prices unchanged; search cache left intact');
       }
-      return { data: result };
+      return SyncPricesResponse.parse({ data: result });
     });
 }
 
@@ -62,13 +67,13 @@ export function createHealthRoutes(db: Database, sync: SyncEngine, env: Env) {
       dbStatus = 'error';
     }
     const status = await sync.getStatus();
-    return {
+    return HealthResponse.parse({
       data: {
-        status: 'ok' as const,
+        status: 'ok',
         db: dbStatus,
         lastCatalogSync: status.catalog.lastRun,
         emailVerificationRequired: isEmailConfigured(env),
       },
-    };
+    });
   });
 }

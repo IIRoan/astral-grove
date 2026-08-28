@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CardCondition } from './collection.js';
+import { CardCondition, CollectionVariantNumbersRequest } from './collection.js';
 
 export const CollectionAuditAction = z.enum([
   'add',
@@ -86,11 +86,8 @@ export const CollectionActivityEvent = z.object({
 
 export type CollectionActivityEvent = z.infer<typeof CollectionActivityEvent>;
 
-export const CollectionRecentAddsRequest = z.object({
-  variantNumbers: z.array(z.string().min(1)).max(200),
-});
-
-export type CollectionRecentAddsRequest = z.infer<typeof CollectionRecentAddsRequest>;
+export const CollectionRecentAddsRequest = CollectionVariantNumbersRequest;
+export type CollectionRecentAddsRequest = CollectionVariantNumbersRequest;
 
 export const CollectionRecentAddsResponse = z.object({
   data: z.array(CollectionActivityEvent).max(10),

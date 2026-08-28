@@ -17,6 +17,9 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
     "check": "bun run typecheck && bun run lint && bun run format:check",
+    "unused": "knip",
+    "unused:exports": "knip --exports --no-config-hints --no-exit-code",
+    "dupes": "jscpd --config .jscpd.json .",
     "test": "bun scripts/test.mjs",
     "test:ui-e2e": "bun run --cwd apps/mobile test:ui-e2e",
     "db:up": "docker compose up -d postgres",
@@ -34,6 +37,8 @@
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "eslint": "^9.28.0",
+    "jscpd": "^5.0.16",
+    "knip": "^6.33.0",
     "prettier": "^3.5.3",
     "railway": "^3.11.0",
     "turbo": "^2.5.4",

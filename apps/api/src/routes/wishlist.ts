@@ -1,6 +1,6 @@
-import type { z } from 'zod';
 import { Elysia } from 'elysia';
 import {
+  OkResponse,
   WishlistItemResponse,
   WishlistListResponse,
   WishlistUpsertRequest,
@@ -8,11 +8,9 @@ import {
 } from '@riftbound/contracts';
 import type { Auth } from '../auth.js';
 import { logActionFailure } from '../lib/logger.js';
-import { parseRequest } from '../lib/request-validation.js';
+import { mergeRequestBody, parseRequest } from '../lib/request-validation.js';
 import { getSessionUser, unauthorized } from '../lib/session.js';
 import type { WishlistService } from '../services/wishlist-service.js';
-
-const _UpsertBody = WishlistUpsertRequest.omit({ variantNumber: true });
 
 function wishlistItemResponse(
   action: string,
@@ -55,10 +53,10 @@ export function createWishlistRoutes(wishlist: WishlistService, auth: Auth) {
           set.status = 401;
           return unauthorized();
         }
-        const parsed = parseRequest(WishlistUpsertRequest, {
-          ...(body as z.infer<typeof _UpsertBody>),
-          variantNumber: params.variantNumber,
-        });
+        const parsed = parseRequest(
+          WishlistUpsertRequest,
+          mergeRequestBody(body, { variantNumber: params.variantNumber })
+        );
         const item = await wishlist.upsert(user.id, {
           variantNumber: parsed.variantNumber,
           priority: parsed.priority,
@@ -80,7 +78,7 @@ export function createWishlistRoutes(wishlist: WishlistService, auth: Auth) {
           return unauthorized();
         }
         await wishlist.remove(user.id, params.variantNumber);
-        return { data: { ok: true } };
+        return OkResponse.parse({ data: { ok: true } });
       }
     );
 }

@@ -41,7 +41,6 @@ import {
   type CatalogFilters,
 } from '@/constants/catalogFilters';
 import {
-  ScreenLayout,
   ScreenLayoutBody,
   ScreenSplit,
   useScreenLayout,

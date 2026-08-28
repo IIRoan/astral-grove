@@ -4,6 +4,7 @@ import {
   RIFTBOUND_PRE_RIFT_DECK_RULES,
   DeckRulesResponse,
   DeckValidateInput,
+  domainIdentityMatch,
   validateRiftboundDeck,
 } from './deck-rules.js';
 
@@ -146,15 +147,17 @@ describe('validateRiftboundDeck', () => {
       battlefields: [],
       sideboard: sideCards(10),
     });
-    expect(validateRiftboundDeck(allowed).some((m) => m.code === 'sideboard_count')).toBe(
-      false
-    );
+    expect(
+      validateRiftboundDeck(allowed).some((m) => m.code === 'sideboard_count')
+    ).toBe(false);
 
     const over = DeckValidateInput.parse({
       ...allowed,
       sideboard: sideCards(11),
     });
-    expect(validateRiftboundDeck(over).some((m) => m.code === 'sideboard_count')).toBe(true);
+    expect(validateRiftboundDeck(over).some((m) => m.code === 'sideboard_count')).toBe(
+      true
+    );
   });
 
   test('accepts Darius legend and champion when tags are domain-only', () => {
@@ -219,11 +222,21 @@ describe('validateRiftboundDeck', () => {
       battlefields: [
         { card: battlefield, count: 1 },
         {
-          card: { ...battlefield, cardId: 'bf-2', name: 'Reaver Row', variantNumber: 'OGN-B02' },
+          card: {
+            ...battlefield,
+            cardId: 'bf-2',
+            name: 'Reaver Row',
+            variantNumber: 'OGN-B02',
+          },
           count: 1,
         },
         {
-          card: { ...battlefield, cardId: 'bf-3', name: 'The Arena', variantNumber: 'OGN-B03' },
+          card: {
+            ...battlefield,
+            cardId: 'bf-3',
+            name: 'The Arena',
+            variantNumber: 'OGN-B03',
+          },
           count: 1,
         },
       ],
@@ -231,7 +244,9 @@ describe('validateRiftboundDeck', () => {
     });
 
     const messages = validateRiftboundDeck(input);
-    expect(messages).toEqual([{ type: 'valid', code: 'deck_valid', message: 'Deck is valid!' }]);
+    expect(messages).toEqual([
+      { type: 'valid', code: 'deck_valid', message: 'Deck is valid!' },
+    ]);
   });
 });
 
@@ -299,8 +314,14 @@ describe('Pre-Rift validation', () => {
       ],
       runes: [
         { card: { ...furyRune, name: 'Calm Rune', colors: ['Calm'] }, count: 4 },
-        { card: { ...furyRune, cardId: 'r2', name: 'Order Rune', colors: ['Order'] }, count: 4 },
-        { card: { ...furyRune, cardId: 'r3', name: 'Chaos Rune', colors: ['Chaos'] }, count: 4 },
+        {
+          card: { ...furyRune, cardId: 'r2', name: 'Order Rune', colors: ['Order'] },
+          count: 4,
+        },
+        {
+          card: { ...furyRune, cardId: 'r3', name: 'Chaos Rune', colors: ['Chaos'] },
+          count: 4,
+        },
       ],
       battlefields: [{ card: battlefield, count: 3 }],
       sideboard: [],
@@ -311,7 +332,9 @@ describe('Pre-Rift validation', () => {
     expect(messages.some((m) => m.code === 'copy_limit')).toBe(false);
     expect(messages.some((m) => m.code === 'domain_cap')).toBe(false);
     expect(messages.some((m) => m.code === 'battlefield_unique')).toBe(false);
-    expect(messages).toEqual([{ type: 'valid', code: 'deck_valid', message: 'Deck is valid!' }]);
+    expect(messages).toEqual([
+      { type: 'valid', code: 'deck_valid', message: 'Deck is valid!' },
+    ]);
   });
 
   test('Pre-Rift allows zero battlefields', () => {
@@ -367,8 +390,14 @@ describe('Pre-Rift validation', () => {
       ],
       runes: [
         { card: { ...furyRune, name: 'Calm Rune', colors: ['Calm'] }, count: 4 },
-        { card: { ...furyRune, cardId: 'r2', name: 'Order Rune', colors: ['Order'] }, count: 4 },
-        { card: { ...furyRune, cardId: 'r3', name: 'Chaos Rune', colors: ['Chaos'] }, count: 4 },
+        {
+          card: { ...furyRune, cardId: 'r2', name: 'Order Rune', colors: ['Order'] },
+          count: 4,
+        },
+        {
+          card: { ...furyRune, cardId: 'r3', name: 'Chaos Rune', colors: ['Chaos'] },
+          count: 4,
+        },
       ],
       battlefields: [],
       sideboard: [],
@@ -376,7 +405,9 @@ describe('Pre-Rift validation', () => {
 
     const messages = validateRiftboundDeck(input);
     expect(messages.some((m) => m.code === 'battlefield_count')).toBe(false);
-    expect(messages).toEqual([{ type: 'valid', code: 'deck_valid', message: 'Deck is valid!' }]);
+    expect(messages).toEqual([
+      { type: 'valid', code: 'deck_valid', message: 'Deck is valid!' },
+    ]);
   });
 
   test('rejects a fourth domain', () => {
@@ -407,11 +438,21 @@ describe('Pre-Rift validation', () => {
       battlefields: [
         { card: battlefield, count: 1 },
         {
-          card: { ...battlefield, cardId: 'bf-2', name: 'Field Two', variantNumber: 'OGN-B02' },
+          card: {
+            ...battlefield,
+            cardId: 'bf-2',
+            name: 'Field Two',
+            variantNumber: 'OGN-B02',
+          },
           count: 1,
         },
         {
-          card: { ...battlefield, cardId: 'bf-3', name: 'Field Three', variantNumber: 'OGN-B03' },
+          card: {
+            ...battlefield,
+            cardId: 'bf-3',
+            name: 'Field Three',
+            variantNumber: 'OGN-B03',
+          },
           count: 1,
         },
       ],
@@ -442,11 +483,21 @@ describe('Pre-Rift validation', () => {
       battlefields: [
         { card: battlefield, count: 1 },
         {
-          card: { ...battlefield, cardId: 'bf-2', name: 'Field Two', variantNumber: 'OGN-B02' },
+          card: {
+            ...battlefield,
+            cardId: 'bf-2',
+            name: 'Field Two',
+            variantNumber: 'OGN-B02',
+          },
           count: 1,
         },
         {
-          card: { ...battlefield, cardId: 'bf-3', name: 'Field Three', variantNumber: 'OGN-B03' },
+          card: {
+            ...battlefield,
+            cardId: 'bf-3',
+            name: 'Field Three',
+            variantNumber: 'OGN-B03',
+          },
           count: 1,
         },
       ],
@@ -454,7 +505,19 @@ describe('Pre-Rift validation', () => {
     });
 
     const messages = validateRiftboundDeck(input);
-    expect(messages.some((m) => m.code === 'missing_legend' && m.type === 'warning')).toBe(true);
+    expect(
+      messages.some((m) => m.code === 'missing_legend' && m.type === 'warning')
+    ).toBe(true);
     expect(messages.some((m) => m.type === 'error')).toBe(false);
+  });
+});
+
+describe('domainIdentityMatch', () => {
+  test('allows colorless cards and requires every domain to be in identity', () => {
+    const allowed = new Set(['Fury', 'Chaos']);
+    expect(domainIdentityMatch([], allowed)).toBe(true);
+    expect(domainIdentityMatch(['Fury'], allowed)).toBe(true);
+    expect(domainIdentityMatch([' Fury ', 'Chaos'], allowed)).toBe(true);
+    expect(domainIdentityMatch(['Fury', 'Calm'], allowed)).toBe(false);
   });
 });

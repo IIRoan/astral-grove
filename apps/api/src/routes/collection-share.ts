@@ -6,6 +6,7 @@ import {
   CollectionShareInvitePreviewResponse,
   CollectionShareLeaveResponse,
   CollectionShareStatusResponse,
+  OkResponse,
 } from '@riftbound/contracts';
 import type { Auth } from '../auth.js';
 import { parseRequest } from '../lib/request-validation.js';
@@ -57,7 +58,7 @@ export function createCollectionShareRoutes(share: CollectionShareService, auth:
           return unauthorized();
         }
         await share.revokeInvite(user.id);
-        return { data: { ok: true } };
+        return OkResponse.parse({ data: { ok: true } });
       }
     )
     .get(

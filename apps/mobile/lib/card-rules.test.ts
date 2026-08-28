@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 import { CARD_RULE_FIXTURES } from '@/lib/card-fixtures';
 import {
-  groupInlineSegments,
   groupParagraphSegments,
   parseCardRules,
   summarizeRulesRender,
@@ -241,62 +240,6 @@ describe('groupParagraphSegments', () => {
       {
         type: 'text-run',
         parts,
-      },
-    ]);
-  });
-});
-
-describe('groupInlineSegments', () => {
-  test('keeps action keyword and following text in one run', () => {
-    const parts = parseCardRules('[ACTION] (Play on your turn or in showdowns.)');
-    expect(groupInlineSegments(parts)).toEqual([
-      {
-        type: 'text-run',
-        parts: [
-          {
-            type: 'keyword',
-            value: 'ACTION',
-            keywordBase: 'ACTION',
-            display: 'ACTION',
-          },
-          { type: 'text', value: ' (Play on your turn or in showdowns.)' },
-        ],
-      },
-    ]);
-  });
-
-  test('isolates might icon between text runs', () => {
-    const parts = parseCardRules('(+1 [Might] while attacking.)');
-    expect(groupInlineSegments(parts)).toEqual([
-      { type: 'text-run', parts: [{ type: 'text', value: '(+1 ' }] },
-      { type: 'might', value: 'Might' },
-      { type: 'text-run', parts: [{ type: 'text', value: ' while attacking.)' }] },
-    ]);
-  });
-
-  test('keeps assault keyword with inline might bonus text grouped before icon', () => {
-    const parts = parseCardRules(
-      "Give a unit [ASSAULT 3] this turn. (+3 [Might] while it's an attacker.)"
-    );
-
-    expect(groupInlineSegments(parts)).toEqual([
-      {
-        type: 'text-run',
-        parts: [
-          { type: 'text', value: 'Give a unit ' },
-          {
-            type: 'keyword',
-            value: 'ASSAULT 3',
-            keywordBase: 'ASSAULT',
-            display: 'ASSAULT 3',
-          },
-          { type: 'text', value: ' this turn. (+3 ' },
-        ],
-      },
-      { type: 'might', value: 'Might' },
-      {
-        type: 'text-run',
-        parts: [{ type: 'text', value: " while it's an attacker.)" }],
       },
     ]);
   });

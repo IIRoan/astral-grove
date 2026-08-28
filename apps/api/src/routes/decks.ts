@@ -4,10 +4,11 @@ import {
   DeckListResponse,
   DeckUpsertRequest,
   DecksListQuery,
+  IdResponse,
 } from '@riftbound/contracts';
 import type { Auth } from '../auth.js';
 import { logActionFailure } from '../lib/logger.js';
-import { parseRequest } from '../lib/request-validation.js';
+import { mergeRequestBody, parseRequest } from '../lib/request-validation.js';
 import { getSessionUser, unauthorized } from '../lib/session.js';
 import type { DeckService } from '../services/deck-service.js';
 import { DeckReadOnlyError } from '../services/deck-service.js';
@@ -119,10 +120,10 @@ export function createDecksRoutes(decks: DeckService, auth: Auth) {
           set.status = 401;
           return unauthorized();
         }
-        const parsed = parseRequest(DeckUpsertRequest, {
-          ...(body as object),
-          id: params.id,
-        });
+        const parsed = parseRequest(
+          DeckUpsertRequest,
+          mergeRequestBody(body, { id: params.id })
+        );
         if (parsed.id !== params.id) {
           set.status = 400;
           return { error: 'Deck id mismatch' };
@@ -168,7 +169,7 @@ export function createDecksRoutes(decks: DeckService, auth: Auth) {
             set.status = 404;
             return { error: 'Deck not found' };
           }
-          return { data: { id: params.id } };
+          return IdResponse.parse({ data: { id: params.id } });
         } catch (error) {
           if (error instanceof DeckReadOnlyError) {
             set.status = 403;

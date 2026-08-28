@@ -1,18 +1,23 @@
-import { z } from 'zod';
 import { Elysia, sse } from 'elysia';
 import {
-  CardCondition,
   chunkArray,
+  COLLECTION_VARIANT_LOOKUP_BATCH_SIZE,
+  CollectionAdjustRequest,
   CollectionAuditListQuery,
   CollectionAuditListResponse,
   CollectionBatchSyncRequest,
+  CollectionBatchSyncResponse,
+  CollectionClearResponse,
+  CollectionDeleteQuery,
   CollectionImportRequest,
   CollectionImportResponse,
-  CollectionListResponse,
   CollectionItemResponse,
+  CollectionListResponse,
   CollectionQuantitiesResponse,
   CollectionRecentAddsResponse,
   CollectionUpsertRequest,
+  CollectionVariantNumbersRequest,
+  OkResponse,
   type CollectionLiveChangeReason,
   type CollectionLiveChangedEvent,
 } from '@riftbound/contracts';
@@ -29,23 +34,7 @@ import {
   CollectionLiveLimitError,
   type CollectionLiveHub,
 } from '../services/collection-live-hub.js';
-import { parseRequest } from '../lib/request-validation.js';
-
-const AdjustBody = z.object({
-  delta: z.number().int().positive().optional(),
-  condition: CardCondition.optional(),
-  language: z.string().optional(),
-  isFoil: z.boolean().optional(),
-});
-
-const _UpsertBody = CollectionUpsertRequest.omit({ variantNumber: true });
-
-const COLLECTION_VARIANT_LOOKUP_BATCH_SIZE = 200;
-const COLLECTION_VARIANT_LOOKUP_MAX = 5000;
-
-const CollectionVariantLookupRequest = z.object({
-  variantNumbers: z.array(z.string().min(1)).max(COLLECTION_VARIANT_LOOKUP_MAX),
-});
+import { mergeRequestBody, parseRequest } from '../lib/request-validation.js';
 
 async function quantitiesForVariantLookup(
   collection: CollectionService,
@@ -239,7 +228,7 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const { variantNumbers } = parseRequest(CollectionVariantLookupRequest, body);
+        const { variantNumbers } = parseRequest(CollectionVariantNumbersRequest, body);
         const rows = await audit.recentAddsForVariants(collectionId, variantNumbers);
         return CollectionRecentAddsResponse.parse({ data: rows });
       }
@@ -271,7 +260,7 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const { variantNumbers } = parseRequest(CollectionVariantLookupRequest, body);
+        const { variantNumbers } = parseRequest(CollectionVariantNumbersRequest, body);
         const rows = await quantitiesForVariantLookup(
           collection,
           collectionId,
@@ -290,10 +279,10 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const parsed = parseRequest(CollectionUpsertRequest, {
-          ...(body as z.infer<typeof _UpsertBody>),
-          variantNumber: params.variantNumber,
-        });
+        const parsed = parseRequest(
+          CollectionUpsertRequest,
+          mergeRequestBody(body, { variantNumber: params.variantNumber })
+        );
         const item = await collection.upsert(
           collectionId,
           {
@@ -330,23 +319,15 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const parsed = AdjustBody.safeParse(body);
-        const delta = parsed.success && parsed.data.delta ? parsed.data.delta : 1;
-        const condition = parsed.success
-          ? (parsed.data.condition ?? 'near_mint')
-          : 'near_mint';
-        const language = parsed.success ? (parsed.data.language ?? 'en') : 'en';
-
+        const parsed = parseRequest(CollectionAdjustRequest, body ?? {});
         const item = await collection.adjustQuantity(
           collectionId,
           params.variantNumber,
-          delta,
+          parsed.delta,
           {
-            condition,
-            language,
-            ...(parsed.success && parsed.data.isFoil !== undefined
-              ? { isFoil: parsed.data.isFoil }
-              : {}),
+            condition: parsed.condition,
+            language: parsed.language,
+            ...(parsed.isFoil === undefined ? {} : { isFoil: parsed.isFoil }),
           },
           { userId: user.id, action: 'add' }
         );
@@ -354,7 +335,7 @@ export function createCollectionRoutes(
         if (!item) return { data: null };
         return collectionItemResponse('collection.add', item, {
           variantNumber: params.variantNumber,
-          delta,
+          delta: parsed.delta,
         });
       }
     )
@@ -368,23 +349,15 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const parsed = AdjustBody.safeParse(body);
-        const delta = parsed.success && parsed.data.delta ? parsed.data.delta : 1;
-        const condition = parsed.success
-          ? (parsed.data.condition ?? 'near_mint')
-          : 'near_mint';
-        const language = parsed.success ? (parsed.data.language ?? 'en') : 'en';
-
+        const parsed = parseRequest(CollectionAdjustRequest, body ?? {});
         const item = await collection.adjustQuantity(
           collectionId,
           params.variantNumber,
-          -delta,
+          -parsed.delta,
           {
-            condition,
-            language,
-            ...(parsed.success && parsed.data.isFoil !== undefined
-              ? { isFoil: parsed.data.isFoil }
-              : {}),
+            condition: parsed.condition,
+            language: parsed.language,
+            ...(parsed.isFoil === undefined ? {} : { isFoil: parsed.isFoil }),
           },
           { userId: user.id, action: 'remove' }
         );
@@ -392,7 +365,7 @@ export function createCollectionRoutes(
         if (!item) return { data: null };
         return collectionItemResponse('collection.remove', item, {
           variantNumber: params.variantNumber,
-          delta,
+          delta: parsed.delta,
         });
       }
     )
@@ -406,21 +379,17 @@ export function createCollectionRoutes(
           return unauthorized();
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
-        const condition = CardCondition.safeParse(query.condition).success
-          ? parseRequest(CardCondition, query.condition)
-          : 'near_mint';
-        const isFoilQuery =
-          query.isFoil === 'true' ? true : query.isFoil === 'false' ? false : undefined;
+        const parsed = parseRequest(CollectionDeleteQuery, query);
         await collection.remove(
           collectionId,
           params.variantNumber,
-          condition,
-          query.language ?? 'en',
-          isFoilQuery,
+          parsed.condition,
+          parsed.language,
+          parsed.isFoil,
           { userId: user.id, action: 'delete' }
         );
         notifyLive(liveHub, collectionId, 'delete', user.id);
-        return { data: { ok: true } };
+        return OkResponse.parse({ data: { ok: true } });
       }
     )
     .delete('/all', { detail: { tags: ['collection'] } }, async ({ request, set }) => {
@@ -439,7 +408,7 @@ export function createCollectionRoutes(
         action: 'clear',
       });
       notifyLive(liveHub, collectionId, 'clear', user.id);
-      return { data: result };
+      return CollectionClearResponse.parse({ data: result });
     })
     .post(
       '/batch',
@@ -457,7 +426,7 @@ export function createCollectionRoutes(
           action: 'batch',
         });
         notifyLive(liveHub, collectionId, 'batch', user.id);
-        return { data: result };
+        return CollectionBatchSyncResponse.parse({ data: result });
       }
     )
     .get('/export', { detail: { tags: ['collection'] } }, async ({ request, set }) => {

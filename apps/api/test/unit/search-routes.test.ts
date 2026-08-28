@@ -35,7 +35,7 @@ function createSearchApp(
 
 describe('search routes', () => {
   test('GET /api/v1/search parses query defaults before calling the service', async () => {
-    const globalSearch = mock(async (query) => ({
+    const globalSearch = mock(async (_query) => ({
       data: {
         cards: {
           hits: [

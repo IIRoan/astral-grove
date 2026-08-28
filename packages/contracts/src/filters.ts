@@ -35,3 +35,4 @@ export const FiltersResponse = dataMetaResponse(
 );
 
 export type FilterSnapshot = z.infer<typeof FilterSnapshot>;
+export type FiltersResponse = z.infer<typeof FiltersResponse>;

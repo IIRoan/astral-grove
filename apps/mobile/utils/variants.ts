@@ -6,8 +6,12 @@ import type {
 import {
   collectionFinishKey,
   computeTrend,
+  dedupeFinishPrintings,
   formatTrendLabel,
+  getSearchGroupKey,
+  groupCardListItems as groupSharedCardListItems,
   isVariantFoil,
+  sortCardListPrintings,
   variantOffersDualFinishes,
 } from '@riftbound/contracts';
 
@@ -20,7 +24,7 @@ export function isFoilVariant(
   return isVariantFoil(foilMode, variantNumber, variantLabel, variantType);
 }
 
-export { collectionFinishKey };
+export { collectionFinishKey, getSearchGroupKey };
 
 export function ownedQuantityForPrinting(
   collectionByVariant: ReadonlyMap<string, { quantity: number }> | undefined,
@@ -121,57 +125,7 @@ export function hasMultiplePrintings(printings: CardListPrinting[]): boolean {
 }
 
 function sortPrintings(printings: CardListPrinting[]): CardListPrinting[] {
-  return [...printings].sort((a, b) => {
-    if (a.isFoil !== b.isFoil) return a.isFoil ? 1 : -1;
-    return a.variantNumber.localeCompare(b.variantNumber);
-  });
-}
-
-function dedupeFinishPrintings(printings: CardListPrinting[]): CardListPrinting[] {
-  const hasDistinctFoilSibling = printings.some(
-    (p) =>
-      p.isFoil &&
-      printings.some((o) => !o.isFoil && o.variantNumber !== p.variantNumber)
-  );
-
-  const filtered = hasDistinctFoilSibling
-    ? printings.filter(
-        (p) =>
-          !(
-            p.isFoil &&
-            printings.some((o) => !o.isFoil && o.variantNumber === p.variantNumber)
-          )
-      )
-    : printings;
-
-  const seen = new Set<string>();
-  const result: CardListPrinting[] = [];
-  for (const printing of filtered) {
-    const key = collectionFinishKey(printing.variantNumber, printing.isFoil);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(printing);
-  }
-  return result;
-}
-
-/** Search rows only merge a standard printing with its foil finish — not alternates or overnumbered art. */
-export function getSearchGroupKey(
-  variantNumber: string,
-  variantLabel: string,
-  variantType?: string,
-  foilMode?: string
-): string {
-  const foil = isFoilVariant(variantNumber, variantLabel, variantType, foilMode);
-  if (!foil && variantLabel !== 'Standard' && variantLabel !== 'Foil') {
-    return variantNumber;
-  }
-  let key = variantNumber.replace(/-Foil$/i, '');
-  // Rune-style foil siblings (e.g. SFD-R05a) share a finish family with the base number.
-  if (foil && key === variantNumber && variantLabel === 'Foil') {
-    key = variantNumber.replace(/[a-z]$/i, '');
-  }
-  return key;
+  return sortCardListPrintings(printings);
 }
 
 export type VariantLike = {
@@ -387,49 +341,12 @@ export function cardListItemMatchesVariant(
   );
 }
 
-/** Merge foil + non-foil rows that share the same base printing. */
 export function groupCardListItems(items: CardListItem[]): CardListItem[] {
-  const groups = new Map<string, CardListItem>();
-
-  for (const item of items) {
-    const printings = getCardPrintings(item);
-    if (printings.length === 0) continue;
-
-    for (const printing of printings) {
-      const key = `${item.cardId}:${getSearchGroupKey(
-        printing.variantNumber,
-        printing.variantLabel,
-        undefined,
-        printing.foilMode
-      )}`;
-      const existing = groups.get(key);
-      if (!existing) {
-        groups.set(key, {
-          ...item,
-          variantNumber: printing.variantNumber,
-          priceEur: printing.priceEur,
-          printings: [printing],
-        });
-        continue;
-      }
-
-      existing.printings.push(printing);
-    }
-  }
-
-  return Array.from(groups.values()).map((item) => {
-    const printings = sortPrintings(dedupeFinishPrintings(item.printings));
-    const primary = printings.find((p) => !p.isFoil) ?? printings[0];
-    if (!primary) return item;
-
-    return {
-      ...item,
-      variantNumber: primary.variantNumber,
-      cardmarketId: item.cardmarketId,
-      priceEur: primary.priceEur,
-      printings,
-    };
-  });
+  return groupSharedCardListItems(
+    items.map((item) =>
+      item.printings?.length ? item : { ...item, printings: getCardPrintings(item) }
+    )
+  );
 }
 
 export type VariantPriceLike = {

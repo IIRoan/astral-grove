@@ -1,0 +1,40 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreWorkspaces": ["packages/typescript-config"],
+  "ignoreBinaries": ["cloudflared"],
+  "ignoreExportsUsedInFile": true,
+  "rules": {
+    "catalog": "off",
+    "duplicates": "off",
+    "enumMembers": "off",
+    "exports": "off",
+    "nsExports": "off",
+    "nsTypes": "off",
+    "types": "off"
+  },
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.{js,mjs,ts}", ".railway/railway.ts"],
+      "project": ["scripts/**/*.{js,mjs,ts}", ".railway/**/*.ts"]
+    },
+    "apps/api": {
+      "entry": ["scripts/*.ts", "test/**/*.ts"]
+    },
+    "apps/mobile": {
+      "ignore": ["**/*.{web,native}.{ts,tsx}"],
+      "ignoreDependencies": [
+        "@expo/material-symbols",
+        "@expo/ngrok",
+        "@expo/ui",
+        "eslint",
+        "eslint-config-expo",
+        "expo-status-bar",
+        "expo-system-ui",
+        "sonner"
+      ]
+    },
+    "packages/contracts": {
+      "entry": ["src/**/*.test.ts"]
+    }
+  }
+}

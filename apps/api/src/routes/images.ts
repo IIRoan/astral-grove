@@ -1,7 +1,8 @@
+import { ImageThumbQuery } from '@riftbound/contracts';
 import { Elysia } from 'elysia';
-import { parseThumbWidth } from '../lib/image-resize.js';
 import type { ImageStoreService } from '../services/image-store.js';
 import { notFoundResponse, setApiError } from '../lib/api-error.js';
+import { parseRequest } from '../lib/request-validation.js';
 
 const BODY_CACHE_CONTROL = 'public, max-age=604800, immutable';
 const REDIRECT_CACHE_CONTROL = 'public, max-age=300';
@@ -16,7 +17,7 @@ export function createImagesRoutes(images: ImageStoreService) {
         return setApiError(set, notFoundResponse('Image not found'));
       }
 
-      const width = parseThumbWidth(typeof query.w === 'string' ? query.w : undefined);
+      const { w: width } = parseRequest(ImageThumbQuery, query);
       const result = await images.serveImage(
         key,
         width != null ? { width } : undefined

@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia';
+import { FiltersResponse } from '@riftbound/contracts';
 import type { CatalogMetadataService } from '../services/catalog-metadata.js';
 
 export function createFiltersRoutes(catalogMetadata: CatalogMetadataService) {
@@ -7,7 +8,7 @@ export function createFiltersRoutes(catalogMetadata: CatalogMetadataService) {
     { detail: { tags: ['filters'] } },
     async () => {
       const meta = await catalogMetadata.getFiltersMeta();
-      return {
+      return FiltersResponse.parse({
         data: meta.snapshot,
         meta: {
           cachedAt: meta.cachedAt,
@@ -15,7 +16,7 @@ export function createFiltersRoutes(catalogMetadata: CatalogMetadataService) {
           pricesCatalogHash: meta.pricesCatalogHash,
           variantCount: meta.variantCount,
         },
-      };
+      });
     }
   );
 }

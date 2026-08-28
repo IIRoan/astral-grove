@@ -2,13 +2,14 @@ import type { DeckCard, DeckSectionKey, DeckState } from '@/lib/deck-types';
 import {
   cardPrimaryNameToken,
   deckFormatRestrictsPicker,
+  domainIdentityMatch,
   getDeckRules,
   legendChampionTags,
+  normalizeDeckDomains,
   sharesLegendChampionTag,
 } from '@riftbound/contracts';
 import { cardHasType, sectionForCardType } from '@/lib/deck-card';
 import { battlefieldPerNameLimit, battlefieldsAtCapacity } from '@/lib/deck-limits';
-import { compactMap } from '@/lib/iteration';
 
 export type CardEligibilityResult = {
   eligible: boolean;
@@ -25,19 +26,6 @@ export type DeckIdentity = {
   /** A stricter, single champion tag when we can infer it from the legend. */
   strictLegendChampionTag: string | null;
 };
-
-function normalizeDomainNames(domains: string[]): string[] {
-  return compactMap(domains, (domain) => {
-    const trimmed = domain.trim();
-    return trimmed || null;
-  });
-}
-
-function domainIdentityMatch(cardDomains: string[], allowed: Set<string>): boolean {
-  if (!cardDomains.length) return true;
-  const normalized = normalizeDomainNames(cardDomains);
-  return normalized.every((domain) => allowed.has(domain));
-}
 
 function strictLegendChampionTagFromLegend(legend: DeckCard): string | null {
   const tags = legendChampionTags(legend);
@@ -62,7 +50,7 @@ function strictLegendChampionTagFromLegend(legend: DeckCard): string | null {
 function collectDeckDomains(deck: DeckState): Set<string> {
   const domains = new Set<string>();
   const add = (colors: string[]) => {
-    for (const domain of normalizeDomainNames(colors)) domains.add(domain);
+    for (const domain of normalizeDeckDomains(colors)) domains.add(domain);
   };
   if (deck.legend) add(deck.legend.colors);
   if (deck.champion) add(deck.champion.colors);
@@ -92,7 +80,7 @@ export function getDeckIdentity(deck: DeckState): DeckIdentity {
   }
 
   if (deck.legend) {
-    const allowedDomains = new Set(normalizeDomainNames(deck.legend.colors));
+    const allowedDomains = new Set(normalizeDeckDomains(deck.legend.colors));
     const resolvedTags = legendChampionTags(deck.legend);
     const legendChampionTagsList = resolvedTags.length ? resolvedTags : null;
     return {
@@ -104,7 +92,7 @@ export function getDeckIdentity(deck: DeckState): DeckIdentity {
   }
 
   if (deck.champion) {
-    const allowedDomains = new Set(normalizeDomainNames(deck.champion.colors));
+    const allowedDomains = new Set(normalizeDeckDomains(deck.champion.colors));
     return {
       allowedDomains: allowedDomains.size ? allowedDomains : null,
       maxDomains: null,
@@ -187,7 +175,7 @@ function wouldExceedDomainCap(deck: DeckState, candidateCard: DeckCard): boolean
   const rules = getDeckRules(deck.format);
   if (rules.maxDomains == null) return false;
   const domains = collectDeckDomains(deck);
-  for (const domain of normalizeDomainNames(candidateCard.colors)) {
+  for (const domain of normalizeDeckDomains(candidateCard.colors)) {
     domains.add(domain);
   }
   return domains.size > rules.maxDomains;
@@ -301,7 +289,7 @@ export function isCardEligibleForSection(args: {
         }
       } else {
         const nextIdentity: DeckIdentity = {
-          allowedDomains: new Set(normalizeDomainNames(candidateCard.colors)),
+          allowedDomains: new Set(normalizeDeckDomains(candidateCard.colors)),
           maxDomains: null,
           legendChampionTags: candidateCard.tags,
           strictLegendChampionTag: strictLegendChampionTagFromLegend(candidateCard),

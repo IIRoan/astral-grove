@@ -5,6 +5,7 @@ import {
   PriceStatsBatchRequest,
   PriceStatsBatchResponse,
   PricesListQuery,
+  PricesListResponse,
 } from '@riftbound/contracts';
 import type { PriceCacheService } from '../services/price-cache.js';
 import { sql } from 'drizzle-orm';
@@ -62,14 +63,14 @@ export function createPricesRoutes(prices: PriceCacheService, db: Database) {
 
       const result = await prices.list(listQuery);
 
-      return {
+      return PricesListResponse.parse({
         data: result.rows,
         meta: {
           pricesCatalogHash: result.catalogHash,
           lastSyncedAt: result.lastSyncedAt,
           rowCount: result.rows.length,
         },
-      };
+      });
     })
     .get('/history', { detail: { tags: ['prices'] } }, async ({ query }) => {
       const parsed = parseRequest(PriceHistoryQuery, query);

@@ -102,14 +102,6 @@ export function resolveUnambiguousQuantitySelection(
   return undefined;
 }
 
-/** @deprecated Prefer resolveQuickRemoveSelection */
-export function resolveQuickRemoveVariantNumber(
-  printings: readonly PrintingWithOwned[] | undefined,
-  preferredVariantNumber?: string
-): string | undefined {
-  return resolveQuickRemoveSelection(printings, preferredVariantNumber)?.variantNumber;
-}
-
 /** Resolve finish to increment without a picker — single printing, else non-foil primary. */
 export function resolveQuickAddSelection(
   printings: readonly CardListPrinting[] | undefined,
@@ -123,14 +115,6 @@ export function resolveQuickAddSelection(
       : (printings.find((row) => !row.isFoil) ?? printings[0]);
   if (!printing) return undefined;
   return { variantNumber: printing.variantNumber, isFoil: printing.isFoil };
-}
-
-/** @deprecated Prefer resolveQuickAddSelection */
-export function resolveQuickAddVariantNumber(
-  printings: readonly CardListPrinting[] | undefined,
-  preferredVariantNumber?: string
-): string | undefined {
-  return resolveQuickAddSelection(printings, preferredVariantNumber)?.variantNumber;
 }
 
 export function shouldShowRemovePrintingPicker(

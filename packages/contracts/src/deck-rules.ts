@@ -326,16 +326,17 @@ export type DeckEntryInput = z.infer<typeof DeckEntryInput>;
 export type DeckValidateInput = z.infer<typeof DeckValidateInput>;
 export type DeckValidationMessage = z.infer<typeof DeckValidationMessage>;
 
-function domainIdentityMatch(
-  cardDomains: string[],
-  legendDomains: Set<string>
-): boolean {
-  if (!cardDomains.length) return true;
-  return cardDomains.every((domain) => legendDomains.has(domain));
+export function normalizeDeckDomains(colors: readonly string[]): string[] {
+  return colors.map((color) => color.trim()).filter(Boolean);
 }
 
-function normalizeDomains(colors: string[]): string[] {
-  return colors.map((color) => color.trim()).filter(Boolean);
+export function domainIdentityMatch(
+  cardDomains: readonly string[],
+  legendDomains: ReadonlySet<string>
+): boolean {
+  const normalized = normalizeDeckDomains(cardDomains);
+  if (!normalized.length) return true;
+  return normalized.every((domain) => legendDomains.has(domain));
 }
 
 function increment(map: Map<string, number>, key: string, amount: number): void {
@@ -349,7 +350,7 @@ function sectionCount(entries: DeckEntryInput[]): number {
 function collectDeckDomains(input: DeckValidateInput): Set<string> {
   const domains = new Set<string>();
   const add = (colors: string[]) => {
-    for (const domain of normalizeDomains(colors)) domains.add(domain);
+    for (const domain of normalizeDeckDomains(colors)) domains.add(domain);
   };
 
   if (input.legend) add(input.legend.colors);
@@ -416,7 +417,7 @@ export function validateRiftboundDeck(
       });
     }
   } else if (legend) {
-    const legendDomains = new Set(normalizeDomains(legend.colors));
+    const legendDomains = new Set(normalizeDeckDomains(legend.colors));
 
     for (const { card: entryCard } of input.mainDeck) {
       if (!domainIdentityMatch(entryCard.colors, legendDomains)) {

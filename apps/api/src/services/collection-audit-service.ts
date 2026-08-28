@@ -17,6 +17,7 @@ import type {
 } from '@riftbound/contracts';
 import {
   CardCondition,
+  COLLECTION_VARIANT_LOOKUP_MAX,
   RECENT_COLLECTION_ACTIVITY_LIMIT,
   takeRecentCollectionActivity,
 } from '@riftbound/contracts';
@@ -172,7 +173,7 @@ export class CollectionAuditService {
   ): Promise<CollectionActivityEvent[]> {
     const unique = [
       ...new Set(variantNumbers.map((value) => value.trim()).filter(Boolean)),
-    ].slice(0, 200);
+    ].slice(0, COLLECTION_VARIANT_LOOKUP_MAX);
     if (unique.length === 0) return [];
 
     const rows = await this.db
