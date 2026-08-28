@@ -24,6 +24,7 @@
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.23",
     "@better-auth/expo": "^1.6.23",
+    "@elysia/compress": "2.0.0-beta.2",
     "@elysia/cors": "next",
     "@riftbound/contracts": "workspace:*",
     "better-auth": "^1.6.23",

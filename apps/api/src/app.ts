@@ -1,3 +1,4 @@
+import { compress } from '@elysia/compress';
 import { cors } from '@elysia/cors';
 import { Elysia } from 'elysia';
 import type postgres from 'postgres';
@@ -74,6 +75,7 @@ function buildApp(env: Env): AppContext {
   const deckService = new DeckService(db, pa, cardCache, upstreamDeckWriteExtraHeader);
 
   const app = new Elysia()
+    .use(compress())
     .use(
       cors({
         origin: resolveCorsOrigins(env),
