@@ -12,6 +12,7 @@ import { HoverTooltip } from '@/components/ui/hover-tooltip';
 import { Text } from '@/components/ui/text';
 import { UserBlobatar } from '@/components/ui/user-blobatar';
 import { FACTORY_RADIUS_CONTROL_CLASS } from '@/constants/factoryShape';
+import { runeIcon } from '@/constants/gameAssets';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { TAB_SCENE } from '@/lib/motion';
 import { tabIdFromPathname, type AppTabId } from '@/lib/tab-route';
@@ -26,6 +27,7 @@ import { clearPersistedWishlist } from '@/services/wishlistCacheService';
 import { clearPersistedCatalogIndex } from '@/services/catalogIndexService';
 import { clearLastCachedUserId } from '@/services/userCacheScope';
 import { hapticPress } from '@/utils/haptics';
+import { Image } from 'expo-image';
 import { usePathname, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
@@ -162,7 +164,12 @@ export function SideRail() {
               router.push('/(tabs)/search');
             }}
           >
-            <Text className="font-mono text-sm font-medium text-foreground">A</Text>
+            <Image
+              source={runeIcon}
+              style={{ width: 20, height: 20 }}
+              contentFit="contain"
+              accessibilityIgnoresInvertColors
+            />
           </PressableScale>
         </HoverTooltip>
 
