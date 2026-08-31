@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   flushCollectionLiveInvalidate,
   onCollectionLiveChanged,
 } from '@/hooks/collectionLiveSync';
 import { useCollectionShareStatus } from '@/hooks/useCollectionShare';
+import { logActionFailure, wasActionFailureLogged } from '@/lib/logger';
 import { subscribeCollectionLiveEvents } from '@/services/collectionLiveService';
 import { authClient } from '@/src/lib/auth-client';
 
@@ -70,8 +72,17 @@ export function useCollectionLiveSync(enabled = true) {
             },
           });
           attempt = 0;
-        } catch {
+        } catch (error) {
           if (stopped || controller.signal.aborted) break;
+          if (
+            !(error instanceof Error && error.name === 'AbortError') &&
+            !wasActionFailureLogged(error)
+          ) {
+            logActionFailure('collection.live.subscribe', error, {
+              attempt,
+              platform: Platform.OS,
+            });
+          }
           const delay = Math.min(RECONNECT_BASE_MS * 2 ** attempt, RECONNECT_MAX_MS);
           attempt += 1;
           try {

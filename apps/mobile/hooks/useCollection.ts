@@ -6,7 +6,6 @@ import {
 } from '@tanstack/react-query';
 import { collectionFinishKey, type CardListItem } from '@riftbound/contracts';
 import { useMemo } from 'react';
-import { logActionFailure } from '@/lib/logger';
 import {
   addDetailToCollection,
   addToCollection,
@@ -26,6 +25,7 @@ import { useCollectionShareStatus } from '@/hooks/useCollectionShare';
 import { collectionMutationKey, collectionQueryKeys } from '@/src/api/queryKeys';
 import {
   bumpCollectionMutationGeneration,
+  collectionSnapshotIsStale,
   getCollectionMutationGeneration,
 } from '@/hooks/collectionMutationGeneration';
 import {
@@ -104,15 +104,27 @@ export async function hydrateCollectionCache(queryClient: QueryClient): Promise<
   syncOwnershipFromCollection(queryClient, cached);
 }
 
+async function fetchCollectionQuery(
+  queryClient: QueryClient
+): Promise<CollectionEntry[]> {
+  const generation = getCollectionMutationGeneration(queryClient);
+  const startedDuringMutation =
+    queryClient.isMutating({ mutationKey: collectionMutationKey }) > 0;
+  const entries = await getCollection();
+  if (collectionSnapshotIsStale(queryClient, generation, startedDuringMutation)) {
+    return (
+      queryClient.getQueryData<CollectionEntry[]>(collectionQueryKeys.all) ?? entries
+    );
+  }
+  syncOwnershipFromCollection(queryClient, entries);
+  await persistCollection(entries);
+  return entries;
+}
+
 export function prefetchCollection(queryClient: QueryClient): Promise<void> {
   return queryClient.prefetchQuery({
     queryKey: collectionQueryKeys.all,
-    queryFn: async () => {
-      const entries = await getCollection();
-      syncOwnershipFromCollection(queryClient, entries);
-      await persistCollection(entries);
-      return entries;
-    },
+    queryFn: () => fetchCollectionQuery(queryClient),
     staleTime: COLLECTION_STALE_MS,
   });
 }
@@ -124,22 +136,10 @@ export function useCollection(options?: { enabled?: boolean }) {
 
   return useQuery({
     queryKey: collectionQueryKeys.all,
-    queryFn: async () => {
-      const generation = getCollectionMutationGeneration(queryClient);
-      const entries = await getCollection();
-      // +/- may have rewritten cache while in flight — never replace with a stale snapshot.
-      if (getCollectionMutationGeneration(queryClient) !== generation) {
-        return (
-          queryClient.getQueryData<CollectionEntry[]>(collectionQueryKeys.all) ??
-          entries
-        );
-      }
-      syncOwnershipFromCollection(queryClient, entries);
-      await persistCollection(entries);
-      return entries;
-    },
+    queryFn: () => fetchCollectionQuery(queryClient),
     staleTime: isShared ? SHARED_COLLECTION_STALE_MS : COLLECTION_STALE_MS,
     refetchOnWindowFocus: isShared,
+    refetchOnReconnect: isShared,
     refetchOnMount: isShared,
     enabled: options?.enabled ?? true,
   });
@@ -168,9 +168,10 @@ export function useCollectionOwnership(variantNumbers: readonly string[]): {
       if (toFetch.length === 0) return cached;
 
       const generation = getCollectionMutationGeneration(queryClient);
+      const startedDuringMutation =
+        queryClient.isMutating({ mutationKey: collectionMutationKey }) > 0;
       const rows = await fetchRemoteCollectionQuantities(toFetch);
-      // Drop responses that raced a +/- optimistic write (incl. post-mutate pre-await window).
-      if (getCollectionMutationGeneration(queryClient) !== generation) {
+      if (collectionSnapshotIsStale(queryClient, generation, startedDuringMutation)) {
         return getOwnershipRecord(queryClient);
       }
       // Re-read after await: don't clobber newer optimistic values on cold fills; shared refresh takes server truth unless a mutation is in flight.
@@ -203,6 +204,7 @@ export function useCollectionOwnership(variantNumbers: readonly string[]): {
     enabled: normalized.length > 0,
     staleTime: isShared ? SHARED_COLLECTION_STALE_MS : OWNERSHIP_STALE_MS,
     refetchOnWindowFocus: isShared,
+    refetchOnReconnect: isShared,
     refetchOnMount: isShared,
   });
 
@@ -273,14 +275,6 @@ function reconcileCollectionEntries(
   commitCollectionLocal(queryClient);
   // onMutate cancel aborts first fetch — refetch so the log isn't empty/synthetic until staleTime.
   invalidateRecentAdds(queryClient);
-}
-
-function logMutationFailure(
-  action: string,
-  error: unknown,
-  context?: Record<string, unknown>
-) {
-  logActionFailure(action, error, context);
 }
 
 /** Snapshot + cancel without awaiting — awaiting cancelQueries before setQueryData lagged Add ~0.5s. */
@@ -473,6 +467,7 @@ export function useCollectionMutations() {
 
   const addCard = useMutation({
     mutationKey: collectionMutationKey,
+    meta: { action: 'collection.add' },
     mutationFn: (input: {
       card: CardListItem;
       variantNumber?: string;
@@ -510,13 +505,9 @@ export function useCollectionMutations() {
       });
       return context;
     },
-    onError: (error, vars, context) => {
+    onError: (_error, vars, context) => {
       const variantNumber = vars.variantNumber ?? vars.card.variantNumber;
       rollbackCollectionCache(queryClient, variantNumber, context);
-      logMutationFailure('collection.add', error, {
-        variantNumber,
-        cardName: vars.card.name,
-      });
     },
     onSettled: (_data, error, vars) => {
       const variantNumber = vars.variantNumber ?? vars.card.variantNumber;
@@ -526,6 +517,7 @@ export function useCollectionMutations() {
 
   const addFromDetail = useMutation({
     mutationKey: collectionMutationKey,
+    meta: { action: 'collection.add_detail' },
     mutationFn: (input: {
       card: Parameters<typeof addDetailToCollection>[0];
       variantNumber: string;
@@ -570,12 +562,8 @@ export function useCollectionMutations() {
       });
       return context;
     },
-    onError: (error, vars, context) => {
+    onError: (_error, vars, context) => {
       rollbackCollectionCache(queryClient, vars.variantNumber, context);
-      logMutationFailure('collection.add_detail', error, {
-        variantNumber: vars.variantNumber,
-        cardName: vars.card.name,
-      });
     },
     onSettled: (_data, error, vars) => {
       reconcileCollectionEntries(queryClient, [vars.variantNumber], error);
@@ -584,6 +572,7 @@ export function useCollectionMutations() {
 
   const setQuantity = useMutation({
     mutationKey: collectionMutationKey,
+    meta: { action: 'collection.set_quantity' },
     mutationFn: ({
       variantNumber,
       quantity,
@@ -613,12 +602,8 @@ export function useCollectionMutations() {
       });
       return context;
     },
-    onError: (error, vars, context) => {
+    onError: (_error, vars, context) => {
       rollbackCollectionCache(queryClient, vars.variantNumber, context);
-      logMutationFailure('collection.set_quantity', error, {
-        variantNumber: vars.variantNumber,
-        quantity: vars.quantity,
-      });
     },
     onSettled: (_data, error, vars) => {
       reconcileCollectionEntries(queryClient, [vars.variantNumber], error);
@@ -627,6 +612,7 @@ export function useCollectionMutations() {
 
   const adjustQuantity = useMutation({
     mutationKey: collectionMutationKey,
+    meta: { action: 'collection.adjust_quantity' },
     mutationFn: ({
       variantNumber,
       delta,
@@ -657,12 +643,8 @@ export function useCollectionMutations() {
       });
       return context;
     },
-    onError: (error, vars, context) => {
+    onError: (_error, vars, context) => {
       rollbackCollectionCache(queryClient, vars.variantNumber, context);
-      logMutationFailure('collection.adjust_quantity', error, {
-        variantNumber: vars.variantNumber,
-        delta: vars.delta,
-      });
     },
     onSettled: (_data, error, vars) => {
       reconcileCollectionEntries(queryClient, [vars.variantNumber], error);
@@ -671,6 +653,7 @@ export function useCollectionMutations() {
 
   const removeCard = useMutation({
     mutationKey: collectionMutationKey,
+    meta: { action: 'collection.remove' },
     mutationFn: (input: string | { variantNumber: string; isFoil?: boolean }) => {
       const variantNumber = typeof input === 'string' ? input : input.variantNumber;
       const isFoil = typeof input === 'string' ? undefined : input.isFoil;
@@ -691,10 +674,9 @@ export function useCollectionMutations() {
       });
       return context;
     },
-    onError: (error, input, context) => {
+    onError: (_error, input, context) => {
       const variantNumber = typeof input === 'string' ? input : input.variantNumber;
       rollbackCollectionCache(queryClient, variantNumber, context);
-      logMutationFailure('collection.remove', error, { variantNumber });
     },
     onSettled: (_data, error, input) => {
       const variantNumber = typeof input === 'string' ? input : input.variantNumber;
@@ -704,6 +686,7 @@ export function useCollectionMutations() {
 
   const removeMany = useMutation({
     mutationKey: collectionMutationKey,
+    meta: { action: 'collection.remove_many' },
     mutationFn: (variantNumbers: string[]) => removeManyFromCollection(variantNumbers),
     onMutate: (variantNumbers) => {
       bumpCollectionMutationGeneration(queryClient);
@@ -747,7 +730,7 @@ export function useCollectionMutations() {
 
       return { previousAll, previousEntries, previousOwnership, previousRecentAdds };
     },
-    onError: (error, variantNumbers, context) => {
+    onError: (_error, variantNumbers, context) => {
       if (context?.previousAll !== undefined) {
         queryClient.setQueryData(collectionQueryKeys.all, context.previousAll);
       }
@@ -771,9 +754,6 @@ export function useCollectionMutations() {
         );
       }
       restoreRecentActivityQueries(queryClient, context?.previousRecentAdds);
-      logMutationFailure('collection.remove_many', error, {
-        count: variantNumbers.length,
-      });
     },
     onSettled: (_data, error, variantNumbers) => {
       reconcileCollectionEntries(queryClient, variantNumbers, error);

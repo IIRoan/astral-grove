@@ -64,6 +64,7 @@ export function useCollectionShareMutations() {
 
   const createInvite = useMutation({
     mutationFn: createCollectionShareInvite,
+    meta: { action: 'collection.share.create_invite' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: collectionQueryKeys.share });
     },
@@ -71,6 +72,7 @@ export function useCollectionShareMutations() {
 
   const revokeInvite = useMutation({
     mutationFn: revokeCollectionShareInvite,
+    meta: { action: 'collection.share.revoke_invite' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: collectionQueryKeys.share });
     },
@@ -79,6 +81,7 @@ export function useCollectionShareMutations() {
   const acceptInvite = useMutation({
     mutationFn: (input: { token: string; mode: CollectionShareAcceptMode }) =>
       acceptCollectionShareInvite(input.token, input.mode),
+    meta: { action: 'collection.share.accept_invite' },
     onSuccess: () => {
       invalidateCollectionAndShare(queryClient);
     },
@@ -86,6 +89,7 @@ export function useCollectionShareMutations() {
 
   const leave = useMutation({
     mutationFn: leaveCollectionShare,
+    meta: { action: 'collection.share.leave' },
     onSuccess: () => {
       invalidateCollectionAndShare(queryClient);
     },

@@ -3,7 +3,7 @@ import { QueryClient } from '@tanstack/react-query';
 
 mock.module('react-native', () => ({
   AppState: {
-    addEventListener: () => ({ remove: () => {} }),
+    addEventListener: () => ({ remove: () => { } }),
   },
   Platform: { OS: 'ios' },
 }));
@@ -12,6 +12,8 @@ const {
   createQueryClient,
   invalidateCatalogQueries,
   invalidateUserDataQueries,
+  mutationLogAction,
+  mutationLogContext,
   removeUserDataQueries,
 } = await import('@/src/api/queryClient');
 import {
@@ -28,6 +30,69 @@ describe('createQueryClient', () => {
     expect(defaults?.refetchOnWindowFocus).toBe(true);
     expect(defaults?.refetchOnReconnect).toBe(true);
     expect(defaults?.staleTime).toBe(60_000);
+  });
+
+  test('logs mutation failures with action meta and compact context', async () => {
+    const logged: unknown[][] = [];
+    const originalError = console.error;
+    console.error = ((...args: unknown[]) => {
+      logged.push(args);
+    }) as typeof console.error;
+
+    try {
+      const client = createQueryClient();
+      const error = new Error("Property 'crypto' doesn't exist");
+      const mutation = client.getMutationCache().build(client, {
+        mutationKey: ['collection', 'mutation'],
+        meta: { action: 'collection.add_detail' },
+        mutationFn: async () => {
+          throw error;
+        },
+      });
+
+      await expect(
+        mutation.execute({
+          variantNumber: 'UNL-205',
+          card: { name: 'Abandoned Hall' },
+        })
+      ).rejects.toBe(error);
+
+      expect(logged).toHaveLength(1);
+      expect(logged[0]?.[1]).toBe(error);
+      expect(String(logged[0]?.[0])).toContain('"action":"collection.add_detail"');
+      expect(String(logged[0]?.[0])).toContain('"variantNumber":"UNL-205"');
+      expect(String(logged[0]?.[0])).toContain('"cardName":"Abandoned Hall"');
+    } finally {
+      console.error = originalError;
+    }
+  });
+});
+
+describe('mutationLogAction', () => {
+  test('prefers meta.action then the mutation key', () => {
+    expect(
+      mutationLogAction(['collection', 'mutation'], { action: 'collection.add' })
+    ).toBe('collection.add');
+    expect(mutationLogAction(['wishlist'], undefined)).toBe('wishlist');
+    expect(mutationLogAction(undefined, undefined)).toBe('mutation');
+  });
+});
+
+describe('mutationLogContext', () => {
+  test('keeps compact fields from mutation variables', () => {
+    expect(
+      mutationLogContext({
+        variantNumber: 'UNL-205',
+        card: { name: 'Abandoned Hall' },
+        delta: -1,
+      })
+    ).toEqual({
+      variantNumber: 'UNL-205',
+      cardName: 'Abandoned Hall',
+      delta: -1,
+    });
+    expect(mutationLogContext('OGN-001')).toEqual({ id: 'OGN-001' });
+    expect(mutationLogContext(['OGN-001', 'OGN-002'])).toEqual({ count: 2 });
   });
 });
 

@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { logActionFailure } from '@/lib/logger';
 import {
   clearCollectionDevOnly,
   exportCollectionToFile,
@@ -29,6 +28,7 @@ export function useCollectionImportExport() {
       pickAndImportCollectionCsv((progress) => {
         setImportProgress(progress);
       }),
+    meta: { action: 'collection.import_csv' },
     onMutate: () => {
       setImportProgress({
         phase: 'reading',
@@ -43,25 +43,18 @@ export function useCollectionImportExport() {
     onSuccess: () => {
       invalidate();
     },
-    onError: (error) => {
-      logActionFailure('collection.import_csv', error);
-    },
   });
 
   const exportCsv = useMutation({
     mutationFn: exportCollectionToFile,
-    onError: (error) => {
-      logActionFailure('collection.export_csv', error);
-    },
+    meta: { action: 'collection.export_csv' },
   });
 
   const clearCollection = useMutation({
     mutationFn: clearCollectionDevOnly,
+    meta: { action: 'collection.clear' },
     onSuccess: () => {
       invalidate();
-    },
-    onError: (error) => {
-      logActionFailure('collection.clear', error);
     },
   });
 

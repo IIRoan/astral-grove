@@ -20,11 +20,13 @@ export function useWishlistMutations() {
       entry: Pick<WishlistEntry, 'variantNumber' | 'name'> &
         Partial<Pick<WishlistEntry, 'imageUrl' | 'targetPriceCents'>>
     ) => addToWishlist(entry),
+    meta: { action: 'wishlist.add' },
     onSuccess: invalidateWishlist,
   });
 
   const remove = useMutation({
     mutationFn: (variantNumber: string) => removeFromWishlist(variantNumber),
+    meta: { action: 'wishlist.remove' },
     onSuccess: invalidateWishlist,
   });
 

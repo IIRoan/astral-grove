@@ -152,11 +152,13 @@ export function useDeckMutations() {
       scheduleRemoteDeckSave(deck);
       return deck;
     },
+    meta: { action: 'decks.save' },
     onSuccess: invalidate,
   });
 
   const saveDeckNow = useMutation({
     mutationFn: (deck: DeckState) => saveDeckToAccount(deck),
+    meta: { action: 'decks.save_now' },
     onSuccess: (saved) => {
       setDeckDetailCache(queryClient, saved);
       invalidate();
@@ -165,6 +167,7 @@ export function useDeckMutations() {
 
   const removeDeck = useMutation({
     mutationFn: (id: string) => deleteDeck(id),
+    meta: { action: 'decks.remove' },
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: deckQueryKeys.all });
       const previousLists = queryClient.getQueriesData<DeckState[]>({
@@ -200,6 +203,7 @@ export function useDeckMutations() {
       sourceDeckId: string;
       format: DeckFormat;
     }) => importDeckToAccount(sourceDeckId, format),
+    meta: { action: 'decks.import' },
     onSuccess: (saved) => {
       setDeckDetailCache(queryClient, saved);
       invalidate();
@@ -212,6 +216,7 @@ export function useDeckMutations() {
 
   const duplicateOwnedDeck = useMutation({
     mutationFn: (deck: DeckState) => duplicateDeck(deck),
+    meta: { action: 'decks.duplicate' },
     onSuccess: (saved) => {
       setDeckDetailCache(queryClient, saved);
       invalidate();
@@ -228,6 +233,7 @@ export function useDeckMutations() {
       description?: string;
       format?: DeckFormat;
     }) => createDeck(input?.name, input?.description, input?.format ?? 'constructed'),
+    meta: { action: 'decks.create' },
     onSuccess: invalidate,
   });
 

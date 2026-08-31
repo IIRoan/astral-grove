@@ -4,6 +4,8 @@ import {
   type CollectionActivityEvent,
   type CollectionAuditActor,
 } from '@riftbound/contracts';
+import { logIfThrows } from '@/lib/logger';
+import { randomUuid } from '@/lib/random-uuid';
 import { collectionQueryKeys } from '@/src/api/queryKeys';
 
 export type RecentActivitySnapshot = ReturnType<QueryClient['getQueriesData']>;
@@ -44,7 +46,7 @@ export function createOptimisticActivityEvent(input: {
   at?: Date;
 }): CollectionActivityEvent {
   return {
-    id: crypto.randomUUID(),
+    id: randomUuid(),
     at: (input.at ?? new Date()).toISOString(),
     action: input.delta > 0 ? 'add' : 'remove',
     quantityDelta: input.delta,
@@ -86,14 +88,20 @@ export function recordOptimisticCollectionActivity(
 ): void {
   const delta = input.nextQuantity - input.previousQuantity;
   if (delta === 0) return;
-  prependRecentActivity(
-    queryClient,
-    input.variantNumber,
-    createOptimisticActivityEvent({
-      delta,
-      quantityAfter: Math.max(0, input.nextQuantity),
-      isFoil: input.isFoil,
-      actor: input.actor,
-    })
+  logIfThrows(
+    'collection.recent_activity',
+    () => {
+      prependRecentActivity(
+        queryClient,
+        input.variantNumber,
+        createOptimisticActivityEvent({
+          delta,
+          quantityAfter: Math.max(0, input.nextQuantity),
+          isFoil: input.isFoil,
+          actor: input.actor,
+        })
+      );
+    },
+    { variantNumber: input.variantNumber }
   );
 }

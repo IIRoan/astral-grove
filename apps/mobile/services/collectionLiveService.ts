@@ -67,11 +67,20 @@ export async function subscribeCollectionLiveEvents(options: {
   }
 
   if (!res.body) {
-    throw new Error('collection.live: response body missing');
+    const error = new Error('collection.live: response body missing');
+    logActionFailure('collection.live.body', error, { platform: Platform.OS });
+    throw error;
+  }
+
+  const Decoder = globalThis.TextDecoder;
+  if (typeof Decoder !== 'function') {
+    const error = new Error('TextDecoder is not available');
+    logActionFailure('collection.live.decode', error, { platform: Platform.OS });
+    throw error;
   }
 
   const reader = res.body.getReader();
-  const decoder = new TextDecoder();
+  const decoder = new Decoder();
   let buffer = '';
 
   try {
