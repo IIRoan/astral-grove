@@ -8,6 +8,7 @@ import {
   isBottomSheetStuck,
   isCatalogDrawerBlockingTaps,
   isCatalogDrawerClosing,
+  isSheetHostCapturingTaps,
   onSheetIndexChange,
   simulateBuggyDismissBeforeParentUpdates,
   simulateDismissCycle,
@@ -79,8 +80,17 @@ describe('catalog drawer dismiss', () => {
     expect(afterDismiss?.variantNumber).toBe('OGN-001');
     expect(isCatalogDrawerClosing(afterDismiss)).toBe(true);
     expect(isCatalogDrawerBlockingTaps(afterDismiss)).toBe(false);
+    expect(
+      isSheetHostCapturingTaps({ open: afterDismiss?.open === true, sheetIndex: 0 })
+    ).toBe(false);
 
     expect(finishCatalogDrawerDismiss(afterDismiss, 1)).toBeNull();
+  });
+
+  test('portal stops capturing taps at dismiss-start while Gorhom is still at index 0', () => {
+    expect(isSheetHostCapturingTaps({ open: false, sheetIndex: 0 })).toBe(false);
+    expect(isSheetHostCapturingTaps({ open: true, sheetIndex: 0 })).toBe(true);
+    expect(isSheetHostCapturingTaps({ open: true, sheetIndex: -1 })).toBe(true);
   });
 
   test('another card can open before the previous close completion arrives', () => {

@@ -30,6 +30,7 @@ import { hapticPress } from '@/utils/haptics';
 import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { cn } from '@/lib/utils';
+import { logDrawer } from '@/lib/drawer-debug';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const LIST_THUMB_W = 56;
@@ -115,6 +116,15 @@ function CardTileInner({
 
   const onOpenCard = useCallback(() => {
     Keyboard.dismiss();
+    const path = onSelectVariant ? 'onSelectVariant' : onPress ? 'onPress' : 'openCard';
+    logDrawer('tile.press', {
+      variantNumber: card.variantNumber,
+      path,
+      selected,
+      isMobile,
+      mode: _mode,
+      layout,
+    });
     if (onSelectVariant) {
       void hapticPress();
       onSelectVariant(card.variantNumber);
@@ -127,7 +137,17 @@ function CardTileInner({
     }
     void hapticPress();
     openCard(router, card.variantNumber, 'modal', undefined, queryClient);
-  }, [router, queryClient, card.variantNumber, onSelectVariant, onPress]);
+  }, [
+    router,
+    queryClient,
+    card.variantNumber,
+    onSelectVariant,
+    onPress,
+    selected,
+    isMobile,
+    _mode,
+    layout,
+  ]);
 
   const onAdd = useCallback(
     (selectionId?: string) => {

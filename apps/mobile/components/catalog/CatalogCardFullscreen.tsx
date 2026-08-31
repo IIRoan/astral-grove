@@ -1,8 +1,10 @@
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Pressable as GesturePressable } from 'react-native-gesture-handler';
+import { useLayoutEffect, useRef } from 'react';
+import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { CardArtImage } from '@/components/cards/CardArtImage';
 import { Portal, PortalOverlay } from '@/components/ui/portal';
 import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
+import { logDrawer } from '@/lib/drawer-debug';
+import { suppressSheetDismiss } from '@/lib/sheet-dismiss-guard';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +22,17 @@ export function CatalogCardFullscreen({
   onClose,
 }: CatalogCardFullscreenProps) {
   const { height: windowHeight } = useWindowDimensions();
+  const wasVisibleRef = useRef(false);
+
+  useLayoutEffect(() => {
+    if (visible) {
+      logDrawer('fullscreen.open', { platform: Platform.OS });
+    } else if (wasVisibleRef.current) {
+      logDrawer('fullscreen.close', { platform: Platform.OS });
+      suppressSheetDismiss();
+    }
+    wasVisibleRef.current = visible;
+  }, [visible]);
 
   if (!visible) return null;
 
@@ -33,9 +46,12 @@ export function CatalogCardFullscreen({
           style={[StyleSheet.absoluteFill, { zIndex: 1000 }]}
           className="items-center justify-center bg-black/85"
         >
-          <GesturePressable
+          <Pressable
             style={StyleSheet.absoluteFill}
-            onPress={onClose}
+            onPress={() => {
+              logDrawer('fullscreen.dismiss', { platform: Platform.OS });
+              onClose();
+            }}
             accessibilityRole="button"
             accessibilityLabel="Close full size card"
           />

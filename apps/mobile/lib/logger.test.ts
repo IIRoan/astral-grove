@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { logActionFailure, logIfThrows, wasActionFailureLogged } from '@/lib/logger';
+import {
+  logActionFailure,
+  logIfThrows,
+  logInfo,
+  wasActionFailureLogged,
+} from '@/lib/logger';
 
 describe('logActionFailure', () => {
   const originalError = console.error;
@@ -51,5 +56,27 @@ describe('logActionFailure', () => {
     logActionFailure('api.fetch', error);
     expect(wasActionFailureLogged(error)).toBe(true);
     expect(wasActionFailureLogged(new Error('fresh'))).toBe(false);
+  });
+});
+
+describe('logInfo', () => {
+  const originalLog = console.log;
+
+  afterEach(() => {
+    console.log = originalLog;
+  });
+
+  test('emits a structured info line', () => {
+    const lines: string[] = [];
+    console.log = ((line: string) => {
+      lines.push(line);
+    }) as typeof console.log;
+
+    logInfo('drawer.host.select', { variantNumber: 'OGN-001' });
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('"level":"info"');
+    expect(lines[0]).toContain('"event":"drawer.host.select"');
+    expect(lines[0]).toContain('"variantNumber":"OGN-001"');
   });
 });

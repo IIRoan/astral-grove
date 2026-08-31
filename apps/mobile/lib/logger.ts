@@ -48,6 +48,10 @@ export function wasActionFailureLogged(error: unknown): boolean {
   return typeof error === 'object' && error !== null && LOGGED_FAILURE in error;
 }
 
+export function logInfo(event: string, fields?: LogFields): void {
+  write('info', event, fields);
+}
+
 /** Structured log for failed user actions (collection, wishlist, import, etc.). */
 export function logActionFailure(
   action: string,

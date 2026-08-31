@@ -10,6 +10,7 @@ import {
 import {
   InteractionManager,
   Keyboard,
+  Platform,
   useWindowDimensions,
   View,
   type NativeScrollEvent,
@@ -89,6 +90,7 @@ import {
   finishCatalogDrawerDismiss,
   type CatalogDrawerPresentation,
 } from '@/lib/bottom-sheet-lifecycle';
+import { logDrawer, snapshotPresentation, watchDrawerOpen } from '@/lib/drawer-debug';
 
 export function useSearchScreenBody(): React.ReactElement {
   const { defaultLayout: view } = useTheme();
@@ -117,6 +119,7 @@ export function useSearchScreenBody(): React.ReactElement {
   const [drawerPresentation, setDrawerPresentation] =
     useState<CatalogDrawerPresentation | null>(null);
   const nextDrawerSessionIdRef = useRef(0);
+  const drawerPresentationRef = useLatestRef(drawerPresentation);
   const queryClient = useQueryClient();
   const catalogListRef = useRef<FlashListRef<CardListItem>>(null);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 20 }).current;
@@ -318,6 +321,34 @@ export function useSearchScreenBody(): React.ReactElement {
   );
 
   useEffect(() => {
+    logDrawer('host.render', {
+      platform: Platform.OS,
+      isMobile,
+      splitLayout,
+      drawerHostMounted: Boolean(!splitLayout && drawerPresentation && drawerVariant),
+      drawerVariant,
+      selectedVariant,
+      ...snapshotPresentation(drawerPresentation),
+    });
+  }, [drawerPresentation, drawerVariant, isMobile, selectedVariant, splitLayout]);
+
+  useEffect(() => {
+    if (!drawerPresentation?.open) return;
+    return watchDrawerOpen({ watch: 'catalog-host' }, () => ({
+      platform: Platform.OS,
+      isMobile,
+      splitLayout,
+      ...snapshotPresentation(drawerPresentationRef.current),
+    }));
+  }, [
+    drawerPresentation?.open,
+    drawerPresentation?.sessionId,
+    drawerPresentationRef,
+    isMobile,
+    splitLayout,
+  ]);
+
+  useEffect(() => {
     if (displayItems.length === 0) return;
 
     let added = false;
@@ -371,9 +402,20 @@ export function useSearchScreenBody(): React.ReactElement {
 
   const handleSelectCard = useCallback(
     (variantNumber: string) => {
+      const previous = drawerPresentationRef.current;
       const item = displayItemsRef.current.find((card) =>
         cardListItemMatchesVariant(card, variantNumber)
       );
+      logDrawer('host.select', {
+        platform: Platform.OS,
+        isMobile,
+        splitLayout,
+        hasListItem: item != null,
+        nextSessionId: nextDrawerSessionIdRef.current + (splitLayout ? 0 : 1),
+        sameVariant: previous?.variantNumber === variantNumber,
+        ...snapshotPresentation(previous),
+        variantNumber,
+      });
       if (item) {
         prefetchCardDetail(queryClient, item);
       }
@@ -381,13 +423,26 @@ export function useSearchScreenBody(): React.ReactElement {
       ensureCardDetail(queryClient, variantNumber);
       if (!splitLayout) {
         nextDrawerSessionIdRef.current += 1;
-        setDrawerPresentation(
-          createCatalogDrawerPresentation(nextDrawerSessionIdRef.current, variantNumber)
+        const next = createCatalogDrawerPresentation(
+          nextDrawerSessionIdRef.current,
+          variantNumber
         );
+        logDrawer('host.present', {
+          platform: Platform.OS,
+          replacingSessionId: previous?.sessionId ?? null,
+          ...snapshotPresentation(next),
+        });
+        setDrawerPresentation(next);
+      } else {
+        logDrawer('host.skip-drawer', {
+          platform: Platform.OS,
+          reason: 'split-layout',
+          variantNumber,
+        });
       }
       setSelectedVariant(variantNumber);
     },
-    [queryClient, displayItemsRef, splitLayout]
+    [queryClient, displayItemsRef, drawerPresentationRef, isMobile, splitLayout]
   );
 
   const onViewableItemsChanged = useCallback(
@@ -827,12 +882,22 @@ export function useSearchScreenBody(): React.ReactElement {
           open={drawerPresentation.open}
           onClose={() => {
             const dismissedSessionId = drawerPresentation.sessionId;
+            logDrawer('host.close', {
+              platform: Platform.OS,
+              dismissedSessionId,
+              ...snapshotPresentation(drawerPresentation),
+            });
             setDrawerPresentation((current) =>
               beginCatalogDrawerDismiss(current, dismissedSessionId)
             );
           }}
           onDismissed={() => {
             const dismissedSessionId = drawerPresentation.sessionId;
+            logDrawer('host.dismissed', {
+              platform: Platform.OS,
+              dismissedSessionId,
+              ...snapshotPresentation(drawerPresentation),
+            });
             setDrawerPresentation((current) =>
               finishCatalogDrawerDismiss(current, dismissedSessionId)
             );

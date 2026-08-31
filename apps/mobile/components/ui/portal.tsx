@@ -1,6 +1,7 @@
 import { useLayoutEffect, useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 import { FullWindowOverlay } from 'react-native-screens';
+import { logDrawer } from '@/lib/drawer-debug';
 import {
   shouldMountFullWindowOverlay,
   useInAppBrowserOverlaySuspended,
@@ -26,12 +27,20 @@ type PortalListener = () => void;
 
 export function PortalOverlay({ children }: { children: React.ReactNode }) {
   const inAppBrowserOpen = useInAppBrowserOverlaySuspended();
-  if (
-    shouldMountFullWindowOverlay({
+  const useFullWindow = shouldMountFullWindowOverlay({
+    platform: Platform.OS,
+    inAppBrowserOpen,
+  });
+
+  useLayoutEffect(() => {
+    logDrawer('portal.overlay', {
       platform: Platform.OS,
       inAppBrowserOpen,
-    })
-  ) {
+      fullWindowOverlay: useFullWindow,
+    });
+  }, [inAppBrowserOpen, useFullWindow]);
+
+  if (useFullWindow) {
     return <FullWindowOverlay>{children}</FullWindowOverlay>;
   }
   return <>{children}</>;
@@ -86,6 +95,18 @@ let portalMap: PortalHostMap = new Map<string, PortalMap>().set(
 
 const listeners = new Set<PortalListener>();
 
+function getPortalHostSnapshot(): Array<{
+  hostName: string;
+  names: string[];
+  size: number;
+}> {
+  return Array.from(portalMap.entries()).map(([hostName, portal]) => ({
+    hostName,
+    names: Array.from(portal.keys()),
+    size: portal.size,
+  }));
+}
+
 const notifyListeners = () => {
   for (const listener of listeners) {
     listener();
@@ -93,6 +114,7 @@ const notifyListeners = () => {
 };
 
 const updatePortal = (hostName: string, name: string, content: React.ReactNode) => {
+  const existed = portalMap.get(hostName)?.has(name) === true;
   const next = new Map(portalMap);
   const portal = next.get(hostName) ?? new Map<string, React.ReactNode>();
   const updatedPortal = new Map(portal);
@@ -100,12 +122,21 @@ const updatePortal = (hostName: string, name: string, content: React.ReactNode) 
   next.set(hostName, updatedPortal);
   portalMap = next;
   notifyListeners();
+  if (!existed) {
+    logDrawer('portal.attach', {
+      hostName,
+      name,
+      platform: Platform.OS,
+      hosts: getPortalHostSnapshot(),
+    });
+  }
 };
 
 const removePortal = (hostName: string, name: string) => {
   const next = new Map(portalMap);
   const portal = next.get(hostName);
   if (portal) {
+    const existed = portal.has(name);
     const updatedPortal = new Map(portal);
     updatedPortal.delete(name);
     if (updatedPortal.size === 0) {
@@ -115,5 +146,13 @@ const removePortal = (hostName: string, name: string) => {
     }
     portalMap = next;
     notifyListeners();
+    if (existed) {
+      logDrawer('portal.detach', {
+        hostName,
+        name,
+        platform: Platform.OS,
+        hosts: getPortalHostSnapshot(),
+      });
+    }
   }
 };

@@ -85,6 +85,14 @@ export function isCatalogDrawerBlockingTaps(
   return presentation?.open === true;
 }
 
+/** Portal hit-testing follows dismiss-start (`open`), not Gorhom's still-visible index. */
+export function isSheetHostCapturingTaps(state: {
+  open: boolean;
+  sheetIndex: number;
+}): boolean {
+  return state.open;
+}
+
 export function isCatalogDrawerClosing(
   presentation: CatalogDrawerPresentation | null
 ): boolean {

@@ -4,6 +4,7 @@ import {
   useId,
   useMemo,
   useRef,
+  useState,
   type ComponentProps,
   type ComponentType,
 } from 'react';
@@ -27,7 +28,15 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, PortalOverlay } from '@/components/ui/portal';
 import { useTheme } from '@/context/ThemeContext';
+import { useLatestRef } from '@/hooks/useLatestRef';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { isSheetHostCapturingTaps } from '@/lib/bottom-sheet-lifecycle';
+import {
+  isSheetDismissSuppressed,
+  SHEET_CLOSE_FALLBACK_MS,
+  shouldIgnoreSpuriousSheetDismiss,
+} from '@/lib/sheet-dismiss-guard';
+import { logDrawer, watchDrawerOpen } from '@/lib/drawer-debug';
 import { OVERLAY, SHEET_REDUCED, SHEET_SPRING } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
@@ -63,8 +72,30 @@ export function CardDetailDrawer({
   const { actualTheme } = useTheme();
   const isDark = actualTheme === 'dark';
   const dismissingRef = useRef(false);
+  const sheetRef = useRef<GorhomBottomSheet>(null);
+  const onCloseRef = useLatestRef(onClose);
+  const onDismissedRef = useLatestRef(onDismissed);
   const portalId = useId();
   const animatedIndex = useSharedValue(-1);
+  const [sheetIndex, setSheetIndex] = useState(isOpen ? 0 : -1);
+  const sheetIndexRef = useLatestRef(sheetIndex);
+  const capturingTaps = isSheetHostCapturingTaps({ open: isOpen, sheetIndex });
+  const wasOpenRef = useRef(isOpen);
+  const source = isControlled ? 'catalog-session' : 'card-route';
+
+  const liveDebug = useCallback(
+    () => ({
+      portalId,
+      platform: Platform.OS,
+      isOpen,
+      isControlled,
+      sheetIndex,
+      capturingTaps,
+      source,
+      dismissing: dismissingRef.current,
+    }),
+    [capturingTaps, isControlled, isOpen, portalId, sheetIndex]
+  );
 
   const snapPoints = useMemo(
     () => [`${Math.round(CARD_DETAIL_SNAP_RATIO * 100)}%`],
@@ -76,20 +107,104 @@ export function CardDetailDrawer({
   const backdropOpacity = isDark ? OVERLAY.backdropCard : OVERLAY.backdropLight;
   const animationConfigs = reduceMotion ? SHEET_REDUCED : SHEET_SPRING;
 
-  const commitDismiss = useCallback(() => {
-    if (dismissingRef.current) return;
-    dismissingRef.current = true;
-    onClose();
-  }, [onClose]);
+  const commitDismiss = useCallback(
+    (reason: string) => {
+      logDrawer('sheet.dismiss.commit', {
+        reason,
+        alreadyDismissing: dismissingRef.current,
+        ...liveDebug(),
+      });
+      if (dismissingRef.current) return;
+      dismissingRef.current = true;
+      onCloseRef.current();
+    },
+    [liveDebug, onCloseRef]
+  );
+
+  const commitDismissRef = useLatestRef(commitDismiss);
+
+  const restoreAfterSpuriousClose = useCallback(
+    (reason: string): boolean => {
+      if (
+        !shouldIgnoreSpuriousSheetDismiss({
+          suppressed: isSheetDismissSuppressed(),
+          alreadyDismissing: dismissingRef.current,
+        })
+      ) {
+        return false;
+      }
+      logDrawer('sheet.dismiss.ignored', { reason, ...liveDebug() });
+      sheetRef.current?.snapToIndex(0);
+      return true;
+    },
+    [liveDebug]
+  );
+
+  useEffect(() => {
+    logDrawer('sheet.mount', {
+      portalId,
+      platform: Platform.OS,
+      isControlled,
+      source,
+    });
+    return () => {
+      logDrawer('sheet.unmount', {
+        portalId,
+        platform: Platform.OS,
+        dismissing: dismissingRef.current,
+      });
+    };
+  }, [isControlled, portalId, source]);
+
+  useEffect(() => {
+    logDrawer('sheet.interactive', {
+      pointerEvents: capturingTaps ? 'box-none' : 'none',
+      backdropPointerEvents: capturingTaps ? 'auto' : 'none',
+      ...liveDebug(),
+    });
+  }, [capturingTaps, liveDebug]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    return watchDrawerOpen({ watch: 'sheet' }, liveDebug);
+  }, [isOpen, liveDebug]);
+
+  useEffect(() => {
+    if (isOpen) {
+      wasOpenRef.current = true;
+      return;
+    }
+    if (!wasOpenRef.current) return;
+    logDrawer('sheet.open.false', {
+      portalId,
+      platform: Platform.OS,
+      dismissing: dismissingRef.current,
+    });
+    logDrawer('sheet.force-close', {
+      portalId,
+      platform: Platform.OS,
+    });
+    sheetRef.current?.close();
+    const timeout = setTimeout(() => {
+      logDrawer('sheet.close.timeout', {
+        portalId,
+        platform: Platform.OS,
+        sheetIndex: sheetIndexRef.current,
+      });
+      if (sheetIndexRef.current < 0) return;
+      onDismissedRef.current?.();
+    }, SHEET_CLOSE_FALLBACK_MS);
+    return () => clearTimeout(timeout);
+  }, [isOpen, onDismissedRef, portalId, sheetIndexRef]);
 
   useEffect(() => {
     if (Platform.OS === 'web' || !isOpen) return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      commitDismiss();
+      commitDismissRef.current('hardware-back');
       return true;
     });
     return () => subscription.remove();
-  }, [commitDismiss, isOpen]);
+  }, [commitDismissRef, isOpen]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
@@ -101,9 +216,15 @@ export function CardDetailDrawer({
   }));
 
   const handleSheetClosed = useCallback(() => {
-    commitDismiss();
-    onDismissed?.();
-  }, [commitDismiss, onDismissed]);
+    logDrawer('sheet.gorhom.close', liveDebug());
+    if (restoreAfterSpuriousClose('gorhom-onClose')) return;
+    commitDismiss('gorhom-onClose');
+    logDrawer('sheet.dismissed.callback', {
+      hasOnDismissed: onDismissed != null,
+      ...liveDebug(),
+    });
+    onDismissedRef.current?.();
+  }, [commitDismiss, liveDebug, onDismissed, onDismissedRef, restoreAfterSpuriousClose]);
 
   const renderBackground = useCallback(
     (props: BottomSheetBackgroundProps) => (
@@ -148,12 +269,24 @@ export function CardDetailDrawer({
         accessibilityLabel="Close card detail"
         accessibilityRole="button"
         className="absolute inset-0 bg-black"
-        disabled={!isOpen}
-        onPress={commitDismiss}
-        pointerEvents={isOpen ? 'auto' : 'none'}
+        disabled={!capturingTaps}
+        onPress={() => {
+          if (
+            shouldIgnoreSpuriousSheetDismiss({
+              suppressed: isSheetDismissSuppressed(),
+              alreadyDismissing: dismissingRef.current,
+            })
+          ) {
+            logDrawer('sheet.backdrop.ignored', liveDebug());
+            return;
+          }
+          commitDismiss('backdrop');
+        }}
+        pointerEvents={capturingTaps ? 'auto' : 'none'}
         style={backdropStyle}
       />
       <GorhomBottomSheet
+        ref={sheetRef}
         index={isControlled ? (isOpen ? 0 : -1) : 0}
         snapPoints={snapPoints}
         topInset={topInset}
@@ -168,8 +301,20 @@ export function CardDetailDrawer({
         activeOffsetY={PAN_ACTIVE_OFFSET_Y}
         backgroundComponent={renderBackground}
         handleComponent={renderHandle}
-        onAnimate={(_from, to) => {
-          if (to === -1) commitDismiss();
+        onAnimate={(fromIndex, toIndex) => {
+          logDrawer('sheet.animate', {
+            fromIndex,
+            toIndex,
+            closingToHidden: toIndex === -1,
+            ...liveDebug(),
+          });
+          if (toIndex !== -1) return;
+          if (restoreAfterSpuriousClose('gorhom-onAnimate')) return;
+          commitDismiss('gorhom-onAnimate');
+        }}
+        onChange={(index) => {
+          logDrawer('sheet.change', { index, ...liveDebug() });
+          setSheetIndex(index);
         }}
         onClose={handleSheetClosed}
       >
@@ -193,11 +338,11 @@ export function CardDetailDrawer({
     <Portal name={`card-detail-drawer-${portalId}`}>
       <PortalOverlay>
         <View
-          accessibilityViewIsModal={isOpen}
+          accessibilityViewIsModal={capturingTaps}
           className={
             Platform.OS === 'web' ? 'fixed inset-0 z-[200]' : 'absolute inset-0'
           }
-          pointerEvents={isOpen ? 'box-none' : 'none'}
+          pointerEvents={capturingTaps ? 'box-none' : 'none'}
         >
           {sheet}
         </View>
