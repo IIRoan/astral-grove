@@ -12,6 +12,7 @@ import {
   resolveAppUpdateAction,
   resolveAppUpdatePhase,
   type AppUpdatePhase,
+  type UpdateCheckResult,
 } from '@/lib/app-update';
 
 type AppUpdateValue = {
@@ -22,7 +23,7 @@ type AppUpdateValue = {
   channel: string | null;
   downloadProgress: number | undefined;
   errorMessage: string | null;
-  check: () => Promise<void>;
+  check: () => Promise<UpdateCheckResult>;
   install: () => Promise<void>;
   restart: () => Promise<void>;
   dismiss: () => void;
@@ -55,12 +56,19 @@ export function AppUpdateProvider({ children }: { children: React.ReactNode }) {
   const phase = resolveAppUpdatePhase(snapshot);
   const action = resolveAppUpdateAction(snapshot);
 
-  const check = useCallback(async () => {
-    if (!enabled) return;
+  const check = useCallback(async (): Promise<UpdateCheckResult> => {
+    if (!enabled) return { status: 'disabled' };
     try {
-      await Updates.checkForUpdateAsync();
-    } catch {
-      // Check failures stay silent — do not block the catalog behind a full-screen error.
+      const result = await Updates.checkForUpdateAsync();
+      if (result.isAvailable) {
+        setDismissed(false);
+        return { status: 'available' };
+      }
+      return { status: 'up-to-date' };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Could not check for updates';
+      return { status: 'error', message };
     }
   }, [enabled]);
 

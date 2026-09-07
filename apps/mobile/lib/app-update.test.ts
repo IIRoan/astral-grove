@@ -5,6 +5,7 @@ import {
   formatUpdateId,
   resolveAppUpdateAction,
   resolveAppUpdatePhase,
+  toastCopyForUpdateCheck,
   type AppUpdateSnapshot,
 } from '@/lib/app-update';
 
@@ -98,5 +99,28 @@ describe('update labels', () => {
     expect(formatUpdateId('short')).toBe('short');
     expect(formatDownloadPercent(0.42)).toBe(42);
     expect(formatDownloadPercent(undefined)).toBe(0);
+  });
+});
+
+describe('toastCopyForUpdateCheck', () => {
+  test('maps check results to toaster copy', () => {
+    expect(toastCopyForUpdateCheck({ status: 'disabled' })).toEqual({
+      type: 'message',
+      text: 'Updates are off in this build',
+    });
+    expect(toastCopyForUpdateCheck({ status: 'available' })).toEqual({
+      type: 'success',
+      text: 'Update available',
+    });
+    expect(toastCopyForUpdateCheck({ status: 'up-to-date' })).toEqual({
+      type: 'message',
+      text: 'No update available',
+    });
+    expect(
+      toastCopyForUpdateCheck({ status: 'error', message: 'network down' })
+    ).toEqual({
+      type: 'error',
+      text: 'network down',
+    });
   });
 });

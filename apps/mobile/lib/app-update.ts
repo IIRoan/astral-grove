@@ -1,5 +1,10 @@
 export type AppUpdatePhase =
-  'idle' | 'available' | 'downloading' | 'ready' | 'restarting' | 'error';
+  | 'idle'
+  | 'available'
+  | 'downloading'
+  | 'ready'
+  | 'restarting'
+  | 'error';
 
 export type AppUpdateSnapshot = {
   enabled: boolean;
@@ -10,6 +15,12 @@ export type AppUpdateSnapshot = {
   downloadError: boolean;
   dismissed: boolean;
 };
+
+export type UpdateCheckResult =
+  | { status: 'disabled' }
+  | { status: 'available' }
+  | { status: 'up-to-date' }
+  | { status: 'error'; message: string };
 
 export function resolveAppUpdatePhase(snapshot: AppUpdateSnapshot): AppUpdatePhase {
   if (!snapshot.enabled) return 'idle';
@@ -40,4 +51,23 @@ export function formatUpdateId(id: string | null | undefined): string {
 export function formatDownloadPercent(progress: number | undefined): number {
   if (progress === undefined || Number.isNaN(progress)) return 0;
   return Math.max(0, Math.min(100, Math.round(progress * 100)));
+}
+
+export function toastCopyForUpdateCheck(result: UpdateCheckResult): {
+  type: 'success' | 'error' | 'message';
+  text: string;
+} {
+  switch (result.status) {
+    case 'disabled':
+      return { type: 'message', text: 'Updates are off in this build' };
+    case 'available':
+      return { type: 'success', text: 'Update available' };
+    case 'up-to-date':
+      return { type: 'message', text: 'No update available' };
+    case 'error':
+      return {
+        type: 'error',
+        text: result.message.trim() || 'Could not check for updates',
+      };
+  }
 }
