@@ -21,6 +21,7 @@ import { AppUpdateProvider } from '@/hooks/useAppUpdate';
 import { useAppBootstrap } from '@/hooks/useAppBootstrap';
 import { useAppFonts } from '@/hooks/useAppFonts';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { initSentry, Sentry } from '@/lib/sentry';
 import { createQueryClient } from '@/src/api/queryClient';
 import {
   createQueryPersister,
@@ -29,6 +30,7 @@ import {
 } from '@/src/api/queryPersist';
 import { hydrateSecureStorage } from '@/src/lib/secure-storage';
 
+initSentry();
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 const queryClient = createQueryClient();
@@ -63,6 +65,19 @@ function RootNav() {
     if (bootReady) {
       void SplashScreen.hideAsync();
     }
+  }, [bootReady]);
+
+  useEffect(() => {
+    if (!bootReady || Platform.OS !== 'web' || typeof window === 'undefined') {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('sentry_test') !== '1') {
+      return;
+    }
+    Sentry.captureException(
+      new Error(`astral-grove errex test ${new Date().toISOString()}`)
+    );
   }, [bootReady]);
 
   if (!bootReady) {
@@ -137,7 +152,7 @@ function RootNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <PersistQueryClientProvider
@@ -164,3 +179,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);

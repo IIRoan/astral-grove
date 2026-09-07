@@ -43,7 +43,8 @@
         }
       ],
       "expo-web-browser",
-      "expo-updates"
+      "expo-updates",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,

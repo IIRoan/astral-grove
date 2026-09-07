@@ -71,6 +71,7 @@ export default defineRailway(() => {
     domains: [{ domain: 'rift.solace.onl', port: 8080 }],
     env: {
       EXPO_PUBLIC_API_URL: preserve(),
+      EXPO_PUBLIC_SENTRY_DSN: preserve(),
       RAILPACK_BUN_VERSION: '1.4.2',
       RAILPACK_CONFIG_FILE: preserve(),
       RAILPACK_SPA_OUTPUT_DIR: preserve(),
