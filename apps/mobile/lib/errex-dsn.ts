@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+
 // Official Sentry SDKs need a numeric project id; errex uses a string name + tunnel.
 export function parseErrexDsn(raw: string): {
   key: string;
@@ -26,6 +28,18 @@ export type ErrexSentryOptions = {
   tracesSampleRate: number;
 };
 
+function resolveEnvironment(): string {
+  const fromExtra = (
+    Constants.expoConfig?.extra as { appVariant?: string } | undefined
+  )?.appVariant?.trim();
+  if (fromExtra) return fromExtra;
+  const fromEnv = process.env.APP_VARIANT?.trim();
+  if (fromEnv) return fromEnv;
+  const isDev =
+    typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
+  return isDev ? 'development' : 'production';
+}
+
 export function getSentryOptions(
   rawDsn = process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() ?? ''
 ): ErrexSentryOptions | null {
@@ -39,13 +53,11 @@ export function getSentryOptions(
   }
 
   const { key, host, project } = parsed;
-  const isDev =
-    typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
 
   return {
     dsn: `https://${key}@${host}/1`,
     tunnel: `https://${host}/api/${encodeURIComponent(project)}/envelope/?sentry_key=${encodeURIComponent(key)}`,
-    environment: process.env.APP_VARIANT ?? (isDev ? 'development' : 'production'),
+    environment: resolveEnvironment(),
     sendDefaultPii: false,
     tracesSampleRate: 0,
   };

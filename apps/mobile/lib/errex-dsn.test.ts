@@ -1,5 +1,14 @@
-import { afterEach, describe, expect, test } from 'bun:test';
-import { getSentryOptions, parseErrexDsn } from './errex-dsn';
+import { afterEach, describe, expect, mock, test } from 'bun:test';
+
+mock.module('expo-constants', () => ({
+  default: {
+    expoConfig: {
+      extra: { appVariant: 'development' },
+    },
+  },
+}));
+
+const { getSentryOptions, parseErrexDsn } = await import('./errex-dsn');
 
 describe('parseErrexDsn', () => {
   test('parses key, host, and string project name', () => {
@@ -37,7 +46,6 @@ describe('getSentryOptions', () => {
   });
 
   test('uses numeric stand-in DSN and errex tunnel', () => {
-    process.env.APP_VARIANT = 'development';
     expect(
       getSentryOptions(
         'https://2f67445264104af4b151e3400f3062bb@errors.solace.onl/astral-grove'
