@@ -1,6 +1,9 @@
 {
   "$schema": "https://schema.railpack.com",
   "provider": "node",
+  "packages": {
+    "bun": "1.4.2"
+  },
   "steps": {
     "build": {
       "commands": [

@@ -143,7 +143,7 @@ bun run --cwd packages/contracts build
 
 | Tool           | Version / notes                                                       |
 | -------------- | --------------------------------------------------------------------- |
-| **Runtime**    | [Bun](https://bun.sh) 1.2.x (`packageManager` in root `package.json`) |
+| **Runtime**    | [Bun](https://bun.sh) 1.4.2 (`packageManager` in root `package.json`) |
 | **Monorepo**   | Turborepo — tasks in `turbo.json`                                     |
 | **Language**   | TypeScript **strict** everywhere                                      |
 | **Validation** | Zod 3 — shared via `@riftbound/contracts`                             |
