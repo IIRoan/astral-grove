@@ -263,6 +263,11 @@ export function AppearanceSpecimens() {
 
   return (
     <View className="gap-5">
+      <Text className="text-sm text-muted-foreground">
+        Preferences sync to your account when signed in. Phone and desktop keep their
+        own layout and card size.
+      </Text>
+
       <View className="gap-2">
         <SectionLabel className="mb-0">Theme</SectionLabel>
 
@@ -349,7 +354,7 @@ export function AppearanceSpecimens() {
       <View className="gap-2">
         <SectionLabel className="mb-0">Card size</SectionLabel>
         <Text className="text-sm text-muted-foreground">
-          Controls how many cards fit across the grid on phones and tablets.
+          Saved to your account for this device. Phone and desktop keep separate sizes.
         </Text>
 
         <View className="flex-row gap-2">

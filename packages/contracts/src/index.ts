@@ -22,3 +22,4 @@ export * from './search.js';
 export * from './search-query.js';
 export * from './variant-utils.js';
 export * from './foil.js';
+export * from './settings.js';

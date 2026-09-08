@@ -21,6 +21,7 @@ import { createWishlistRoutes } from './routes/wishlist.js';
 import { createDeckRulesRoutes } from './routes/deck-rules.js';
 import { createDecksRoutes } from './routes/decks.js';
 import { createSearchRoutes } from './routes/search.js';
+import { createSettingsRoutes } from './routes/settings.js';
 import { CardCacheService } from './services/card-cache.js';
 import { ImageStoreService } from './services/image-store.js';
 import { CatalogMetadataService } from './services/catalog-metadata.js';
@@ -31,6 +32,7 @@ import { SyncEngine } from './services/sync-engine.js';
 import { createEmbeddingService } from './services/embeddings.js';
 import { WishlistService } from './services/wishlist-service.js';
 import { DeckService } from './services/deck-service.js';
+import { UserSettingsService } from './services/user-settings-service.js';
 import { PaClient } from './upstream/pa-client.js';
 
 export interface AppContext {
@@ -47,6 +49,7 @@ export interface AppContext {
   collectionShareService: CollectionShareService;
   wishlistService: WishlistService;
   deckService: DeckService;
+  userSettingsService: UserSettingsService;
 }
 
 function buildApp(env: Env): AppContext {
@@ -63,6 +66,7 @@ function buildApp(env: Env): AppContext {
   const collectionService = new CollectionService(db, cardCache, imageStore, pa);
   const collectionShareService = new CollectionShareService(db, env.PUBLIC_APP_URL);
   const wishlistService = new WishlistService(db, imageStore);
+  const userSettingsService = new UserSettingsService(db);
   const upstreamDeckWriteExtraHeader =
     env.UPSTREAM_DECK_WRITE_EXTRA_HEADER_NAME &&
     env.UPSTREAM_DECK_WRITE_EXTRA_HEADER_VALUE
@@ -97,6 +101,7 @@ function buildApp(env: Env): AppContext {
     .use(createCollectionShareRoutes(collectionShareService, auth))
     .use(createCollectionRoutes(collectionService, auth, db))
     .use(createWishlistRoutes(wishlistService, auth))
+    .use(createSettingsRoutes(userSettingsService, auth))
     .use(createDeckRulesRoutes())
     .use(createDecksRoutes(deckService, auth))
     .use(createSyncRoutes(syncEngine, priceCache, cardCache, env))
@@ -120,6 +125,7 @@ function buildApp(env: Env): AppContext {
     collectionShareService,
     wishlistService,
     deckService,
+    userSettingsService,
   } as unknown as AppContext;
 }
 

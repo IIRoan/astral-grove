@@ -458,3 +458,21 @@ export const userDecks = pgTable(
 export const userDecksRelations = relations(userDecks, ({ one }) => ({
   user: one(user, { fields: [userDecks.userId], references: [user.id] }),
 }));
+
+/** Appearance preferences keyed by device profile so phone and desktop stay independent. */
+export const userSettings = pgTable(
+  'user_settings',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    device: text('device').notNull(),
+    settings: jsonb('settings').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.device] })]
+);
+
+export const userSettingsRelations = relations(userSettings, ({ one }) => ({
+  user: one(user, { fields: [userSettings.userId], references: [user.id] }),
+}));
