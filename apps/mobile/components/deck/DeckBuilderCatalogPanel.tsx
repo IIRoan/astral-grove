@@ -9,6 +9,7 @@ import {
   CatalogActiveFilterChips,
   CatalogFilterSheet,
 } from '@/components/catalog/FilterSheet';
+import { CatalogCollectionPillNav } from '@/components/catalog/CatalogCollectionPillNav';
 import { CatalogDesktopFilterBar } from '@/components/catalog/CatalogDesktopFilterBar';
 import { DeckCatalogGridTile } from '@/components/deck/DeckCatalogGridTile';
 import {
@@ -30,6 +31,7 @@ import { useCatalogArtLookahead } from '@/hooks/useCatalogArtLookahead';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useDeckAddCatalog } from '@/hooks/useDeckAddCatalog';
 import { useResponsiveColumns } from '@/hooks/useResponsiveColumns';
+import { CATALOG_TOOLBAR_DESKTOP_ROW_CLASS } from '@/constants/catalogToolbar';
 import { CATALOG_END_REACHED_THRESHOLD } from '@/lib/catalog-page-size';
 import {
   defaultDeckAddCatalogFilters,
@@ -411,11 +413,30 @@ function DeckBuilderCatalogBrowse({
           placeholder={searchPlaceholder}
         />
 
-        {!readOnly && !isMobile ? (
-          <CatalogDesktopFilterBar
-            filters={catalogFilters}
-            onFiltersChange={applyCatalogFilters}
+        {!readOnly && isMobile ? (
+          <CatalogCollectionPillNav
+            value={catalogFilters.collection}
+            onChange={(collection) =>
+              applyCatalogFilters({ ...catalogFilters, collection })
+            }
           />
+        ) : null}
+
+        {!readOnly && !isMobile ? (
+          <View className={CATALOG_TOOLBAR_DESKTOP_ROW_CLASS}>
+            <View className="min-w-0 flex-1">
+              <CatalogDesktopFilterBar
+                filters={catalogFilters}
+                onFiltersChange={applyCatalogFilters}
+              />
+            </View>
+            <CatalogCollectionPillNav
+              value={catalogFilters.collection}
+              onChange={(collection) =>
+                applyCatalogFilters({ ...catalogFilters, collection })
+              }
+            />
+          </View>
         ) : null}
 
         {filterActive && !isMobile ? (
