@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { Platform, Pressable, View } from 'react-native';
 import { useMemo, useState } from 'react';
-import { ThemedIcon, HashIcon, LinkIcon, ShareIcon } from '@/components/icons';
+import { ThemedIcon, CardsThreeIcon, HashIcon, LinkIcon, ShareIcon } from '@/components/icons';
 import {
   Popover,
   PopoverClose,
@@ -20,9 +20,15 @@ import type { DeckState } from '@/lib/deck-types';
 import { cn } from '@/lib/utils';
 import { hapticPress } from '@/utils/haptics';
 
+function copiedToast(format: DeckShareFormat): string {
+  if (format === 'link') return 'Deck link copied';
+  if (format === 'tts') return 'TTS list copied';
+  return 'Deck code copied';
+}
+
 async function copySharePayload(value: string, format: DeckShareFormat): Promise<void> {
   await Clipboard.setStringAsync(value);
-  toast.success(format === 'link' ? 'Deck link copied' : 'Deck code copied');
+  toast.success(copiedToast(format));
 }
 
 interface DeckShareMenuProps {
@@ -117,6 +123,18 @@ export function DeckShareMenu({
               >
                 <ThemedIcon icon={HashIcon} size={16} color="muted-foreground" />
                 <Text className="text-sm text-popover-foreground">Deck code</Text>
+              </Pressable>
+            </PopoverClose>
+
+            <PopoverClose asChild>
+              <Pressable
+                accessibilityRole="menuitem"
+                accessibilityLabel="Copy TTS list"
+                className="flex-row items-center gap-2 rounded-[3px] px-2 py-1.5 active:bg-card-panel"
+                onPress={() => handleSelect('tts')}
+              >
+                <ThemedIcon icon={CardsThreeIcon} size={16} color="muted-foreground" />
+                <Text className="text-sm text-popover-foreground">TTS</Text>
               </Pressable>
             </PopoverClose>
           </PopoverContent>

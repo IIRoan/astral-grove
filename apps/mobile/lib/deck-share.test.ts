@@ -60,4 +60,20 @@ describe('resolveDeckSharePayload', () => {
       expect(result.value).toMatch(/^[A-Z2-7]+$/i);
     }
   });
+
+  test('copies a TTS list with one token per copy', () => {
+    let deck = createEmptyDeck('TTS');
+    deck = addCardToDeck(deck, card('OGN-261', { type: 'Legend', name: 'Legend' }), {
+      section: 'legend',
+    });
+    deck = addCardToDeck(deck, card('VEN-135a', { name: 'Alt' }), {
+      section: 'mainDeck',
+      count: 3,
+    });
+    const result = resolveDeckSharePayload(deck, 'tts');
+    expect(result).toEqual({
+      ok: true,
+      value: 'OGN-261-1 VEN-135-2 VEN-135-2 VEN-135-2',
+    });
+  });
 });
