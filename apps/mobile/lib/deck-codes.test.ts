@@ -11,6 +11,7 @@ import {
   importDeckCode,
   looksLikeDeckCode,
   sortCodeCards,
+  toDeckCodeCardCode,
 } from '@/lib/deck-codes';
 import type { DeckCard } from '@/lib/deck-types';
 import golden from '@/lib/fixtures/riftbound-deck-codes-golden.json';
@@ -37,6 +38,22 @@ function card(variantNumber: string, overrides: Partial<DeckCard> = {}): DeckCar
 function mockVariantResolver(cards: Record<string, DeckCard>) {
   return (variantNumber: string) => cards[variantNumber] ?? null;
 }
+
+describe('toDeckCodeCardCode', () => {
+  test('keeps encoder-native codes', () => {
+    expect(toDeckCodeCardCode('OGN-197')).toBe('OGN-197');
+    expect(toDeckCodeCardCode('OGN-197b')).toBe('OGN-197b');
+    expect(toDeckCodeCardCode('SFD-R02')).toBe('SFD-R02');
+    expect(toDeckCodeCardCode('VEN-097')).toBe('VEN-097');
+  });
+
+  test('strips Nexus Night and foil printing suffixes', () => {
+    expect(toDeckCodeCardCode('OGN-197b-Nexus')).toBe('OGN-197b');
+    expect(toDeckCodeCardCode('OGN-128-Nexus')).toBe('OGN-128');
+    expect(toDeckCodeCardCode('OGN-128-Nexus-Foil')).toBe('OGN-128');
+    expect(toDeckCodeCardCode('OGN-001-Foil')).toBe('OGN-001');
+  });
+});
 
 describe('looksLikeDeckCode', () => {
   test('accepts known golden codes', () => {
@@ -129,6 +146,40 @@ describe('deckStateToCodePayload / exportDeckCode', () => {
     );
     expect(payload.sideboard).toEqual([{ cardCode: 'OGN-022', count: 2 }]);
     expect(payload.chosenChampion).toBe('OGN-103');
+  });
+
+  test('encodes Nexus Night champion printings without changing the deck', () => {
+    let deck = createEmptyDeck('Nexus Teemo');
+    deck = {
+      ...deck,
+      champion: card('OGN-197b-Nexus', {
+        type: 'Unit',
+        super: 'Champion',
+        name: 'Teemo, Scout',
+        setCode: 'OGN-NN',
+      }),
+    };
+    deck = addCardToDeck(deck, card('VEN-097', { name: 'Spiderling' }), {
+      section: 'mainDeck',
+      count: 14,
+    });
+    deck = addCardToDeck(deck, card('OGN-197', { name: 'Teemo, Scout' }), {
+      section: 'mainDeck',
+      count: 2,
+    });
+
+    const payload = deckStateToCodePayload(deck);
+    expect(payload.chosenChampion).toBe('OGN-197b');
+    expect(payload.mainDeck).toEqual(
+      expect.arrayContaining([
+        { cardCode: 'OGN-197b', count: 1 },
+        { cardCode: 'OGN-197', count: 2 },
+        { cardCode: 'VEN-097', count: 14 },
+      ])
+    );
+    expect(deck.champion?.variantNumber).toBe('OGN-197b-Nexus');
+    expect(() => exportDeckCode(deck)).not.toThrow();
+    expect(exportDeckCode(deck).length).toBeGreaterThan(16);
   });
 
   test("encodes the README Kai'Sa golden deck from DeckState", () => {

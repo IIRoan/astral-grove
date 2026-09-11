@@ -19,12 +19,33 @@ const DECK_CODE_CHAR = /^[A-Z2-7]+$/i;
 /** Minimum plausible encoded length (tiny v3 decks still clear this). */
 const MIN_DECK_CODE_LENGTH = 16;
 
+/**
+ * PA encoder card codes are `SET-NUMBERvariant` (variant is a/b/s/* or empty).
+ * Showcase SKUs like `OGN-197b-Nexus` or `OGN-001-Foil` must collapse to that shape.
+ */
+const DECK_CODE_CARD = /^([A-Za-z]+)-((?:R|SP)?\d+)([a-z*]?)$/i;
+
+export function toDeckCodeCardCode(variantNumber: string): string {
+  const trimmed = variantNumber.trim();
+  if (DECK_CODE_CARD.test(trimmed)) return trimmed;
+
+  let current = trimmed;
+  while (current.includes('-')) {
+    const next = current.replace(/-[^-]+$/, '');
+    if (next === current) break;
+    if (DECK_CODE_CARD.test(next)) return next;
+    current = next;
+  }
+  return trimmed;
+}
+
 function mergeCount(
   counts: Map<string, number>,
   cardCode: string,
   count: number
 ): void {
-  counts.set(cardCode, (counts.get(cardCode) ?? 0) + count);
+  const encoded = toDeckCodeCardCode(cardCode);
+  counts.set(encoded, (counts.get(encoded) ?? 0) + count);
 }
 
 function countsToDeck(counts: Map<string, number>): DeckCodeCard[] {
@@ -60,7 +81,9 @@ export function deckStateToCodePayload(deck: DeckState): {
     mergeCount(sideCounts, entry.card.variantNumber, entry.count);
   }
 
-  const chosenChampion = deck.champion?.variantNumber;
+  const chosenChampion = deck.champion
+    ? toDeckCodeCardCode(deck.champion.variantNumber)
+    : undefined;
   return {
     mainDeck: countsToDeck(mainCounts),
     sideboard: countsToDeck(sideCounts),
