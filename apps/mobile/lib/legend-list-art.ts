@@ -14,6 +14,11 @@ export type LegendListArtLayout = {
   offsetY: number;
 };
 
+/** Full Riftbound card height for a given width (5:7). */
+export function legendFullCardHeight(width: number): number {
+  return Math.round(width * CARD_HEIGHT_FOR_WIDTH);
+}
+
 export function legendListArtLayout(
   railWidth: number,
   railHeight: number

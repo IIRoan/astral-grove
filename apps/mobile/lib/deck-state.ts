@@ -21,7 +21,7 @@ export function applyDeckStateIfNewerToCache(
 
 export function setDeckDetailCache(queryClient: QueryClient, deck: DeckState): void {
   queryClient.setQueryData(deckQueryKeys.detail(deck.id), deck);
-  queryClient.setQueryData<DeckState[]>(deckQueryKeys.all, (current) => {
+  queryClient.setQueryData<DeckState[]>(deckQueryKeys.list('owned'), (current) => {
     if (!current?.length) return current;
     const index = current.findIndex((entry) => entry.id === deck.id);
     if (index < 0) return current;

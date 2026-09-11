@@ -13,7 +13,6 @@ import {
 import { Text } from '@/components/ui/text';
 import { toast } from '@/components/ui/toast.api';
 import {
-  canExportDeckCode,
   resolveDeckSharePayload,
   type DeckShareFormat,
 } from '@/lib/deck-share';
@@ -49,8 +48,6 @@ export function DeckShareMenu({
     }
     return undefined;
   }, []);
-
-  const canShareCode = useMemo(() => canExportDeckCode(deck), [deck]);
 
   const handleSelect = (format: DeckShareFormat) => {
     hapticPress();
@@ -111,30 +108,17 @@ export function DeckShareMenu({
               </Pressable>
             </PopoverClose>
 
-            {canShareCode ? (
-              <PopoverClose asChild>
-                <Pressable
-                  accessibilityRole="menuitem"
-                  accessibilityLabel="Copy deck code"
-                  className="flex-row items-center gap-2 rounded-[3px] px-2 py-1.5 active:bg-card-panel"
-                  onPress={() => handleSelect('code')}
-                >
-                  <ThemedIcon icon={HashIcon} size={16} color="muted-foreground" />
-                  <Text className="text-sm text-popover-foreground">Deck code</Text>
-                </Pressable>
-              </PopoverClose>
-            ) : (
+            <PopoverClose asChild>
               <Pressable
                 accessibilityRole="menuitem"
                 accessibilityLabel="Copy deck code"
-                accessibilityState={{ disabled: true }}
-                disabled
-                className="flex-row items-center gap-2 rounded-[3px] px-2 py-1.5 opacity-50"
+                className="flex-row items-center gap-2 rounded-[3px] px-2 py-1.5 active:bg-card-panel"
+                onPress={() => handleSelect('code')}
               >
                 <ThemedIcon icon={HashIcon} size={16} color="muted-foreground" />
-                <Text className="text-sm text-muted-foreground">Deck code</Text>
+                <Text className="text-sm text-popover-foreground">Deck code</Text>
               </Pressable>
-            )}
+            </PopoverClose>
           </PopoverContent>
         </PopoverPortal>
       </Popover>

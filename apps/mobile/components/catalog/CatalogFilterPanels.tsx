@@ -20,6 +20,7 @@ import {
 import {
   toggleCatalogFilterValue,
   type CatalogFilterPresentation,
+  type CatalogFilterUpdate,
 } from '@/components/catalog/catalogFilterPanels.shared';
 import {
   isCatalogBrowsableType,
@@ -134,8 +135,9 @@ export function CatalogFilterSegmentPanel({
     [filters.rarities]
   );
 
-  const update = (patch: Partial<CatalogFilters>) => {
-    onFiltersChange(sanitizeCatalogFilters({ ...filters, ...patch }));
+  const update = (patch: CatalogFilterUpdate) => {
+    const next = typeof patch === 'function' ? patch(filters) : { ...filters, ...patch };
+    onFiltersChange(sanitizeCatalogFilters(next));
   };
 
   const commonProps = {

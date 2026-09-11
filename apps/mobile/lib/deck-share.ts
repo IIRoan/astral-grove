@@ -18,11 +18,3 @@ export function resolveDeckSharePayload(
     return { ok: false, error: 'This deck cannot be encoded yet — check card codes.' };
   }
 }
-
-export function canExportDeckCode(deck: DeckState): boolean {
-  try {
-    return exportDeckCode(deck).length > 0;
-  } catch {
-    return false;
-  }
-}

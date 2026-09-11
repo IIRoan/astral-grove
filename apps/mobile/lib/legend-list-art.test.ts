@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   CARD_HEIGHT_FOR_WIDTH,
   LEGEND_ART_WINDOW,
+  legendFullCardHeight,
   legendListArtLayout,
 } from '@/lib/legend-list-art';
 
@@ -46,5 +47,9 @@ describe('legendListArtLayout', () => {
     const layout = legendListArtLayout(176, 160);
     expect(layout.cardWidth).toBeGreaterThan(176);
     expect(layout.offsetX).toBeLessThan(0);
+  });
+
+  test('sizes a full card rail to the printed 5:7 ratio', () => {
+    expect(legendFullCardHeight(176)).toBe(Math.round(176 * CARD_HEIGHT_FOR_WIDTH));
   });
 });

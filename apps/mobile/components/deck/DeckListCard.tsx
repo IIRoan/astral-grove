@@ -9,7 +9,6 @@ import { DeckManageMenu } from '@/components/deck/DeckManageMenu';
 import {
   DeckLegendPortrait,
   LEGEND_GRID_BANNER,
-  LEGEND_RAIL_MIN_HEIGHT_NARROW,
   LEGEND_RAIL_MIN_HEIGHT_WIDE,
   LEGEND_RAIL_NARROW,
   LEGEND_RAIL_WIDE,
@@ -31,6 +30,7 @@ import type { DeckListLayout } from '@/lib/deck-list';
 import { deckListStatus } from '@/lib/deck-list-status';
 import { computeDeckStats } from '@/lib/deck-stats';
 import type { DeckState } from '@/lib/deck-types';
+import { legendFullCardHeight } from '@/lib/legend-list-art';
 import { hapticPress } from '@/utils/haptics';
 import { cn } from '@/lib/utils';
 
@@ -122,6 +122,9 @@ function DeckListCardInner({
   const grid = layout === 'grid';
   const readOnly = deck.readOnly === true;
   const railWidth = compact ? LEGEND_RAIL_NARROW : LEGEND_RAIL_WIDE;
+  const railHeight = compact
+    ? legendFullCardHeight(railWidth)
+    : LEGEND_RAIL_MIN_HEIGHT_WIDE;
   const [gridBannerWidth, setGridBannerWidth] = useState(railWidth);
   const ownedCollection = collectionByName ?? EMPTY_COLLECTION_BY_NAME;
   const { deck: liveDeck } = useDeckLiveLegality(deck);
@@ -173,22 +176,25 @@ function DeckListCardInner({
       accessibilityRole="button"
       accessibilityLabel={`Open ${displayDeck.name}`}
       onPress={openDeck}
-      className="shrink-0 self-stretch overflow-hidden"
-      style={{
-        width: railWidth,
-        minHeight: compact
-          ? LEGEND_RAIL_MIN_HEIGHT_NARROW
-          : LEGEND_RAIL_MIN_HEIGHT_WIDE,
-      }}
+      className={cn(
+        'shrink-0 overflow-hidden',
+        compact ? 'self-start' : 'self-stretch'
+      )}
+      style={
+        compact
+          ? { width: railWidth, height: railHeight }
+          : { width: railWidth, minHeight: railHeight }
+      }
     >
       <DeckLegendPortrait
         imageUri={legendUri}
         variantNumber={displayDeck.legend?.variantNumber}
         fallbackIcon
         width={railWidth}
-        height={compact ? LEGEND_RAIL_MIN_HEIGHT_NARROW : LEGEND_RAIL_MIN_HEIGHT_WIDE}
+        height={railHeight}
         fill
-        fade="right"
+        crop={!compact}
+        fade={compact ? 'none' : 'right'}
       />
     </Pressable>
   );
@@ -221,11 +227,11 @@ function DeckListCardInner({
   const identity = (
     <View
       className={cn(
-        'min-w-0 gap-4',
-        compact || grid ? 'w-full flex-1' : 'w-[17rem] shrink-0'
+        'min-w-0',
+        compact || grid ? 'w-full flex-1 gap-2' : 'w-[17rem] shrink-0 gap-4'
       )}
     >
-      <View className="gap-2">
+      <View className={compact ? 'gap-1.5' : 'gap-2'}>
         <View className="flex-row items-center gap-1.5">
           <PressableScale
             accessibilityRole="button"
@@ -235,7 +241,10 @@ function DeckListCardInner({
             depth={0.985}
           >
             <Text
-              className="text-[18px] font-semibold leading-6 text-foreground"
+              className={cn(
+                'font-semibold text-foreground',
+                compact ? 'text-[16px] leading-5' : 'text-[18px] leading-6'
+              )}
               numberOfLines={1}
             >
               {displayDeck.name}
@@ -262,36 +271,36 @@ function DeckListCardInner({
           {showIllegalBadge ? <DeckLegalityBadge isLegal={false} compact /> : null}
         </View>
       </View>
-      <View className="gap-2">
-        {legendColors.length > 0 ? (
-          <View className="flex-row flex-wrap items-center gap-2">
-            {legendColors.map((color) => (
-              <DomainIcon
-                key={color}
-                name={color}
-                size={compact ? DOMAIN_ICON_NARROW : DOMAIN_ICON_WIDE}
-              />
-            ))}
-          </View>
-        ) : (
-          <Text
-            className="text-[12px] leading-4 text-muted-foreground"
-            numberOfLines={1}
-          >
-            {displayDeck.legend ? 'No domain identity' : 'No legend selected'}
-          </Text>
-        )}
+      {legendColors.length > 0 ? (
+        <View className="flex-row flex-wrap items-center gap-2">
+          {legendColors.map((color) => (
+            <DomainIcon
+              key={color}
+              name={color}
+              size={compact ? DOMAIN_ICON_NARROW : DOMAIN_ICON_WIDE}
+            />
+          ))}
+        </View>
+      ) : (
+        <Text
+          className="text-[12px] leading-4 text-muted-foreground"
+          numberOfLines={1}
+        >
+          {displayDeck.legend ? 'No domain identity' : 'No legend selected'}
+        </Text>
+      )}
+      {compact ? null : (
         <Text className="font-mono text-[11px] tabular-nums text-muted-foreground">
           Runes {runeCount}/12 · Fields {battlefieldCount}/3
           {sideCount > 0 ? ` · Side ${sideCount}` : ''}
         </Text>
-      </View>
+      )}
     </View>
   );
 
   const timestamps =
-    grid || !(editedLabel || createdLabel) ? null : (
-      <View className={cn('gap-3.5', compact ? undefined : 'min-w-[11rem] flex-1')}>
+    grid || compact || !(editedLabel || createdLabel) ? null : (
+      <View className="min-w-[11rem] flex-1 gap-3.5">
         {editedLabel ? (
           <View className="gap-1">
             <Text className="font-mono text-[11px] font-medium uppercase tracking-[-0.24px] text-muted-foreground">
@@ -315,7 +324,27 @@ function DeckListCardInner({
       </View>
     );
 
-  const readout = (
+  const readout = compact ? (
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={`${status.title}. ${status.caption}`}
+        onPress={openDeck}
+        className="w-full"
+        contentClassName="flex-row items-center gap-1.5"
+        depth={0.985}
+      >
+        <StatusMark tone={status.tone} />
+        <Text
+          className={cn(
+            'min-w-0 flex-1 text-[13px] font-semibold leading-4',
+            status.tone === 'illegal' ? 'text-destructive' : 'text-foreground'
+          )}
+          numberOfLines={1}
+        >
+          {status.title}
+        </Text>
+      </PressableScale>
+    ) : (
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`${status.title}. ${status.caption}`}
@@ -342,7 +371,7 @@ function DeckListCardInner({
       </View>
       {stats.cardCount > 0 ? <DeckListEnergyCurve buckets={stats.energy} /> : null}
     </PressableScale>
-  );
+    );
 
   const actions = (
     <View
@@ -379,7 +408,14 @@ function DeckListCardInner({
           <ButtonText>{importBusy ? 'Importing…' : 'Import'}</ButtonText>
         </Button>
       ) : null}
-      {!readOnly && onDuplicate ? (
+      {!readOnly && compact ? (
+        <DeckManageMenu
+          onDuplicate={onDuplicate}
+          onDelete={onDelete}
+          duplicateBusy={duplicateBusy}
+        />
+      ) : null}
+      {!compact && !readOnly && onDuplicate ? (
         <Button
           size="sm"
           variant="outline"
@@ -395,7 +431,7 @@ function DeckListCardInner({
           <ButtonText>{duplicateBusy ? 'Duplicating…' : 'Duplicate'}</ButtonText>
         </Button>
       ) : null}
-      {onDelete ? (
+      {!compact && onDelete ? (
         <DeckManageMenu
           showLabel
           onDelete={onDelete}
@@ -423,8 +459,8 @@ function DeckListCardInner({
             {listArt}
             <View
               className={cn(
-                'min-w-0 flex-1 gap-3 p-3.5',
-                compact ? undefined : 'flex-row items-stretch justify-between gap-6'
+                'min-w-0 flex-1 gap-2.5 p-3',
+                compact ? undefined : 'flex-row items-stretch justify-between gap-6 p-3.5'
               )}
             >
               {identity}

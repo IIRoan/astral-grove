@@ -16,17 +16,18 @@ import {
 } from '@/constants/deckBrowse';
 import { filterDecksByQuery } from '@/lib/deck-list';
 import type { DeckState } from '@/lib/deck-types';
-import { applyDeckStateIfNewerToCache, setDeckDetailCache } from '@/lib/deck-state';
+import { setDeckDetailCache } from '@/lib/deck-state';
+import { persistOwnedDecks } from '@/services/deckCacheService';
 import {
-  persistOwnedDecks,
-  readPersistedOwnedDecks,
-} from '@/services/deckCacheService';
+  fetchOwnedDecks,
+  hydrateOwnedDecksCache,
+  prefetchOwnedDecks,
+} from '@/services/ownedDecksCache';
 import {
   createDeck,
   deleteDeck,
   duplicateDeck,
   importDeckToAccount,
-  listDecks,
   listDecksPage,
   saveDeckToAccount,
   scheduleRemoteDeckSave,
@@ -35,38 +36,9 @@ import { isRemoteDeckReadOnlyError } from '@/services/remoteDeckService';
 
 import { deckQueryKeys } from '@/src/api/queryKeys';
 
+export { hydrateOwnedDecksCache, prefetchOwnedDecks };
+
 const DECK_LIST_STALE_MS = 60_000;
-
-function seedDeckDetailCaches(queryClient: QueryClient, decks: DeckState[]): void {
-  for (const deck of decks) {
-    applyDeckStateIfNewerToCache(queryClient, deck.id, deck);
-  }
-}
-
-async function fetchOwnedDecks(queryClient: QueryClient): Promise<DeckState[]> {
-  const decks = await listDecks({ source: 'owned' });
-  seedDeckDetailCaches(queryClient, decks);
-  await persistOwnedDecks(decks);
-  return decks;
-}
-
-/** Seed owned-deck list (+ detail) caches from AsyncStorage before network. */
-export async function hydrateOwnedDecksCache(queryClient: QueryClient): Promise<void> {
-  const cached = await readPersistedOwnedDecks();
-  if (!cached?.length) return;
-  if (!queryClient.getQueryData<DeckState[]>(deckQueryKeys.list('owned'))) {
-    queryClient.setQueryData(deckQueryKeys.list('owned'), cached);
-  }
-  seedDeckDetailCaches(queryClient, cached);
-}
-
-export function prefetchOwnedDecks(queryClient: QueryClient): Promise<void> {
-  return queryClient.prefetchQuery({
-    queryKey: deckQueryKeys.list('owned'),
-    queryFn: () => fetchOwnedDecks(queryClient),
-    staleTime: DECK_LIST_STALE_MS,
-  });
-}
 
 function deckBrowseQueryOptions(options: {
   q?: string;
@@ -114,6 +86,9 @@ export function useOwnedDecks(query?: string) {
     queryKey: deckQueryKeys.list('owned'),
     queryFn: () => fetchOwnedDecks(queryClient),
     staleTime: DECK_LIST_STALE_MS,
+    // Cross-device deletes must not linger behind a fresh disk hydrate.
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
     placeholderData: (previous) => previous,
   });
 
@@ -178,6 +153,8 @@ export function useDeckMutations() {
         (current) => current?.filter((deck) => deck.id !== id)
       );
       queryClient.removeQueries({ queryKey: deckQueryKeys.detail(id) });
+      const owned = queryClient.getQueryData<DeckState[]>(deckQueryKeys.list('owned'));
+      if (owned) void persistOwnedDecks(owned);
       return { previousLists };
     },
     onError: (error, _id, context) => {
@@ -185,6 +162,10 @@ export function useDeckMutations() {
         for (const [key, data] of context.previousLists) {
           queryClient.setQueryData(key, data);
         }
+        const owned = queryClient.getQueryData<DeckState[]>(
+          deckQueryKeys.list('owned')
+        );
+        if (owned) void persistOwnedDecks(owned);
       }
       if (isRemoteDeckReadOnlyError(error)) {
         toast.error('Imported Piltover Archive decks cannot be deleted.');

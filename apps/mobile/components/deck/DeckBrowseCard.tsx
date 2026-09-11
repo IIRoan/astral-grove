@@ -6,7 +6,6 @@ import { DeckListEnergyCurve } from '@/components/deck/DeckListEnergyCurve';
 import { DeckListItemMotion } from '@/components/deck/DeckListItemMotion';
 import {
   DeckLegendPortrait,
-  LEGEND_RAIL_MIN_HEIGHT_NARROW,
   LEGEND_RAIL_MIN_HEIGHT_WIDE,
   LEGEND_RAIL_NARROW,
   LEGEND_RAIL_WIDE,
@@ -25,6 +24,7 @@ import { deckSectionProgress } from '@/lib/deck-display';
 import { deckListStatus } from '@/lib/deck-list-status';
 import { computeDeckStats } from '@/lib/deck-stats';
 import type { DeckState } from '@/lib/deck-types';
+import { legendFullCardHeight } from '@/lib/legend-list-art';
 import { hapticPress } from '@/utils/haptics';
 import { cn } from '@/lib/utils';
 
@@ -67,6 +67,9 @@ function DeckBrowseCardInner({
 }: DeckBrowseCardProps) {
   const compact = useMobileLayout();
   const railWidth = compact ? LEGEND_RAIL_NARROW : LEGEND_RAIL_WIDE;
+  const railHeight = compact
+    ? legendFullCardHeight(railWidth)
+    : LEGEND_RAIL_MIN_HEIGHT_WIDE;
   const { deck: liveDeck } = useDeckLiveLegality(deck);
   const displayDeck = liveDeck ?? deck;
   const imageVariants = displayDeck.legend?.variantNumber ?? '';
@@ -103,31 +106,37 @@ function DeckBrowseCardInner({
       accessibilityRole="button"
       accessibilityLabel={`Open ${displayDeck.name}`}
       onPress={openDeck}
-      className="shrink-0 self-stretch overflow-hidden"
-      style={{
-        width: railWidth,
-        minHeight: compact
-          ? LEGEND_RAIL_MIN_HEIGHT_NARROW
-          : LEGEND_RAIL_MIN_HEIGHT_WIDE,
-      }}
+      className={cn(
+        'shrink-0 overflow-hidden',
+        compact ? 'self-start' : 'self-stretch'
+      )}
+      style={
+        compact
+          ? { width: railWidth, height: railHeight }
+          : { width: railWidth, minHeight: railHeight }
+      }
     >
       <DeckLegendPortrait
         imageUri={legendUri}
         variantNumber={displayDeck.legend?.variantNumber}
         fallbackIcon
         width={railWidth}
-        height={compact ? LEGEND_RAIL_MIN_HEIGHT_NARROW : LEGEND_RAIL_MIN_HEIGHT_WIDE}
+        height={railHeight}
         fill
-        fade="right"
+        crop={!compact}
+        fade={compact ? 'none' : 'right'}
       />
     </Pressable>
   );
 
   const identity = (
     <View
-      className={cn('min-w-0 gap-4', compact ? 'w-full flex-1' : 'w-[17rem] shrink-0')}
+      className={cn(
+        'min-w-0',
+        compact ? 'w-full flex-1 gap-2' : 'w-[17rem] shrink-0 gap-4'
+      )}
     >
-      <View className="gap-2">
+      <View className={compact ? 'gap-1.5' : 'gap-2'}>
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={`${displayDeck.name}. ${identityLine}. ${status.title}. ${status.caption}`}
@@ -136,7 +145,10 @@ function DeckBrowseCardInner({
           depth={0.985}
         >
           <Text
-            className="text-[18px] font-semibold leading-6 text-foreground"
+            className={cn(
+              'font-semibold text-foreground',
+              compact ? 'text-[16px] leading-5' : 'text-[18px] leading-6'
+            )}
             numberOfLines={1}
           >
             {displayDeck.name}
@@ -152,29 +164,27 @@ function DeckBrowseCardInner({
           {showIllegalBadge ? <DeckLegalityBadge isLegal={false} compact /> : null}
         </View>
       </View>
-      <View className="gap-2">
-        {legendColors.length > 0 ? (
-          <View className="flex-row flex-wrap items-center gap-2">
-            {legendColors.map((color) => (
-              <DomainIcon
-                key={color}
-                name={color}
-                size={compact ? DOMAIN_ICON_NARROW : DOMAIN_ICON_WIDE}
-              />
-            ))}
-          </View>
-        ) : (
-          <Text
-            className="text-[12px] leading-4 text-muted-foreground"
-            numberOfLines={1}
-          >
-            {displayDeck.legend ? 'No domain identity' : 'No legend selected'}
-          </Text>
-        )}
-        <Text className="text-[12px] leading-4 text-muted-foreground" numberOfLines={1}>
-          {displayDeck.authorName ? `by ${displayDeck.authorName}` : 'Public list'}
+      {legendColors.length > 0 ? (
+        <View className="flex-row flex-wrap items-center gap-2">
+          {legendColors.map((color) => (
+            <DomainIcon
+              key={color}
+              name={color}
+              size={compact ? DOMAIN_ICON_NARROW : DOMAIN_ICON_WIDE}
+            />
+          ))}
+        </View>
+      ) : (
+        <Text
+          className="text-[12px] leading-4 text-muted-foreground"
+          numberOfLines={1}
+        >
+          {displayDeck.legend ? 'No domain identity' : 'No legend selected'}
         </Text>
-      </View>
+      )}
+      <Text className="text-[12px] leading-4 text-muted-foreground" numberOfLines={1}>
+        {displayDeck.authorName ? `by ${displayDeck.authorName}` : 'Public list'}
+      </Text>
     </View>
   );
 
@@ -213,12 +223,32 @@ function DeckBrowseCardInner({
     </View>
   );
 
-  const readout = (
+  const readout = compact ? (
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`${status.title}. ${status.caption}`}
       onPress={openDeck}
-      className={cn('gap-2', compact ? 'w-full' : 'w-[11.5rem] shrink-0')}
+      className="w-full"
+      contentClassName="flex-row items-center gap-1.5"
+      depth={0.985}
+    >
+      <StatusMark tone={status.tone} />
+      <Text
+        className={cn(
+          'min-w-0 flex-1 text-[13px] font-semibold leading-4',
+          status.tone === 'illegal' ? 'text-destructive' : 'text-foreground'
+        )}
+        numberOfLines={1}
+      >
+        {status.title}
+      </Text>
+    </PressableScale>
+  ) : (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={`${status.title}. ${status.caption}`}
+      onPress={openDeck}
+      className="w-[11.5rem] shrink-0 gap-2"
       contentClassName="gap-2"
       depth={0.985}
     >
@@ -292,8 +322,8 @@ function DeckBrowseCardInner({
           {listArt}
           <View
             className={cn(
-              'min-w-0 flex-1 gap-3 p-3.5',
-              compact ? undefined : 'flex-row items-stretch justify-between gap-6'
+              'min-w-0 flex-1 gap-2.5 p-3',
+              compact ? undefined : 'flex-row items-stretch justify-between gap-6 p-3.5'
             )}
           >
             {identity}

@@ -46,4 +46,18 @@ describe('resolveDeckSharePayload', () => {
       expect(result.value).toMatch(/^[A-Z2-7]+$/i);
     }
   });
+
+  test('encodes a deck code with more than 3 Spiderling copies', () => {
+    let deck = createEmptyDeck('Spiderlings');
+    deck = addCardToDeck(deck, card('VEN-097', { name: 'Spiderling' }), {
+      section: 'mainDeck',
+      count: 16,
+    });
+    const result = resolveDeckSharePayload(deck, 'code');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.length).toBeGreaterThan(16);
+      expect(result.value).toMatch(/^[A-Z2-7]+$/i);
+    }
+  });
 });

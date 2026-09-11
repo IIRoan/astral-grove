@@ -5,6 +5,10 @@ import {
   deckQueryKeys,
   wishlistQueryKeys,
 } from '@/src/api/queryKeys';
+import { createMemoryAsyncStorage } from '../test/memory-async-storage';
+
+const memoryStorage = createMemoryAsyncStorage();
+memoryStorage.install();
 
 const hydrateCatalogIndex = mock(async () => undefined);
 const prefetchCatalogIndex = mock(async () => undefined);
@@ -36,9 +40,6 @@ const preloadCriticalLocalAssets = mock(async () => undefined);
 const preloadCollectionDashboardAssets = mock(async () => undefined);
 const prefetchCardDetail = mock(() => undefined);
 const flushCardDetailPrefetch = mock(async () => undefined);
-const clearPersistedCollection = mock(async () => undefined);
-const clearPersistedOwnedDecks = mock(async () => undefined);
-const clearPersistedWishlist = mock(async () => undefined);
 const readLastCachedUserId = mock(async () => null as string | null);
 const writeLastCachedUserId = mock(async () => undefined);
 const removeUserDataQueries = mock(() => undefined);
@@ -99,18 +100,6 @@ mock.module('@/lib/prefetchCardDetail', () => ({
   flushCardDetailPrefetch,
 }));
 
-mock.module('@/services/collectionCacheService', () => ({
-  clearPersistedCollection,
-}));
-
-mock.module('@/services/deckCacheService', () => ({
-  clearPersistedOwnedDecks,
-}));
-
-mock.module('@/services/wishlistCacheService', () => ({
-  clearPersistedWishlist,
-}));
-
 mock.module('@/services/userCacheScope', () => ({
   readLastCachedUserId,
   writeLastCachedUserId,
@@ -132,6 +121,7 @@ const {
 } = await import('@/services/appBootstrapService');
 
 beforeEach(() => {
+  memoryStorage.clear();
   hydrateCatalogIndex.mockClear();
   prefetchCatalogIndex.mockClear();
   prefetchCatalogFilters.mockClear();
@@ -163,9 +153,6 @@ beforeEach(() => {
   });
   preloadCriticalLocalAssets.mockClear();
   preloadCollectionDashboardAssets.mockClear();
-  clearPersistedCollection.mockClear();
-  clearPersistedOwnedDecks.mockClear();
-  clearPersistedWishlist.mockClear();
   readLastCachedUserId.mockClear();
   writeLastCachedUserId.mockClear();
   removeUserDataQueries.mockClear();
@@ -219,6 +206,9 @@ describe('appBootstrapService', () => {
 
   test('bootstrapUser clears prior account caches when user changes', async () => {
     readLastCachedUserId.mockImplementation(async () => 'user-a');
+    memoryStorage.store.set('riftbound_collection_cache', '{}');
+    memoryStorage.store.set('riftbound_owned_decks_cache', '{}');
+    memoryStorage.store.set('riftbound_wishlist_cache', '{}');
     const client = new QueryClient();
     client.setQueryData(collectionQueryKeys.all, [{ variantNumber: 'OLD' }]);
     client.setQueryData(wishlistQueryKeys.all, [{ variantNumber: 'OLD' }]);
@@ -226,9 +216,9 @@ describe('appBootstrapService', () => {
     await bootstrapUser(client, { userId: 'user-b' });
 
     expect(removeUserDataQueries).toHaveBeenCalledWith(client);
-    expect(clearPersistedCollection).toHaveBeenCalled();
-    expect(clearPersistedOwnedDecks).toHaveBeenCalled();
-    expect(clearPersistedWishlist).toHaveBeenCalled();
+    expect(memoryStorage.store.has('riftbound_collection_cache')).toBe(false);
+    expect(memoryStorage.store.has('riftbound_owned_decks_cache')).toBe(false);
+    expect(memoryStorage.store.has('riftbound_wishlist_cache')).toBe(false);
     expect(hydrateCollectionCache).not.toHaveBeenCalled();
     expect(hydrateOwnedDecksCache).not.toHaveBeenCalled();
     expect(hydrateWishlistCache).not.toHaveBeenCalled();
