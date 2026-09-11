@@ -1,12 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  startTransition,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   InteractionManager,
   Keyboard,
@@ -105,6 +98,7 @@ export function useSearchScreenBody(): React.ReactElement {
   const splitLayout = useCatalogSplitLayout();
   const isMobile = useMobileLayout();
   const [query, setQuery] = useState('');
+  const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [catalogFilters, setCatalogFilters] = useState<CatalogFilters>(
     DEFAULT_CATALOG_FILTERS
   );
@@ -189,9 +183,9 @@ export function useSearchScreenBody(): React.ReactElement {
     hasNextPage: searchHasNextPage,
     isFetchingNextPage: searchIsFetchingNextPage,
     fetchNextPage: fetchNextSearchPage,
-  } = useCardSearch(query, catalogSort, pageSize, catalogFilters);
+  } = useCardSearch(activeSearchQuery, catalogSort, pageSize, catalogFilters);
 
-  const trimmedQuery = query.trim();
+  const trimmedQuery = activeSearchQuery.trim();
   const hasSearchInput = trimmedQuery.length >= minLength;
   const searchPending = hasSearchInput && trimmedQuery !== debouncedQuery;
   const ownershipVariantSetRef = useRef(new Set<string>());
@@ -632,6 +626,7 @@ export function useSearchScreenBody(): React.ReactElement {
 
   const clearSearch = useCallback(() => {
     setQuery('');
+    setActiveSearchQuery('');
   }, []);
 
   const dismissKeyboard = useCallback(() => {
@@ -647,7 +642,7 @@ export function useSearchScreenBody(): React.ReactElement {
   const listEmpty = useMemo(
     () => (
       <SearchScreenListEmpty
-        query={query}
+        query={activeSearchQuery}
         minLength={minLength}
         fetchStatus={{
           isSearching,
@@ -671,7 +666,7 @@ export function useSearchScreenBody(): React.ReactElement {
       />
     ),
     [
-      query,
+      activeSearchQuery,
       isSearching,
       searchPending,
       isLoading,
@@ -719,6 +714,7 @@ export function useSearchScreenBody(): React.ReactElement {
         query={query}
         onQueryChange={setQuery}
         onClearSearch={clearSearch}
+        onActiveSearchQueryChange={setActiveSearchQuery}
         // Spinner uses isLoading only — isFetching must not flip chrome mid-keystroke.
         searchLoading={searchLoading}
         onSubmitSearch={handleSubmitSearch}
@@ -747,10 +743,13 @@ export function useSearchScreenBody(): React.ReactElement {
     ]
   );
 
-  const resultsTransitionKey = catalogFiltersQueryKey(catalogFilters);
+  const resultsTransitionKey = `${catalogFiltersQueryKey(catalogFilters)}|${trimmedQuery}`;
 
   useEffect(() => {
-    catalogListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    const frame = requestAnimationFrame(() => {
+      catalogListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [resultsTransitionKey]);
 
   useEffect(() => {
@@ -781,9 +780,7 @@ export function useSearchScreenBody(): React.ReactElement {
       if (sortOptionKey(normalized) === sortOptionKey(catalogSort)) return;
       setSortPending(true);
       requestAnimationFrame(() => {
-        startTransition(() => {
-          setCatalogSort(normalized);
-        });
+        setCatalogSort(normalized);
         catalogListRef.current?.scrollToOffset({ offset: 0, animated: false });
       });
     },

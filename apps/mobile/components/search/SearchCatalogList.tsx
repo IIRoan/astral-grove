@@ -86,6 +86,7 @@ export function SearchCatalogList({
   const renderItem = useMemo<ListRenderItem<CardListItem>>(
     () =>
       ({ item, index }) => {
+        if (!item) return null;
         const tileSelected = cardListItemMatchesVariant(item, selectedVariant);
         // Phone drawer: no selection chrome (lingered after close); desktop split still highlights.
         const showSelected = splitLayout && tileSelected;

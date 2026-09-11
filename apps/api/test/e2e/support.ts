@@ -7,6 +7,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { createApp, type AppContext } from '../../src/app.js';
 import { loadEnv, type Env } from '../../src/env.js';
+import { apiListenOptions } from '../../src/lib/http-listen.js';
 import { filterSnapshots, syncState, variants } from '../../src/db/schema.js';
 import { entityHash } from '../../src/lib/hash.js';
 import {
@@ -161,7 +162,7 @@ export async function setupE2E(): Promise<void> {
   }
 
   ctx = createApp(env);
-  ctx.app.listen(E2E_PORT);
+  ctx.app.listen(apiListenOptions(E2E_PORT));
   ownsServer = true;
   baseUrl = `http://localhost:${String(E2E_PORT)}`;
 
@@ -173,6 +174,8 @@ export async function setupE2E(): Promise<void> {
     } catch {}
     await Bun.sleep(200);
   }
+
+  await assertSearchSchemaReady();
 }
 
 export async function teardownE2E(): Promise<void> {
@@ -183,44 +186,74 @@ export async function teardownE2E(): Promise<void> {
   }
 }
 
-export async function ensureCatalogSynced(): Promise<void> {
-  let hasCards = false;
-  try {
-    const ctx = getContext();
-    const [row] = await ctx.db.select({ value: count() }).from(variants);
-    hasCards = (row?.value ?? 0) > 0;
+export async function assertSearchSchemaReady(): Promise<void> {
+  const { client } = getContext();
+  const extensions = (await client.unsafe(
+    `select extname from pg_extension where extname in ('pg_trgm', 'unaccent')`
+  )) as { extname: string }[];
+  const names = new Set(extensions.map((row) => row.extname));
+  if (!names.has('pg_trgm') || !names.has('unaccent')) {
+    throw new Error(
+      `Search e2e requires pg_trgm and unaccent; found ${[...names].join(',') || '(none)'}`
+    );
+  }
 
-    const hash = entityHash(enrichedFilterSnapshot);
-    await ctx.db.insert(filterSnapshots).values({
-      snapshot: enrichedFilterSnapshot,
+  const fn = (await client.unsafe(
+    `select proname from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'normalize_card_name_v1'`
+  )) as { proname: string }[];
+  if (fn.length === 0) {
+    throw new Error('normalize_card_name_v1 is missing; apply migration 0012');
+  }
+
+  const cols = (await client.unsafe(
+    `select column_name from information_schema.columns
+     where table_schema = 'public' and table_name = 'cards'
+       and column_name in ('name_norm', 'name_squashed', 'rules_search_text')`
+  )) as { column_name: string }[];
+  if (cols.length < 3) {
+    throw new Error('cards generated search columns are missing; apply migration 0012');
+  }
+}
+
+async function seedFilterSnapshot(app: AppContext): Promise<void> {
+  const hash = entityHash(enrichedFilterSnapshot);
+  await app.db.insert(filterSnapshots).values({
+    snapshot: enrichedFilterSnapshot,
+    contentHash: hash,
+  });
+  await app.db
+    .insert(syncState)
+    .values({
+      key: 'catalog',
+      status: 'idle',
       contentHash: hash,
-    });
-    await ctx.db
-      .insert(syncState)
-      .values({
-        key: 'catalog',
+      rowCount: expectedCatalogTotal,
+      lastAttemptAt: new Date(),
+      lastSuccessAt: new Date(),
+      lastError: null,
+    })
+    .onConflictDoUpdate({
+      target: syncState.key,
+      set: {
         status: 'idle',
         contentHash: hash,
         rowCount: expectedCatalogTotal,
         lastAttemptAt: new Date(),
         lastSuccessAt: new Date(),
         lastError: null,
-      })
-      .onConflictDoUpdate({
-        target: syncState.key,
-        set: {
-          status: 'idle',
-          contentHash: hash,
-          rowCount: expectedCatalogTotal,
-          lastAttemptAt: new Date(),
-          lastSuccessAt: new Date(),
-          lastError: null,
-        },
-      });
+      },
+    });
+}
 
-    if (hasCards) return;
-  } catch {
-    // External E2E_API_URL — fall back to admin sync.
+export async function ensureCatalogSynced(): Promise<void> {
+  if (ctx) {
+    await seedFilterSnapshot(ctx);
+    const [row] = await ctx.db.select({ value: count() }).from(variants);
+    if ((row?.value ?? 0) > 0) return;
+    await ctx.syncEngine.syncCatalog();
+    return;
   }
 
   const filters = await apiJson<unknown>('/api/v1/filters').catch(() => null);
@@ -230,7 +263,7 @@ export async function ensureCatalogSynced(): Promise<void> {
       parsed.meta.variantCount === expectedCatalogTotal &&
       parsed.data.sets.some((set) => set.printCount != null)
     ) {
-      if (hasCards) return;
+      return;
     }
   }
 

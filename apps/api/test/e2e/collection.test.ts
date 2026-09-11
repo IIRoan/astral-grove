@@ -9,6 +9,7 @@ import {
 import {
   CollectionImportResponse,
   CollectionListResponse,
+  CollectionQuantitiesResponse,
   parseCollectionCsv,
 } from '@riftbound/contracts';
 import { eq, like } from 'drizzle-orm';

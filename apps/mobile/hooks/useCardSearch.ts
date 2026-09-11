@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from '@/hooks/useDebounce';
+import { getCatalogIndexItems, useCatalogIndex } from '@/hooks/useCatalogIndex';
 import {
   MIN_SEARCH_LENGTH,
   cacheSearchResults,
   getCachedSearchResults,
+  type SearchResultsCacheScope,
 } from '@/services/searchCacheService';
 import {
   getInMemoryCatalogIndex,
@@ -15,13 +17,20 @@ import { cardQueryKeys, catalogQueryKeys } from '@/src/api/queryKeys';
 import { prefetchCardDetail } from '@/lib/prefetchCardDetail';
 import { CATALOG_NETWORK_PAGE_SIZE } from '@/lib/catalog-page-size';
 import {
+  localCardSearchMeta,
+  paginateLocalCardSearch,
+  pickCardSearchRawItems,
+} from '@/lib/card-search-display';
+import {
   normalizeCardListItems,
   normalizeCardsListResponse,
   groupCardListItems,
 } from '@/utils/variants';
+import { searchCatalogItems } from '@/utils/catalogSearch';
 import {
   catalogFiltersToQuery,
   DEFAULT_CATALOG_FILTERS,
+  matchesCatalogFilters,
   type CatalogFilters,
 } from '@/constants/catalogFilters';
 
@@ -34,52 +43,89 @@ const STALE_MS = 5 * 60 * 1000;
 export function useCardSearch(
   query: string,
   sort: CatalogSort = DEFAULT_CATALOG_SORT,
-  _pageSize = 40,
+  pageSize = 40,
   filters: CatalogFilters = DEFAULT_CATALOG_FILTERS
 ) {
   const trimmed = query.trim();
-  const debounced = useDebounce(trimmed, DEBOUNCE_MS);
+  const debouncedApiTerm = useDebounce(trimmed, DEBOUNCE_MS);
   const [immediateTerm, setImmediateTerm] = useState<string | null>(null);
-  const activeTerm = immediateTerm ?? debounced;
+  const activeApiTerm = immediateTerm ?? debouncedApiTerm;
+  const hasQuery = trimmed.length >= MIN_SEARCH_LENGTH;
+  const apiMatchesInput = trimmed === activeApiTerm;
   const queryClient = useQueryClient();
+  const catalogIndex = useCatalogIndex();
+  const catalogItems = getCatalogIndexItems(catalogIndex.data);
+  const indexReady = catalogItems.length > 0;
+  const [localPage, setLocalPage] = useState(1);
   const [instantCache, setInstantCache] = useState<{
     term: string;
     response: CardsListResponse;
   } | null>(null);
 
-  if (immediateTerm && debounced === immediateTerm) {
+  if (immediateTerm && debouncedApiTerm === immediateTerm) {
     setImmediateTerm(null);
   }
 
-  const enabled = activeTerm.length >= MIN_SEARCH_LENGTH;
-  const inputMatchesActive = trimmed === activeTerm;
+  const apiEnabled = activeApiTerm.length >= MIN_SEARCH_LENGTH;
   const instantCacheForTerm =
-    instantCache?.term === activeTerm ? instantCache.response : null;
+    instantCache?.term === activeApiTerm ? instantCache.response : null;
+
+  const cacheScope = useMemo<SearchResultsCacheScope>(
+    () => ({
+      sort,
+      filters,
+      limit: CATALOG_NETWORK_PAGE_SIZE,
+    }),
+    [sort, filters]
+  );
 
   useEffect(() => {
-    if (!enabled) {
+    setLocalPage(1);
+  }, [trimmed, sort.sortBy, sort.dir, filters]);
+
+  useEffect(() => {
+    if (!apiEnabled) {
       setInstantCache(null);
       return;
     }
 
     let cancelled = false;
     void (async () => {
-      const cached = await getCachedSearchResults(activeTerm);
+      const cached = await getCachedSearchResults(activeApiTerm, cacheScope);
       if (!cancelled) {
-        setInstantCache(cached ? { term: activeTerm, response: cached } : null);
+        setInstantCache(cached ? { term: activeApiTerm, response: cached } : null);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [activeTerm, enabled]);
+  }, [activeApiTerm, apiEnabled, cacheScope]);
+
+  const localSearchPool = useMemo(() => {
+    if (!hasQuery || !indexReady) return [];
+    const filtered = catalogItems.filter((card) =>
+      matchesCatalogFilters(card, filters, new Map(), { colorMode: 'within' })
+    );
+    return searchCatalogItems(filtered, trimmed, sort);
+  }, [hasQuery, indexReady, catalogItems, filters, trimmed, sort]);
+
+  const localPageResult = useMemo(
+    () => paginateLocalCardSearch(localSearchPool, localPage, pageSize),
+    [localSearchPool, localPage, pageSize]
+  );
+  const localLoadedItems = localPageResult.loadedItems;
 
   const result = useInfiniteQuery({
-    queryKey: cardQueryKeys.searchInfinite(activeTerm, sort.sortBy, sort.dir, filters),
+    queryKey: cardQueryKeys.searchInfinite(
+      activeApiTerm,
+      sort.sortBy,
+      sort.dir,
+      filters
+    ),
     queryFn: async ({ pageParam }) => {
       const params: Partial<CardsListQuery> = {
-        q: activeTerm,
+        q: activeApiTerm,
         limit: CATALOG_NETWORK_PAGE_SIZE,
         page: pageParam,
         sortBy: sort.sortBy,
@@ -89,7 +135,7 @@ export function useCardSearch(
       const response = await api.listCards(params);
       const normalized = normalizeCardsListResponse(response);
       if (pageParam === 1) {
-        await cacheSearchResults(activeTerm, normalized);
+        await cacheSearchResults(activeApiTerm, cacheScope, normalized);
       }
       return normalized;
     },
@@ -98,7 +144,7 @@ export function useCardSearch(
       const pagination = lastPage.meta.pagination;
       return pagination.hasNext ? pagination.page + 1 : undefined;
     },
-    enabled,
+    enabled: apiEnabled,
     staleTime: STALE_MS,
     gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
@@ -118,10 +164,9 @@ export function useCardSearch(
     [result.data]
   );
 
-  const hasApiResults =
-    enabled &&
-    inputMatchesActive &&
-    (apiItems.length > 0 || (result.isFetched && !result.isError));
+  const hasApiResults = apiEnabled && apiMatchesInput && apiItems.length > 0;
+
+  const isLocalSearch = hasQuery && !hasApiResults && localLoadedItems.length > 0;
 
   useEffect(() => {
     if (!hasApiResults || apiItems.length === 0) return;
@@ -141,12 +186,23 @@ export function useCardSearch(
   }, [hasApiResults, apiItems, queryClient]);
 
   useEffect(() => {
-    const cards = hasApiResults ? apiItems : (instantCacheForTerm?.data ?? []);
+    const cards = hasApiResults
+      ? apiItems
+      : isLocalSearch
+        ? localLoadedItems
+        : (instantCacheForTerm?.data ?? []);
     if (!cards.length) return;
     for (const card of cards.slice(0, 12)) {
       prefetchCardDetail(queryClient, card);
     }
-  }, [hasApiResults, apiItems, instantCacheForTerm, queryClient]);
+  }, [
+    hasApiResults,
+    apiItems,
+    isLocalSearch,
+    localLoadedItems,
+    instantCacheForTerm,
+    queryClient,
+  ]);
 
   const searchNow = useCallback(
     (override?: string) => {
@@ -158,57 +214,84 @@ export function useCardSearch(
     [trimmed]
   );
 
-  const rawItems = useMemo(() => {
-    if (hasApiResults) return apiItems;
-    if (!inputMatchesActive) {
-      return instantCacheForTerm?.data ?? apiItems;
-    }
-    if (result.isFetching && !instantCacheForTerm) return [];
-    return instantCacheForTerm?.data ?? apiItems;
-  }, [
-    inputMatchesActive,
-    hasApiResults,
-    apiItems,
-    result.isFetching,
-    instantCacheForTerm,
-  ]);
+  const rawItems = useMemo(
+    () =>
+      pickCardSearchRawItems({
+        hasApiItems: hasApiResults,
+        apiItems,
+        inputMatchesActive: apiMatchesInput,
+        instantCacheItems: instantCacheForTerm?.data ?? [],
+        localItems: localLoadedItems,
+        isFetching: result.isFetching,
+      }),
+    [
+      hasApiResults,
+      apiItems,
+      apiMatchesInput,
+      instantCacheForTerm,
+      localLoadedItems,
+      result.isFetching,
+    ]
+  );
 
   const items = useMemo(
     () => groupCardListItems(normalizeCardListItems(rawItems)),
     [rawItems]
   );
 
-  const hasInstantResults = instantCacheForTerm !== null;
+  const hasInstantResults =
+    instantCacheForTerm !== null || (isLocalSearch && items.length > 0);
   const lastPage = result.data?.pages.at(-1);
   const firstPage = result.data?.pages[0];
 
+  const localMeta = useMemo(
+    () => localCardSearchMeta(localSearchPool.length, localPage, pageSize),
+    [localSearchPool.length, localPage, pageSize]
+  );
+
   return {
-    debouncedQuery: activeTerm,
+    debouncedQuery: activeApiTerm,
     minLength: MIN_SEARCH_LENGTH,
     debounceMs: DEBOUNCE_MS,
     items,
     meta: hasApiResults
       ? (lastPage?.meta ?? firstPage?.meta ?? instantCacheForTerm?.meta)
-      : (instantCacheForTerm?.meta ?? lastPage?.meta ?? firstPage?.meta),
+      : isLocalSearch
+        ? localMeta
+        : (instantCacheForTerm?.meta ?? lastPage?.meta ?? firstPage?.meta),
     isLoading:
-      enabled &&
+      hasQuery &&
       !hasInstantResults &&
       !hasApiResults &&
+      localLoadedItems.length === 0 &&
       (result.isPending || result.isFetching),
-    isFetching: enabled && result.isFetching && !hasApiResults && !hasInstantResults,
-    isFetchingNextPage: result.isFetchingNextPage,
-    hasNextPage: result.hasNextPage ?? false,
+    isFetching:
+      hasQuery &&
+      result.isFetching &&
+      !hasApiResults &&
+      !hasInstantResults &&
+      localLoadedItems.length === 0,
+    isFetchingNextPage: hasApiResults ? result.isFetchingNextPage : false,
+    hasNextPage: hasApiResults
+      ? (result.hasNextPage ?? false)
+      : localPageResult.hasNextPage,
     fetchNextPage: () => {
-      if (result.hasNextPage && !result.isFetchingNextPage) {
-        void result.fetchNextPage();
+      if (hasApiResults) {
+        if (result.hasNextPage && !result.isFetchingNextPage) {
+          void result.fetchNextPage();
+        }
+        return;
+      }
+      if (localPageResult.hasNextPage) {
+        setLocalPage((page) => page + 1);
       }
     },
     isError: result.isError && !hasInstantResults,
     error: result.error,
     refetch: result.refetch,
     searchNow,
-    isLocalSearch: false,
+    isLocalSearch,
     isReconciling:
-      enabled && result.isFetching && (hasInstantResults || items.length > 0),
+      hasQuery && result.isFetching && (hasInstantResults || items.length > 0),
   };
 }

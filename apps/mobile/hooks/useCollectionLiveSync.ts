@@ -6,6 +6,7 @@ import {
   onCollectionLiveChanged,
 } from '@/hooks/collectionLiveSync';
 import { useCollectionShareStatus } from '@/hooks/useCollectionShare';
+import { isLiveStreamDisconnect } from '@/lib/live-stream-disconnect';
 import { logActionFailure, wasActionFailureLogged } from '@/lib/logger';
 import { subscribeCollectionLiveEvents } from '@/services/collectionLiveService';
 import { authClient } from '@/src/lib/auth-client';
@@ -74,10 +75,7 @@ export function useCollectionLiveSync(enabled = true) {
           attempt = 0;
         } catch (error) {
           if (stopped || controller.signal.aborted) break;
-          if (
-            !(error instanceof Error && error.name === 'AbortError') &&
-            !wasActionFailureLogged(error)
-          ) {
+          if (!isLiveStreamDisconnect(error) && !wasActionFailureLogged(error)) {
             logActionFailure('collection.live.subscribe', error, {
               attempt,
               platform: Platform.OS,

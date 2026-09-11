@@ -572,4 +572,21 @@ describe('catalogSearch', () => {
       'Ekko Recurve',
     ]);
   });
+
+  test('searchCatalogItems scans a large pool within a tight latency budget', () => {
+    const pool: CardListItem[] = [];
+    for (let i = 0; i < 2500; i++) {
+      pool.push({
+        ...vi,
+        cardId: `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`,
+        variantNumber: `OGN-${String(i).padStart(3, '0')}`,
+        name: i % 17 === 0 ? 'Stagazer' : `Card ${i}`,
+      });
+    }
+    const start = performance.now();
+    const results = searchCatalogItems(pool, 'stargazer', DEFAULT_CATALOG_SORT, 20);
+    const elapsed = performance.now() - start;
+    expect(results[0]?.name).toBe('Stagazer');
+    expect(elapsed).toBeLessThan(250);
+  });
 });

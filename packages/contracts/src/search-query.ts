@@ -26,12 +26,52 @@ export type SearchTypeIntent = (typeof SEARCH_TYPE_INTENTS)[number];
 
 const TYPE_INTENT_SET = new Set<string>(SEARCH_TYPE_INTENTS);
 
+export const SEARCH_NORMALIZATION_VERSION = 'v1';
+
 export type ParsedSearchQuery = {
   normalized: string;
   identityTokens: string[];
   typeIntents: SearchTypeIntent[];
   squashed: string;
 };
+
+/** Latin letters/ligatures that do not decompose under NFD. Keys are lowercase. */
+const LATIN_COMPAT_FOLD: Record<string, string> = {
+  æ: 'ae',
+  œ: 'oe',
+  ø: 'o',
+  ð: 'd',
+  þ: 'th',
+  ß: 'ss',
+  ł: 'l',
+  đ: 'd',
+  ħ: 'h',
+  ı: 'i',
+  ŋ: 'n',
+  ĸ: 'k',
+  ſ: 's',
+  ﬀ: 'ff',
+  ﬁ: 'fi',
+  ﬂ: 'fl',
+  ﬃ: 'ffi',
+  ﬄ: 'ffl',
+  ﬅ: 'st',
+  ﬆ: 'st',
+};
+
+function foldLatinCompat(raw: string): string {
+  let out = '';
+  for (const ch of raw) {
+    out += LATIN_COMPAT_FOLD[ch] ?? ch;
+  }
+  return out;
+}
+
+/** Fold accents before stripping; not claimed identical to every unaccent dictionary rule. */
+export function foldSearchAccents(raw: string): string {
+  const mapped = foldLatinCompat(raw.toLowerCase());
+  return mapped.normalize('NFD').replace(/\p{M}+/gu, '');
+}
 
 export type SearchRankCard = {
   name: string;
@@ -44,10 +84,9 @@ export type SearchRankCard = {
   printings?: readonly { variantNumber: string; variantLabel: string }[] | undefined;
 };
 
-/** Lowercase, turn punctuation into spaces, collapse whitespace. */
+/** Lowercase ASCII tokens; fold accents, then turn punctuation into spaces. */
 export function normalizeSearchText(raw: string): string {
-  return raw
-    .toLowerCase()
+  return foldSearchAccents(raw)
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
     .replace(/\s+/g, ' ');
@@ -253,6 +292,13 @@ function anyNameWordPrefix(name: string, tokens: readonly string[]): boolean {
   return tokens.some((token) => words.some((word) => word.startsWith(token)));
 }
 
+/** Whole identity tokens that appear as exact name words (not substrings). */
+export function exactNameWordHits(name: string, tokens: readonly string[]): number {
+  if (tokens.length === 0) return 0;
+  const words = new Set(nameWords(name));
+  return tokens.filter((token) => words.has(token)).length;
+}
+
 function printingBlob(card: SearchRankCard): string {
   const parts = [card.variantNumber, card.variantType ?? '', card.variantLabel ?? ''];
   for (const printing of card.printings ?? []) {
@@ -278,7 +324,15 @@ export function lexicalRelevanceScore(card: SearchRankCard, query: string): numb
   if (family && isLegendType(card.type) && typeOk) return 0;
   if (family && isChampionSuper(card.super) && typeOk) return 1;
   if (parsed.typeIntents.length > 0 && typeOk && family) return 2;
+  if (
+    parsed.identityTokens.length > 0 &&
+    exactNameWordHits(card.name, parsed.identityTokens) === parsed.identityTokens.length
+  ) {
+    return 3;
+  }
   if (exactFirstNameWord(card.name, familyToken)) return 3;
+  if (normalizedName === parsed.normalized || squashedName === parsed.squashed)
+    return 3;
   if (
     parsed.identityTokens.length > 0 &&
     (normalizedName.startsWith(parsed.identityTokens.join(' ')) ||
@@ -304,10 +358,14 @@ export function sortByLexicalRelevance<T extends SearchRankCard>(
   items: readonly T[],
   query: string
 ): T[] {
+  const tokens = parseSearchQuery(query).identityTokens;
   return [...items].sort((left, right) => {
     const diff =
       lexicalRelevanceScore(left, query) - lexicalRelevanceScore(right, query);
     if (diff !== 0) return diff;
+    const hitDiff =
+      exactNameWordHits(right.name, tokens) - exactNameWordHits(left.name, tokens);
+    if (hitDiff !== 0) return hitDiff;
     return left.name.localeCompare(right.name);
   });
 }

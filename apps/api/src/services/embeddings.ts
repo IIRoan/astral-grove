@@ -1,16 +1,17 @@
 import {
   cardEmbeddingDocument,
   cosineSimilarity,
+  SEARCH_NORMALIZATION_VERSION,
   SEARCH_STOPWORDS,
   normalizeSearchText,
   type PaLogicalCard,
 } from '@riftbound/contracts';
-import { eq, isNotNull, or, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, or, sql } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { cards } from '../db/schema.js';
 import { entityHash } from '../lib/hash.js';
 
-export const LOCAL_EMBEDDING_MODEL = 'local-hash-v1';
+export const LOCAL_EMBEDDING_MODEL = `local-hash-v2-norm-${SEARCH_NORMALIZATION_VERSION}`;
 export const LOCAL_EMBEDDING_DIM = 256;
 export const OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
 export const VECTOR_SCORE_FLOOR = 0.12;
@@ -27,6 +28,14 @@ export type StoredEmbedding = {
   id: string;
   embedding: number[];
 };
+
+function embeddingDocumentHash(model: string, document: string): string {
+  return entityHash({
+    model,
+    document,
+    normalization: SEARCH_NORMALIZATION_VERSION,
+  });
+}
 
 function fnv1a(token: string): number {
   let hash = 2166136261;
@@ -109,7 +118,7 @@ export class EmbeddingService {
     if (!this.isEnabled()) return;
     const document = cardEmbeddingDocument(card);
     const model = this.modelName();
-    const hash = entityHash({ model, document });
+    const hash = embeddingDocumentHash(model, document);
     const existing = await this.db.query.cards.findFirst({
       where: eq(cards.id, card.id),
       columns: { embeddedHash: true },
@@ -144,16 +153,30 @@ export class EmbeddingService {
         effect: cards.effect,
         attachText: cards.attachText,
         embeddedHash: cards.embeddedHash,
+        embeddingModel: cards.embeddingModel,
       })
       .from(cards)
-      .where(or(sql`${cards.embedding} is null`, sql`${cards.embeddedHash} is null`))
+      .where(
+        or(
+          sql`${cards.embedding} is null`,
+          sql`${cards.embeddedHash} is null`,
+          sql`${cards.embeddingModel} is distinct from ${model}`
+        )
+      )
       .limit(limit);
 
     let updated = 0;
     for (const row of rows) {
       const document = cardEmbeddingDocument(row);
-      const hash = entityHash({ model, document });
+      const hash = embeddingDocumentHash(model, document);
       if (row.embeddedHash === hash) continue;
+      if (
+        this.provider === 'openai' &&
+        row.embeddingModel != null &&
+        row.embeddingModel !== model
+      ) {
+        continue;
+      }
       const embedding = await this.embedText(document);
       if (!embedding) continue;
       await this.db
@@ -172,19 +195,25 @@ export class EmbeddingService {
 
   async embeddingsForCatalog(catalogHash: string): Promise<StoredEmbedding[]> {
     if (!this.isEnabled()) return [];
-    if (this.cache?.key === catalogHash) return this.cache.rows;
+    const model = this.modelName();
+    const cacheKey = `${catalogHash}:${model}`;
+    if (this.cache?.key === cacheKey) return this.cache.rows;
 
     const rows = await this.db
-      .select({ id: cards.id, embedding: cards.embedding })
+      .select({
+        id: cards.id,
+        embedding: cards.embedding,
+        embeddingModel: cards.embeddingModel,
+      })
       .from(cards)
-      .where(isNotNull(cards.embedding));
+      .where(and(isNotNull(cards.embedding), eq(cards.embeddingModel, model)));
 
     const stored: StoredEmbedding[] = [];
     for (const row of rows) {
       if (!row.embedding || row.embedding.length === 0) continue;
       stored.push({ id: row.id, embedding: row.embedding });
     }
-    this.cache = { key: catalogHash, rows: stored };
+    this.cache = { key: cacheKey, rows: stored };
     return stored;
   }
 
@@ -209,7 +238,7 @@ export function createEmbeddingService(
 }
 
 export function summarizeSearchExtensions(names: readonly string[]): string {
-  return `pg_trgm=${String(names.includes('pg_trgm'))} vector=${String(names.includes('vector'))} storage=real[]`;
+  return `pg_trgm=${String(names.includes('pg_trgm'))} unaccent=${String(names.includes('unaccent'))} vector=${String(names.includes('vector'))} storage=real[]`;
 }
 
 export async function logSearchIndexStatus(query: {
@@ -217,7 +246,7 @@ export async function logSearchIndexStatus(query: {
 }): Promise<void> {
   try {
     const rows = await query.unsafe(
-      `select extname from pg_extension where extname in ('pg_trgm', 'vector')`
+      `select extname from pg_extension where extname in ('pg_trgm', 'unaccent', 'vector')`
     );
     console.log(
       `[search] extensions ${summarizeSearchExtensions(rows.map((row) => row.extname))}`

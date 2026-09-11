@@ -6,6 +6,7 @@ import {
   holdClearHoldResultsSearchState,
   createHoldResultsSearchState,
   focusHoldResultsSearchState,
+  holdResultsActiveQuery,
   syncHoldResultsSearchState,
 } from '@/utils/holdResultsSearchInput';
 
@@ -92,5 +93,11 @@ describe('holdResultsSearchInput', () => {
       holdingFrom: null,
       focused: false,
     });
+  });
+
+  test('holdResultsActiveQuery uses draft while typing and committed only while holding', () => {
+    expect(holdResultsActiveQuery('sta', '', null)).toBe('sta');
+    expect(holdResultsActiveQuery('', 'OGN-015', 'OGN-015')).toBe('OGN-015');
+    expect(holdResultsActiveQuery('', 'OGN-015', null)).toBe('');
   });
 });

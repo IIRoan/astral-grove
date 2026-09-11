@@ -77,6 +77,21 @@ test.describe('search', () => {
     ).toBeVisible();
   });
 
+  test('shows catalog-index matches before a delayed search API response', async ({
+    page,
+  }) => {
+    await page.route('**/api/v1/cards?*', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+      await route.continue();
+    });
+
+    const search = page.getByPlaceholder('Search cards, artists, tags, or set numbers');
+    await search.fill(FOIL_CARD.query);
+    await expect(cardTile(page, FOIL_CARD.name, FOIL_CARD.standardId)).toBeVisible({
+      timeout: 2500,
+    });
+  });
+
   test('nonsense query yields an empty state', async ({ page }) => {
     const search = page.getByPlaceholder('Search cards, artists, tags, or set numbers');
     await search.fill('zzz-no-card-should-match-this-ui-e2e-999');

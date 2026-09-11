@@ -3,6 +3,7 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import {
   buildCardSearchCondition,
   buildSearchRelevanceOrder,
+  buildTypeIntentCondition,
   escapeRegexLiteral,
   tokenizeSearchQuery,
   wholeWordPattern,
@@ -42,9 +43,12 @@ describe('buildCardSearchCondition', () => {
     expect(compiled.sql.toLowerCase()).toContain('false');
   });
 
-  test('builds a SQL fragment for one or more tokens', () => {
-    expect(buildCardSearchCondition('vi')).toBeDefined();
-    expect(buildCardSearchCondition('vi destructive')).toBeDefined();
+  test('matches identity tokens via relation-local subqueries', () => {
+    const compiled = compile(buildCardSearchCondition('jinx signed')!);
+    expect(compiled.sql.toLowerCase()).toContain(' in (select');
+    expect(compiled.sql.toLowerCase()).toContain('from "cards"');
+    expect(compiled.sql.toLowerCase()).toContain('from "variants"');
+    expect(compiled.sql.toLowerCase()).toContain('from "sets"');
   });
 
   test('matches names regardless of spaces in the query', () => {
@@ -52,7 +56,8 @@ describe('buildCardSearchCondition', () => {
     const compact = compile(buildCardSearchCondition('soulspinner')!);
 
     for (const compiled of [spaced, compact]) {
-      expect(compiled.sql.toLowerCase()).toContain('regexp_replace');
+      expect(compiled.sql.toLowerCase()).toContain('name_norm');
+      expect(compiled.sql.toLowerCase()).toContain('name_squashed');
       expect(compiled.params).toContain('%soulspinner%');
     }
   });
@@ -66,7 +71,9 @@ describe('buildCardSearchCondition', () => {
   test('searches variant labels and uses whole-word rules matching', () => {
     const compiled = compile(buildCardSearchCondition('signed')!);
     expect(compiled.sql.toLowerCase()).toContain('variant_label');
-    expect(compiled.sql).toContain('~*');
+    expect(compiled.sql.toLowerCase()).toContain('rules_search_text');
+    expect(compiled.sql.toLowerCase()).not.toContain('attach_text');
+    expect((compiled.sql.match(/~\*/g) ?? []).length).toBe(2);
     expect(compiled.params).toContain('%signed%');
     expect(compiled.params).toContain(wholeWordPattern('signed'));
   });
@@ -75,6 +82,13 @@ describe('buildCardSearchCondition', () => {
     const compiled = compile(buildCardSearchCondition('ambessa legend')!);
     expect(compiled.params).toContain('%ambessa%');
     expect(compiled.sql.toLowerCase()).toContain('super');
+  });
+
+  test('exposes type-intent SQL for semantic extras', () => {
+    const compiled = compile(buildTypeIntentCondition('ambessa legend')!);
+    expect(compiled.sql.toLowerCase()).toContain('type');
+    expect(compiled.params).toContain('%legend%');
+    expect(compiled.params).not.toContain('%ambessa%');
   });
 
   test('includes trigram similarity fallback for typo queries', () => {
@@ -96,6 +110,12 @@ describe('buildCardSearchCondition', () => {
     expect(compiled.sql.toLowerCase()).toContain('similarity');
     expect(compiled.sql.toLowerCase()).not.toContain("|| ' ' ||");
   });
+
+  test('punctuation queries bind LIKE patterns for remaining alphanumeric tokens', () => {
+    const compiled = compile(buildCardSearchCondition('100%')!);
+    expect(compiled.params).toContain('%100%');
+    expect(compiled.params).not.toContain('%100%%');
+  });
 });
 
 describe('wholeWordPattern', () => {
@@ -112,7 +132,8 @@ describe('buildSearchRelevanceOrder', () => {
 
   test('ranks space-insensitive name matches', () => {
     const compiled = compile(buildSearchRelevanceOrder('soul spinner'));
-    expect(compiled.sql.toLowerCase()).toContain('regexp_replace');
+    expect(compiled.sql.toLowerCase()).toContain('name_norm');
+    expect(compiled.sql.toLowerCase()).toContain('name_squashed');
     expect(compiled.params.some((value) => String(value).includes('soulspinner'))).toBe(
       true
     );
@@ -139,9 +160,24 @@ describe('buildSearchRelevanceOrder', () => {
     expect(compiled.sql.toLowerCase()).not.toContain('tags');
   });
 
+  test('uses lower(variant_number) for printing prefix ranks', () => {
+    const compiled = compile(buildSearchRelevanceOrder('ogn-253'));
+    expect(compiled.sql.toLowerCase()).toContain('lower(');
+    expect(compiled.sql.toLowerCase()).toContain('variant_number');
+  });
+
   test('boosts close name typos like stargazer → Stagazer', () => {
     const compiled = compile(buildSearchRelevanceOrder('stargazer'));
     expect(compiled.sql.toLowerCase()).toContain('similarity');
     expect(compiled.params).toContain('stargazer');
+  });
+
+  test('ranks names that contain every identity token as an exact word', () => {
+    const compiled = compile(buildSearchRelevanceOrder('vi destructive'));
+    expect(compiled.sql.toLowerCase()).toContain('unnest(string_to_array');
+    expect(compiled.sql).toContain('w =');
+    expect(compiled.params).toContain('vi');
+    expect(compiled.params).toContain('destructive');
+    expect(compiled.sql).toContain(' THEN 3');
   });
 });

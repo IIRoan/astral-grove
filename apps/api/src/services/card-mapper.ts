@@ -255,6 +255,23 @@ export function mapListItemFromDbRow(
   return mapListItem(stubCard, stubVariant, priceRows);
 }
 
+export function candidateGroupMaxMarketPrice(
+  rows: readonly ListItemDbRow[],
+  priceRows: PaPriceRow[]
+): number {
+  let max = 0;
+  for (const row of rows) {
+    const item = mapListItemFromDbRow(row, [], priceRows, (url) => url);
+    const display = item.priceEur?.market ?? 0;
+    if (display > max) max = display;
+    for (const printing of item.printings) {
+      const amount = printing.priceEur?.market;
+      if (amount != null && amount > max) max = amount;
+    }
+  }
+  return max;
+}
+
 export function mapListItem(
   card: PaLogicalCard,
   primaryVariant: PaVariant,

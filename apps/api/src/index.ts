@@ -1,6 +1,7 @@
 import { createApp, startCatalogMetadataWarmup, startSyncCrons } from './app.js';
 import { runStartupMigrations } from './db/migrate.js';
 import { loadEnv } from './env.js';
+import { apiListenOptions } from './lib/http-listen.js';
 import { logSearchIndexStatus } from './services/embeddings.js';
 
 async function main() {
@@ -13,7 +14,7 @@ async function main() {
   const port = env.PORT;
   const host = env.HOST;
 
-  app.listen({ port, hostname: host });
+  app.listen(apiListenOptions(port, host));
   console.log(`Riftbound API running at http://${host}:${String(port)}`);
 
   startCatalogMetadataWarmup(ctx, env);

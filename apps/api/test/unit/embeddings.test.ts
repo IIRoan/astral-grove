@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  LOCAL_EMBEDDING_MODEL,
   localEmbed,
   rankEmbeddings,
   summarizeSearchExtensions,
@@ -22,11 +23,18 @@ describe('localEmbed', () => {
     ]);
     expect(ranked[0]?.id).toBe('match');
   });
+  test('versions the local model with the shared normalizer', () => {
+    expect(LOCAL_EMBEDDING_MODEL).toBe('local-hash-v2-norm-v1');
+    expect(localEmbed('Ambéssa')).toEqual(localEmbed('Ambessa'));
+  });
 });
 
 test('summarizes Railway extension availability without requiring pgvector', () => {
   expect(summarizeSearchExtensions(['pg_trgm'])).toBe(
-    'pg_trgm=true vector=false storage=real[]'
+    'pg_trgm=true unaccent=false vector=false storage=real[]'
   );
-  expect(summarizeSearchExtensions(['pg_trgm', 'vector'])).toContain('vector=true');
+  expect(summarizeSearchExtensions(['pg_trgm', 'unaccent', 'vector'])).toContain(
+    'unaccent=true'
+  );
 });
+

@@ -5,6 +5,7 @@ import {
 import { fetch } from 'expo/fetch';
 import { getApiUrl } from '@/lib/api-url';
 import { getAuthCookieHeader } from '@/lib/auth-cookie';
+import { isLiveStreamDisconnect } from '@/lib/live-stream-disconnect';
 import { logActionFailure } from '@/lib/logger';
 import { Platform } from 'react-native';
 
@@ -95,6 +96,9 @@ export async function subscribeCollectionLiveEvents(options: {
         if (event) options.onEvent(event);
       }
     }
+  } catch (error) {
+    if (options.signal.aborted || isLiveStreamDisconnect(error)) return;
+    throw error;
   } finally {
     try {
       await reader.cancel();

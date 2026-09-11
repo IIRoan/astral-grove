@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'bun:test';
-import type { CardDetail, CardListItem } from '@riftbound/contracts';
+import { describe, expect, spyOn, test } from 'bun:test';
+import type { CardDetail, CardListItem, CardsListResponse } from '@riftbound/contracts';
 import type { DeckCard } from './deck-types';
 import { createEmptyDeck } from './deck-card';
 import {
@@ -9,12 +9,16 @@ import {
   defaultDeckAddSearch,
   deckAddListQueryKey,
   effectiveDeckAddSearch,
+  fetchDeckAddListPage,
   filterDeckAddDisplayCards,
   filterEligibleDeckAddCards,
   legendNeedsHydration,
   uniqueCardListItems,
+  searchLocalDeckAddCatalog,
+  pickDeckAddDisplayListItems,
 } from './deck-add-catalog';
 import { DEFAULT_CATALOG_FILTERS } from '@/constants/catalogFilters';
+import { api } from '@/src/api/client';
 
 function mockDeckCard(overrides: Partial<DeckCard> & Pick<DeckCard, 'name'>): DeckCard {
   return {
@@ -246,6 +250,53 @@ describe('deck-add-catalog', () => {
       deck
     );
     expect(settKey).not.toBe(jinxKey);
+  });
+
+  test('first deck-add page forces an upstream refresh', async () => {
+    const emptyPage: CardsListResponse = {
+      data: [],
+      meta: {
+        pagination: {
+          total: 0,
+          page: 1,
+          limit: 80,
+          totalPages: 1,
+          hasNext: false,
+          hasPrevious: false,
+        },
+        source: 'cache',
+        catalogHash: '',
+      },
+    };
+    const listCards = spyOn(api, 'listCards').mockResolvedValue(emptyPage);
+    const deck = createEmptyDeck();
+    await fetchDeckAddListPage('mainDeck', deck, '', DEFAULT_CATALOG_FILTERS, 1);
+    expect(listCards.mock.calls[0]?.[0]).toMatchObject({ page: 1, refresh: true });
+    listCards.mockRestore();
+  });
+
+  test('later deck-add pages do not force an upstream refresh', async () => {
+    const emptyPage: CardsListResponse = {
+      data: [],
+      meta: {
+        pagination: {
+          total: 0,
+          page: 2,
+          limit: 80,
+          totalPages: 1,
+          hasNext: false,
+          hasPrevious: true,
+        },
+        source: 'cache',
+        catalogHash: '',
+      },
+    };
+    const listCards = spyOn(api, 'listCards').mockResolvedValue(emptyPage);
+    const deck = createEmptyDeck();
+    await fetchDeckAddListPage('mainDeck', deck, '', DEFAULT_CATALOG_FILTERS, 2);
+    expect(listCards.mock.calls[0]?.[0]).toMatchObject({ page: 2 });
+    expect(listCards.mock.calls[0]?.[0]).not.toHaveProperty('refresh');
+    listCards.mockRestore();
   });
 
   test('detects legends missing champion tags', () => {
@@ -505,6 +556,22 @@ describe('deck-add-catalog', () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0]?.name).toBe('Patched Porobot');
     expect(candidates[0]?.type).toBe('Unit Gear');
+  });
+
+  test('searchLocalDeckAddCatalog matches champion units from the catalog index', () => {
+    const deck = createEmptyDeck();
+    deck.legend = settLegend;
+    const hits = searchLocalDeckAddCatalog(settListItems, 'champion', deck, 'brawler');
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every((item) => item.name === 'Sett, Brawler')).toBe(true);
+  });
+
+  test('pickDeckAddDisplayListItems keeps local hits when the API page is empty', () => {
+    const local = settListItems;
+    expect(pickDeckAddDisplayListItems([], local)).toEqual(local);
+    expect(pickDeckAddDisplayListItems(local.slice(0, 1), local)).toEqual(
+      local.slice(0, 1)
+    );
   });
 
   test('excludes token printings like Gold from deck add candidates', () => {

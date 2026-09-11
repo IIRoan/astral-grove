@@ -30,6 +30,8 @@ interface SearchBarProps extends Pick<TextInputProps, 'onSubmitEditing' | 'autoF
   placeholder?: string;
   /** Web: show `/` hint and bind slash-to-focus / slash-to-clear. Defaults to true. */
   enableSlashFocus?: boolean;
+  /** Draft when typing, else committed — drives catalog search while the field is focused. */
+  onActiveQueryChange?: (query: string) => void;
 }
 
 /** Focus/`/` clears draft without committing; X commits empty and resets results. */
@@ -42,6 +44,7 @@ export const SearchBar = memo(function SearchBar({
   onSubmitEditing,
   autoFocus,
   enableSlashFocus = true,
+  onActiveQueryChange,
 }: SearchBarProps) {
   const inputRef = useRef<TextInput>(null);
   const searchFocusedRef = useRef(false);
@@ -53,7 +56,7 @@ export const SearchBar = memo(function SearchBar({
     onClear: clearDraftAndCommit,
     onHoldClear,
     flush,
-  } = useHoldResultsSearchInput(value, onChangeText);
+  } = useHoldResultsSearchInput(value, onChangeText, onActiveQueryChange);
 
   const draftRef = useLatestRef(draft);
 

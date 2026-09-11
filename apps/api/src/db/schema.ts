@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   pgTable,
   uuid,
@@ -39,29 +39,57 @@ export const colors = pgTable('colors', {
   imageUrl: text('image_url'),
 });
 
-export const cards = pgTable('cards', {
-  id: uuid('id').primaryKey(),
-  name: text('name').notNull(),
-  type: text('type').notNull(),
-  super: text('super'),
-  description: text('description').notNull(),
-  energy: smallint('energy').notNull(),
-  might: smallint('might').notNull(),
-  power: smallint('power').notNull(),
-  tags: jsonb('tags').$type<string[]>().notNull().default([]),
-  attachText: text('attach_text'),
-  effect: text('effect'),
-  mightBonus: smallint('might_bonus').default(0),
-  maxCopies: smallint('max_copies'),
-  banEffectiveDate: timestamp('ban_effective_date', { withTimezone: true }),
-  contentHash: char('content_hash', { length: 64 }).notNull(),
-  embedding: realArray('embedding'),
-  embeddingModel: text('embedding_model'),
-  embeddedHash: char('embedded_hash', { length: 64 }),
-  upstreamRaw: jsonb('upstream_raw').notNull(),
-  fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const cards = pgTable(
+  'cards',
+  {
+    id: uuid('id').primaryKey(),
+    name: text('name').notNull(),
+    type: text('type').notNull(),
+    super: text('super'),
+    description: text('description').notNull(),
+    energy: smallint('energy').notNull(),
+    might: smallint('might').notNull(),
+    power: smallint('power').notNull(),
+    tags: jsonb('tags').$type<string[]>().notNull().default([]),
+    attachText: text('attach_text'),
+    effect: text('effect'),
+    mightBonus: smallint('might_bonus').default(0),
+    maxCopies: smallint('max_copies'),
+    banEffectiveDate: timestamp('ban_effective_date', { withTimezone: true }),
+    contentHash: char('content_hash', { length: 64 }).notNull(),
+    embedding: realArray('embedding'),
+    embeddingModel: text('embedding_model'),
+    embeddedHash: char('embedded_hash', { length: 64 }),
+    nameNorm: text('name_norm').generatedAlwaysAs(
+      sql`public.normalize_card_name_v1(name)`
+    ),
+    nameSquashed: text('name_squashed').generatedAlwaysAs(
+      sql`replace(public.normalize_card_name_v1(name), ' ', '')`
+    ),
+    rulesSearchText: text('rules_search_text').generatedAlwaysAs(
+      sql`coalesce(description, '') || E'\\n' || coalesce(effect, '') || E'\\n' || coalesce(attach_text, '')`
+    ),
+    upstreamRaw: jsonb('upstream_raw').notNull(),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('cards_name_norm_trgm_idx').using('gin', t.nameNorm.op('gin_trgm_ops')),
+    index('cards_name_squashed_trgm_idx').using(
+      'gin',
+      t.nameSquashed.op('gin_trgm_ops')
+    ),
+    index('cards_rules_search_text_trgm_idx').using(
+      'gin',
+      t.rulesSearchText.op('gin_trgm_ops')
+    ),
+    index('cards_type_tokens_idx').using(
+      'gin',
+      sql`string_to_array(lower(trim("type")), ' ')`
+    ),
+    index('cards_super_lower_idx').on(sql`lower(${t.super})`),
+  ]
+);
 
 export const cardColors = pgTable(
   'card_colors',
@@ -110,6 +138,20 @@ export const variants = pgTable(
     index('variants_cardmarket_id_idx').on(t.cardmarketId),
     index('variants_card_id_idx').on(t.cardId),
     index('variants_set_id_idx').on(t.setId),
+    index('variants_number_trgm_idx').using(
+      'gin',
+      sql`lower(${t.variantNumber}) gin_trgm_ops`
+    ),
+    index('variants_label_trgm_idx').using(
+      'gin',
+      sql`lower(${t.variantLabel}) gin_trgm_ops`
+    ),
+    index('variants_artist_trgm_idx').using(
+      'gin',
+      sql`lower(coalesce(${t.artist}, '')) gin_trgm_ops`
+    ),
+    index('variants_flavor_trgm_idx').using('gin', t.flavorText.op('gin_trgm_ops')),
+    index('variants_type_lower_idx').on(sql`lower(${t.variantType})`),
   ]
 );
 

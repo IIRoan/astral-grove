@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import {
   blurHoldResultsSearchState,
@@ -7,6 +7,7 @@ import {
   holdClearHoldResultsSearchState,
   createHoldResultsSearchState,
   focusHoldResultsSearchState,
+  holdResultsActiveQuery,
   syncHoldResultsSearchState,
 } from '@/utils/holdResultsSearchInput';
 
@@ -16,11 +17,13 @@ export const HOLD_RESULTS_COMMIT_MS = 150;
 /** Clears draft on focus without committing empty; results keep `committed` until type/clear. */
 export function useHoldResultsSearchInput(
   committed: string,
-  onCommit: (next: string) => void
+  onCommit: (next: string) => void,
+  onActiveQueryChange?: (query: string) => void
 ) {
   const [state, setState] = useState(() => createHoldResultsSearchState(committed));
   const committedRef = useLatestRef(committed);
   const onCommitRef = useLatestRef(onCommit);
+  const onActiveQueryChangeRef = useLatestRef(onActiveQueryChange);
   const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingCommitRef = useRef<string | null>(null);
 
@@ -40,9 +43,7 @@ export function useHoldResultsSearchInput(
     const pending = pendingCommitRef.current;
     pendingCommitRef.current = null;
     if (pending == null) return;
-    startTransition(() => {
-      onCommitRef.current(pending);
-    });
+    onCommitRef.current(pending);
   }, [onCommitRef]);
 
   const scheduleCommit = useCallback(
@@ -57,9 +58,28 @@ export function useHoldResultsSearchInput(
     [flushCommit]
   );
 
+  // FlashList 2 throws during React concurrent renders; keep catalog data updates synchronous.
+  const notifyActiveQuery = useCallback(
+    (next: { draft: string; holdingFrom: string | null }) => {
+      const onChange = onActiveQueryChangeRef.current;
+      if (!onChange) return;
+      const query = holdResultsActiveQuery(
+        next.draft,
+        committedRef.current,
+        next.holdingFrom
+      );
+      onChange(query);
+    },
+    [committedRef, onActiveQueryChangeRef]
+  );
+
   useEffect(() => {
     setState((prev) => syncHoldResultsSearchState(prev, committed));
   }, [committed]);
+
+  useEffect(() => {
+    notifyActiveQuery({ draft: state.draft, holdingFrom: state.holdingFrom });
+  }, [committed, state.draft, state.holdingFrom, notifyActiveQuery]);
 
   useEffect(() => {
     return () => {
@@ -71,33 +91,49 @@ export function useHoldResultsSearchInput(
   }, [onCommitRef]);
 
   const onFocus = useCallback(() => {
-    setState((prev) => focusHoldResultsSearchState(prev, committedRef.current));
-  }, [committedRef]);
+    let next = createHoldResultsSearchState(committedRef.current);
+    setState((prev) => {
+      next = focusHoldResultsSearchState(prev, committedRef.current);
+      return next;
+    });
+    notifyActiveQuery(next);
+  }, [committedRef, notifyActiveQuery]);
 
   const onBlur = useCallback(() => {
-    setState((prev) => blurHoldResultsSearchState(prev));
+    let next = createHoldResultsSearchState(committedRef.current);
+    setState((prev) => {
+      next = blurHoldResultsSearchState(prev);
+      return next;
+    });
+    notifyActiveQuery(next);
     flushCommit();
-  }, [flushCommit]);
+  }, [committedRef, flushCommit, notifyActiveQuery]);
 
   const onChangeText = useCallback(
     (text: string) => {
-      setState(changeHoldResultsSearchState(text));
+      const next = changeHoldResultsSearchState(text);
+      setState(next);
+      notifyActiveQuery(next);
       scheduleCommit(text);
     },
-    [scheduleCommit]
+    [notifyActiveQuery, scheduleCommit]
   );
 
   const onClear = useCallback(() => {
     cancelPendingCommit();
-    setState(clearHoldResultsSearchState());
+    const next = clearHoldResultsSearchState();
+    setState(next);
+    notifyActiveQuery(next);
     onCommitRef.current('');
-  }, [cancelPendingCommit, onCommitRef]);
+  }, [cancelPendingCommit, notifyActiveQuery, onCommitRef]);
 
   /** Clear the visible draft without committing — results keep using `committed`. */
   const onHoldClear = useCallback(() => {
     cancelPendingCommit();
-    setState(holdClearHoldResultsSearchState(committedRef.current));
-  }, [cancelPendingCommit, committedRef]);
+    const next = holdClearHoldResultsSearchState(committedRef.current);
+    setState(next);
+    notifyActiveQuery(next);
+  }, [cancelPendingCommit, committedRef, notifyActiveQuery]);
 
   return {
     draft: state.draft,

@@ -23,18 +23,19 @@ import {
 } from '@riftbound/contracts';
 import type { CollectionItem as CollectionItemDto } from '@riftbound/contracts';
 import type { Auth } from '../auth.js';
-import { logActionFailure } from '../lib/logger.js';
-import { getSessionUser, unauthorized } from '../lib/session.js';
 import type { Database } from '../db/client.js';
-import { ensureCollectionMembership } from '../services/collection-membership.js';
-import type { CollectionService } from '../services/collection-service.js';
+import { COLLECTION_LIVE_HEARTBEAT_MS } from '../lib/http-listen.js';
+import { logActionFailure } from '../lib/logger.js';
+import { mergeRequestBody, parseRequest } from '../lib/request-validation.js';
+import { getSessionUser, unauthorized } from '../lib/session.js';
 import { CollectionAuditService } from '../services/collection-audit-service.js';
 import {
   collectionLiveHub,
   CollectionLiveLimitError,
   type CollectionLiveHub,
 } from '../services/collection-live-hub.js';
-import { mergeRequestBody, parseRequest } from '../lib/request-validation.js';
+import { ensureCollectionMembership } from '../services/collection-membership.js';
+import type { CollectionService } from '../services/collection-service.js';
 
 async function quantitiesForVariantLookup(
   collection: CollectionService,
@@ -51,7 +52,7 @@ async function quantitiesForVariantLookup(
   return rows;
 }
 
-const HEARTBEAT_MS = 25_000;
+const HEARTBEAT_MS = COLLECTION_LIVE_HEARTBEAT_MS;
 
 function collectionItemResponse(
   action: string,
@@ -239,6 +240,7 @@ export function createCollectionRoutes(
         set.status = 401;
         return unauthorized();
       }
+      set.headers['x-accel-buffering'] = 'no';
       const { collectionId } = await ensureCollectionMembership(db, user.id);
       try {
         return streamCollectionLiveEvents(request, collectionId, liveHub);

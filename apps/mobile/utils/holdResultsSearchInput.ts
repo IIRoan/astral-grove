@@ -12,6 +12,17 @@ export function createHoldResultsSearchState(
   return { draft: committed, holdingFrom: null, focused: false };
 }
 
+/** Draft while typing; committed only while focus-holding an empty draft. */
+export function holdResultsActiveQuery(
+  draft: string,
+  committed: string,
+  holdingFrom: string | null
+): string {
+  if (draft.length > 0) return draft;
+  if (holdingFrom !== null) return committed;
+  return '';
+}
+
 /** Parent committed value changed (history pick, external clear, etc.). */
 export function syncHoldResultsSearchState(
   state: HoldResultsSearchState,

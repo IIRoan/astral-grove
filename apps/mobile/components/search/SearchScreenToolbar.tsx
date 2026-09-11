@@ -11,6 +11,7 @@ interface SearchScreenToolbarProps {
   query: string;
   onQueryChange: (text: string) => void;
   onClearSearch: () => void;
+  onActiveSearchQueryChange: (query: string) => void;
   searchLoading: boolean;
   onSubmitSearch: () => void;
   isMobile: boolean;
@@ -27,6 +28,7 @@ export function SearchScreenToolbar({
   query,
   onQueryChange,
   onClearSearch,
+  onActiveSearchQueryChange,
   searchLoading,
   onSubmitSearch,
   isMobile,
@@ -43,6 +45,7 @@ export function SearchScreenToolbar({
         value={query}
         onChangeText={onQueryChange}
         onClear={onClearSearch}
+        onActiveQueryChange={onActiveSearchQueryChange}
         isLoading={searchLoading}
         placeholder="Search cards, artists, tags, or set numbers"
         onSubmitEditing={onSubmitSearch}

@@ -26,6 +26,7 @@ import {
 } from '@/constants/catalogFilters';
 import { api } from '@/src/api/client';
 import { groupCardListItems, normalizeCardListItems } from '@/utils/variants';
+import { searchCatalogItems, sortCatalogItems } from '@/utils/catalogSearch';
 
 export type DeckAddCatalogStatus =
   | 'loading'
@@ -253,9 +254,39 @@ export async function fetchDeckAddListPage(
   const query = buildDeckAddListQuery(section, deck, userQuery, filters, page);
   return api.listCards({
     ...query,
-    // Force upstream reconcile on the first page so deck sections show real PA cards.
+    // First page reconciles with PA so deck sections show current catalog cards.
     ...(page === 1 ? { refresh: true } : {}),
   });
+}
+
+export function filterDeckAddCatalogIndex(
+  items: readonly CardListItem[],
+  section: DeckSectionKey
+): CardListItem[] {
+  return items.filter((item) => matchesSectionFromListItem(item, section));
+}
+
+export function searchLocalDeckAddCatalog(
+  items: readonly CardListItem[],
+  section: DeckSectionKey,
+  deck: DeckState,
+  userQuery: string
+): CardListItem[] {
+  const meta = getDeckAddSectionMeta(section, deck);
+  const sort = { sortBy: 'name' as const, dir: 'asc' as const };
+  const pool = filterDeckAddCatalogIndex(items, section);
+  const q = effectiveDeckAddSearch(section, deck, userQuery).trim();
+  if (!q) {
+    return sortCatalogItems(pool, sort, meta.limit);
+  }
+  return uniqueCardListItems(searchCatalogItems(pool, q, sort, meta.limit));
+}
+
+export function pickDeckAddDisplayListItems(
+  listItems: CardListItem[],
+  localListItems: CardListItem[]
+): CardListItem[] {
+  return listItems.length > 0 ? listItems : localListItems;
 }
 
 export function legendNeedsHydration(legend: DeckCard | null | undefined): boolean {

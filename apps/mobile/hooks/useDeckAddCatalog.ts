@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { getCatalogIndexItems, useCatalogIndex } from '@/hooks/useCatalogIndex';
 import type { DeckSectionKey, DeckState } from '@/lib/deck-types';
 import {
   buildDeckAddCandidates,
@@ -12,6 +13,8 @@ import {
   getDeckAddSectionMeta,
   legendNeedsHydration,
   mergeHydratedLegend,
+  pickDeckAddDisplayListItems,
+  searchLocalDeckAddCatalog,
   type DeckAddCatalogStatus,
 } from '@/lib/deck-add-catalog';
 import {
@@ -32,6 +35,8 @@ export function useDeckAddCatalog(
   options?: { enabled?: boolean }
 ) {
   const hookEnabled = options?.enabled !== false;
+  const catalogIndex = useCatalogIndex();
+  const catalogItems = getCatalogIndexItems(catalogIndex.data);
   const sectionMeta = useMemo(
     () => getDeckAddSectionMeta(section, deck),
     [section, deck]
@@ -97,12 +102,19 @@ export function useDeckAddCatalog(
     [listQuery.data]
   );
 
+  const localListItems = useMemo(() => {
+    if (!catalogEnabled || catalogItems.length === 0) return [];
+    return searchLocalDeckAddCatalog(catalogItems, section, resolvedDeck, userQuery);
+  }, [catalogEnabled, catalogItems, section, resolvedDeck, userQuery]);
+
+  const displayListItems = pickDeckAddDisplayListItems(listItems, localListItems);
+
   const filteredListItems = useMemo(() => {
-    if (!catalogFiltersActive(filters)) return listItems;
-    return listItems.filter((item) =>
+    if (!catalogFiltersActive(filters)) return displayListItems;
+    return displayListItems.filter((item) =>
       matchesCatalogFilters(item, filters, collectionByVariant, { colorMode: 'within' })
     );
-  }, [listItems, filters, collectionByVariant]);
+  }, [displayListItems, filters, collectionByVariant]);
 
   const candidateCards = useMemo(
     () =>
@@ -123,7 +135,10 @@ export function useDeckAddCatalog(
   const hasNextPage = listQuery.hasNextPage ?? false;
   const isFetchingNextPage = listQuery.isFetchingNextPage;
   const isInitialListLoading =
-    catalogEnabled && listQuery.isPending && listItems.length === 0;
+    catalogEnabled &&
+    listQuery.isPending &&
+    listItems.length === 0 &&
+    localListItems.length === 0;
 
   const isLoading =
     (section === 'champion' &&
@@ -137,10 +152,16 @@ export function useDeckAddCatalog(
     if (!catalogEnabled) return 'needs-legend';
     if (isError) return 'error';
     if (isLoading) return 'loading';
-    if (listItems.length === 0) return 'no-catalog-results';
+    if (displayListItems.length === 0) return 'no-catalog-results';
     if (displayCards.length === 0) return 'no-eligible-results';
     return 'ready';
-  }, [catalogEnabled, isError, isLoading, listItems.length, displayCards.length]);
+  }, [
+    catalogEnabled,
+    isError,
+    isLoading,
+    displayListItems.length,
+    displayCards.length,
+  ]);
 
   const emptyState = useMemo(
     () =>
@@ -148,11 +169,18 @@ export function useDeckAddCatalog(
         section,
         deck: resolvedDeck,
         status: status === 'loading' ? 'no-catalog-results' : status,
-        catalogTotal: listItems.length,
+        catalogTotal: displayListItems.length,
         candidateCount: candidateCards.length,
         userQuery,
       }),
-    [section, resolvedDeck, status, listItems.length, candidateCards.length, userQuery]
+    [
+      section,
+      resolvedDeck,
+      status,
+      displayListItems.length,
+      candidateCards.length,
+      userQuery,
+    ]
   );
 
   const fetchNextPageSafe = () => {

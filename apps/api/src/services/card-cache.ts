@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, sql, type SQL } from 'drizzle-orm';
 import type {
   CardsListQuery,
   CardDetail,
@@ -9,9 +9,8 @@ import type {
 import {
   PaCardsListResponse,
   fuseSearchResultIds,
-  matchesSearchHaystack,
-  sortByLexicalRelevance,
   type PaLogicalCard,
+  type PaPriceRow,
   type PaVariant,
 } from '@riftbound/contracts';
 import type { Database } from '../db/client.js';
@@ -21,6 +20,7 @@ import {
   mapCardDetail,
   mapListItem,
   mapListItemFromDbRow,
+  candidateGroupMaxMarketPrice,
   type ListItemDbRow,
   groupCardListItems,
   paCardHash,
@@ -28,7 +28,6 @@ import {
 } from './card-mapper.js';
 import type { PriceCacheService } from './price-cache.js';
 import type { ImageStoreService } from './image-store.js';
-import { buildCardSearchCondition, buildSearchRelevanceOrder } from '../lib/search.js';
 import { rankEmbeddings, type EmbeddingService } from './embeddings.js';
 import {
   logSearchCacheHit,
@@ -41,12 +40,25 @@ import {
   summarizeGlobalSearchQuery,
   summarizeHydrationTimings,
 } from '../lib/search-metrics.js';
-import {
-  buildCardColorsContainsAllCondition,
-  buildCardColorsWithinCondition,
-} from '../lib/card-colors-filter.js';
-import { buildCardTypesCondition } from '../lib/card-types-filter.js';
 import { TtlCache } from '../lib/ttl-cache.js';
+import {
+  buildSearchCandidateQuery,
+  buildSearchCandidateQueryUnsorted,
+  buildSearchFilterWhere,
+  buildSearchTypeIntentWhere,
+  buildSearchWhere,
+  shouldMaterializeThenPage,
+} from '../lib/search-sql.js';
+import {
+  groupSearchCandidateRows,
+  searchGroupKeyForRow,
+  searchRankCardFromGroup,
+  sortCandidateGroupsByEnergy,
+  sortCandidateGroupsByName,
+  sortCandidateGroupsByVariantNumber,
+  sortCandidateGroupsLexically,
+  type SearchCandidateGroup,
+} from '../lib/search-candidates.js';
 import {
   buildUpstreamListParams,
   maxUpstreamBackfillPages,
@@ -57,31 +69,6 @@ import {
 const SEARCH_RESULT_TTL_MS = 5 * 60 * 1000;
 const UPSTREAM_CHECK_TTL_MS = 15 * 60 * 1000;
 const VARIANT_ID_RESOLVE_TTL_MS = 30 * 60 * 1000;
-/** Cap variant rows loaded before in-memory printing grouping + pagination. */
-const SEARCH_VARIANT_FETCH_CAP = 500;
-/** Deck-builder browse materializes the full matching set, then pages. */
-const FILTERED_BROWSE_VARIANT_FETCH_CAP = 5000;
-
-function listItemMaxMarketPrice(item: CardListItem): number {
-  let max = item.priceEur?.market ?? 0;
-  for (const printing of item.printings) {
-    const amount = printing.priceEur?.market;
-    if (amount != null && amount > max) max = amount;
-  }
-  return max;
-}
-
-function sortCardListItemsByPrice(
-  items: CardListItem[],
-  dir: 'asc' | 'desc'
-): CardListItem[] {
-  const sign = dir === 'asc' ? 1 : -1;
-  return [...items].sort((left, right) => {
-    const diff = (listItemMaxMarketPrice(left) - listItemMaxMarketPrice(right)) * sign;
-    if (diff !== 0) return diff;
-    return left.name.localeCompare(right.name);
-  });
-}
 
 type SearchResult = {
   items: CardListItem[];
@@ -89,6 +76,28 @@ type SearchResult = {
   catalogHash: string;
   source: 'cache' | 'upstream' | 'mixed';
 };
+
+export type LocalSearchTimings = {
+  dbMs: number;
+  colorsMs: number;
+  pricesMs: number;
+  mapMs: number;
+  groupMs: number;
+  countMs: number;
+  rankMs: number;
+  totalMs: number;
+};
+
+function searchGroupKeyForItem(item: CardListItem): string {
+  const printing = item.printings[0];
+  if (!printing) return item.cardId;
+  return searchGroupKeyForRow({
+    cardId: item.cardId,
+    variantNumber: printing.variantNumber,
+    variantLabel: printing.variantLabel,
+    foilMode: printing.foilMode ?? '',
+  });
+}
 
 function searchCacheKey(
   query: CardsListQuery,
@@ -859,8 +868,11 @@ export class CardCacheService {
     let reconcileMs = 0;
     if (reconcileMode === 'sync') {
       const reconcileStart = performance.now();
+      const localTimings = result.timings;
       const reconciled = await this.reconcileSearchWithUpstream(query, result);
-      result = reconciled.result;
+      result = localTimings
+        ? { ...reconciled.result, timings: localTimings }
+        : reconciled.result;
       source = reconciled.source;
       reconcileMs = performance.now() - reconcileStart;
     }
@@ -1156,8 +1168,31 @@ export class CardCacheService {
     items: CardListItem[];
     total: number;
     catalogHash: string;
+    timings?: LocalSearchTimings;
   }> {
     return this.searchLocalPostgres(query, catalogHash);
+  }
+
+  async searchLocalWithoutUpstream(query: CardsListQuery): Promise<{
+    items: CardListItem[];
+    total: number;
+    catalogHash: string;
+    timings: LocalSearchTimings;
+  }> {
+    const result = await this.searchLocal(query);
+    return {
+      ...result,
+      timings: result.timings ?? {
+        dbMs: 0,
+        colorsMs: 0,
+        pricesMs: 0,
+        mapMs: 0,
+        groupMs: 0,
+        countMs: 0,
+        rankMs: 0,
+        totalMs: 0,
+      },
+    };
   }
 
   private async loadColorNamesByCardIds(
@@ -1183,7 +1218,10 @@ export class CardCacheService {
     return colorsByCard;
   }
 
-  private async hydrateSlimRows(rows: ListItemDbRow[]): Promise<{
+  private async hydrateSlimRows(
+    rows: ListItemDbRow[],
+    preloadedPrices?: PaPriceRow[]
+  ): Promise<{
     items: CardListItem[];
     colorsMs: number;
     pricesMs: number;
@@ -1207,6 +1245,7 @@ export class CardCacheService {
       return result;
     })();
     const pricesPromise = (async () => {
+      if (preloadedPrices !== undefined) return preloadedPrices;
       const start = performance.now();
       const result = await this.prices.getRowsForCardmarketIds(cardmarketIds);
       pricesMs = performance.now() - start;
@@ -1232,160 +1271,20 @@ export class CardCacheService {
     items: CardListItem[];
     total: number;
     catalogHash: string;
+    timings: LocalSearchTimings;
   }> {
     const totalStart = performance.now();
-    const conditions = [];
-
-    if (query.q) {
-      const searchCond = buildCardSearchCondition(query.q);
-      if (searchCond) conditions.push(searchCond);
-    }
-    if (query.sets) {
-      const setCodes = query.sets.split(',').map((s) => s.trim());
-      conditions.push(inArray(sets.code, setCodes));
-    }
-    if (query.energyMin !== undefined) {
-      conditions.push(sql`${cards.energy} >= ${query.energyMin}`);
-    }
-    if (query.energyMax !== undefined) {
-      conditions.push(sql`${cards.energy} <= ${query.energyMax}`);
-    }
-    if (query.powerMin !== undefined) {
-      conditions.push(sql`${cards.power} >= ${query.powerMin}`);
-    }
-    if (query.powerMax !== undefined) {
-      conditions.push(sql`${cards.power} <= ${query.powerMax}`);
-    }
-    if (query.mightMin !== undefined) {
-      conditions.push(sql`${cards.might} >= ${query.mightMin}`);
-    }
-    if (query.mightMax !== undefined) {
-      conditions.push(sql`${cards.might} <= ${query.mightMax}`);
-    }
-    if (query.rarities) {
-      const rarityFilters = query.rarities
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean);
-      if (rarityFilters.length > 0) {
-        conditions.push(inArray(variants.rarity, rarityFilters));
-      }
-    }
-    if (query.variants) {
-      const variantFilters = query.variants
-        .split(',')
-        .map((value) => value.trim().toLowerCase())
-        .filter(Boolean);
-      if (variantFilters.length > 0) {
-        conditions.push(
-          sql`lower(${variants.variantType}) in (${sql.join(
-            variantFilters.map((value) => sql`${value}`),
-            sql`, `
-          )})`
-        );
-      }
-    }
-    if (query.types) {
-      const typeCond = buildCardTypesCondition(query.types.split(','));
-      if (typeCond) conditions.push(typeCond);
-    }
-    if (query.super) {
-      const superFilters = query.super
-        .split(',')
-        .map((value) => value.trim().toLowerCase())
-        .filter(Boolean);
-      if (superFilters.length === 1) {
-        conditions.push(sql`lower(${cards.super}) = ${superFilters[0]}`);
-      } else if (superFilters.length > 1) {
-        conditions.push(
-          sql`lower(${cards.super}) in (${sql.join(
-            superFilters.map((value) => sql`${value}`),
-            sql`, `
-          )})`
-        );
-      }
-    }
-    if (query.colors) {
-      const colorNames = query.colors.split(',').map((value) => value.trim());
-      const colorCond =
-        query.colorMode === 'within'
-          ? buildCardColorsWithinCondition(colorNames)
-          : buildCardColorsContainsAllCondition(colorNames);
-      if (colorCond) conditions.push(colorCond);
-    }
-    if (query.excludeTokens) {
-      conditions.push(sql`${variants.variantNumber} !~* '-T[0-9]+$'`);
-    }
-
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
-    const order =
-      query.q && query.q.trim().length > 0
-        ? asc(buildSearchRelevanceOrder(query.q))
-        : query.sortBy === 'energy'
-          ? query.dir === 'desc'
-            ? desc(cards.energy)
-            : asc(cards.energy)
-          : query.sortBy === 'variantNumber'
-            ? query.dir === 'desc'
-              ? desc(variants.variantNumber)
-              : asc(variants.variantNumber)
-            : query.dir === 'desc'
-              ? desc(cards.name)
-              : asc(cards.name);
-
+    const where = buildSearchWhere(query);
     const offset = (query.page - 1) * query.limit;
-    const hasSearch = Boolean(query.q?.trim());
-    const hasDeckBuilderFilters = Boolean(
-      query.types ||
-      query.colors ||
-      query.sets ||
-      query.super ||
-      query.variants ||
-      query.rarities ||
-      query.excludeTokens
-    );
-    // Materialize then group so alt arts / foil merges never split across SQL pages (deck builder scroll).
-    const materializeThenPage =
-      hasSearch || hasDeckBuilderFilters || query.sortBy === 'price';
-    const fetchCap = hasSearch
-      ? SEARCH_VARIANT_FETCH_CAP
-      : FILTERED_BROWSE_VARIANT_FETCH_CAP;
-    const orderBy =
-      query.q && query.q.trim().length > 0
-        ? [asc(buildSearchRelevanceOrder(query.q)), asc(cards.name)]
-        : [order];
-
-    const baseQuery = this.db
-      .select({
-        cardId: cards.id,
-        name: cards.name,
-        type: cards.type,
-        super: cards.super,
-        energy: cards.energy,
-        might: cards.might,
-        power: cards.power,
-        banEffectiveDate: cards.banEffectiveDate,
-        variantId: variants.id,
-        variantNumber: variants.variantNumber,
-        rarity: variants.rarity,
-        variantType: variants.variantType,
-        foilMode: variants.foilMode,
-        variantLabel: variants.variantLabel,
-        imageUrl: variants.imageUrl,
-        cardmarketId: variants.cardmarketId,
-        tcgplayerId: variants.tcgplayerId,
-        setCode: sets.code,
-      })
-      .from(variants)
-      .innerJoin(cards, eq(variants.cardId, cards.id))
-      .innerJoin(sets, eq(variants.setId, sets.id))
-      .where(where)
-      .orderBy(...orderBy);
+    const materializeThenPage = shouldMaterializeThenPage(query);
+    const resolvedCatalogHash = catalogHash ?? (await this.getCatalogHash());
 
     const dbStart = performance.now();
     const rows = materializeThenPage
-      ? await baseQuery.limit(fetchCap)
-      : await baseQuery.limit(query.limit).offset(offset);
+      ? await buildSearchCandidateQueryUnsorted(this.db, where)
+      : await buildSearchCandidateQuery(this.db, query)
+          .limit(query.limit)
+          .offset(offset);
     const dbMs = performance.now() - dbStart;
 
     logSearchPostgresQuery({
@@ -1393,109 +1292,154 @@ export class CardCacheService {
       ...summarizeCardsListQuery(query),
       engine: 'postgres',
       materializeThenPage,
-      fetchCap,
+      fetchCap: null,
       variantsSelected: rows.length,
       dbMs: Math.round(dbMs * 100) / 100,
     });
 
-    const {
-      items: rawItems,
-      colorsMs,
-      pricesMs,
-      mapMs,
-    } = await this.hydrateSlimRows(rows);
-    const hydration = summarizeHydrationTimings({ colorsMs, pricesMs, mapMs });
-    const resolvedCatalogHash = catalogHash ?? (await this.getCatalogHash());
-
-    if (materializeThenPage) {
+    if (!materializeThenPage) {
+      const {
+        items: rawItems,
+        colorsMs,
+        pricesMs,
+        mapMs,
+      } = await this.hydrateSlimRows(rows);
+      const hydration = summarizeHydrationTimings({ colorsMs, pricesMs, mapMs });
       const groupStart = performance.now();
-      let grouped = groupCardListItems(rawItems);
-      if (query.sortBy === 'price') {
-        grouped = sortCardListItemsByPrice(grouped, query.dir);
-      } else if (query.q?.trim()) {
-        grouped = await this.rerankSearchHits(query.q, grouped, resolvedCatalogHash);
-      }
+      const grouped = groupCardListItems(rawItems);
       const groupMs = performance.now() - groupStart;
-      let total = grouped.length;
-      let countMs = 0;
-
-      if (rows.length >= fetchCap) {
-        const countStart = performance.now();
-        const [countRow] = await this.db
-          .select({ value: count() })
-          .from(variants)
-          .innerJoin(cards, eq(variants.cardId, cards.id))
-          .innerJoin(sets, eq(variants.setId, sets.id))
-          .where(where);
-        countMs = performance.now() - countStart;
-        total = countRow?.value ?? grouped.length;
-      }
-
-      const items = grouped.slice(offset, offset + query.limit);
+      const countStart = performance.now();
+      const [totalRow] = await this.db
+        .select({ value: count() })
+        .from(variants)
+        .innerJoin(cards, eq(variants.cardId, cards.id))
+        .innerJoin(sets, eq(variants.setId, sets.id))
+        .where(where);
+      const countMs = performance.now() - countStart;
+      const total = totalRow?.value ?? 0;
+      const timings: LocalSearchTimings = {
+        dbMs,
+        colorsMs,
+        pricesMs,
+        mapMs,
+        groupMs,
+        countMs,
+        rankMs: 0,
+        totalMs: performance.now() - totalStart,
+      };
       logSearchComplete({
         path: 'cards_list',
         engine: 'postgres',
         ...summarizeCardsListQuery(query),
         materializeThenPage,
-        fetchCap,
+        fetchCap: null,
         variantsSelected: rows.length,
         variantsHydrated: rawItems.length,
         groupedCount: grouped.length,
-        itemsReturned: items.length,
+        itemsReturned: grouped.length,
         total,
         dbMs: Math.round(dbMs * 100) / 100,
         ...hydration,
         groupMs: Math.round(groupMs * 100) / 100,
         countMs: Math.round(countMs * 100) / 100,
-        totalMs: Math.round((performance.now() - totalStart) * 100) / 100,
+        totalMs: Math.round(timings.totalMs * 100) / 100,
       });
-
-      return {
-        items,
-        total,
-        catalogHash: resolvedCatalogHash,
-      };
+      return { items: grouped, total, catalogHash: resolvedCatalogHash, timings };
     }
 
     const groupStart = performance.now();
-    const grouped = groupCardListItems(rawItems);
+    let groups = groupSearchCandidateRows(rows);
+    let rankMs = 0;
+    let pricesMs = 0;
+    let sortPriceRows: PaPriceRow[] | undefined;
+
+    if (query.sortBy === 'price') {
+      const priceStart = performance.now();
+      const cardmarketIds = groups.flatMap((group) =>
+        group.rows
+          .map((row) => row.cardmarketId)
+          .filter((id): id is number => id != null)
+      );
+      sortPriceRows = await this.prices.getRowsForCardmarketIds(cardmarketIds);
+      pricesMs = performance.now() - priceStart;
+      const sign = query.dir === 'asc' ? 1 : -1;
+      groups = [...groups].sort((left, right) => {
+        const diff =
+          (candidateGroupMaxMarketPrice(left.rows, sortPriceRows ?? []) -
+            candidateGroupMaxMarketPrice(right.rows, sortPriceRows ?? [])) *
+          sign;
+        if (diff !== 0) return diff;
+        return (left.rows[0]?.name ?? '').localeCompare(right.rows[0]?.name ?? '');
+      });
+    } else if (query.q?.trim()) {
+      const rankStart = performance.now();
+      groups = await this.rerankSearchGroups(
+        query.q,
+        groups,
+        resolvedCatalogHash,
+        and(buildSearchFilterWhere(query), buildSearchTypeIntentWhere(query))
+      );
+      rankMs = performance.now() - rankStart;
+    } else if (query.sortBy === 'energy') {
+      groups = sortCandidateGroupsByEnergy(groups, query.dir);
+    } else if (query.sortBy === 'variantNumber') {
+      groups = sortCandidateGroupsByVariantNumber(groups, query.dir);
+    } else {
+      groups = sortCandidateGroupsByName(groups, query.dir);
+    }
     const groupMs = performance.now() - groupStart;
 
-    const countStart = performance.now();
-    const [totalRow] = await this.db
-      .select({
-        value: count(),
-      })
-      .from(variants)
-      .innerJoin(cards, eq(variants.cardId, cards.id))
-      .innerJoin(sets, eq(variants.setId, sets.id))
-      .where(where);
-    const countMs = performance.now() - countStart;
-    const total = totalRow?.value ?? 0;
+    const total = groups.length;
+    const pageGroups = groups.slice(offset, offset + query.limit);
+    const pageRows = pageGroups.flatMap((group) => group.rows);
+    const {
+      items: rawItems,
+      colorsMs,
+      pricesMs: pagePricesMs,
+      mapMs,
+    } = await this.hydrateSlimRows(pageRows, sortPriceRows);
+    if (sortPriceRows === undefined) pricesMs = pagePricesMs;
 
+    const grouped = groupCardListItems(rawItems);
+    const byKey = new Map(
+      grouped.map((item) => [searchGroupKeyForItem(item), item] as const)
+    );
+    const items = pageGroups.flatMap((group) => {
+      const item = byKey.get(group.key);
+      return item ? [item] : [];
+    });
+
+    const timings: LocalSearchTimings = {
+      dbMs,
+      colorsMs,
+      pricesMs,
+      mapMs,
+      groupMs,
+      countMs: 0,
+      rankMs,
+      totalMs: performance.now() - totalStart,
+    };
+    const hydration = summarizeHydrationTimings({ colorsMs, pricesMs, mapMs });
     logSearchComplete({
       path: 'cards_list',
       engine: 'postgres',
       ...summarizeCardsListQuery(query),
       materializeThenPage,
-      fetchCap,
+      fetchCap: null,
       variantsSelected: rows.length,
-      variantsHydrated: rawItems.length,
-      groupedCount: grouped.length,
-      itemsReturned: grouped.length,
+      variantsHydrated: pageRows.length,
+      groupedCount: groups.length,
+      itemsReturned: items.length,
       total,
       dbMs: Math.round(dbMs * 100) / 100,
       ...hydration,
       groupMs: Math.round(groupMs * 100) / 100,
-      countMs: Math.round(countMs * 100) / 100,
-      totalMs: Math.round((performance.now() - totalStart) * 100) / 100,
+      rankMs: Math.round(rankMs * 100) / 100,
+      countMs: 0,
+      totalMs: Math.round(timings.totalMs * 100) / 100,
     });
 
-    return {
-      items: grouped,
-      total,
-      catalogHash: resolvedCatalogHash,
-    };
+    return { items, total, catalogHash: resolvedCatalogHash, timings };
   }
 
   async countVariants(): Promise<number> {
@@ -1553,87 +1497,59 @@ export class CardCacheService {
     return this.embeddings.embedMissing();
   }
 
-  private async rerankSearchHits(
+  private async rerankSearchGroups(
     query: string,
-    grouped: CardListItem[],
-    catalogHash: string
-  ): Promise<CardListItem[]> {
-    if (!this.embeddings?.isEnabled()) {
-      return sortByLexicalRelevance(grouped, query);
+    groups: SearchCandidateGroup[],
+    catalogHash: string,
+    filterWhere: SQL | undefined
+  ): Promise<SearchCandidateGroup[]> {
+    const lexical = sortCandidateGroupsLexically(groups, query);
+    if (!this.embeddings?.isEnabled()) return lexical;
+
+    try {
+      const queryVector = await this.embeddings.embedQuery(query);
+      if (!queryVector) return lexical;
+
+      const stored = await this.embeddings.embeddingsForCatalog(catalogHash);
+      if (stored.length === 0) return lexical;
+
+      const vectorCardIds = rankEmbeddings(queryVector, stored).map((row) => row.id);
+      if (vectorCardIds.length === 0) return lexical;
+
+      const present = new Set(lexical.map((group) => group.cardId));
+      const extraIds = vectorCardIds.filter((id) => !present.has(id)).slice(0, 16);
+      let merged = lexical;
+      if (extraIds.length > 0) {
+        const extraWhere = filterWhere
+          ? and(filterWhere, inArray(cards.id, extraIds))
+          : inArray(cards.id, extraIds);
+        const extraRows = await buildSearchCandidateQueryUnsorted(this.db, extraWhere);
+        const extraGroups = groupSearchCandidateRows(extraRows);
+        const seen = new Set(lexical.map((group) => group.key));
+        merged = [...lexical, ...extraGroups.filter((group) => !seen.has(group.key))];
+      }
+
+      const cardsById = new Map(
+        merged.map((group) => [group.key, searchRankCardFromGroup(group)])
+      );
+      const lexicalIds = lexical.map((group) => group.key);
+      const vectorRank = new Map(vectorCardIds.map((id, index) => [id, index]));
+      const vectorIds = [...merged]
+        .filter((group) => vectorRank.has(group.cardId))
+        .sort(
+          (left, right) =>
+            (vectorRank.get(left.cardId) ?? 999) - (vectorRank.get(right.cardId) ?? 999)
+        )
+        .map((group) => group.key);
+
+      const fused = fuseSearchResultIds(lexicalIds, vectorIds, cardsById, query);
+      const byKey = new Map(merged.map((group) => [group.key, group]));
+      return fused.flatMap((id) => {
+        const group = byKey.get(id);
+        return group ? [group] : [];
+      });
+    } catch {
+      return lexical;
     }
-
-    const queryVector = await this.embeddings.embedQuery(query);
-    if (!queryVector) return grouped;
-
-    const stored = await this.embeddings.embeddingsForCatalog(catalogHash);
-    if (stored.length === 0) return grouped;
-
-    const vectorCardIds = rankEmbeddings(queryVector, stored).map((row) => row.id);
-    if (vectorCardIds.length === 0) return grouped;
-
-    const present = new Set(grouped.map((item) => item.cardId));
-    const extraIds = vectorCardIds.filter((id) => !present.has(id)).slice(0, 16);
-    let merged = grouped;
-    if (extraIds.length > 0) {
-      const extra = await this.loadGroupedByCardIds(extraIds);
-      merged = [
-        ...grouped,
-        ...extra.filter((item) =>
-          matchesSearchHaystack(
-            `${item.name} ${item.type} ${item.super ?? ''} ${item.variantNumber}`,
-            query
-          )
-        ),
-      ];
-    }
-
-    const byVariant = new Map(merged.map((item) => [item.variantNumber, item]));
-    const lexicalIds = grouped.map((item) => item.variantNumber);
-    const vectorRank = new Map(vectorCardIds.map((id, index) => [id, index]));
-    const vectorIds = [...merged]
-      .filter((item) => vectorRank.has(item.cardId))
-      .sort(
-        (left, right) =>
-          (vectorRank.get(left.cardId) ?? 999) - (vectorRank.get(right.cardId) ?? 999)
-      )
-      .map((item) => item.variantNumber);
-
-    const fused = fuseSearchResultIds(lexicalIds, vectorIds, byVariant, query);
-    return fused.flatMap((id) => {
-      const item = byVariant.get(id);
-      return item ? [item] : [];
-    });
-  }
-
-  private async loadGroupedByCardIds(cardIds: string[]): Promise<CardListItem[]> {
-    if (cardIds.length === 0) return [];
-    const rows = await this.db
-      .select({
-        cardId: cards.id,
-        name: cards.name,
-        type: cards.type,
-        super: cards.super,
-        energy: cards.energy,
-        might: cards.might,
-        power: cards.power,
-        banEffectiveDate: cards.banEffectiveDate,
-        variantId: variants.id,
-        variantNumber: variants.variantNumber,
-        rarity: variants.rarity,
-        variantType: variants.variantType,
-        foilMode: variants.foilMode,
-        variantLabel: variants.variantLabel,
-        imageUrl: variants.imageUrl,
-        cardmarketId: variants.cardmarketId,
-        tcgplayerId: variants.tcgplayerId,
-        setCode: sets.code,
-      })
-      .from(variants)
-      .innerJoin(cards, eq(variants.cardId, cards.id))
-      .innerJoin(sets, eq(variants.setId, sets.id))
-      .where(inArray(cards.id, cardIds))
-      .orderBy(asc(cards.name), asc(variants.variantNumber));
-    const { items } = await this.hydrateSlimRows(rows);
-    return groupCardListItems(items);
   }
 }

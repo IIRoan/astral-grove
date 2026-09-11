@@ -2,18 +2,29 @@ import { describe, expect, test } from 'bun:test';
 import {
   cardEmbeddingDocument,
   cosineSimilarity,
+  exactNameWordHits,
   fuseSearchResultIds,
   isCloseNameMatch,
   lexicalRelevanceScore,
   matchesSearchHaystack,
+  foldSearchAccents,
   normalizeSearchText,
   parseSearchQuery,
   reciprocalRankFusion,
+  SEARCH_NORMALIZATION_VERSION,
+  sortByLexicalRelevance,
   tokenizeSearchQuery,
   trigramSimilarity,
   wordSimilarity,
+  escapeIlikePattern,
+  escapeRegexLiteral,
   type SearchRankCard,
 } from './search-query.js';
+import {
+  SEARCH_HAYSTACK_CASES,
+  SEARCH_NORMALIZATION_CASES,
+  SEARCH_RANK_CASES,
+} from './search-query-fixtures.js';
 
 const ambessaLegend: SearchRankCard = {
   name: 'Ambessa, Matriarch of War',
@@ -56,13 +67,26 @@ const soulspinnerCompact: SearchRankCard = {
 };
 
 describe('normalizeSearchText', () => {
-  test('folds commas and dashes into spaces', () => {
-    expect(normalizeSearchText('Ambessa, Matriarch of War')).toBe(
-      'ambessa matriarch of war'
-    );
-    expect(normalizeSearchText('Ambessa - Matriarch of War')).toBe(
-      'ambessa matriarch of war'
-    );
+  test.each(SEARCH_NORMALIZATION_CASES)('$raw → $normalized', ({ raw, normalized }) => {
+    expect(normalizeSearchText(raw)).toBe(normalized);
+  });
+
+  test('folds Ambéssa and Ambessa identically, including decomposed accents', () => {
+    expect(normalizeSearchText('Ambéssa')).toBe('ambessa');
+    expect(normalizeSearchText('Ambessa')).toBe('ambessa');
+    expect(normalizeSearchText('Ambe\u0301ssa')).toBe('ambessa');
+    expect(normalizeSearchText('AM BÉSSA')).toBe('am bessa');
+    expect(foldSearchAccents('Ambéssa')).toBe('ambessa');
+  });
+
+  test('pins the shared normalization version for embeddings and caches', () => {
+    expect(SEARCH_NORMALIZATION_VERSION).toBe('v1');
+  });
+
+  test('keeps intentional spaces and still drops unsupported characters', () => {
+    expect(normalizeSearchText('soul spinner')).toBe('soul spinner');
+    expect(normalizeSearchText('soulspinner')).toBe('soulspinner');
+    expect(normalizeSearchText('a+b*(c)')).toBe('a b c');
   });
 });
 
@@ -87,7 +111,21 @@ describe('parseSearchQuery / tokenizeSearchQuery', () => {
   });
 });
 
+describe('LIKE and regex escaping', () => {
+  test('escapes LIKE and regex metacharacters', () => {
+    expect(escapeIlikePattern('100%_\\x')).toBe('100\\%\\_\\\\x');
+    expect(escapeRegexLiteral('a+b*(c)')).toBe('a\\+b\\*\\(c\\)');
+  });
+});
+
 describe('matchesSearchHaystack', () => {
+  test.each(SEARCH_HAYSTACK_CASES)(
+    '$query against $haystack → $expectMatch',
+    ({ haystack, query, expectMatch }) => {
+      expect(matchesSearchHaystack(haystack, query)).toBe(expectMatch);
+    }
+  );
+
   test('matches a second title word despite punctuation', () => {
     expect(matchesSearchHaystack('Ambessa, Matriarch of War', 'matriarch')).toBe(true);
     expect(
@@ -127,6 +165,14 @@ describe('matchesSearchHaystack', () => {
     expect(isCloseNameMatch('stargazer', 'Falling Star')).toBe(false);
     expect(matchesSearchHaystack('Falling Star', 'stargazer')).toBe(false);
   });
+
+  test('close-name uses the first identity token, not every query word', () => {
+    expect(isCloseNameMatch('stargazer signed', 'Stagazer')).toBe(true);
+    expect(isCloseNameMatch('embessa matriarch', 'Ambessa, Matriarch of War')).toBe(
+      true
+    );
+    expect(isCloseNameMatch('stargazer', 'Falling Star')).toBe(false);
+  });
 });
 
 describe('trigram / word similarity', () => {
@@ -144,6 +190,36 @@ describe('trigram / word similarity', () => {
 });
 
 describe('lexicalRelevanceScore', () => {
+  test.each(SEARCH_RANK_CASES)(
+    'ranks $query as $orderedNames',
+    ({ query, cards, orderedNames }) => {
+      const ranked = sortByLexicalRelevance(cards, query).map((card) => card.name);
+      expect(ranked).toEqual(orderedNames);
+    }
+  );
+
+  test('prefers cards that match every identity token as exact name words', () => {
+    const vi: SearchRankCard = {
+      name: 'Vi Destructive',
+      type: 'Unit',
+      super: null,
+      tags: ['Vi'],
+      variantNumber: 'OGN-001',
+    };
+    const partial: SearchRankCard = {
+      name: 'Destructive Surge',
+      type: 'Spell',
+      super: null,
+      tags: [],
+      variantNumber: 'OGN-050',
+    };
+    expect(exactNameWordHits(vi.name, ['vi', 'destructive'])).toBe(2);
+    expect(exactNameWordHits(partial.name, ['vi', 'destructive'])).toBe(1);
+    expect(lexicalRelevanceScore(vi, 'vi destructive')).toBeLessThan(
+      lexicalRelevanceScore(partial, 'vi destructive')
+    );
+  });
+
   test('ranks Ambessa legend ahead of champion unit and tagged package cards', () => {
     const query = 'ambessa';
     const legend = lexicalRelevanceScore(ambessaLegend, query);

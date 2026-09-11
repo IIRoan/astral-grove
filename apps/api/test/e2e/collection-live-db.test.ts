@@ -121,6 +121,7 @@ class LiveEventSession {
     });
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type') ?? '').toContain('text/event-stream');
+    expect(res.headers.get('content-encoding')).toBeNull();
     expect(res.body).toBeTruthy();
     this.reader = res.body!.getReader();
     this.pump = this.readLoop();

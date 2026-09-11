@@ -15,9 +15,8 @@ export { escapeRegexLiteral, tokenizeSearchQuery };
 
 const TRIGRAM_SIMILARITY_THRESHOLD = SEARCH_WORD_SIMILARITY_THRESHOLD;
 
-/** Name with punctuation folded — "Ambessa, Matriarch" ≡ "ambessa matriarch". */
 export function sqlNormalizedName() {
-  return sql`trim(regexp_replace(regexp_replace(lower(${cards.name}), '[^[:alnum:][:space:]]+', ' ', 'g'), '\\s+', ' ', 'g'))`;
+  return sql`${cards.nameNorm}`;
 }
 
 function sqlNormalizedNameFirstWord() {
@@ -25,12 +24,25 @@ function sqlNormalizedNameFirstWord() {
 }
 
 function sqlSquashedName() {
-  return sql`replace(${sqlNormalizedName()}, ' ', '')`;
+  return sql`${cards.nameSquashed}`;
 }
 
 /** Case-insensitive whole-word match: "signed" hits "Overnumbered Signed" but not "assigned". */
 export function wholeWordPattern(token: string): string {
   return `(^|[^[:alnum:]_])${escapeRegexLiteral(token)}([^[:alnum:]_]|$)`;
+}
+
+function sqlNameHasExactWord(token: string) {
+  return sql`EXISTS (
+    SELECT 1
+    FROM unnest(string_to_array(${sqlNormalizedName()}, ' ')) AS w
+    WHERE w = ${token}
+  )`;
+}
+
+function sqlExactAllIdentityWords(tokens: readonly string[]) {
+  if (tokens.length === 0) return sql`false`;
+  return and(...tokens.map((token) => sqlNameHasExactWord(token))) ?? sql`false`;
 }
 
 function sqlNameHasSimilarWord(token: string, threshold: number) {
@@ -55,28 +67,47 @@ function tokenNameTrigramMatch(token: string): SQL | undefined {
   )`;
 }
 
-function identityTokenMatch(token: string): SQL {
+function cardIdentityTokenMatch(token: string): SQL {
   const pattern = `%${escapeIlikePattern(token)}%`;
   const wordPattern = wholeWordPattern(token);
   const fuzzy = tokenNameTrigramMatch(token);
   return or(
     ilike(cards.name, pattern),
     sql`${sqlNormalizedName()} LIKE ${pattern}`,
-    ilike(variants.variantNumber, pattern),
-    ilike(cards.type, pattern),
-    ilike(variants.variantLabel, pattern),
-    ilike(variants.variantType, pattern),
-    sql`${variants.variantTypes}::text ILIKE ${pattern}`,
-    ilike(variants.artist, pattern),
-    ilike(sets.name, pattern),
-    ilike(sets.code, pattern),
+    sql`lower(${cards.type}) LIKE ${pattern}`,
     sql`${cards.tags}::text ILIKE ${pattern}`,
-    sql`${cards.description} ~* ${wordPattern}`,
-    sql`${cards.effect} ~* ${wordPattern}`,
-    sql`${cards.attachText} ~* ${wordPattern}`,
-    sql`${variants.flavorText} ~* ${wordPattern}`,
+    sql`${cards.rulesSearchText} ~* ${wordPattern}`,
     ...(fuzzy ? [fuzzy] : [])
   )!;
+}
+
+function variantIdentityTokenMatch(token: string): SQL {
+  const pattern = `%${escapeIlikePattern(token)}%`;
+  const wordPattern = wholeWordPattern(token);
+  return or(
+    sql`lower(${variants.variantNumber}) LIKE ${pattern}`,
+    sql`lower(${variants.variantLabel}) LIKE ${pattern}`,
+    sql`lower(${variants.variantType}) LIKE ${pattern}`,
+    sql`${variants.variantTypes}::text ILIKE ${pattern}`,
+    sql`lower(coalesce(${variants.artist}, '')) LIKE ${pattern}`,
+    sql`${variants.flavorText} ~* ${wordPattern}`
+  )!;
+}
+
+function setIdentityTokenMatch(token: string): SQL {
+  const pattern = `%${escapeIlikePattern(token)}%`;
+  return or(
+    sql`lower(${sets.name}) LIKE ${pattern}`,
+    sql`lower(${sets.code}) LIKE ${pattern}`
+  )!;
+}
+
+function identityTokenMatch(token: string): SQL {
+  return sql`(
+    ${cards.id} IN (SELECT ${cards.id} FROM ${cards} WHERE ${cardIdentityTokenMatch(token)})
+    OR ${variants.id} IN (SELECT ${variants.id} FROM ${variants} WHERE ${variantIdentityTokenMatch(token)})
+    OR ${sets.id} IN (SELECT ${sets.id} FROM ${sets} WHERE ${setIdentityTokenMatch(token)})
+  )`;
 }
 
 function typeIntentMatch(intent: string): SQL {
@@ -85,6 +116,12 @@ function typeIntentMatch(intent: string): SQL {
     sql`lower(${cards.type}) LIKE ${pattern}`,
     sql`lower(coalesce(${cards.super}, '')) LIKE ${pattern}`
   )!;
+}
+
+export function buildTypeIntentCondition(q: string): SQL | undefined {
+  const parsed = parseSearchQuery(q);
+  if (parsed.typeIntents.length === 0) return undefined;
+  return and(...parsed.typeIntents.map((intent) => typeIntentMatch(intent)));
 }
 
 function trigramFallback(normalizedQuery: string, squashed: string): SQL | undefined {
@@ -96,6 +133,10 @@ function trigramFallback(normalizedQuery: string, squashed: string): SQL | undef
       AND similarity(${sqlSquashedName()}, ${squashed}) >= ${TRIGRAM_SIMILARITY_THRESHOLD}
     )
   )`;
+}
+
+function cardLevelClause(clause: SQL): SQL {
+  return sql`${cards.id} IN (SELECT ${cards.id} FROM ${cards} WHERE ${clause})`;
 }
 
 /** Per-token match on name/variant/type/tags/rules; type-intent on type/super; trigram typo fallback. */
@@ -116,9 +157,12 @@ export function buildCardSearchCondition(q: string): SQL | undefined {
     identityGate && typeGate ? and(identityGate, typeGate) : (identityGate ?? typeGate);
   const squashed =
     parsed.squashed.length > 0
-      ? sql`${sqlSquashedName()} LIKE ${`%${escapeIlikePattern(parsed.squashed)}%`}`
+      ? cardLevelClause(
+          sql`${sqlSquashedName()} LIKE ${`%${escapeIlikePattern(parsed.squashed)}%`}`
+        )
       : undefined;
-  const fuzzy = trigramFallback(parsed.normalized, parsed.squashed);
+  const fuzzyRaw = trigramFallback(parsed.normalized, parsed.squashed);
+  const fuzzy = fuzzyRaw ? cardLevelClause(fuzzyRaw) : undefined;
 
   const withType = (clause: SQL | undefined): SQL | undefined => {
     if (!clause) return undefined;
@@ -153,6 +197,15 @@ export function buildSearchRelevanceOrder(q: string) {
     familyToken.length > 0
       ? sql`${sqlNormalizedNameFirstWord()} = ${familyToken}`
       : sql`false`;
+  const exactAllIdentityWords = sqlExactAllIdentityWords(parsed.identityTokens);
+  const exactFullName =
+    parsed.normalized.length > 0
+      ? sql`${sqlNormalizedName()} = ${parsed.normalized}`
+      : sql`false`;
+  const exactSquashedName =
+    parsed.squashed.length > 0
+      ? sql`${sqlSquashedName()} = ${parsed.squashed}`
+      : sql`false`;
 
   return sql`
     CASE
@@ -165,6 +218,8 @@ export function buildSearchRelevanceOrder(q: string) {
       WHEN ${typeIntent ? sql`lower(${cards.type}) LIKE ${`%${escapeIlikePattern(typeIntent)}%`}` : sql`false`}
         AND ${exactFirstWord}
         THEN 2
+      WHEN ${exactAllIdentityWords} THEN 3
+      WHEN ${exactFullName} OR ${exactSquashedName} THEN 3
       WHEN ${exactFirstWord} THEN 3
       WHEN ${sqlNormalizedName()} LIKE ${namePrefix} THEN 4
       WHEN ${parsed.squashed.length > 0 ? sql`${sqlSquashedName()} LIKE ${squashedPrefix}` : sql`false`} THEN 4
@@ -182,7 +237,7 @@ export function buildSearchRelevanceOrder(q: string) {
           : sql`false`
       } THEN 4
       WHEN ${wordPrefixPattern ? sql`${sqlNormalizedName()} ~ ${wordPrefixPattern}` : sql`false`} THEN 5
-      WHEN ${variants.variantNumber} ILIKE ${namePrefix} THEN 6
+      WHEN lower(${variants.variantNumber}) LIKE ${namePrefix} THEN 6
       WHEN ${sqlNormalizedName()} LIKE ${familyContains} THEN 7
       WHEN ${parsed.squashed.length > 0 ? sql`${sqlSquashedName()} LIKE ${squashedContains}` : sql`false`} THEN 8
       ELSE 9
