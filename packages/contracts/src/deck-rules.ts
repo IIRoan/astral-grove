@@ -119,6 +119,10 @@ export const RIFTBOUND_DECK_RULES = {
       code: 'battlefield_unique',
       message: 'Each Battlefield name may appear at most once.',
     },
+    {
+      code: 'copy_limit_spiderling',
+      message: 'Your deck can have any number of cards named Spiderling.',
+    },
   ],
 } as const;
 
@@ -228,6 +232,18 @@ export function getDeckRules(format: DeckFormat = 'constructed'): RiftboundDeckR
 
 export function deckFormatRestrictsPicker(format: DeckFormat): boolean {
   return getDeckRules(format).restrictPicker;
+}
+
+/** Card names with no per-name copy limit (card text). Match is exact. */
+export const UNLIMITED_COPY_CARD_NAMES = new Set<string>(['Spiderling']);
+
+/** Max copies by name for format rules; null = unlimited. */
+export function copyLimitForCardName(
+  name: string,
+  options: { isRune: boolean; rules: RiftboundDeckRules }
+): number | null {
+  if (UNLIMITED_COPY_CARD_NAMES.has(name)) return null;
+  return options.isRune ? options.rules.copyLimits.rune : options.rules.copyLimits.default;
 }
 
 export type RiftboundDeckSectionKey = keyof typeof RIFTBOUND_DECK_RULES.sections;
@@ -462,7 +478,7 @@ export function validateRiftboundDeck(
     const isRune = input.runes.some((entry) => entry.card.name === name);
     const isBattlefield = input.battlefields.some((entry) => entry.card.name === name);
     if (isBattlefield) continue;
-    const maxCopies = isRune ? rules.copyLimits.rune : rules.copyLimits.default;
+    const maxCopies = copyLimitForCardName(name, { isRune, rules });
     if (maxCopies != null && count > maxCopies) {
       messages.push({
         type: 'error',

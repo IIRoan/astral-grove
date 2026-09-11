@@ -185,6 +185,23 @@ describe('validateDeck', () => {
     expect(messages.some((m) => m.message.includes('max 3'))).toBe(true);
   });
 
+  test('allows any number of Spiderling copies', () => {
+    const spiderling = mockCard({
+      name: 'Spiderling',
+      type: 'Unit',
+      variantNumber: 'VEN-097',
+      setCode: 'VEN',
+      rarity: 'Common',
+    });
+    let deck = createEmptyDeck();
+    deck = addCardToDeck(deck, jinxLegend, { section: 'legend' });
+    deck = addCardToDeck(deck, jinxChampion, { section: 'champion' });
+    deck = addCardToDeck(deck, spiderling, { section: 'mainDeck', count: 16 });
+
+    const messages = validateDeck(deck);
+    expect(messages.some((m) => m.code === 'copy_limit')).toBe(false);
+  });
+
   test('allows up to 12 rune copies', () => {
     let deck = createEmptyDeck();
     deck = addCardToDeck(deck, jinxLegend, { section: 'legend' });

@@ -248,6 +248,34 @@ describe('validateRiftboundDeck', () => {
       { type: 'valid', code: 'deck_valid', message: 'Deck is valid!' },
     ]);
   });
+
+  test('allows any number of Spiderling copies', () => {
+    const spiderling = {
+      ...jinxChampion,
+      cardId: 'ven-097',
+      variantNumber: 'VEN-097',
+      name: 'Spiderling',
+      super: null,
+      type: 'Unit',
+      tags: [],
+      colors: ['Fury'],
+      setCode: 'VEN',
+      rarity: 'Common',
+      isSignature: false,
+    };
+
+    const input = DeckValidateInput.parse({
+      legend: jinxLegend,
+      champion: jinxChampion,
+      mainDeck: [{ card: spiderling, count: 12 }],
+      runes: [],
+      battlefields: [],
+      sideboard: [{ card: spiderling, count: 4 }],
+    });
+
+    const messages = validateRiftboundDeck(input);
+    expect(messages.some((m) => m.code === 'copy_limit')).toBe(false);
+  });
 });
 
 describe('Pre-Rift validation', () => {

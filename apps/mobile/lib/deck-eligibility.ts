@@ -1,6 +1,7 @@
 import type { DeckCard, DeckSectionKey, DeckState } from '@/lib/deck-types';
 import {
   cardPrimaryNameToken,
+  copyLimitForCardName,
   deckFormatRestrictsPicker,
   domainIdentityMatch,
   getDeckRules,
@@ -147,8 +148,10 @@ function battlefieldCopiesForCardName(deck: DeckState, name: string): number {
 
 function maxCopiesForCandidate(deck: DeckState, candidate: DeckCard): number | null {
   const rules = getDeckRules(deck.format);
-  if (cardHasType(candidate, 'rune')) return rules.copyLimits.rune;
-  return rules.copyLimits.default;
+  return copyLimitForCardName(candidate.name, {
+    isRune: cardHasType(candidate, 'rune'),
+    rules,
+  });
 }
 
 function signatureCountMatchingLegend(deck: DeckState): number {

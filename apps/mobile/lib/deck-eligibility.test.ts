@@ -263,6 +263,23 @@ describe('deck-eligibility', () => {
     expect(eligible(deck, 'mainDeck', mainUnitFury)).toBe(false);
   });
 
+  test('allows any number of Spiderling copies in main deck', () => {
+    const spiderling = mockCard({
+      name: 'Spiderling',
+      type: 'Unit',
+      variantNumber: 'VEN-097',
+      setCode: 'VEN',
+      rarity: 'Common',
+      colors: ['Fury'],
+    });
+    const deck = createEmptyDeck();
+    deck.legend = legendFuryCalm;
+    deck.champion = championJinx;
+    deck.mainDeck.set(spiderling.name, { card: spiderling, count: 12 });
+
+    expect(eligible(deck, 'mainDeck', spiderling)).toBe(true);
+  });
+
   test('enforces max 12 copies for runes', () => {
     const deck = createEmptyDeck();
     deck.legend = legendFuryCalm;
