@@ -1,6 +1,14 @@
+function readWebCrypto(): Crypto | undefined {
+  try {
+    return globalThis.crypto;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Hermes has no `crypto` global — property access throws instead of returning undefined. */
 export function randomUuid(): string {
-  const webCrypto = globalThis.crypto;
+  const webCrypto = readWebCrypto();
   if (typeof webCrypto?.randomUUID === 'function') {
     return webCrypto.randomUUID();
   }

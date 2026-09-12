@@ -7,11 +7,15 @@ const UUID_V4 =
 function withMissingCrypto(run: () => void): void {
   const hadCrypto = Object.prototype.hasOwnProperty.call(globalThis, 'crypto');
   const previous = globalThis.crypto;
-  Object.defineProperty(globalThis, 'crypto', {
-    value: undefined,
-    configurable: true,
-    writable: true,
-  });
+  try {
+    Reflect.deleteProperty(globalThis, 'crypto');
+  } catch {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+  }
   try {
     run();
   } finally {
@@ -22,7 +26,15 @@ function withMissingCrypto(run: () => void): void {
         writable: true,
       });
     } else {
-      Reflect.deleteProperty(globalThis, 'crypto');
+      try {
+        Reflect.deleteProperty(globalThis, 'crypto');
+      } catch {
+        Object.defineProperty(globalThis, 'crypto', {
+          value: undefined,
+          configurable: true,
+          writable: true,
+        });
+      }
     }
   }
 }

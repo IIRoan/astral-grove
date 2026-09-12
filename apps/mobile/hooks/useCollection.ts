@@ -48,6 +48,12 @@ import {
   snapshotRecentActivityQueries,
   type RecentActivitySnapshot,
 } from '@/lib/collection-recent-activity';
+import {
+  applyCollectionQuantity,
+  getOwnershipRecord,
+  setOwnershipQuantity,
+  type CollectionEntrySeed,
+} from '@/lib/collection-optimistic-cache';
 
 const COLLECTION_STALE_MS = 5 * 60 * 1000;
 const OWNERSHIP_STALE_MS = 5 * 60 * 1000;
@@ -56,38 +62,13 @@ const SHARED_COLLECTION_STALE_MS = 30_000;
 
 type OwnershipRecord = Record<string, number>;
 
-export function getOwnershipRecord(queryClient: QueryClient): OwnershipRecord {
-  return (
-    queryClient.getQueryData<OwnershipRecord>(collectionQueryKeys.ownershipRoot) ?? {}
-  );
-}
+export { getOwnershipRecord };
 
 export function syncOwnershipFromCollection(
   queryClient: QueryClient,
   entries: readonly CollectionEntry[]
 ) {
   const merged = mergeOwnershipFromCollection(getOwnershipRecord(queryClient), entries);
-  queryClient.setQueryData(collectionQueryKeys.ownershipRoot, merged);
-  queryClient.setQueriesData<OwnershipRecord>(
-    { queryKey: collectionQueryKeys.ownershipRoot },
-    () => merged
-  );
-}
-
-function setOwnershipQuantity(
-  queryClient: QueryClient,
-  variantNumber: string,
-  quantity: number,
-  isFoil = false
-) {
-  const current = getOwnershipRecord(queryClient);
-  const finishKey = collectionFinishKey(variantNumber, isFoil);
-  const otherFinishKey = collectionFinishKey(variantNumber, !isFoil);
-  const otherQty = current[otherFinishKey] ?? 0;
-  const merged = mergeOwnershipRecords(current, {
-    [finishKey]: quantity,
-    [variantNumber]: quantity + otherQty,
-  });
   queryClient.setQueryData(collectionQueryKeys.ownershipRoot, merged);
   queryClient.setQueriesData<OwnershipRecord>(
     { queryKey: collectionQueryKeys.ownershipRoot },
@@ -220,11 +201,6 @@ export function useCollectionOwnership(variantNumbers: readonly string[]): {
   };
 }
 
-type CollectionEntrySeed = Omit<
-  CollectionEntry,
-  'quantity' | 'addedAt' | 'updatedAt' | 'variantNumber'
->;
-
 interface CollectionMutationContext {
   previousAll?: CollectionEntry[];
   previousEntry?: CollectionEntry | null | undefined;
@@ -251,9 +227,11 @@ function invalidateCollection(queryClient: QueryClient) {
 
 /** Persist optimistic collection state without refetching the full list. */
 function commitCollectionLocal(queryClient: QueryClient) {
-  const entries =
-    queryClient.getQueryData<CollectionEntry[]>(collectionQueryKeys.all) ?? [];
-  void persistCollection(entries);
+  queueMicrotask(() => {
+    const entries =
+      queryClient.getQueryData<CollectionEntry[]>(collectionQueryKeys.all) ?? [];
+    void persistCollection(entries);
+  });
 }
 
 function reconcileCollectionEntries(
@@ -327,62 +305,6 @@ function rollbackCollectionCache(
     );
   }
   restoreRecentActivityQueries(queryClient, context.previousRecentAdds);
-}
-
-function applyCollectionQuantity(
-  queryClient: QueryClient,
-  variantNumber: string,
-  quantity: number,
-  seed?: CollectionEntrySeed,
-  isFoil = false
-) {
-  const now = Date.now();
-  const all =
-    queryClient.getQueryData<CollectionEntry[]>(collectionQueryKeys.all) ?? [];
-  const index = all.findIndex(
-    (entry) => entry.variantNumber === variantNumber && entry.isFoil === isFoil
-  );
-
-  if (quantity <= 0) {
-    queryClient.setQueryData(
-      collectionQueryKeys.all,
-      all.filter(
-        (entry) => !(entry.variantNumber === variantNumber && entry.isFoil === isFoil)
-      )
-    );
-    queryClient.setQueryData(collectionQueryKeys.entry(variantNumber), null);
-    setOwnershipQuantity(queryClient, variantNumber, 0, isFoil);
-    return;
-  }
-
-  if (index >= 0) {
-    const updated: CollectionEntry = {
-      ...all[index],
-      quantity,
-      isFoil,
-      updatedAt: now,
-    };
-    const nextAll = [...all];
-    nextAll[index] = updated;
-    queryClient.setQueryData(collectionQueryKeys.all, nextAll);
-    queryClient.setQueryData(collectionQueryKeys.entry(variantNumber), updated);
-    setOwnershipQuantity(queryClient, variantNumber, quantity, isFoil);
-    return;
-  }
-
-  if (!seed) return;
-
-  const created: CollectionEntry = {
-    ...seed,
-    variantNumber,
-    isFoil,
-    quantity,
-    addedAt: now,
-    updatedAt: now,
-  };
-  queryClient.setQueryData(collectionQueryKeys.all, [created, ...all]);
-  queryClient.setQueryData(collectionQueryKeys.entry(variantNumber), created);
-  setOwnershipQuantity(queryClient, variantNumber, quantity, isFoil);
 }
 
 function entrySeedFromListCard(
