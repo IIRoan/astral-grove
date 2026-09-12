@@ -34,6 +34,14 @@ export function resolveTrustedOrigins(env: Env): string[] {
     ...(baseOrigin ? [baseOrigin] : []),
   ]);
 
+  if (env.PUBLIC_APP_URL) {
+    try {
+      origins.add(new URL(env.PUBLIC_APP_URL).origin);
+    } catch {
+      // ignore malformed PUBLIC_APP_URL
+    }
+  }
+
   if (env.NODE_ENV !== 'production') {
     for (const origin of EXPO_DEV_ORIGINS) {
       origins.add(origin);

@@ -251,8 +251,6 @@ function reconcileCollectionEntries(
   }
 
   commitCollectionLocal(queryClient);
-  // onMutate cancel aborts first fetch — refetch so the log isn't empty/synthetic until staleTime.
-  invalidateRecentAdds(queryClient);
 }
 
 /** Snapshot + cancel without awaiting — awaiting cancelQueries before setQueryData lagged Add ~0.5s. */

@@ -59,4 +59,16 @@ describe('resolveCorsOrigins', () => {
       'https://api.astral-grove.com',
     ]);
   });
+
+  test('includes PUBLIC_APP_URL when TRUSTED_ORIGINS is empty', () => {
+    expect(
+      resolveCorsOrigins(
+        baseEnv({
+          TRUSTED_ORIGINS: [],
+          PUBLIC_APP_URL: 'https://rift.solace.onl',
+          BETTER_AUTH_URL: 'https://riftapi.solace.onl',
+        })
+      ).sort()
+    ).toEqual(['https://rift.solace.onl', 'https://riftapi.solace.onl'].sort());
+  });
 });

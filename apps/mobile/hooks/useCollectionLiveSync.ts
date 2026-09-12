@@ -64,6 +64,12 @@ export function useCollectionLiveSync(enabled = true) {
             signal: controller.signal,
             onEvent: (event) => {
               if (event.type === 'heartbeat') return;
+              if (
+                event.type === 'collection.changed' &&
+                event.actorUserId === userId
+              ) {
+                return;
+              }
               // Apply remote changes (incl. other sessions / invite-ready); defer only while local mutations are in flight.
               if (onCollectionLiveChanged(queryClient)) {
                 pendingInvalidate = true;

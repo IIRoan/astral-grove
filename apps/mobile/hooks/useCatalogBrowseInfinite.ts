@@ -99,7 +99,7 @@ export function useCatalogBrowseInfinite(
       const pagination = lastPage.meta.pagination;
       return pagination.hasNext ? pagination.page + 1 : undefined;
     },
-    enabled,
+    enabled: enabled && !indexReady,
     staleTime: STALE_MS,
     gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
