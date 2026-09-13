@@ -2,9 +2,12 @@ import { useCallback, useMemo } from 'react';
 import { View } from 'react-native';
 import { CatalogActiveFilterChip } from '@/components/catalog/CatalogActiveFilterChip';
 import { useCatalogFilterOptions } from '@/components/catalog/CatalogFilterPanels';
+import { FilterClearButton } from '@/components/filters/FilterPrimitives';
 import {
   catalogFilterChips,
   catalogFiltersActive,
+  catalogFiltersHaveClearableExtras,
+  clearCatalogFilters,
   type CatalogFilterChip,
   type CatalogFilters,
 } from '@/constants/catalogFilters';
@@ -13,11 +16,13 @@ import { CATALOG_TOOLBAR_DESKTOP_CHIP_TRAY_CLASS } from '@/constants/catalogTool
 interface CatalogActiveFilterChipsProps {
   filters: CatalogFilters;
   onFiltersChange: (filters: CatalogFilters) => void;
+  preserveColorsAndTokens?: boolean;
 }
 
 export function CatalogActiveFilterChips({
   filters,
   onFiltersChange,
+  preserveColorsAndTokens = false,
 }: CatalogActiveFilterChipsProps) {
   const { colorOptions } = useCatalogFilterOptions();
   const colorByName = useMemo(
@@ -50,6 +55,14 @@ export function CatalogActiveFilterChips({
       {chips.map((chip) => (
         <CatalogActiveFilterChip key={chip.id} {...chipProps(chip)} />
       ))}
+      {catalogFiltersHaveClearableExtras(filters, { preserveColorsAndTokens }) ? (
+        <FilterClearButton
+          embedded
+          onPress={() =>
+            onFiltersChange(clearCatalogFilters(filters, { preserveColorsAndTokens }))
+          }
+        />
+      ) : null}
     </View>
   );
 }

@@ -5,7 +5,7 @@ import { clientIpFromHeaders, createSlidingWindowLimiter } from '../lib/rate-lim
 const WINDOW_MS = 60_000;
 const DEFAULT_MAX = 180;
 
-/** Paths excluded from the API sliding window (health, CORS, card art). */
+/** Health, CORS, and cached card art; CDN origin misses are limited in ImageStoreService. */
 export function isRateLimitExemptPath(pathname: string, method: string): boolean {
   if (method === 'OPTIONS') return true;
   if (pathname === '/api/v1/health') return true;

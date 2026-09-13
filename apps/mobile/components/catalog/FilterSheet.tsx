@@ -18,8 +18,9 @@ import {
   catalogFilterSegmentActive,
   catalogFilterSegmentSummary,
   catalogFiltersActive,
+  catalogFiltersHaveClearableExtras,
+  clearCatalogFilters,
   countCatalogFilters,
-  DEFAULT_CATALOG_FILTERS,
   type CatalogFilters,
 } from '@/constants/catalogFilters';
 import { FACTORY_RADIUS_CONTROL_CLASS } from '@/constants/factoryShape';
@@ -34,6 +35,7 @@ interface CatalogFilterSheetProps {
   filters: CatalogFilters;
   onClose: () => void;
   onFiltersChange: (filters: CatalogFilters) => void;
+  preserveColorsAndTokens?: boolean;
 }
 
 const MOBILE_FILTER_SEGMENTS = CATALOG_FILTER_SEGMENTS.filter(
@@ -56,6 +58,7 @@ export function CatalogFilterSheet({
   filters,
   onClose,
   onFiltersChange,
+  preserveColorsAndTokens = false,
 }: CatalogFilterSheetProps) {
   const queryClient = useQueryClient();
   const activeCount = countCatalogFilters(filters);
@@ -76,8 +79,11 @@ export function CatalogFilterSheet({
       onClose={onClose}
       activeCount={activeCount}
       hasActiveFilters={catalogFiltersActive(filters)}
+      showClear={catalogFiltersHaveClearableExtras(filters, {
+        preserveColorsAndTokens,
+      })}
       onClear={() =>
-        onFiltersChange({ ...DEFAULT_CATALOG_FILTERS, simpleAdd: filters.simpleAdd })
+        onFiltersChange(clearCatalogFilters(filters, { preserveColorsAndTokens }))
       }
       portalName="catalog-filter-sheet"
     >

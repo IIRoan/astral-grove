@@ -7,6 +7,6 @@ describe('cn', () => {
   });
 
   test('joins conditionals and objects', () => {
-    expect(cn('base', false && 'hidden', { active: true })).toBe('base active');
+    expect(cn('base', undefined, { active: true })).toBe('base active');
   });
 });

@@ -19,6 +19,7 @@ import {
   removeDeckCard,
 } from '@/lib/deck-card';
 import { adjustRuneCountForDomain } from '@/lib/deck-runes';
+import type { CollectionQuantityEntry } from '@/lib/collection-by-name';
 import type { DeckSectionKey, DeckCard, DeckState } from '@/lib/deck-types';
 import { prefetchDeckAddCatalog } from '@/lib/prefetchDeckAddCatalog';
 import { catalogPowerByCard, computeDeckStats } from '@/lib/deck-stats';
@@ -31,7 +32,7 @@ type CatalogSection = 'mainDeck' | 'sideboard';
 interface UseDeckBuilderPanelsOptions {
   deck: DeckState;
   readOnly: boolean;
-  collection: ReturnType<typeof import('@/hooks/useCollection').useCollection>['data'];
+  collection: ReadonlyArray<CollectionQuantityEntry> | undefined;
   paddingBottomInline: number;
   catalogSection: CatalogSection;
   onSectionChange: (section: CatalogSection) => void;

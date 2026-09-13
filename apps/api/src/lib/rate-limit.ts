@@ -34,10 +34,17 @@ export function createSlidingWindowLimiter(options: {
   };
 }
 
+const IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
+
+function isSingleClientIp(value: string): boolean {
+  if (!value || value.includes(',') || /\s/.test(value)) return false;
+  if (IPV4.test(value)) return true;
+  return value.includes(':') && !value.includes('/');
+}
+
+/** Railway overwrites X-Real-IP; X-Forwarded-For's left-most hop is client-controlled. */
 export function clientIpFromHeaders(headers: Headers): string {
   const realIp = headers.get('x-real-ip')?.trim();
-  if (realIp) return realIp;
-  const forwarded = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  if (forwarded) return forwarded;
+  if (realIp && isSingleClientIp(realIp)) return realIp;
   return 'unknown';
 }

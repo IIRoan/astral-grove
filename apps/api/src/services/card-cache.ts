@@ -145,7 +145,7 @@ export class CardCacheService {
     private readonly prices: PriceCacheService,
     private readonly images: ImageStoreService,
     private readonly embeddings: EmbeddingService | null = null
-  ) {}
+  ) { }
 
   private async priceRowsForLogicalCard(card: PaLogicalCard) {
     const cardmarketIds = card.variants
@@ -632,7 +632,9 @@ export class CardCacheService {
             this.variantIdResolveCache.set(variantId, match.variantNumber);
             return match.variantNumber;
           }
-        } catch {}
+        } catch {
+          // Refresh failed; try a sibling variant next.
+        }
       }
     }
 
@@ -690,10 +692,10 @@ export class CardCacheService {
 
         const listCardId =
           item.card &&
-          typeof item.card === 'object' &&
-          item.card !== null &&
-          'id' in item.card &&
-          typeof (item.card as { id?: unknown }).id === 'string'
+            typeof item.card === 'object' &&
+            item.card !== null &&
+            'id' in item.card &&
+            typeof (item.card as { id?: unknown }).id === 'string'
             ? (item.card as { id: string }).id
             : undefined;
         if (
@@ -1283,8 +1285,8 @@ export class CardCacheService {
     const rows = materializeThenPage
       ? await buildSearchCandidateQueryUnsorted(this.db, where)
       : await buildSearchCandidateQuery(this.db, query)
-          .limit(query.limit)
-          .offset(offset);
+        .limit(query.limit)
+        .offset(offset);
     const dbMs = performance.now() - dbStart;
 
     logSearchPostgresQuery({

@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverPortal } from '@/components/ui/popover'
 import { Text } from '@/components/ui/text';
 import {
   CATALOG_TOOLBAR_CONTROL_ACTIVE_CLASS,
+  CATALOG_TOOLBAR_DESKTOP_ROW_CLASS,
   CATALOG_TOOLBAR_EMBEDDED_TRIGGER_ACTIVE_CLASS,
   CATALOG_TOOLBAR_EMBEDDED_TRIGGER_CLASS,
   CATALOG_TOOLBAR_LABELED_CONTROL_CLASS,
@@ -197,12 +198,16 @@ export function FilterPopoverBar<T extends string>({
   openId,
   onOpenIdChange,
   segments,
+  leading,
+  trailing,
   embedded = false,
 }: {
   portalName: string;
   openId: T | null;
   onOpenIdChange: (id: T | null) => void;
   segments: FilterPopoverBarItem<T>[];
+  leading?: ReactNode;
+  trailing?: ReactNode;
   embedded?: boolean;
 }) {
   const triggerRefs = useRef<Partial<Record<T, View | null>>>({});
@@ -269,19 +274,23 @@ export function FilterPopoverBar<T extends string>({
 
   return (
     <>
-      {segments.map((segment) => (
-        <FilterPopoverTrigger
-          key={segment.id}
-          label={segment.label}
-          hasValue={segment.hasValue}
-          open={openId === segment.id}
-          onPress={() => handleTriggerPress(segment.id)}
-          triggerRef={(node) => {
-            triggerRefs.current[segment.id] = node;
-          }}
-          embedded={embedded}
-        />
-      ))}
+      <View className={CATALOG_TOOLBAR_DESKTOP_ROW_CLASS}>
+        {leading}
+        {segments.map((segment) => (
+          <FilterPopoverTrigger
+            key={segment.id}
+            label={segment.label}
+            hasValue={segment.hasValue}
+            open={openId === segment.id}
+            onPress={() => handleTriggerPress(segment.id)}
+            triggerRef={(node) => {
+              triggerRefs.current[segment.id] = node;
+            }}
+            embedded={embedded}
+          />
+        ))}
+        {trailing}
+      </View>
 
       <Popover
         open={openId !== null}
@@ -345,7 +354,7 @@ export function FilterClearButton({
               'items-center justify-center px-2.5'
             )
           : cn(
-              'h-10 shrink-0 items-center justify-center px-2 active:opacity-80',
+              'h-10 shrink-0 flex-row items-center justify-center px-2 active:opacity-80',
               FACTORY_RADIUS_CONTROL_CLASS
             )
       )}

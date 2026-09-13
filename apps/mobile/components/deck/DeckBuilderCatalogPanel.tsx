@@ -31,7 +31,6 @@ import { useCatalogArtLookahead } from '@/hooks/useCatalogArtLookahead';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useDeckAddCatalog } from '@/hooks/useDeckAddCatalog';
 import { useResponsiveColumns } from '@/hooks/useResponsiveColumns';
-import { CATALOG_TOOLBAR_DESKTOP_ROW_CLASS } from '@/constants/catalogToolbar';
 import { CATALOG_END_REACHED_THRESHOLD } from '@/lib/catalog-page-size';
 import {
   defaultDeckAddCatalogFilters,
@@ -423,26 +422,25 @@ function DeckBuilderCatalogBrowse({
         ) : null}
 
         {!readOnly && !isMobile ? (
-          <View className={CATALOG_TOOLBAR_DESKTOP_ROW_CLASS}>
-            <View className="min-w-0 flex-1">
-              <CatalogDesktopFilterBar
-                filters={catalogFilters}
-                onFiltersChange={applyCatalogFilters}
+          <CatalogDesktopFilterBar
+            filters={catalogFilters}
+            onFiltersChange={applyCatalogFilters}
+            leading={
+              <CatalogCollectionPillNav
+                value={catalogFilters.collection}
+                onChange={(collection) =>
+                  applyCatalogFilters({ ...catalogFilters, collection })
+                }
               />
-            </View>
-            <CatalogCollectionPillNav
-              value={catalogFilters.collection}
-              onChange={(collection) =>
-                applyCatalogFilters({ ...catalogFilters, collection })
-              }
-            />
-          </View>
+            }
+          />
         ) : null}
 
         {filterActive && !isMobile ? (
           <CatalogActiveFilterChips
             filters={catalogFilters}
             onFiltersChange={applyCatalogFilters}
+            preserveColorsAndTokens
           />
         ) : null}
 
@@ -498,6 +496,7 @@ function DeckBuilderCatalogBrowse({
           filters={catalogFilters}
           onClose={() => setFilterSheetOpen(false)}
           onFiltersChange={applyCatalogFilters}
+          preserveColorsAndTokens
         />
       ) : null}
     </View>

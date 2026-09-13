@@ -88,10 +88,9 @@ export function rewriteImageUrl(env: Env, url: string): string {
   const apiBase = `${env.BETTER_AUTH_URL.replace(/\/$/, '')}/api/v1/images/`;
   if (url.startsWith(apiBase)) return url;
 
-  try {
-    const key = objectKeyFromUrl(url);
-    if (isSafeImageKey(key)) return apiImageUrl(env, key);
-  } catch {}
+  if (!URL.canParse(url)) return url;
+  const key = objectKeyFromUrl(url);
+  if (isSafeImageKey(key)) return apiImageUrl(env, key);
 
   return url;
 }

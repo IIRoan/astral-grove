@@ -2,6 +2,7 @@ import { ImageThumbQuery } from '@riftbound/contracts';
 import { Elysia } from 'elysia';
 import type { ImageStoreService } from '../services/image-store.js';
 import { notFoundResponse, setApiError } from '../lib/api-error.js';
+import { clientIpFromHeaders } from '../lib/rate-limit.js';
 import { parseRequest } from '../lib/request-validation.js';
 
 const BODY_CACHE_CONTROL = 'public, max-age=604800, immutable';
@@ -18,10 +19,10 @@ export function createImagesRoutes(images: ImageStoreService) {
       }
 
       const { w: width } = parseRequest(ImageThumbQuery, query);
-      const result = await images.serveImage(
-        key,
-        width != null ? { width } : undefined
-      );
+      const result = await images.serveImage(key, {
+        ...(width != null ? { width } : {}),
+        clientIp: clientIpFromHeaders(request.headers),
+      });
       if (!result) {
         return setApiError(set, notFoundResponse('Image not found'));
       }

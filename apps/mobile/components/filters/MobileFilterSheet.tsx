@@ -37,6 +37,7 @@ interface MobileFilterSheetProps {
   title?: string;
   activeCount: number;
   hasActiveFilters: boolean;
+  showClear?: boolean;
   onClear: () => void;
   doneLabel?: string;
   portalName: string;
@@ -50,6 +51,7 @@ export function MobileFilterSheet({
   title = 'Filters',
   activeCount,
   hasActiveFilters,
+  showClear,
   onClear,
   doneLabel = 'Filter',
   portalName,
@@ -95,7 +97,7 @@ export function MobileFilterSheet({
                     </View>
                   ) : null}
                 </View>
-                {hasActiveFilters ? (
+                {(showClear ?? hasActiveFilters) ? (
                   <Pressable
                     onPress={onClear}
                     hitSlop={8}

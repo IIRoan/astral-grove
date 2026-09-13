@@ -1,12 +1,14 @@
 import type { PaLogicalCard } from '@riftbound/contracts';
 import type { S3Client } from 'bun';
 import type { Env } from '../env.js';
+import { readCappedResponseBody } from '../lib/capped-body.js';
 import { resizeImageToWebp } from '../lib/image-resize-buffer.js';
 import {
   canResizeKey,
   thumbStorageKey,
   type AllowedThumbWidth,
 } from '../lib/image-resize.js';
+import { createSlidingWindowLimiter } from '../lib/rate-limit.js';
 import { TtlCache } from '../lib/ttl-cache.js';
 import {
   cdnImageUrl,
@@ -36,6 +38,22 @@ export type ServeImageResult =
 
 export type ServeImageOptions = {
   width?: AllowedThumbWidth;
+  clientIp?: string;
+};
+
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const IMAGE_MEMORY_CACHE_MAX_BYTES = 128 * 1024 * 1024;
+export const IMAGE_MEMORY_CACHE_MAX_ENTRIES = 2000;
+export const CDN_MISS_WINDOW_MS = 60_000;
+export const CDN_MISS_PER_IP_MAX = 120;
+export const CDN_MISS_GLOBAL_MAX = 600;
+
+export type ImageStoreLimits = {
+  maxImageBytes?: number;
+  memoryMaxEntries?: number;
+  memoryMaxBytes?: number;
+  cdnMissPerIpMax?: number;
+  cdnMissGlobalMax?: number;
 };
 
 const MEMORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -47,12 +65,36 @@ function imageEtag(key: string, byteLength: number): string {
 
 export class ImageStoreService {
   private readonly client: S3Client | null;
-  private readonly memoryCache = new TtlCache<CachedImage>(MEMORY_CACHE_TTL_MS, 2000);
+  private readonly memoryCache: TtlCache<CachedImage>;
   private readonly s3MissCache = new TtlCache<true>(S3_MISS_CACHE_TTL_MS, 5000);
   private readonly serveInflight = new Map<string, Promise<ServeImageResult | null>>();
   private readonly backgroundInflight = new Set<string>();
+  private readonly maxImageBytes: number;
+  private readonly cdnMissByIp: ReturnType<typeof createSlidingWindowLimiter>;
+  private readonly cdnMissGlobal: ReturnType<typeof createSlidingWindowLimiter>;
 
-  constructor(private readonly env: Env) {
+  constructor(
+    private readonly env: Env,
+    limits: ImageStoreLimits = {}
+  ) {
+    this.maxImageBytes = limits.maxImageBytes ?? MAX_IMAGE_BYTES;
+    this.memoryCache = new TtlCache<CachedImage>(
+      MEMORY_CACHE_TTL_MS,
+      limits.memoryMaxEntries ?? IMAGE_MEMORY_CACHE_MAX_ENTRIES,
+      {
+        maxBytes: limits.memoryMaxBytes ?? IMAGE_MEMORY_CACHE_MAX_BYTES,
+        sizeOf: (image) => image.body.byteLength,
+      }
+    );
+    this.cdnMissByIp = createSlidingWindowLimiter({
+      windowMs: CDN_MISS_WINDOW_MS,
+      max: limits.cdnMissPerIpMax ?? CDN_MISS_PER_IP_MAX,
+    });
+    this.cdnMissGlobal = createSlidingWindowLimiter({
+      windowMs: CDN_MISS_WINDOW_MS,
+      max: limits.cdnMissGlobalMax ?? CDN_MISS_GLOBAL_MAX,
+    });
+
     if (hasS3Config(env)) {
       this.client = createS3Client(env);
       console.log(
@@ -119,15 +161,16 @@ export class ImageStoreService {
 
     const width = options?.width;
     if (width != null && canResizeKey(normalizedKey)) {
-      return this.serveResizedImage(normalizedKey, width);
+      return this.serveResizedImage(normalizedKey, width, options?.clientIp);
     }
 
-    return this.serveOriginalImage(normalizedKey);
+    return this.serveOriginalImage(normalizedKey, options?.clientIp);
   }
 
   private async serveResizedImage(
     sourceKey: string,
-    width: AllowedThumbWidth
+    width: AllowedThumbWidth,
+    clientIp: string | undefined
   ): Promise<ServeImageResult | null> {
     const derivativeKey = thumbStorageKey(sourceKey, width);
     const cached = this.readMemoryCache(derivativeKey);
@@ -137,7 +180,7 @@ export class ImageStoreService {
     const inflight = this.serveInflight.get(inflightKey);
     if (inflight) return inflight;
 
-    const promise = this.buildResizedImage(sourceKey, width, derivativeKey);
+    const promise = this.buildResizedImage(sourceKey, width, derivativeKey, clientIp);
     this.serveInflight.set(inflightKey, promise);
     try {
       return await promise;
@@ -149,7 +192,8 @@ export class ImageStoreService {
   private async buildResizedImage(
     sourceKey: string,
     width: AllowedThumbWidth,
-    derivativeKey: string
+    derivativeKey: string,
+    clientIp: string | undefined
   ): Promise<ServeImageResult | null> {
     const stored = await this.loadStoredBody(derivativeKey);
     if (stored) {
@@ -161,7 +205,7 @@ export class ImageStoreService {
       );
     }
 
-    const original = await this.loadOriginalBody(sourceKey);
+    const original = await this.loadOriginalBody(sourceKey, clientIp);
     if (!original) return null;
 
     const resized = await this.resizeWithLimit(original.body, width);
@@ -189,7 +233,8 @@ export class ImageStoreService {
   }
 
   private async serveOriginalImage(
-    normalizedKey: string
+    normalizedKey: string,
+    clientIp: string | undefined
   ): Promise<ServeImageResult | null> {
     const cached = this.readMemoryCache(normalizedKey);
     if (cached) return cached;
@@ -197,7 +242,7 @@ export class ImageStoreService {
     const inflight = this.serveInflight.get(normalizedKey);
     if (inflight) return inflight;
 
-    const promise = this.resolveOriginalImage(normalizedKey);
+    const promise = this.resolveOriginalImage(normalizedKey, clientIp);
     this.serveInflight.set(normalizedKey, promise);
     try {
       return await promise;
@@ -229,56 +274,68 @@ export class ImageStoreService {
     return { kind: 'body', body, contentType, source, etag };
   }
 
-  private async resolveOriginalImage(key: string): Promise<ServeImageResult | null> {
+  private allowCdnMiss(clientIp: string | undefined): boolean {
+    const ip = clientIp && clientIp.length > 0 ? clientIp : 'unknown';
+    if (!this.cdnMissByIp.check(ip).allowed) return false;
+    return this.cdnMissGlobal.check('cdn').allowed;
+  }
+
+  private async resolveOriginalImage(
+    key: string,
+    clientIp: string | undefined
+  ): Promise<ServeImageResult | null> {
     const stored = await this.loadStoredBody(key);
     if (stored) {
       return this.storeInMemoryCache(key, stored.body, stored.contentType, 's3');
     }
 
     const cdnUrl = cdnImageUrl(key);
+    const fetched = await this.fetchCdnBody(key, cdnUrl, clientIp);
+    if (!fetched) return { kind: 'redirect', url: cdnUrl };
+
     if (this.client) {
       this.scheduleBackgroundStore(key, cdnUrl);
     }
 
-    try {
-      const res = await fetch(cdnUrl, { signal: AbortSignal.timeout(15_000) });
-      if (res.ok) {
-        const body = await res.arrayBuffer();
-        if (body.byteLength > 0) {
-          const contentType = safeServedContentType(
-            res.headers.get('content-type')?.split(';')[0]?.trim(),
-            key
-          );
-          return this.storeInMemoryCache(key, body, contentType, 'memory');
-        }
-      }
-    } catch {
-      // Fall back to redirect when CDN is unreachable.
-    }
-
-    return { kind: 'redirect', url: cdnUrl };
+    return this.storeInMemoryCache(key, fetched.body, fetched.contentType, 'memory');
   }
 
   private async loadOriginalBody(
-    key: string
+    key: string,
+    clientIp: string | undefined
   ): Promise<{ body: ArrayBuffer; contentType: string } | null> {
     const stored = await this.loadStoredBody(key);
     if (stored) return stored;
 
     const cdnUrl = cdnImageUrl(key);
+    const fetched = await this.fetchCdnBody(key, cdnUrl, clientIp);
+    if (!fetched) return null;
+
+    if (this.client) {
+      this.scheduleBackgroundStore(key, cdnUrl);
+    }
+    return fetched;
+  }
+
+  private async fetchCdnBody(
+    key: string,
+    cdnUrl: string,
+    clientIp: string | undefined
+  ): Promise<{ body: ArrayBuffer; contentType: string } | null> {
+    if (!this.allowCdnMiss(clientIp)) return null;
+
     try {
       const res = await fetch(cdnUrl, { signal: AbortSignal.timeout(15_000) });
       if (!res.ok) return null;
-      const body = await res.arrayBuffer();
-      if (body.byteLength === 0) return null;
-      const contentType = safeServedContentType(
-        res.headers.get('content-type')?.split(';')[0]?.trim(),
-        key
-      );
-      if (this.client) {
-        this.scheduleBackgroundStore(key, cdnUrl);
-      }
-      return { body, contentType };
+      const body = await readCappedResponseBody(res, this.maxImageBytes);
+      if (!body) return null;
+      return {
+        body,
+        contentType: safeServedContentType(
+          res.headers.get('content-type')?.split(';')[0]?.trim(),
+          key
+        ),
+      };
     } catch {
       return null;
     }
@@ -289,18 +346,26 @@ export class ImageStoreService {
   ): Promise<{ body: ArrayBuffer; contentType: string } | null> {
     if (this.client && !this.s3MissCache.has(key)) {
       try {
+        const stat = await this.client.stat(key);
+        const size = typeof stat.size === 'number' ? stat.size : undefined;
+        if (size === 0) {
+          this.s3MissCache.set(key, true);
+          return null;
+        }
+        if (size != null && size > this.maxImageBytes) return null;
+
         const file = this.client.file(key);
         const body = await file.arrayBuffer();
-        if (body.byteLength > 0) {
-          const stat = await this.client.stat(key);
-          const contentType = safeServedContentType(
-            typeof stat.type === 'string' && stat.type.length > 0
-              ? stat.type
-              : undefined,
-            key
-          );
-          return { body, contentType };
+        if (body.byteLength === 0) {
+          this.s3MissCache.set(key, true);
+          return null;
         }
+        if (body.byteLength > this.maxImageBytes) return null;
+        const contentType = safeServedContentType(
+          typeof stat.type === 'string' && stat.type.length > 0 ? stat.type : undefined,
+          key
+        );
+        return { body, contentType };
       } catch {
         this.s3MissCache.set(key, true);
       }
@@ -325,13 +390,14 @@ export class ImageStoreService {
     if (!this.client) return;
 
     try {
-      const file = this.client.file(key);
-      const existing = await file.arrayBuffer();
-      if (existing.byteLength > 0) {
+      const stat = await this.client.stat(key);
+      if (typeof stat.size === 'number' && stat.size > 0) {
         this.s3MissCache.delete(key);
         return;
       }
-    } catch {}
+    } catch {
+      // Object is absent; download from the CDN.
+    }
 
     console.log(`[s3] Background download: ${cdnUrl}`);
     const res = await fetch(cdnUrl, { signal: AbortSignal.timeout(30_000) });
@@ -339,7 +405,10 @@ export class ImageStoreService {
       throw new Error(`CDN download failed with status ${String(res.status)}`);
     }
 
-    const body = await res.arrayBuffer();
+    const body = await readCappedResponseBody(res, this.maxImageBytes);
+    if (!body) {
+      throw new Error(`CDN download exceeded ${String(this.maxImageBytes)} bytes`);
+    }
     const contentType = safeServedContentType(
       res.headers.get('content-type')?.split(';')[0]?.trim(),
       key

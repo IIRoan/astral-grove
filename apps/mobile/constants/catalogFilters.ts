@@ -56,6 +56,7 @@ export function sanitizeCatalogFilters(filters: CatalogFilters): CatalogFilters 
     collection,
     simpleAdd: Boolean(filters.simpleAdd),
     types: filters.types.filter((type) => isCatalogBrowsableType(type)),
+    variants: [],
     excludeTokens: filters.tokensOnly ? false : filters.excludeTokens,
     tokensOnly: filters.excludeTokens ? false : filters.tokensOnly,
   };
@@ -77,7 +78,6 @@ export const CATALOG_FILTER_SEGMENTS: { id: CatalogFilterSegment; label: string 
   { id: 'sets', label: 'Sets' },
   { id: 'types', label: 'Type' },
   { id: 'supertypes', label: 'Supertype' },
-  { id: 'variants', label: 'Variant' },
   { id: 'rarities', label: 'Rarity' },
   { id: 'stats', label: 'Stats' },
 ];
@@ -97,6 +97,33 @@ export function catalogFiltersActive(filters: CatalogFilters): boolean {
     filters.excludeTokens ||
     filters.tokensOnly
   );
+}
+
+export function clearCatalogFilters(
+  filters: CatalogFilters,
+  options?: { preserveColorsAndTokens?: boolean }
+): CatalogFilters {
+  return sanitizeCatalogFilters({
+    ...DEFAULT_CATALOG_FILTERS,
+    simpleAdd: filters.simpleAdd,
+    ...(options?.preserveColorsAndTokens
+      ? { colors: filters.colors, excludeTokens: filters.excludeTokens }
+      : {}),
+  });
+}
+
+export function catalogFiltersHaveClearableExtras(
+  filters: CatalogFilters,
+  options?: { preserveColorsAndTokens?: boolean }
+): boolean {
+  if (!options?.preserveColorsAndTokens) {
+    return catalogFiltersActive(filters);
+  }
+  return catalogFiltersActive({
+    ...filters,
+    colors: [],
+    excludeTokens: false,
+  });
 }
 
 export function countCatalogFilters(filters: CatalogFilters): number {

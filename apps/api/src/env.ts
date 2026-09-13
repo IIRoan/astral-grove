@@ -77,12 +77,12 @@ export function resolvePublicAppUrl(input: {
   if (input.nodeEnv === 'production') {
     return 'https://rift.solace.onl';
   }
-  try {
+  if (URL.canParse(input.betterAuthUrl)) {
     const auth = new URL(input.betterAuthUrl);
     if (auth.hostname !== 'localhost' && auth.hostname !== '127.0.0.1') {
       return auth.origin;
     }
-  } catch {}
+  }
   return 'http://localhost:7001';
 }
 

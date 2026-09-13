@@ -3,9 +3,6 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    linterOptions: {
-      reportUnusedDisableDirectives: 'off',
-    },
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
@@ -15,6 +12,11 @@ export default tseslint.config(
       '**/test/**',
       'manganess/**',
     ],
+  },
+  {
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
+    },
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

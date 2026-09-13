@@ -16,7 +16,7 @@ export class VariantResolver {
     private readonly db: Database,
     private readonly cardCache: CardCacheService,
     private readonly pa: PaClient
-  ) {}
+  ) { }
 
   private addToLookup(lookup: Map<string, string>, variantNumber: string): void {
     lookup.set(variantNumber.toLowerCase(), variantNumber);
@@ -70,7 +70,9 @@ export class VariantResolver {
           for (const variant of logical.variants) {
             this.addToLookup(lookup, variant.variantNumber);
           }
-        } catch {}
+        } catch {
+          // Skip variants that still 404 upstream.
+        }
       }
     }
 

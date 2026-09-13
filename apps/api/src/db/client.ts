@@ -12,13 +12,14 @@ export function resolveSsl(
   databaseUrl: string,
   isProduction: boolean
 ): Options<Record<string, never>>['ssl'] | undefined {
-  try {
-    const sslmode = new URL(databaseUrl).searchParams.get('sslmode');
-    if (sslmode === 'disable') return undefined;
-    if (sslmode === 'require' || sslmode === 'verify-full' || sslmode === 'verify-ca') {
-      return 'require';
-    }
-  } catch {}
+  if (!URL.canParse(databaseUrl)) {
+    return isProduction ? 'require' : undefined;
+  }
+  const sslmode = new URL(databaseUrl).searchParams.get('sslmode');
+  if (sslmode === 'disable') return undefined;
+  if (sslmode === 'require' || sslmode === 'verify-full' || sslmode === 'verify-ca') {
+    return 'require';
+  }
   return isProduction ? 'require' : undefined;
 }
 

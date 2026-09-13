@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  CATALOG_FILTER_SEGMENTS,
   catalogFilterChips,
   catalogFiltersActive,
+  catalogFiltersHaveClearableExtras,
   catalogFiltersQueryKey,
+  clearCatalogFilters,
   countCatalogFilters,
   DEFAULT_CATALOG_FILTERS,
   matchesCatalogFilters,
@@ -230,5 +233,88 @@ describe('countCatalogFilters', () => {
         excludeTokens: true,
       })
     ).toBe(3);
+  });
+});
+
+describe('clearCatalogFilters', () => {
+  test('resets every filter except simpleAdd', () => {
+    expect(
+      clearCatalogFilters({
+        ...DEFAULT_CATALOG_FILTERS,
+        simpleAdd: true,
+        colors: ['Fury'],
+        sets: ['OGN'],
+        excludeTokens: true,
+        collection: 'owned',
+      })
+    ).toEqual({ ...DEFAULT_CATALOG_FILTERS, simpleAdd: true });
+  });
+
+  test('keeps colors and hide tokens when preserving deck identity', () => {
+    expect(
+      clearCatalogFilters(
+        {
+          ...DEFAULT_CATALOG_FILTERS,
+          colors: ['Body', 'Order'],
+          excludeTokens: true,
+          sets: ['OGN'],
+          types: ['Spell'],
+          collection: 'owned',
+          tokensOnly: false,
+          energy: 3,
+        },
+        { preserveColorsAndTokens: true }
+      )
+    ).toEqual({
+      ...DEFAULT_CATALOG_FILTERS,
+      colors: ['Body', 'Order'],
+      excludeTokens: true,
+    });
+  });
+});
+
+describe('catalogFiltersHaveClearableExtras', () => {
+  test('is false when only colors and hide tokens are set', () => {
+    expect(
+      catalogFiltersHaveClearableExtras(
+        {
+          ...DEFAULT_CATALOG_FILTERS,
+          colors: ['Calm'],
+          excludeTokens: true,
+        },
+        { preserveColorsAndTokens: true }
+      )
+    ).toBe(false);
+  });
+
+  test('is true when other filters are also set', () => {
+    expect(
+      catalogFiltersHaveClearableExtras(
+        {
+          ...DEFAULT_CATALOG_FILTERS,
+          colors: ['Calm'],
+          excludeTokens: true,
+          sets: ['OGN'],
+        },
+        { preserveColorsAndTokens: true }
+      )
+    ).toBe(true);
+  });
+});
+
+describe('variant filter', () => {
+  test('is not a catalog filter segment', () => {
+    expect(CATALOG_FILTER_SEGMENTS.map((segment) => segment.id)).not.toContain(
+      'variants'
+    );
+  });
+
+  test('sanitize drops leftover variant selections', () => {
+    expect(
+      sanitizeCatalogFilters({
+        ...DEFAULT_CATALOG_FILTERS,
+        variants: ['Standard'],
+      }).variants
+    ).toEqual([]);
   });
 });

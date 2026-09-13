@@ -26,12 +26,28 @@ describe('createSlidingWindowLimiter', () => {
 });
 
 describe('clientIpFromHeaders', () => {
-  test('prefers x-real-ip over x-forwarded-for', () => {
+  test('uses Railway X-Real-IP and ignores spoofable X-Forwarded-For', () => {
     const headers = new Headers({
       'x-real-ip': '203.0.113.9',
       'x-forwarded-for': '198.51.100.1, 203.0.113.9',
     });
     expect(clientIpFromHeaders(headers)).toBe('203.0.113.9');
+  });
+
+  test('does not trust X-Forwarded-For when X-Real-IP is absent', () => {
+    const headers = new Headers({
+      'x-forwarded-for': '198.51.100.1',
+    });
+    expect(clientIpFromHeaders(headers)).toBe('unknown');
+  });
+
+  test('rejects multi-value or non-IP X-Real-IP', () => {
+    expect(
+      clientIpFromHeaders(new Headers({ 'x-real-ip': '203.0.113.9, 198.51.100.1' }))
+    ).toBe('unknown');
+    expect(clientIpFromHeaders(new Headers({ 'x-real-ip': 'evil.example' }))).toBe(
+      'unknown'
+    );
   });
 });
 

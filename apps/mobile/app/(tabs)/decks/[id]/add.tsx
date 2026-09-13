@@ -506,6 +506,7 @@ function DeckAddCatalogBrowse({
           <CatalogActiveFilterChips
             filters={catalogFilters}
             onFiltersChange={applyCatalogFilters}
+            preserveColorsAndTokens
           />
         ) : null}
 
@@ -561,6 +562,7 @@ function DeckAddCatalogBrowse({
         filters={catalogFilters}
         onClose={() => setFilterSheetOpen(false)}
         onFiltersChange={applyCatalogFilters}
+        preserveColorsAndTokens
       />
     </View>
   );

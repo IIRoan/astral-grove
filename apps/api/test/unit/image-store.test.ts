@@ -63,4 +63,85 @@ describe('ImageStoreService', () => {
     const store = new ImageStoreService(baseEnv);
     expect(await store.serveImage('thumbs/w160/cards/OGN-001.webp')).toBeNull();
   });
+
+  test('serveImage does not buffer oversized CDN responses', async () => {
+    const store = new ImageStoreService(baseEnv, { maxImageBytes: 8 });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      new Response(new Uint8Array(32), {
+        status: 200,
+        headers: { 'content-type': 'image/webp', 'content-length': '32' },
+      });
+    try {
+      const result = await store.serveImage('cards/OGN-001.webp', {
+        clientIp: '203.0.113.9',
+      });
+      expect(result).toEqual({
+        kind: 'redirect',
+        url: 'https://cdn.piltoverarchive.com/cards/OGN-001.webp',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('serveImage rate-limits CDN misses per client IP', async () => {
+    const store = new ImageStoreService(baseEnv, {
+      cdnMissPerIpMax: 1,
+      cdnMissGlobalMax: 10,
+    });
+    let fetches = 0;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+      fetches += 1;
+      return new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { 'content-type': 'image/webp' },
+      });
+    };
+    try {
+      const first = await store.serveImage('cards/OGN-001.webp', {
+        clientIp: '203.0.113.9',
+      });
+      const second = await store.serveImage('cards/OGN-002.webp', {
+        clientIp: '203.0.113.9',
+      });
+      expect(first?.kind).toBe('body');
+      expect(second).toEqual({
+        kind: 'redirect',
+        url: 'https://cdn.piltoverarchive.com/cards/OGN-002.webp',
+      });
+      expect(fetches).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('serveImage serves memory hits without another CDN fetch', async () => {
+    const store = new ImageStoreService(baseEnv, { cdnMissPerIpMax: 1 });
+    let fetches = 0;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+      fetches += 1;
+      return new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { 'content-type': 'image/webp' },
+      });
+    };
+    try {
+      const first = await store.serveImage('cards/OGN-001.webp', {
+        clientIp: '203.0.113.9',
+      });
+      fetches = 0;
+      const second = await store.serveImage('cards/OGN-001.webp', {
+        clientIp: '203.0.113.9',
+      });
+      expect(first?.kind).toBe('body');
+      expect(second?.kind).toBe('body');
+      expect(second && 'source' in second ? second.source : null).toBe('memory');
+      expect(fetches).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

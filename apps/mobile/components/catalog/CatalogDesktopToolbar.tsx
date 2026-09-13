@@ -1,15 +1,11 @@
 import { View } from 'react-native';
 import { CatalogActionBar } from '@/components/catalog/CatalogActionBar';
 import { CatalogActiveFilterChips } from '@/components/catalog/FilterSheet';
-import {
-  FilterClearButton,
-  FilterPopoverBar,
-} from '@/components/filters/FilterPrimitives';
+import { FilterPopoverBar } from '@/components/filters/FilterPrimitives';
 import type {
   CatalogCollectionFilter,
   CatalogFilters,
 } from '@/constants/catalogFilters';
-import { DEFAULT_CATALOG_FILTERS } from '@/constants/catalogFilters';
 import type { CatalogSort } from '@/constants/catalogSort';
 import {
   CATALOG_TOOLBAR_DESKTOP_DIVIDER_CLASS,
@@ -60,17 +56,6 @@ export function CatalogDesktopToolbar({
               segments={segments}
               embedded
             />
-            {filterActive ? (
-              <FilterClearButton
-                embedded
-                onPress={() =>
-                  onFiltersChange({
-                    ...DEFAULT_CATALOG_FILTERS,
-                    simpleAdd: filters.simpleAdd,
-                  })
-                }
-              />
-            ) : null}
           </View>
 
           <View className={CATALOG_TOOLBAR_DESKTOP_DIVIDER_CLASS} />

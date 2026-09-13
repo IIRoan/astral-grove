@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { useValueChangeFlag } from '@/hooks/useValueChangeFlag';
-import type { CardListItem } from '@riftbound/contracts';
+import type { CardDetailResponse, CardListItem } from '@riftbound/contracts';
 import {
   useCollection,
   useCollectionMutations,
@@ -34,7 +34,6 @@ import {
   findCachedCardListItem,
   isHydratedDetail,
 } from '@/lib/prefetchCardDetail';
-import { api } from '@/src/api/client';
 import { cardQueryKeys } from '@/src/api/queryKeys';
 import { collectionFinishKey, parseCollectionFinishKey } from '@riftbound/contracts';
 import { resolveUnambiguousQuantitySelection } from '@/utils/collectionPrintingPicker';
@@ -71,7 +70,7 @@ export function useCardDetail(
     queryFn: async () => {
       // Prefer an already-warmed detail (from scroll prefetch or press ensure).
       const cached = queryClient.getQueryData(cardQueryKeys.detail(variantNumber)) as
-        Awaited<ReturnType<typeof api.getCard>> | undefined;
+        CardDetailResponse | undefined;
       if (isHydratedDetail(cached)) return cached;
 
       // Flush batch prefetch without awaiting — waiting delayed rules text behind unrelated work.
