@@ -8,15 +8,28 @@ export function pickNewerDeckState(
   incoming: DeckState
 ): DeckState {
   if (!current || current.id !== incoming.id) return incoming;
-  if (
-    current.versionId &&
-    incoming.versionId &&
-    current.versionId !== incoming.versionId
-  ) {
-    return incoming;
+  const versionChanged = Boolean(
+    current.versionId && incoming.versionId && current.versionId !== incoming.versionId
+  );
+  const payload =
+    versionChanged || incoming.updatedAt > current.updatedAt ? incoming : current;
+  if (incoming.versions?.length) {
+    return {
+      ...payload,
+      versions: incoming.versions,
+      ...(incoming.versionId ? { versionId: incoming.versionId } : {}),
+      ...(incoming.versionName ? { versionName: incoming.versionName } : {}),
+    };
   }
-  if (incoming.updatedAt > current.updatedAt) return incoming;
-  return current;
+  if (current.versions?.length) {
+    return {
+      ...payload,
+      versions: current.versions,
+      ...(payload.versionId ? { versionId: payload.versionId } : {}),
+      ...(payload.versionName ? { versionName: payload.versionName } : {}),
+    };
+  }
+  return payload;
 }
 
 export function applyDeckStateIfNewerToCache(

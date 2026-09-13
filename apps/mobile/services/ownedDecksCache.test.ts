@@ -76,4 +76,38 @@ describe('ownedDecksCache', () => {
     expect(listDecks).toHaveBeenCalled();
     expect(client.getQueryData(deckQueryKeys.list('owned'))).toEqual([]);
   });
+
+  test('prefetch does not strip version lists from an open deck detail', async () => {
+    const client = new QueryClient();
+    const detailed = {
+      ...createEmptyDeck('Editor'),
+      versions: [
+        {
+          id: 'dver_a',
+          name: 'Current',
+          createdAt: 1,
+          updatedAt: 1,
+          isActive: false,
+        },
+        {
+          id: 'dver_b',
+          name: 'versie2',
+          createdAt: 2,
+          updatedAt: 2,
+          isActive: true,
+        },
+      ],
+    };
+    client.setQueryData(deckQueryKeys.detail(detailed.id), detailed);
+
+    const summary = createEmptyDeck('Editor');
+    summary.id = detailed.id;
+    summary.updatedAt = detailed.updatedAt + 10_000;
+    listDecks.mockImplementation(async () => [summary]);
+    await prefetchOwnedDecks(client);
+
+    expect(client.getQueryData(deckQueryKeys.detail(detailed.id))?.versions).toHaveLength(
+      2
+    );
+  });
 });

@@ -10,6 +10,10 @@ import { deckQueryKeys } from '@/src/api/queryKeys';
 
 function seedDeckDetailCaches(queryClient: QueryClient, decks: DeckState[]): void {
   for (const deck of decks) {
+    const current = queryClient.getQueryData<DeckState | null>(
+      deckQueryKeys.detail(deck.id)
+    );
+    if (current && !deck.versions?.length) continue;
     applyDeckStateIfNewerToCache(queryClient, deck.id, deck);
   }
 }

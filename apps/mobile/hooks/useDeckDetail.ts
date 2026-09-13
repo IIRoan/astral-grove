@@ -29,6 +29,8 @@ export function useDeckDetail(deckId: string | undefined) {
     queryFn: () => getDeck(deckId!),
     enabled: Boolean(deckId),
     staleTime: 5_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
     initialData: () => {
       if (!deckId) return undefined;
       return (

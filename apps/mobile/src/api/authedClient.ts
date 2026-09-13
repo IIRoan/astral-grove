@@ -49,6 +49,7 @@ export async function authedFetch<T>(
     res = await fetchWithApiWake(`${API_URL}${path}`, {
       method,
       credentials: 'include',
+      cache: 'no-store',
       headers,
       body: init?.body == null ? undefined : JSON.stringify(init.body),
     });
@@ -91,6 +92,7 @@ export async function authedFetchText(
     res = await fetchWithApiWake(`${API_URL}${path}`, {
       method,
       credentials: 'include',
+      cache: 'no-store',
       headers,
     });
   } catch (error) {
