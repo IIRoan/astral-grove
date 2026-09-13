@@ -3,6 +3,7 @@ import {
   formatListPrice,
   formatPrintingPrice,
   getSearchGroupKey,
+  getCollectionActivityVariantNumbers,
   getSearchGroupVariants,
   getVariantFamiliesFromPrintings,
   getVariantMarketPriceDisplays,
@@ -89,6 +90,30 @@ describe('getSearchGroupVariants', () => {
   test('getSearchGroupKey groups rune-style foil siblings with their base printing', () => {
     expect(getSearchGroupKey('SFD-R05', 'Standard')).toBe('SFD-R05');
     expect(getSearchGroupKey('SFD-R05a', 'Foil')).toBe('SFD-R05');
+  });
+});
+
+describe('getCollectionActivityVariantNumbers', () => {
+  const shenVariants = [
+    { variantNumber: 'VEN-074', variantLabel: 'Standard', variantType: 'standard' },
+    { variantNumber: 'VEN-074-Foil', variantLabel: 'Standard', variantType: 'foil' },
+    {
+      variantNumber: 'VEN-193',
+      variantLabel: 'Overnumbered',
+      variantType: 'overnumbered',
+    },
+  ];
+
+  test('overnumbered printing does not inherit standard foil history', () => {
+    expect(
+      getCollectionActivityVariantNumbers(shenVariants, shenVariants[2]!)
+    ).toEqual(['VEN-193']);
+  });
+
+  test('standard printing includes foil sibling only', () => {
+    expect(
+      getCollectionActivityVariantNumbers(shenVariants, shenVariants[0]!)
+    ).toEqual(['VEN-074', 'VEN-074-Foil']);
   });
 });
 

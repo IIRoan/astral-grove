@@ -1,4 +1,4 @@
-import { CardholderIcon, CardsIcon } from '@/components/icons';
+import { CardholderIcon, CardsIcon, InboxIcon } from '@/components/icons';
 import { CatalogSegmentedControl } from '@/components/catalog/CatalogSegmentedControl';
 import type { CatalogCollectionFilter } from '@/constants/catalogFilters';
 import { useMobileLayout } from '@/hooks/useBreakpoint';
@@ -15,6 +15,12 @@ const NAV_ITEMS = [
     label: 'Owned',
     accessibilityLabel: 'Owned cards',
     icon: CardholderIcon,
+  },
+  {
+    id: 'missing' as const,
+    label: 'Missing',
+    accessibilityLabel: 'Missing cards',
+    icon: InboxIcon,
   },
 ] as const;
 

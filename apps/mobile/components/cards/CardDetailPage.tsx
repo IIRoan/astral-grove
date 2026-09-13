@@ -27,6 +27,7 @@ import { Text } from '@/components/ui/text';
 import { formatStat } from '@/utils/cardFormat';
 import {
   formatMarketTrend,
+  getCollectionActivityVariantNumbers,
   getVariantMarketPriceDisplays,
   pickVariantDisplayPrice,
   toPriceEurSummary,
@@ -73,7 +74,7 @@ export function CardDetailPage({
   const activePrice = pickVariantDisplayPrice(activeVariant.prices, activeVariant);
   const singlePriceTrend = formatMarketTrend(toPriceEurSummary(activePrice));
   const { events } = useCollectionRecentAdds(
-    card.variants.map((variant) => variant.variantNumber)
+    getCollectionActivityVariantNumbers(card.variants, activeVariant)
   );
 
   const info = (

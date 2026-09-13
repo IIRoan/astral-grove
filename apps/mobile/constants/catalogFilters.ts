@@ -9,7 +9,13 @@ export const CATALOG_ENERGY_VALUES = [
 export const CATALOG_POWER_VALUES = [0, 1, 2, 3, 4] as const;
 export const CATALOG_MIGHT_VALUES = [0, 2, 3, 5, 7, 8, 10] as const;
 
-export type CatalogCollectionFilter = 'all' | 'owned';
+export type CatalogCollectionFilter = 'all' | 'owned' | 'missing';
+
+export function catalogFilterNeedsOwnership(
+  collection: CatalogCollectionFilter
+): boolean {
+  return collection === 'owned' || collection === 'missing';
+}
 
 /** Upstream "Card" type is token markers — not a real browse type. */
 export const CATALOG_HIDDEN_TYPE_FILTERS = new Set(['card']);
@@ -48,8 +54,15 @@ export function isCatalogBrowsableType(typeName: string): boolean {
   return !CATALOG_HIDDEN_TYPE_FILTERS.has(typeName.trim().toLowerCase());
 }
 
+function sanitizeCatalogCollection(
+  collection: CatalogCollectionFilter
+): CatalogCollectionFilter {
+  if (collection === 'owned' || collection === 'missing') return collection;
+  return 'all';
+}
+
 export function sanitizeCatalogFilters(filters: CatalogFilters): CatalogFilters {
-  const collection = filters.collection === 'owned' ? 'owned' : 'all';
+  const collection = sanitizeCatalogCollection(filters.collection);
 
   return {
     ...filters,
@@ -183,6 +196,7 @@ export function catalogFilterSegmentSummary(
   switch (segment) {
     case 'collection':
       if (filters.collection === 'owned') return 'Owned';
+      if (filters.collection === 'missing') return 'Missing';
       return undefined;
     case 'colors':
       return filters.colors.length > 0 ? filters.colors.join(', ') : undefined;
@@ -317,10 +331,11 @@ export function matchesCatalogFilters(
 ): boolean {
   if (!catalogFiltersActive(filters)) return true;
 
-  if (
-    filters.collection === 'owned' &&
-    cardOwnedQuantity(card, collectionByVariant) <= 0
-  ) {
+  const ownedQuantity = cardOwnedQuantity(card, collectionByVariant);
+  if (filters.collection === 'owned' && ownedQuantity <= 0) {
+    return false;
+  }
+  if (filters.collection === 'missing' && ownedQuantity > 0) {
     return false;
   }
 

@@ -134,6 +134,24 @@ export function SearchScreenListEmpty({
       );
     }
 
+    if (catalogFilters.collection === 'missing') {
+      return (
+        <SearchEmptyState
+          icon={CardsIcon}
+          title={
+            catalogFiltersActive({ ...catalogFilters, collection: 'all' })
+              ? 'No missing cards match this filter'
+              : 'You are not missing any cards'
+          }
+          description={
+            catalogFiltersActive({ ...catalogFilters, collection: 'all' })
+              ? 'Try clearing other filters or search for a specific card'
+              : 'Every catalog card is already in your collection'
+          }
+        />
+      );
+    }
+
     return (
       <SearchEmptyState
         icon={SearchIcon}

@@ -27,6 +27,17 @@ export function CatalogFilterCollectionPanel({
         }
         compact={compact}
       />
+      <FilterToggleRow
+        label="Missing"
+        subtitle="Cards you do not own yet"
+        active={filters.collection === 'missing'}
+        onPress={() =>
+          onUpdate({
+            collection: filters.collection === 'missing' ? 'all' : 'missing',
+          })
+        }
+        compact={compact}
+      />
     </View>
   );
 }

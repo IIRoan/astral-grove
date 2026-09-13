@@ -51,6 +51,7 @@ import { OVERLAY } from '@/lib/motion';
 import { formatStat } from '@/utils/cardFormat';
 import {
   formatMarketTrend,
+  getCollectionActivityVariantNumbers,
   getVariantMarketPriceDisplays,
   isFoilVariant,
   pickVariantDisplayPrice,
@@ -258,7 +259,7 @@ function ModalInfoPanel({
   const isBanned = isCardBannedAt(card.banEffectiveDate);
   const showCollectionActions = source !== 'wishlist' && source !== 'deck-view';
   const { events } = useCollectionRecentAdds(
-    card.variants.map((variant) => variant.variantNumber),
+    getCollectionActivityVariantNumbers(card.variants, activeVariant),
     showCollectionActions
   );
 

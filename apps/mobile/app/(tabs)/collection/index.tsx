@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { View } from 'react-native';
 import {
   BreakdownSection,
@@ -9,18 +9,12 @@ import {
 } from '@/components/collection/CollectionDashboard';
 import { computeTypeStats } from '@/utils/collectionDashboardStats';
 import { rarityIconFor, typeIconFor } from '@/constants/gameAssets';
-import { CollectionCardList } from '@/components/collection/CollectionCardList';
 import {
   CollectionImportExportStatus,
   CollectionImportExportToolbar,
 } from '@/components/collection/CollectionImportExportActions';
 import { SharedCollectionBanner } from '@/components/collection/SharedCollectionBanner';
-import {
-  ScreenLayout,
-  ScreenLayoutBody,
-  useScreenLayout,
-} from '@/components/shell/ScreenLayout';
-import { SearchInput } from '@/components/ui/search-input';
+import { ScreenLayout } from '@/components/shell/ScreenLayout';
 import { Text } from '@/components/ui/text';
 import { Button, ButtonText } from '@/components/ui/button';
 import { useCollection } from '@/hooks/useCollection';
@@ -31,14 +25,13 @@ import {
   catalogCardTotalFromTypes,
   computeRarityBreakdown,
   countUniqueCardNames,
-  countUniqueVariants,
   mergeSetStats,
   sumCollectionCopies,
 } from '@/utils/collectionStats';
 
 export default function CollectionScreen() {
   return (
-    <ScreenLayout mode="flex" contentClassName="flex-1">
+    <ScreenLayout>
       <CollectionScreenBody />
     </ScreenLayout>
   );
@@ -46,8 +39,6 @@ export default function CollectionScreen() {
 
 function CollectionScreenBody() {
   const router = useRouter();
-  const { contentWidth, paddingBottomInline } = useScreenLayout();
-  const [query, setQuery] = useState('');
 
   const { data: collection = [], isLoading } = useCollection();
   const filtersQuery = useFiltersData();
@@ -55,7 +46,6 @@ function CollectionScreenBody() {
 
   const totalCopies = useMemo(() => sumCollectionCopies(collection), [collection]);
   const uniqueCards = useMemo(() => countUniqueCardNames(collection), [collection]);
-  const uniquePrintings = useMemo(() => countUniqueVariants(collection), [collection]);
 
   const apiSets = useMemo(
     () =>
@@ -108,21 +98,32 @@ function CollectionScreenBody() {
       ? '…'
       : `€${estimatedValue.toFixed(2)}`;
 
-  const dashboardHeader = (
+  return (
     <View className="pb-6">
       <SharedCollectionBanner />
-      <View className="mb-8">
-        <Text className="text-xl font-semibold tracking-tight text-foreground">
-          Collection Dashboard
-        </Text>
-        <Text className="mt-1 font-mono text-[13px] text-muted-foreground">
-          {totalCopies.toLocaleString()} cards · {valueLabel} estimated value
-        </Text>
+      <View className="mb-8 gap-2">
+        <View className="flex-row items-start justify-between gap-3">
+          <View className="min-w-0 flex-1">
+            <Text className="text-xl font-semibold tracking-tight text-foreground">
+              Collection Dashboard
+            </Text>
+            <Text className="mt-1 font-mono text-[13px] text-muted-foreground">
+              {totalCopies.toLocaleString()} cards · {valueLabel} estimated value
+            </Text>
+          </View>
+          <CollectionImportExportToolbar disabled={isLoading} />
+        </View>
+        <CollectionImportExportStatus disabled={isLoading} />
       </View>
 
       <View className="mb-8">
         <Text className="mb-4 text-sm font-medium text-muted-foreground">Sets</Text>
-        <SetCardGrid sets={mergedSets} />
+        <SetCardGrid
+          sets={mergedSets}
+          onSelectSet={(code) => {
+            router.push(`/collection/${encodeURIComponent(code)}`);
+          }}
+        />
       </View>
 
       <DashboardStatGrid>
@@ -177,23 +178,6 @@ function CollectionScreenBody() {
         ) : null}
       </View>
 
-      <View className="mb-8 gap-2">
-        <View className="flex-row items-center justify-between gap-3">
-          <Text className="text-sm font-medium text-muted-foreground">
-            Your collection
-          </Text>
-          <CollectionImportExportToolbar disabled={isLoading} />
-        </View>
-        <SearchInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search by name or variant"
-          accessibilityLabel="Search your collection"
-          className="min-h-12 rounded-[10px] border-border bg-card"
-        />
-        <CollectionImportExportStatus disabled={isLoading} />
-      </View>
-
       {collection.length === 0 && !isLoading ? (
         <Button
           className="mb-8"
@@ -205,20 +189,5 @@ function CollectionScreenBody() {
         </Button>
       ) : null}
     </View>
-  );
-
-  return (
-    <ScreenLayoutBody>
-      <CollectionCardList
-        entries={collection}
-        query={query}
-        isLoading={isLoading}
-        contentWidth={contentWidth}
-        paddingBottom={paddingBottomInline}
-        uniquePrintings={uniquePrintings}
-        totalCopies={totalCopies}
-        listHeader={dashboardHeader}
-      />
-    </ScreenLayoutBody>
   );
 }

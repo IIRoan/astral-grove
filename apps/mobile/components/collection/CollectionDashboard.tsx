@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { Children, isValidElement, type ReactNode } from 'react';
-import { Platform, View, type ImageSourcePropType } from 'react-native';
+import { Platform, Pressable, View, type ImageSourcePropType } from 'react-native';
 import type { typeIconFor } from '@/constants/gameAssets';
 import { Text } from '@/components/ui/text';
 import { useFillGridLayout } from '@/hooks/useFillGridLayout';
@@ -8,6 +8,7 @@ import { useScreenLayout } from '@/components/shell/ScreenLayout';
 import type { MergedSetStat } from '@/utils/collectionStats';
 import { cn } from '@/lib/utils';
 import { keyHash } from '@/lib/react-list-keys';
+import { hapticPress } from '@/utils/haptics';
 
 const SET_CARD_MIN_WIDTH = 280;
 const SET_CARD_MAX_COLUMNS = 4;
@@ -128,14 +129,28 @@ export function BreakdownSection({
   );
 }
 
-function SetCard({ set }: { set: MergedSetStat }) {
+function SetCard({
+  set,
+  onSelectSet,
+}: {
+  set: MergedSetStat;
+  onSelectSet: (code: string) => void;
+}) {
   const completion = set.total > 0 ? (set.owned / set.total) * 100 : 0;
   const nonFoilCompletion =
     set.nonFoilTotal > 0 ? (set.nonFoilOwned / set.nonFoilTotal) * 100 : 0;
   const foilCompletion = set.foilTotal > 0 ? (set.foilOwned / set.foilTotal) * 100 : 0;
 
   return (
-    <View className="overflow-hidden rounded-[10px] border border-border bg-card">
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${set.name}, ${set.owned} of ${set.total} collected`}
+      onPress={() => {
+        void hapticPress();
+        onSelectSet(set.code);
+      }}
+      className="overflow-hidden rounded-[10px] border border-border bg-card active:bg-card-panel"
+    >
       {set.art ? (
         <View
           className="relative w-full overflow-hidden bg-card-panel"
@@ -223,7 +238,7 @@ function SetCard({ set }: { set: MergedSetStat }) {
           </Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -251,7 +266,13 @@ function ProgressRow({
   );
 }
 
-export function SetCardGrid({ sets }: { sets: MergedSetStat[] }) {
+export function SetCardGrid({
+  sets,
+  onSelectSet,
+}: {
+  sets: MergedSetStat[];
+  onSelectSet: (code: string) => void;
+}) {
   const { itemWidth } = useFillGridLayout({
     minItemWidth: SET_CARD_MIN_WIDTH,
     maxColumns: SET_CARD_MAX_COLUMNS,
@@ -262,7 +283,7 @@ export function SetCardGrid({ sets }: { sets: MergedSetStat[] }) {
     <View className="flex-row flex-wrap" style={{ gap: SET_GRID_GAP }}>
       {sets.map((set) => (
         <View key={set.code} style={{ width: itemWidth }}>
-          <SetCard set={set} />
+          <SetCard set={set} onSelectSet={onSelectSet} />
         </View>
       ))}
     </View>

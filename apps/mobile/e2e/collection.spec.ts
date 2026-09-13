@@ -22,7 +22,7 @@ test.describe('collection', () => {
     ).toBeVisible();
   });
 
-  test('cards added from search show up in collection', async ({ page }) => {
+  test('set card opens missing cards from that set', async ({ page }) => {
     await searchForCard(page, FOIL_CARD.query, FOIL_CARD.name);
     await addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId).click();
     await pickPrinting(page, FOIL_CARD.standardId);
@@ -31,11 +31,22 @@ test.describe('collection', () => {
     ).toBeVisible();
 
     await goToTab(page, 'Collection');
-    const ownedRow = page.getByRole('button', {
-      name: new RegExp(`${FOIL_CARD.name}.*${FOIL_CARD.standardId}`),
+    await expect(page.getByText('Your collection', { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel('Search your collection')).toHaveCount(0);
+
+    const origins = page.getByRole('button', { name: /Origins,/ });
+    await expect(origins).toBeVisible({ timeout: 30_000 });
+    await origins.click();
+    await expect(page.getByLabel('Search missing cards')).toBeVisible({
+      timeout: 30_000,
     });
-    await expect(ownedRow).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByLabel('Search your collection')).toBeVisible();
-    await expect(page.getByText('Your collection', { exact: true })).toBeVisible();
+    await expect(page.getByText(/missing/i).first()).toBeVisible();
+
+    await page.getByLabel('Search missing cards').fill(FOIL_CARD.name);
+    await expect(
+      page.getByRole('button', {
+        name: new RegExp(`${FOIL_CARD.name}.*${FOIL_CARD.standardId}`),
+      })
+    ).toHaveCount(0);
   });
 });

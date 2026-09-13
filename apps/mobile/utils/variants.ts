@@ -208,6 +208,18 @@ export function getSearchGroupVariants<T extends VariantLike>(
   );
 }
 
+/** Recent collection activity is per printing, not the whole logical card. */
+export function getCollectionActivityVariantNumbers<T extends VariantLike>(
+  variants: T[],
+  anchor: VariantLike
+): string[] {
+  return [
+    ...new Set(
+      getSearchGroupVariants(variants, anchor).map((variant) => variant.variantNumber)
+    ),
+  ];
+}
+
 export type VariantFamily<T extends VariantLike = VariantLike> = {
   key: string;
   label: string;

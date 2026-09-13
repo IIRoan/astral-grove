@@ -25,6 +25,7 @@ import { isCardBannedAt, parseCollectionFinishKey } from '@riftbound/contracts';
 import {
   formatMarketTrend,
   getCardPrintings,
+  getCollectionActivityVariantNumbers,
   getSearchGroupVariants,
   getVariantFamiliesFromCardVariants,
   getVariantMarketPriceDisplays,
@@ -233,7 +234,7 @@ export function CatalogDetailPanelBody({
     });
 
   const { events } = useCollectionRecentAdds(
-    printings.map((printing) => printing.variantNumber),
+    getCollectionActivityVariantNumbers(card.variants, activeVariant),
     !hideCollectionActions
   );
 

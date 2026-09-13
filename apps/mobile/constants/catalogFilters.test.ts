@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import {
   CATALOG_FILTER_SEGMENTS,
   catalogFilterChips,
+  catalogFilterNeedsOwnership,
+  catalogFilterSegmentSummary,
   catalogFiltersActive,
   catalogFiltersHaveClearableExtras,
   catalogFiltersQueryKey,
@@ -164,6 +166,24 @@ describe('matchesCatalogFilters', () => {
     ).toBe(true);
   });
 
+  test('missing filter hides cards with any owned printing', () => {
+    const owned = new Map([['OGN-001*', { quantity: 1 }]]);
+    expect(
+      matchesCatalogFilters(
+        sampleCard,
+        { ...DEFAULT_CATALOG_FILTERS, collection: 'missing' },
+        owned
+      )
+    ).toBe(false);
+    expect(
+      matchesCatalogFilters(
+        sampleCard,
+        { ...DEFAULT_CATALOG_FILTERS, collection: 'missing' },
+        new Map()
+      )
+    ).toBe(true);
+  });
+
   test('token filters distinguish markers from playable cards', () => {
     const tokenCard = { ...sampleCard, type: 'Card', variantNumber: 'OGN-001-T1' };
     expect(
@@ -197,6 +217,36 @@ describe('matchesCatalogFilters', () => {
         new Map()
       )
     ).toBe(true);
+  });
+});
+
+describe('collection filter', () => {
+  test('sanitize keeps owned and missing collection filters', () => {
+    expect(
+      sanitizeCatalogFilters({ ...DEFAULT_CATALOG_FILTERS, collection: 'owned' })
+        .collection
+    ).toBe('owned');
+    expect(
+      sanitizeCatalogFilters({ ...DEFAULT_CATALOG_FILTERS, collection: 'missing' })
+        .collection
+    ).toBe('missing');
+  });
+
+  test('collection summary labels owned and missing', () => {
+    expect(
+      catalogFilterSegmentSummary('collection', {
+        ...DEFAULT_CATALOG_FILTERS,
+        collection: 'owned',
+      })
+    ).toBe('Owned');
+    expect(
+      catalogFilterSegmentSummary('collection', {
+        ...DEFAULT_CATALOG_FILTERS,
+        collection: 'missing',
+      })
+    ).toBe('Missing');
+    expect(catalogFilterNeedsOwnership('missing')).toBe(true);
+    expect(catalogFilterNeedsOwnership('all')).toBe(false);
   });
 });
 

@@ -18,6 +18,7 @@ import {
   type DeckAddCatalogStatus,
 } from '@/lib/deck-add-catalog';
 import {
+  catalogFilterNeedsOwnership,
   catalogFiltersActive,
   DEFAULT_CATALOG_FILTERS,
   matchesCatalogFilters,
@@ -69,15 +70,15 @@ export function useDeckAddCatalog(
   const catalogEnabled =
     hookEnabled && (!sectionMeta.requiresLegend || Boolean(resolvedDeck.legend));
 
-  const ownedFilterActive = filters.collection === 'owned';
+  const ownershipFilterActive = catalogFilterNeedsOwnership(filters.collection);
   const { data: collectionEntries = [] } = useCollection({
-    enabled: ownedFilterActive,
+    enabled: ownershipFilterActive,
   });
 
   const collectionByVariant = useMemo(() => {
-    if (!ownedFilterActive) return new Map<string, { quantity: number }>();
+    if (!ownershipFilterActive) return new Map<string, { quantity: number }>();
     return ownershipMapFromCollection(collectionEntries);
-  }, [ownedFilterActive, collectionEntries]);
+  }, [ownershipFilterActive, collectionEntries]);
 
   const listQuery = useInfiniteQuery({
     queryKey: deckAddInfiniteQueryKey(section, resolvedDeck, userQuery, filters),

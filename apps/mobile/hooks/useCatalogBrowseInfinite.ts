@@ -11,6 +11,7 @@ import {
 } from '@/services/catalogIndexService';
 import {
   cardOwnedQuantity,
+  catalogFilterNeedsOwnership,
   catalogFiltersToQuery,
   DEFAULT_CATALOG_FILTERS,
   matchesCatalogFilters,
@@ -47,7 +48,10 @@ export function useCatalogBrowseInfinite(
   const catalogItems = getCatalogIndexItems(catalogIndex.data);
   const indexReady = catalogItems.length > 0;
   const ownedOnly = filters.collection === 'owned';
-  const ownershipForFilter = ownedOnly ? collectionByVariant : EMPTY_OWNERSHIP;
+  const missingOnly = filters.collection === 'missing';
+  const ownershipForFilter = catalogFilterNeedsOwnership(filters.collection)
+    ? collectionByVariant
+    : EMPTY_OWNERSHIP;
   const resetSignature = browseResetSignature(indexReady, pageSize, filters, sort);
   const resetChanged = useValueChangeFlag(resetSignature);
   const [visibleCount, setVisibleCount] = useState(pageSize);
@@ -65,16 +69,28 @@ export function useCatalogBrowseInfinite(
 
     const sourceItems = ownedOnly
       ? catalogItems.filter((card) => cardOwnedQuantity(card, ownershipForFilter) > 0)
-      : catalogItems;
+      : missingOnly
+        ? catalogItems.filter(
+            (card) => cardOwnedQuantity(card, ownershipForFilter) <= 0
+          )
+        : catalogItems;
 
     const filtered = sourceItems.filter((card) =>
       matchesCatalogFilters(card, filters, ownershipForFilter)
     );
 
     return sortCatalogItems(filtered, sort);
-  }, [indexReady, catalogItems, filters, ownedOnly, ownershipForFilter, sort]);
+  }, [
+    indexReady,
+    catalogItems,
+    filters,
+    ownedOnly,
+    missingOnly,
+    ownershipForFilter,
+    sort,
+  ]);
 
-  // Owned browse filters the full local index — paginated API pages would drop unowned rows.
+  // Owned/missing browse the full local index — paginated API pages would drop rows.
   const listQuery = useInfiniteQuery({
     queryKey: cardQueryKeys.browse(filters, sort.sortBy, sort.dir),
     queryFn: async ({ pageParam }) => {

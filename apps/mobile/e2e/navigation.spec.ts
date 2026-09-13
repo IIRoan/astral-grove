@@ -10,7 +10,7 @@ test.describe('desktop navigation', () => {
     page,
   }) => {
     await goToTab(page, 'Collection');
-    await expect(page.getByText('Your collection', { exact: true })).toBeVisible();
+    await expect(page.getByText('Collection Dashboard', { exact: true })).toBeVisible();
 
     await goToTab(page, 'Wishlist');
     await expect(page.getByText('Wishlist', { exact: true }).first()).toBeVisible();
