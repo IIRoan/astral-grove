@@ -12,6 +12,7 @@ import {
   numeric,
   char,
   primaryKey,
+  foreignKey,
   index,
   uniqueIndex,
   customType,
@@ -487,6 +488,7 @@ export const userDecks = pgTable(
     name: text('name').notNull(),
     description: text('description').notNull().default(''),
     payload: jsonb('payload').notNull(),
+    activeVersionId: text('active_version_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -497,8 +499,41 @@ export const userDecks = pgTable(
   ]
 );
 
-export const userDecksRelations = relations(userDecks, ({ one }) => ({
+export const userDeckVersions = pgTable(
+  'user_deck_versions',
+  {
+    id: text('id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    deckId: text('deck_id').notNull(),
+    name: text('name').notNull(),
+    payload: jsonb('payload').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.id] }),
+    foreignKey({
+      name: 'user_deck_versions_deck_fk',
+      columns: [t.userId, t.deckId],
+      foreignColumns: [userDecks.userId, userDecks.id],
+    }).onDelete('cascade'),
+    index('user_deck_versions_deck_updated_idx').on(t.userId, t.deckId, t.updatedAt),
+  ]
+);
+
+export const userDecksRelations = relations(userDecks, ({ one, many }) => ({
   user: one(user, { fields: [userDecks.userId], references: [user.id] }),
+  versions: many(userDeckVersions),
+}));
+
+export const userDeckVersionsRelations = relations(userDeckVersions, ({ one }) => ({
+  user: one(user, { fields: [userDeckVersions.userId], references: [user.id] }),
+  deck: one(userDecks, {
+    fields: [userDeckVersions.userId, userDeckVersions.deckId],
+    references: [userDecks.userId, userDecks.id],
+  }),
 }));
 
 /** Appearance preferences keyed by device profile so phone and desktop stay independent. */

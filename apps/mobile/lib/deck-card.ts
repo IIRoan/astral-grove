@@ -170,8 +170,15 @@ export function cloneDeck(
   options?: { name?: string; format?: DeckFormat }
 ): DeckState {
   const now = Date.now();
+  const serialized = serializeDeck(deck);
+  const {
+    versionId: _versionId,
+    versionName: _versionName,
+    versions: _versions,
+    ...withoutVersions
+  } = serialized;
   const cloned = deserializeDeck({
-    ...serializeDeck(deck),
+    ...withoutVersions,
     id: createDeckId(),
     name: options?.name ?? `${deck.name} (copy)`,
     format: options?.format ?? deck.format,
@@ -320,6 +327,9 @@ export function serializeDeck(deck: DeckState): SerializedDeck {
     hasMatchups: deck.hasMatchups,
     videoUrl: deck.videoUrl,
     bannedCardNames: deck.bannedCardNames,
+    ...(deck.versionId ? { versionId: deck.versionId } : {}),
+    ...(deck.versionName ? { versionName: deck.versionName } : {}),
+    ...(deck.versions ? { versions: deck.versions } : {}),
   };
 }
 
@@ -363,5 +373,8 @@ export function deserializeDeck(data: SerializedDeck): DeckState {
     hasMatchups: data.hasMatchups,
     videoUrl: data.videoUrl,
     bannedCardNames: data.bannedCardNames,
+    ...(data.versionId ? { versionId: data.versionId } : {}),
+    ...(data.versionName ? { versionName: data.versionName } : {}),
+    ...(data.versions ? { versions: data.versions } : {}),
   };
 }

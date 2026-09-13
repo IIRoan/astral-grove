@@ -1,4 +1,8 @@
-import { getDeckRules, type DeckFormat } from '@riftbound/contracts';
+import {
+  getDeckRules,
+  type DeckFormat,
+  type DeckVersionSummary,
+} from '@riftbound/contracts';
 
 export type DeckSectionKey =
   'legend' | 'champion' | 'mainDeck' | 'runes' | 'battlefields' | 'sideboard';
@@ -64,6 +68,9 @@ export interface DeckState {
   hasMatchups?: boolean;
   videoUrl?: string;
   bannedCardNames?: string[];
+  versionId?: string;
+  versionName?: string;
+  versions?: DeckVersionSummary[];
 }
 
 export interface SerializedDeckEntry {
@@ -98,6 +105,9 @@ export interface SerializedDeck {
   hasMatchups?: boolean;
   videoUrl?: string;
   bannedCardNames?: string[];
+  versionId?: string;
+  versionName?: string;
+  versions?: DeckVersionSummary[];
 }
 
 export type { DeckValidationMessage } from '@riftbound/contracts';

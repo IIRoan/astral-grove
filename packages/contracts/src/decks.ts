@@ -50,6 +50,27 @@ export const StoredDeckPayload = z.object({
   syncWarnings: z.array(z.string()).optional(),
 });
 
+export const DECK_VERSION_LIMIT = 25;
+export const DEFAULT_DECK_VERSION_NAME = 'Current';
+
+export const DeckVersionName = z.string().trim().min(1).max(60);
+
+export const DeckVersionSummary = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  createdAt: z.number().int(),
+  updatedAt: z.number().int(),
+  isActive: z.boolean(),
+});
+
+export const CreateDeckVersionRequest = z.object({
+  name: DeckVersionName,
+});
+
+export const RenameDeckVersionRequest = z.object({
+  name: DeckVersionName,
+});
+
 export const DeckSource = z.enum(['owned', 'imported']);
 
 export const DeckListItem = StoredDeckPayload.extend({
@@ -65,6 +86,9 @@ export const DeckListItem = StoredDeckPayload.extend({
   hasMatchups: z.boolean().optional(),
   videoUrl: z.string().optional(),
   bannedCardNames: z.array(z.string()).optional(),
+  versionId: z.string().min(1).optional(),
+  versionName: z.string().min(1).optional(),
+  versions: z.array(DeckVersionSummary).optional(),
 });
 
 export const DeckUpsertRequest = StoredDeckPayload;
@@ -87,3 +111,6 @@ export type DeckSource = z.infer<typeof DeckSource>;
 export type DeckSortField = z.infer<typeof DeckSortField>;
 export type DecksListQuery = z.infer<typeof DecksListQuery>;
 export type DeckUpsertRequest = z.infer<typeof DeckUpsertRequest>;
+export type DeckVersionSummary = z.infer<typeof DeckVersionSummary>;
+export type CreateDeckVersionRequest = z.infer<typeof CreateDeckVersionRequest>;
+export type RenameDeckVersionRequest = z.infer<typeof RenameDeckVersionRequest>;

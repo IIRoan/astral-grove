@@ -62,8 +62,19 @@ export function useDeckDetail(deckId: string | undefined) {
       setDeckDetailCache(queryClient, next);
       queueRemoteDeckSave(next);
       if (options?.immediate) {
-        void flushRemoteDeckSave(next.id).then((saved) => {
-          if (saved) setDeckDetailCache(queryClient, saved);
+        void flushRemoteDeckSave(next.id, next.versionId).then((saved) => {
+          if (!saved) return;
+          const current = queryClient.getQueryData<DeckState | null>(
+            deckQueryKeys.detail(deckId)
+          );
+          if (
+            current?.versionId &&
+            saved.versionId &&
+            current.versionId !== saved.versionId
+          ) {
+            return;
+          }
+          setDeckDetailCache(queryClient, saved);
         });
         return;
       }
@@ -78,8 +89,18 @@ export function useDeckDetail(deckId: string | undefined) {
       queryClient.getQueryData<DeckState | null>(deckQueryKeys.detail(deckId)) ?? null;
     if (!latest || latest.readOnly) return null;
     queueRemoteDeckSave(latest);
-    const saved = await flushRemoteDeckSave(deckId);
-    if (saved) setDeckDetailCache(queryClient, saved);
+    const saved = await flushRemoteDeckSave(deckId, latest.versionId);
+    if (!saved) return null;
+    const current =
+      queryClient.getQueryData<DeckState | null>(deckQueryKeys.detail(deckId)) ?? null;
+    if (
+      current?.versionId &&
+      saved.versionId &&
+      current.versionId !== saved.versionId
+    ) {
+      return saved;
+    }
+    setDeckDetailCache(queryClient, saved);
     return saved;
   }, [deckId, queryClient]);
 

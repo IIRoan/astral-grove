@@ -13,6 +13,7 @@ import { DeckFormatBadge } from '@/components/deck/DeckFormatBadge';
 import { DeckManageMenu } from '@/components/deck/DeckManageMenu';
 import { DeckShareMenu } from '@/components/deck/DeckShareMenu';
 import { DeckValidationMenu } from '@/components/deck/DeckValidationMenu';
+import { DeckVersionMenu } from '@/components/deck/DeckVersionMenu';
 import { PillNav, type PillNavItem } from '@/components/shell/FloatingPillNav';
 import { TextInput } from '@/components/ui/text-input';
 import { Text } from '@/components/ui/text';
@@ -250,7 +251,11 @@ export function DeckBuilderToolbar({
         <>
           <DeckFormatBadge format={deck.format} variant="toolbar" />
           {sectionNav}
-          <View className="min-w-0 flex-1" />
+          {deck.readOnly !== true && deck.versionId ? (
+            <DeckVersionMenu deck={deck} fill />
+          ) : (
+            <View className="min-w-0 flex-1" />
+          )}
           {trailingActions}
         </>
       ) : (
@@ -273,6 +278,9 @@ export function DeckBuilderToolbar({
                 </Text>
               )}
             </View>
+            {deck.readOnly !== true && deck.versionId ? (
+              <DeckVersionMenu deck={deck} />
+            ) : null}
           </View>
           {sectionNav}
           {trailingActions}

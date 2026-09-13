@@ -1,9 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import type { StoredDeckPayload } from '@riftbound/contracts';
 import {
+  DeckLastVersionError,
   DeckReadOnlyError,
   DeckService,
+  DeckVersionLimitError,
   deckPayloadForPersist,
+  mergeActivePayload,
+  payloadForNewVersion,
 } from '../../src/services/deck-service.js';
 import type { Database } from '../../src/db/client.js';
 
@@ -30,11 +34,18 @@ function ownedPayload(
 }
 
 function createListMockDb(payloads: StoredDeckPayload[]): Database {
+  const rows = payloads.map((payload) => ({
+    payload,
+    activeVersionId: `dver_${payload.id}`,
+    versionName: 'Current',
+  }));
   return {
     select: () => ({
       from: () => ({
-        where: () => ({
-          orderBy: async () => payloads.map((payload) => ({ payload })),
+        leftJoin: () => ({
+          where: () => ({
+            orderBy: async () => rows,
+          }),
         }),
       }),
     }),
@@ -86,6 +97,19 @@ describe('DeckService.listForUser', () => {
       source: 'owned',
     });
     expect(emptyQuery.items).toHaveLength(3);
+  });
+
+  test('includes active version id and name on owned list items', async () => {
+    const service = new DeckService(
+      createListMockDb([ownedPayload('deck_owned', 'Mine')])
+    );
+    const result = await service.listForUser('user-1', { source: 'owned' });
+    expect(result.items[0]).toMatchObject({
+      id: 'deck_owned',
+      versionId: 'dver_deck_owned',
+      versionName: 'Current',
+    });
+    expect(result.items[0]?.versions).toBeUndefined();
   });
 
   test('marks owned decks as editable', async () => {
@@ -148,5 +172,88 @@ describe('deckPayloadForPersist', () => {
     });
     expect(persisted.upstreamId).toBe('pa-community');
     expect(persisted.importedFromId).toBe('pa-community');
+  });
+});
+
+describe('mergeActivePayload', () => {
+  test('keeps family name, description, and provenance when switching versions', () => {
+    const family = ownedPayload('deck_owned', 'Annie Aggro', {
+      description: 'family notes',
+      upstreamId: 'pa-owned-123',
+      importedFromId: 'pa-community',
+    });
+    const version = ownedPayload('deck_owned', 'Old name', {
+      description: 'version notes',
+      mainDeck: [
+        {
+          card: {
+            cardId: 'c1',
+            variantNumber: 'OGN-001',
+            name: 'Sparklefly',
+            type: 'Unit',
+            super: null,
+            tags: [],
+            colors: ['orange'],
+            energy: 1,
+            setCode: 'OGN',
+            rarity: 'common',
+            variantType: 'standard',
+            isSignature: false,
+          },
+          count: 3,
+        },
+      ],
+    });
+    const merged = mergeActivePayload(family, version);
+    expect(merged.id).toBe('deck_owned');
+    expect(merged.name).toBe('Annie Aggro');
+    expect(merged.description).toBe('family notes');
+    expect(merged.upstreamId).toBe('pa-owned-123');
+    expect(merged.importedFromId).toBe('pa-community');
+    expect(merged.mainDeck).toHaveLength(1);
+  });
+});
+
+describe('payloadForNewVersion', () => {
+  test('keeps family name and provenance when the source version is stale', () => {
+    const family = ownedPayload('deck_owned', 'Annie Midrange', {
+      description: 'current notes',
+      upstreamId: 'pa-owned-123',
+    });
+    const source = ownedPayload('deck_owned', 'Annie Aggro', {
+      description: 'old notes',
+      mainDeck: [
+        {
+          card: {
+            cardId: 'c1',
+            variantNumber: 'OGN-001',
+            name: 'Sparklefly',
+            type: 'Unit',
+            super: null,
+            tags: [],
+            colors: ['orange'],
+            energy: 1,
+            setCode: 'OGN',
+            rarity: 'common',
+            variantType: 'standard',
+            isSignature: false,
+          },
+          count: 3,
+        },
+      ],
+    });
+    const copy = payloadForNewVersion(family, source, 99);
+    expect(copy.name).toBe('Annie Midrange');
+    expect(copy.description).toBe('current notes');
+    expect(copy.upstreamId).toBe('pa-owned-123');
+    expect(copy.updatedAt).toBe(99);
+    expect(copy.mainDeck).toHaveLength(1);
+  });
+});
+
+describe('deck version errors', () => {
+  test('last-version and limit errors have stable names', () => {
+    expect(new DeckLastVersionError().name).toBe('DeckLastVersionError');
+    expect(new DeckVersionLimitError().name).toBe('DeckVersionLimitError');
   });
 });

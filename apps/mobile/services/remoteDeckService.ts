@@ -1,6 +1,8 @@
 import {
+  CreateDeckVersionRequest,
   DeckDetailResponse,
   DeckListResponse,
+  RenameDeckVersionRequest,
   type DeckListItem,
   type DecksListQuery,
   type StoredDeckPayload,
@@ -59,6 +61,78 @@ export async function remoteUpsertDeck(deck: StoredDeckPayload): Promise<DeckLis
     {
       method: 'PUT',
       body: deck,
+    }
+  );
+  return DeckDetailResponse.parse(res).data;
+}
+
+export async function remoteUpsertDeckVersion(
+  deckId: string,
+  versionId: string,
+  deck: StoredDeckPayload
+): Promise<DeckListItem> {
+  const res = await authedFetch<unknown>(
+    `/api/v1/decks/${encodeURIComponent(deckId)}/versions/${encodeURIComponent(versionId)}`,
+    {
+      method: 'PUT',
+      body: deck,
+    }
+  );
+  return DeckDetailResponse.parse(res).data;
+}
+
+export async function remoteCreateDeckVersion(
+  deckId: string,
+  name: string
+): Promise<DeckListItem> {
+  const body = CreateDeckVersionRequest.parse({ name });
+  const res = await authedFetch<unknown>(
+    `/api/v1/decks/${encodeURIComponent(deckId)}/versions`,
+    {
+      method: 'POST',
+      body,
+    }
+  );
+  return DeckDetailResponse.parse(res).data;
+}
+
+export async function remoteRenameDeckVersion(
+  deckId: string,
+  versionId: string,
+  name: string
+): Promise<DeckListItem> {
+  const body = RenameDeckVersionRequest.parse({ name });
+  const res = await authedFetch<unknown>(
+    `/api/v1/decks/${encodeURIComponent(deckId)}/versions/${encodeURIComponent(versionId)}`,
+    {
+      method: 'PATCH',
+      body,
+    }
+  );
+  return DeckDetailResponse.parse(res).data;
+}
+
+export async function remoteDeleteDeckVersion(
+  deckId: string,
+  versionId: string
+): Promise<DeckListItem> {
+  const res = await authedFetch<unknown>(
+    `/api/v1/decks/${encodeURIComponent(deckId)}/versions/${encodeURIComponent(versionId)}`,
+    {
+      method: 'DELETE',
+    }
+  );
+  return DeckDetailResponse.parse(res).data;
+}
+
+export async function remoteActivateDeckVersion(
+  deckId: string,
+  versionId: string
+): Promise<DeckListItem> {
+  const res = await authedFetch<unknown>(
+    `/api/v1/decks/${encodeURIComponent(deckId)}/versions/${encodeURIComponent(versionId)}/activate`,
+    {
+      method: 'POST',
     }
   );
   return DeckDetailResponse.parse(res).data;
