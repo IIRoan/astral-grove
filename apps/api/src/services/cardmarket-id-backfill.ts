@@ -1,4 +1,4 @@
-import { eq, isNotNull, isNull } from 'drizzle-orm';
+import { eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { PaLogicalCard, PaVariant } from '@riftbound/contracts';
 import type { Database } from '../db/client.js';
 import { cards, prices, sets, variants } from '../db/schema.js';
@@ -21,6 +21,16 @@ import {
   fetchCardmarketProductCatalog,
   type CardmarketProduct,
 } from '../upstream/cardmarket-products.js';
+
+const CARDMARKET_ID_ASSIGNMENT_CHUNK = 100;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    batches.push(items.slice(index, index + size));
+  }
+  return batches;
+}
 
 interface UnmappedVariantRow {
   id: string;
@@ -123,12 +133,8 @@ export class CardmarketIdBackfillService {
     }
 
     let updated = 0;
-    for (const [variantId, cardmarketId] of assignments) {
-      await this.db
-        .update(variants)
-        .set({ cardmarketId, updatedAt: new Date() })
-        .where(eq(variants.id, variantId));
-      updated += 1;
+    if (assignments.size > 0) {
+      updated = await this.applyCardmarketIdAssignments(assignments);
     }
 
     const syntheticsCreated = await this.materializeMissingSignedOvernumbered(
@@ -138,6 +144,31 @@ export class CardmarketIdBackfillService {
     );
 
     return { updated, skipped: unmapped.length - updated, syntheticsCreated };
+  }
+
+  private async applyCardmarketIdAssignments(
+    assignments: Map<string, number>
+  ): Promise<number> {
+    if (assignments.size === 0) return 0;
+
+    const now = new Date();
+    const entries = [...assignments.entries()];
+
+    for (const batch of chunk(entries, CARDMARKET_ID_ASSIGNMENT_CHUNK)) {
+      const valueRows = sql.join(
+        batch.map(([variantId, cardmarketId]) => sql`(${variantId}::uuid, ${cardmarketId})`),
+        sql`, `
+      );
+
+      await this.db.execute(sql`
+        UPDATE variants AS v
+        SET cardmarket_id = mapped.cardmarket_id, updated_at = ${now}
+        FROM (VALUES ${valueRows}) AS mapped(variant_id, cardmarket_id)
+        WHERE v.id = mapped.variant_id
+      `);
+    }
+
+    return assignments.size;
   }
 
   /** Materialize local `{vn}*` for Cardmarket Signed Overnumbered leftovers not yet in PA (e.g. VEN-189*). */
