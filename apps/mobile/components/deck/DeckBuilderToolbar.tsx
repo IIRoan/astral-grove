@@ -6,18 +6,18 @@ import {
   ListIcon,
   MenuIcon,
   PencilIcon,
-  SlidersHorizontalIcon,
 } from '@/components/icons';
 import { Pressable, View } from 'react-native';
 import { DeckFormatBadge } from '@/components/deck/DeckFormatBadge';
 import { DeckManageMenu } from '@/components/deck/DeckManageMenu';
+import { DeckToolbarOverflowMenu } from '@/components/deck/DeckToolbarOverflowMenu';
 import { DeckShareMenu } from '@/components/deck/DeckShareMenu';
 import { DeckValidationMenu } from '@/components/deck/DeckValidationMenu';
 import { DeckVersionMenu } from '@/components/deck/DeckVersionMenu';
 import { PillNav, type PillNavItem } from '@/components/shell/FloatingPillNav';
 import { TextInput } from '@/components/ui/text-input';
 import { Text } from '@/components/ui/text';
-import { countCatalogFilters, type CatalogFilters } from '@/constants/catalogFilters';
+import { deckFormatLabel } from '@riftbound/contracts';
 import { useMobileLayout } from '@/hooks/useBreakpoint';
 import { useFocusedTextDraft } from '@/hooks/useFocusedTextDraft';
 import type { DeckState, DeckValidationMessage } from '@/lib/deck-types';
@@ -55,8 +55,6 @@ interface DeckBuilderToolbarProps {
   catalogSection?: DeckCatalogSection;
   onCatalogSectionChange?: (section: DeckCatalogSection) => void;
   catalogSectionItems?: readonly PillNavItem<DeckCatalogSection>[];
-  catalogFilters?: CatalogFilters;
-  onOpenCatalogFilters?: () => void;
 }
 
 export function DeckBuilderToolbar({
@@ -81,15 +79,20 @@ export function DeckBuilderToolbar({
   catalogSection,
   onCatalogSectionChange,
   catalogSectionItems,
-  catalogFilters,
-  onOpenCatalogFilters,
 }: DeckBuilderToolbarProps) {
   const isMobile = useMobileLayout();
   const nameDraft = useFocusedTextDraft(deckName, onNameChange ?? noopNameChange);
-  const showCatalogFilters =
-    isMobile && !readOnly && catalogFilters != null && onOpenCatalogFilters != null;
-  const filterCount = showCatalogFilters ? countCatalogFilters(catalogFilters) : 0;
-  const filterActive = filterCount > 0;
+
+  const listButton = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Open deck list"
+      className={TOOLBAR_CONTROL}
+      onPress={onOpenList}
+    >
+      <ThemedIcon icon={ListIcon} size={18} color="foreground" />
+    </Pressable>
+  );
 
   const panelActions = (
     <>
@@ -103,16 +106,7 @@ export function DeckBuilderToolbar({
           <ThemedIcon icon={InfoIcon} size={18} color="foreground" />
         </Pressable>
       ) : null}
-      {isMobile && onOpenList ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open deck list"
-          className={TOOLBAR_CONTROL}
-          onPress={onOpenList}
-        >
-          <ThemedIcon icon={ListIcon} size={18} color="foreground" />
-        </Pressable>
-      ) : null}
+      {isMobile && onOpenList ? listButton : null}
       {!isMobile && onToggleInfoDrawer ? (
         <Pressable
           accessibilityRole="button"
@@ -178,42 +172,8 @@ export function DeckBuilderToolbar({
       />
     ) : null;
 
-  const catalogFilterAction = showCatalogFilters ? (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Open filters"
-      className={cn(
-        TOOLBAR_CONTROL,
-        'relative',
-        filterActive && 'border-foreground bg-card-panel'
-      )}
-      onPress={() => {
-        hapticPress();
-        onOpenCatalogFilters();
-      }}
-    >
-      <ThemedIcon
-        icon={SlidersHorizontalIcon}
-        size={18}
-        color={filterActive ? 'foreground' : 'muted-foreground'}
-      />
-      {filterActive ? (
-        filterCount === 1 ? (
-          <View className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-foreground" />
-        ) : (
-          <View className="absolute -right-1 -top-1 size-4 items-center justify-center rounded-[3px] border border-border bg-card-panel">
-            <Text className="font-mono text-[9px] font-normal text-foreground">
-              {filterCount}
-            </Text>
-          </View>
-        )
-      ) : null}
-    </Pressable>
-  ) : null;
-
   const trailingActions = (
     <View className="z-20 shrink-0 flex-row items-center gap-1">
-      {catalogFilterAction}
       {panelActions}
       {ioActions}
       {validationAction}
@@ -236,56 +196,125 @@ export function DeckBuilderToolbar({
       />
     ) : null;
 
+  const backAction = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={backAccessibilityLabel}
+      className={TOOLBAR_CONTROL}
+      onPress={onBack}
+    >
+      <ThemedIcon icon={ChevronLeftIcon} size={20} color="foreground" />
+    </Pressable>
+  );
+
+  const versionSlot =
+    deck.readOnly !== true && deck.versionId ? (
+      <DeckVersionMenu deck={deck} fill={isMobile} />
+    ) : null;
+
+  if (isMobile) {
+    const overflow = (
+      <DeckToolbarOverflowMenu
+        deck={deck}
+        onImport={onImport}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+        duplicateBusy={duplicateBusy}
+      />
+    );
+    const hasToolsRow = sectionNav != null || onOpenInfo != null;
+    // View mode: list + edit as two clear half-width actions instead of icons crowding the name.
+    const viewActions =
+      !hasToolsRow && (onOpenList || onEdit) ? (
+        <View className="h-9 min-w-0 flex-row items-center gap-2">
+          {onOpenList ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open deck list"
+              className="h-9 min-w-0 flex-1 flex-row items-center justify-center gap-1.5 rounded-[3px] border border-border bg-card active:bg-card-panel"
+              onPress={onOpenList}
+            >
+              <ThemedIcon icon={ListIcon} size={16} color="foreground" />
+              <Text className="text-[13px] font-normal text-foreground">Deck list</Text>
+            </Pressable>
+          ) : null}
+          {onEdit ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit deck"
+              className={cn(
+                'h-9 min-w-0 flex-1 flex-row items-center justify-center gap-1.5 rounded-[3px] active:opacity-80',
+                OPERATE_SECONDARY_FILL_CLASS
+              )}
+              onPress={() => {
+                hapticPress();
+                onEdit();
+              }}
+            >
+              <PencilIcon className="size-4 text-foreground" />
+              <Text className="text-[13px] font-normal text-foreground">Edit deck</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null;
+
+    // Row 1: identity + deck-level actions. Row 2 (editing): what the catalog shows + panels.
+    return (
+      <View className="z-20 min-w-0 gap-2">
+        <View className="z-20 h-10 min-w-0 flex-row items-center gap-1.5">
+          {backAction}
+          <View className="min-w-0 flex-1 justify-center">
+            <Text className="text-[15px] font-medium text-foreground" numberOfLines={1}>
+              {deckName.trim() || 'Untitled deck'}
+            </Text>
+            <Text className="text-[11px] text-muted-foreground" numberOfLines={1}>
+              {deckFormatLabel(deck.format)}
+            </Text>
+          </View>
+          {versionSlot ? (
+            <View className="min-w-[5.5rem] max-w-[34%] shrink-0">{versionSlot}</View>
+          ) : null}
+          {validationAction}
+          {overflow}
+        </View>
+        {hasToolsRow ? (
+          <View className="h-10 min-w-0 flex-row items-center gap-1.5">
+            {sectionNav}
+            <View className="min-w-0 flex-1" />
+            {panelActions}
+          </View>
+        ) : (
+          viewActions
+        )}
+      </View>
+    );
+  }
+
   return (
     <View className="z-20 h-9 min-w-0 flex-row items-center gap-1">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={backAccessibilityLabel}
-        className={TOOLBAR_CONTROL}
-        onPress={onBack}
-      >
-        <ThemedIcon icon={ChevronLeftIcon} size={20} color="foreground" />
-      </Pressable>
-
-      {isMobile ? (
-        <>
-          <DeckFormatBadge format={deck.format} variant="toolbar" />
-          {sectionNav}
-          {deck.readOnly !== true && deck.versionId ? (
-            <DeckVersionMenu deck={deck} fill />
+      {backAction}
+      <View className="min-h-0 min-w-0 flex-1 flex-row items-center gap-2">
+        <DeckFormatBadge format={deck.format} variant="toolbar" />
+        <View className="min-h-0 min-w-0 flex-1 justify-center">
+          {!readOnly && onNameChange ? (
+            <TextInput
+              value={nameDraft.value}
+              onChangeText={nameDraft.onChangeText}
+              onFocus={nameDraft.onFocus}
+              onBlur={nameDraft.onBlur}
+              placeholder="Deck name"
+              className="h-9 min-h-9 py-0 text-base font-normal"
+            />
           ) : (
-            <View className="min-w-0 flex-1" />
+            <Text className="text-lg font-normal text-foreground" numberOfLines={1}>
+              {deckName}
+            </Text>
           )}
-          {trailingActions}
-        </>
-      ) : (
-        <>
-          <View className="min-h-0 min-w-0 flex-1 flex-row items-center gap-2">
-            <DeckFormatBadge format={deck.format} variant="toolbar" />
-            <View className="min-h-0 min-w-0 flex-1 justify-center">
-              {!readOnly && onNameChange ? (
-                <TextInput
-                  value={nameDraft.value}
-                  onChangeText={nameDraft.onChangeText}
-                  onFocus={nameDraft.onFocus}
-                  onBlur={nameDraft.onBlur}
-                  placeholder="Deck name"
-                  className="h-9 min-h-9 py-0 text-base font-normal"
-                />
-              ) : (
-                <Text className="text-lg font-normal text-foreground" numberOfLines={1}>
-                  {deckName}
-                </Text>
-              )}
-            </View>
-            {deck.readOnly !== true && deck.versionId ? (
-              <DeckVersionMenu deck={deck} />
-            ) : null}
-          </View>
-          {sectionNav}
-          {trailingActions}
-        </>
-      )}
+        </View>
+        {versionSlot}
+      </View>
+      {sectionNav}
+      {trailingActions}
     </View>
   );
 }

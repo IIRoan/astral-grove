@@ -18,7 +18,7 @@ export const OPERATE_SECONDARY_FILL_CLASS = 'border border-border bg-card-panel'
 
 /** Catalog grid tile card name. */
 export const CARD_TILE_TITLE_CLASS =
-  'h-4 text-[13px] font-semibold leading-4 text-foreground';
+  'min-h-4 text-[13px] font-semibold leading-4 text-foreground';
 
 /** Catalog grid tile price (instrument mono). */
 export const CARD_TILE_PRICE_CLASS =

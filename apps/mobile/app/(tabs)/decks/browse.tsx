@@ -66,44 +66,35 @@ export default function BrowseDecksScreen() {
             ? 'Try a different search term or adjust your filters.'
             : 'Public decks will appear here when Piltover Archive is reachable.'
         }
-        browseToolbar={
-          <View className="gap-2.5">
+        browseSearchActions={
+          <View className="shrink-0 flex-row items-center gap-2">
+            <DeckBrowseSortTrigger
+              activeSort={sort}
+              onPress={() => setSortOpen(true)}
+              iconOnly={isMobile}
+            />
             {isMobile ? (
-              <View className="flex-row items-stretch gap-2">
-                <View className="min-w-0 flex-1">
-                  <DeckBrowseSortTrigger
-                    activeSort={sort}
-                    onPress={() => setSortOpen(true)}
-                  />
-                </View>
-                <View className="min-w-0 flex-1">
-                  <DeckBrowseFilterTrigger
-                    filters={filters}
-                    onPress={() => setFilterOpen(true)}
-                  />
-                </View>
-              </View>
-            ) : (
-              <View className="flex-row items-start gap-3">
-                <View className="min-w-0 flex-1">
-                  <DeckBrowseDesktopFilterBar
-                    filters={filters}
-                    onFiltersChange={setFilters}
-                  />
-                </View>
-                <View className="shrink-0">
-                  <DeckBrowseSortTrigger
-                    activeSort={sort}
-                    onPress={() => setSortOpen(true)}
-                  />
-                </View>
-              </View>
+              <DeckBrowseFilterTrigger
+                filters={filters}
+                onPress={() => setFilterOpen(true)}
+                iconOnly
+              />
+            ) : null}
+          </View>
+        }
+        browseBelow={
+          <>
+            {isMobile ? null : (
+              <DeckBrowseDesktopFilterBar
+                filters={filters}
+                onFiltersChange={setFilters}
+              />
             )}
             <DeckBrowseActiveFilterChips
               filters={filters}
               onFiltersChange={setFilters}
             />
-          </View>
+          </>
         }
         infiniteScroll={{
           hasNextPage: browseQuery.hasNextPage ?? false,

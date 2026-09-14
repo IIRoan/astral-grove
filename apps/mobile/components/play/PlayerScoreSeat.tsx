@@ -5,6 +5,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { playScoreHintClasses } from '@/lib/legend-catalog';
 import { MOTION, PRESS, PULSE_MS } from '@/lib/motion';
+import { PLAY_SEAT_PAD_X_NARROW, playSeatLayout } from '@/lib/responsive-layout';
 import {
   getPlayFormat,
   isOneAwayFromVictory,
@@ -15,8 +16,8 @@ import {
 import { cn } from '@/lib/utils';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { hapticPress } from '@/utils/haptics';
-import { useCallback, useEffect, useRef } from 'react';
-import { Pressable, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Pressable, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -315,12 +316,28 @@ export function PlayerScoreSeat({
   seatIndex,
   formatId,
   isWinner,
-  compact = false,
+  compact: preferCompact = false,
   onAdjustPoints,
   onAdjustXp,
   onPressLegend,
 }: PlayerScoreSeatProps) {
   const reduceMotion = useReduceMotion();
+  const [seatSize, setSeatSize] = useState({ width: 0, height: 0 });
+  const onSeatLayout = useCallback((event: LayoutChangeEvent) => {
+    const width = Math.round(event.nativeEvent.layout.width);
+    const height = Math.round(event.nativeEvent.layout.height);
+    setSeatSize((current) =>
+      current.width === width && current.height === height ? current : { width, height }
+    );
+  }, []);
+  // Measured density: short / narrow seats tighten instead of clipping under overflow-hidden.
+  const { density, paddingX, showXpLabel } = playSeatLayout(
+    seatSize.width,
+    seatSize.height,
+    preferCompact
+  );
+  const compact = density !== 'regular';
+  const tight = density === 'tight';
   const format = getPlayFormat(formatId);
   const oneAway = isOneAwayFromVictory(seat.points, format.victoryScore);
   const surface = SEAT_SURFACE[seatIndex % SEAT_SURFACE.length] ?? 'bg-card';
@@ -334,6 +351,7 @@ export function PlayerScoreSeat({
 
   return (
     <View
+      onLayout={onSeatLayout}
       className={cn(
         'relative min-h-0 min-w-0 flex-1 overflow-hidden',
         surface,
@@ -388,13 +406,17 @@ export function PlayerScoreSeat({
       <View
         pointerEvents="box-none"
         className={cn(
-          'z-10 h-full w-full items-center justify-center gap-3 px-5',
-          compact ? 'py-3' : 'py-5'
+          'z-10 h-full w-full items-center justify-center',
+          paddingX === PLAY_SEAT_PAD_X_NARROW ? 'px-2' : 'px-5',
+          tight ? 'gap-1 py-1.5' : compact ? 'gap-3 py-3' : 'gap-3 py-5'
         )}
       >
         <View
           pointerEvents="box-none"
-          className="flex-row flex-wrap items-center justify-center gap-x-3 gap-y-2"
+          className={cn(
+            'flex-row flex-wrap items-center justify-center gap-x-3',
+            tight ? 'gap-y-0' : 'gap-y-2'
+          )}
         >
           {seat.legend ? (
             <Pressable
@@ -405,7 +427,10 @@ export function PlayerScoreSeat({
                 onPressLegend();
               }}
               hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
-              className="min-h-11 items-center justify-center px-3 py-2.5 active:opacity-70"
+              className={cn(
+                'items-center justify-center px-3 active:opacity-70',
+                tight ? 'min-h-9 py-1' : 'min-h-11 py-2.5'
+              )}
             >
               <Text
                 className="text-base font-semibold text-foreground"
@@ -443,7 +468,7 @@ export function PlayerScoreSeat({
             accessibilityLabel={`${seat.points} victory points`}
             className={cn(
               'text-center font-mono font-bold tabular-nums text-foreground',
-              compact ? 'text-6xl' : 'text-7xl'
+              tight ? 'text-5xl' : compact ? 'text-6xl' : 'text-7xl'
             )}
           >
             {seat.points}
@@ -451,12 +476,14 @@ export function PlayerScoreSeat({
         </Animated.View>
 
         <View className="flex-row items-center gap-1">
-          <Text
-            pointerEvents="none"
-            className="pr-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
-          >
-            XP
-          </Text>
+          {showXpLabel ? (
+            <Text
+              pointerEvents="none"
+              className="pr-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              XP
+            </Text>
+          ) : null}
           <XpStepper label="minus" onPress={() => onAdjustXp(-1)} />
           <Animated.View style={xpStyle} pointerEvents="none">
             <Text

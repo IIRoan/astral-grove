@@ -59,6 +59,16 @@ interface DeckCompositionListProps {
   onToggleStats?: () => void;
   paddingBottom?: number;
   bordered?: boolean;
+  /**
+   * Scroll the title / status strip / stats with the rows instead of pinning them.
+   * Used in the mobile sheet, where a pinned ~400pt header leaves no room for the list on short phones.
+   */
+  headerInScroll?: boolean;
+  /**
+   * When false, render rows in a plain View so a parent sheet ScrollView owns scrolling.
+   * Nested ScrollViews inside Gorhom sheets clip the last cards on mobile.
+   */
+  scrollEnabled?: boolean;
 }
 
 function sortedMapEntries(map: Map<string, DeckEntry>): DeckEntry[] {
@@ -300,12 +310,24 @@ export function DeckCompositionList({
   onToggleStats,
   paddingBottom = 0,
   bordered = true,
+  headerInScroll = false,
+  scrollEnabled = true,
 }: DeckCompositionListProps) {
   const ownership = useMemo(
     () => ownershipTotals(deck, collectionByName),
     [deck, collectionByName]
   );
+  const missing = Math.max(0, ownership.required - ownership.owned);
   const sideProgress = deckSectionProgress(deck, 'sideboard');
+  const mainCount = getSectionCount(deck, 'mainDeck');
+  const listSummary = [
+    `${mainCount} main`,
+    `${sideProgress.current} side`,
+    `${ownership.owned}/${ownership.required} owned`,
+    missing > 0 ? `${missing} missing` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const championRows = useMemo((): CompositionRow[] => {
     const rows: CompositionRow[] = [];
@@ -396,81 +418,103 @@ export function DeckCompositionList({
       );
     });
 
+  const header = (
+    <View className="gap-3 border-b border-border px-3 py-3">
+      <View className="gap-1">
+        <Text className="text-sm font-normal text-foreground">Deck list</Text>
+        <Text className="text-[12px] text-muted-foreground">{listSummary}</Text>
+      </View>
+      <DeckBuilderStatusStrip
+        deck={deck}
+        readOnly={readOnly}
+        onSectionPress={onSectionPress}
+        ownershipLabel={`${ownership.owned}/${ownership.required} owned`}
+      />
+      <View className="border-t border-border pt-3">
+        <DeckStatsCompact
+          stats={stats}
+          statsOpen={statsOpen}
+          readOnly={readOnly}
+          onToggleStats={onToggleStats}
+        />
+      </View>
+    </View>
+  );
+
+  const sections = (
+    <View className="px-3 pt-1">
+      <SectionHeader
+        title="Champions"
+        countLabel={`${championRows.length}/2`}
+        onAdd={
+          readOnly || (deck.legend && deck.champion)
+            ? undefined
+            : () => onAddSection?.(deck.legend ? 'champion' : 'legend')
+        }
+      />
+      {championRows.length > 0 ? (
+        renderRows(championRows)
+      ) : (
+        <Text className="mb-1 text-[11px] text-muted-foreground">
+          No champion selected
+        </Text>
+      )}
+
+      <SectionHeader
+        title="Main deck"
+        countLabel={`${mainCount}/39`}
+        onAdd={readOnly ? undefined : () => onAddSection?.('mainDeck')}
+      />
+      {mainRows.length > 0 ? (
+        renderRows(mainRows)
+      ) : (
+        <Text className="mb-1 text-[11px] text-muted-foreground">No main deck cards</Text>
+      )}
+
+      <SectionHeader
+        title="Sideboard"
+        countLabel={`${sideProgress.current}/${sideProgress.target}`}
+        onAdd={readOnly ? undefined : () => onAddSection?.('sideboard')}
+      />
+      {sideRows.length > 0 ? (
+        renderRows(sideRows)
+      ) : (
+        <Text className="mb-1 text-[11px] text-muted-foreground">
+          No sideboard cards
+        </Text>
+      )}
+    </View>
+  );
+
+  const body = (
+    <>
+      {headerInScroll ? header : null}
+      {sections}
+      {scrollEnabled ? <ListBottomSpacer height={paddingBottom} /> : null}
+    </>
+  );
+
   return (
     <View
       className={cn(
-        'min-h-0 flex-1 bg-card-panel/40',
+        'bg-card-panel/40',
+        scrollEnabled && 'min-h-0 flex-1',
         bordered && 'border-l border-border'
       )}
     >
-      <View className="gap-3 border-b border-border px-3 py-3">
-        <Text className="text-sm font-normal text-foreground">Deck list</Text>
-        <DeckBuilderStatusStrip
-          deck={deck}
-          readOnly={readOnly}
-          onSectionPress={onSectionPress}
-          ownershipLabel={`${ownership.owned}/${ownership.required} owned`}
-        />
-        <View className="border-t border-border pt-3">
-          <DeckStatsCompact
-            stats={stats}
-            statsOpen={statsOpen}
-            readOnly={readOnly}
-            onToggleStats={onToggleStats}
-          />
-        </View>
-      </View>
+      {headerInScroll ? null : header}
 
-      <ScrollView
-        className="min-h-0 flex-1"
-        contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 4 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <SectionHeader
-          title="Champions"
-          countLabel={`${championRows.length}/2`}
-          onAdd={
-            readOnly || (deck.legend && deck.champion)
-              ? undefined
-              : () => onAddSection?.(deck.legend ? 'champion' : 'legend')
-          }
-        />
-        {championRows.length > 0 ? (
-          renderRows(championRows)
-        ) : (
-          <Text className="mb-1 text-[11px] text-muted-foreground">
-            No champion selected
-          </Text>
-        )}
-
-        <SectionHeader
-          title="Main deck"
-          countLabel={`${getSectionCount(deck, 'mainDeck')}/39`}
-          onAdd={readOnly ? undefined : () => onAddSection?.('mainDeck')}
-        />
-        {mainRows.length > 0 ? (
-          renderRows(mainRows)
-        ) : (
-          <Text className="mb-1 text-[11px] text-muted-foreground">
-            No main deck cards
-          </Text>
-        )}
-
-        <SectionHeader
-          title="Sideboard"
-          countLabel={`${sideProgress.current}/${sideProgress.target}`}
-          onAdd={readOnly ? undefined : () => onAddSection?.('sideboard')}
-        />
-        {sideRows.length > 0 ? (
-          renderRows(sideRows)
-        ) : (
-          <Text className="mb-1 text-[11px] text-muted-foreground">
-            No sideboard cards
-          </Text>
-        )}
-        <ListBottomSpacer height={paddingBottom} />
-      </ScrollView>
+      {scrollEnabled ? (
+        <ScrollView
+          className="min-h-0 flex-1"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {body}
+        </ScrollView>
+      ) : (
+        body
+      )}
     </View>
   );
 }

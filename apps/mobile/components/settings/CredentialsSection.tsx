@@ -393,7 +393,12 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
                   disabled={emailBusy}
                   busy={emailBusy}
                 >
-                  <ButtonText>Send verification code</ButtonText>
+                  <ButtonText
+                    className="shrink py-2 text-center whitespace-normal"
+                    numberOfLines={2}
+                  >
+                    Send verification code
+                  </ButtonText>
                 </Button>
               </View>
             ) : (
@@ -469,7 +474,12 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
                   disabled={emailBusy || !isCompleteVerificationOtp(emailOtp)}
                   busy={emailBusy}
                 >
-                  <ButtonText>Verify and update email</ButtonText>
+                  <ButtonText
+                    className="shrink py-2 text-center whitespace-normal"
+                    numberOfLines={2}
+                  >
+                    Verify and update email
+                  </ButtonText>
                 </Button>
 
                 <View className="flex-row flex-wrap items-center gap-x-4 gap-y-2">

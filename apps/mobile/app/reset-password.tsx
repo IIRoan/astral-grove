@@ -126,7 +126,12 @@ export default function ResetPasswordScreen() {
               void Linking.openURL(deepLink);
             }}
           >
-            <ButtonText>Open in The Astral Grove</ButtonText>
+            <ButtonText
+              className="shrink py-2 text-center whitespace-normal"
+              numberOfLines={2}
+            >
+              Open in The Astral Grove
+            </ButtonText>
           </Button>
         ) : null}
         <ResetPasswordForm

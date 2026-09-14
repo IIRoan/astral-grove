@@ -1,4 +1,4 @@
-import { SlidersHorizontalIcon } from '@/components/icons';
+import { LightningIcon, SlidersHorizontalIcon, ThemedIcon } from '@/components/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
@@ -7,6 +7,7 @@ import {
   CatalogToolbarButton,
 } from '@/components/catalog/CatalogToolbarButton';
 import { CatalogFilterSegmentPanel } from '@/components/catalog/CatalogFilterPanels';
+import { FilterToggleRow } from '@/components/filters/FilterPrimitives';
 import {
   FilterAccordionGroup,
   FilterAccordionSection,
@@ -38,9 +39,7 @@ interface CatalogFilterSheetProps {
   preserveColorsAndTokens?: boolean;
 }
 
-const MOBILE_FILTER_SEGMENTS = CATALOG_FILTER_SEGMENTS.filter(
-  (segment) => segment.id !== 'collection'
-);
+const MOBILE_FILTER_SEGMENTS = CATALOG_FILTER_SEGMENTS;
 
 function defaultOpenSegments(filters: CatalogFilters): string[] {
   const active = mapFilter(
@@ -50,7 +49,7 @@ function defaultOpenSegments(filters: CatalogFilters): string[] {
   );
 
   if (active.length > 0) return active;
-  return ['colors'];
+  return ['collection'];
 }
 
 export function CatalogFilterSheet({
@@ -86,6 +85,24 @@ export function CatalogFilterSheet({
         onFiltersChange(clearCatalogFilters(filters, { preserveColorsAndTokens }))
       }
       portalName="catalog-filter-sheet"
+      stickyHeader={
+        <FilterToggleRow
+          label="Quick add"
+          subtitle="Skip foil choice and add the standard printing"
+          active={filters.simpleAdd}
+          compact
+          leading={
+            <ThemedIcon
+              icon={LightningIcon}
+              size={16}
+              color={filters.simpleAdd ? 'foreground' : 'muted-foreground'}
+            />
+          }
+          onPress={() =>
+            onFiltersChange({ ...filters, simpleAdd: !filters.simpleAdd })
+          }
+        />
+      }
     >
       <FilterAccordionGroup key={accordionKey} defaultOpen={defaultOpen}>
         {MOBILE_FILTER_SEGMENTS.map((segment) => (
@@ -139,7 +156,9 @@ export function CatalogFilterTrigger({
             <View
               className={cn(
                 'size-5 items-center justify-center border border-border bg-card-panel',
-                FACTORY_RADIUS_CONTROL_CLASS
+                FACTORY_RADIUS_CONTROL_CLASS,
+                // Icon-only buttons center children in a column — pin the count to the corner.
+                compact && 'absolute -right-1.5 -top-1.5'
               )}
             >
               <Text className="font-mono text-[11px] font-normal text-foreground">

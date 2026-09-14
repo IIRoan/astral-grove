@@ -12,6 +12,7 @@ import { Text } from '@/components/ui/text';
 import { Layout } from '@/constants/Layout';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { MOTION, TAB_SCENE } from '@/lib/motion';
+import { mobileTabBarWidth } from '@/lib/mobile-chrome';
 import { tabIdFromPathname, type AppTabId } from '@/lib/tab-route';
 import { cn } from '@/lib/utils';
 import { hapticPress } from '@/utils/haptics';
@@ -115,6 +116,7 @@ function TabGlyph({
             focused ? 'text-foreground' : 'text-muted-foreground'
           )}
           numberOfLines={1}
+          maxFontSizeMultiplier={1.2}
         >
           {label}
         </Text>
@@ -128,10 +130,7 @@ export function MobileTabBar({ state, descriptors, navigation }: MobileTabBarPro
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const reduceMotion = useReduceMotion();
-  const tabBarWidth = Math.min(
-    width - Layout.tabBarHorizontalInset * 2,
-    Layout.tabBarMaxWidth
-  );
+  const tabBarWidth = mobileTabBarWidth(width, insets);
 
   const [foregroundRaw, cardRaw, borderRaw, mutedForegroundRaw] = useCSSVariable([
     '--color-foreground',
@@ -191,7 +190,6 @@ export function MobileTabBar({ state, descriptors, navigation }: MobileTabBarPro
         style={{
           width: tabBarWidth,
           height: Layout.tabBarHeight,
-          marginHorizontal: (width - tabBarWidth) / 2,
           borderColor: border,
           backgroundColor: card,
         }}

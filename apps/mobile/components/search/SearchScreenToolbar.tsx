@@ -1,7 +1,10 @@
 import { View } from 'react-native';
-import { CatalogActionBar } from '@/components/catalog/CatalogActionBar';
 import { CatalogDesktopToolbar } from '@/components/catalog/CatalogDesktopToolbar';
-import { CatalogActiveFilterChips } from '@/components/catalog/FilterSheet';
+import {
+  CatalogActiveFilterChips,
+  CatalogFilterTrigger,
+} from '@/components/catalog/FilterSheet';
+import { SortTrigger } from '@/components/catalog/SortSheet';
 import { SearchBar } from '@/components/search/SearchBar';
 import type { CatalogSort } from '@/constants/catalogSort';
 import type { CatalogFilters } from '@/constants/catalogFilters';
@@ -39,6 +42,45 @@ export function SearchScreenToolbar({
   onSortPress,
   onFilterPress,
 }: SearchScreenToolbarProps) {
+  if (isMobile) {
+    return (
+      <View className="w-full gap-2 pb-2" style={{ maxWidth: pageMaxWidth }}>
+        <View className="w-full flex-row items-center gap-1.5">
+          <View className="min-w-0 flex-1">
+            <SearchBar
+              value={query}
+              onChangeText={onQueryChange}
+              onClear={onClearSearch}
+              onActiveQueryChange={onActiveSearchQueryChange}
+              isLoading={searchLoading}
+              placeholder="Search cards…"
+              onSubmitEditing={onSubmitSearch}
+            />
+          </View>
+          <SortTrigger
+            activeSort={catalogSort}
+            onPress={onSortPress}
+            mobile
+            iconOnly
+          />
+          <CatalogFilterTrigger
+            filters={catalogFilters}
+            onPress={onFilterPress}
+            compact
+            mobile
+          />
+        </View>
+
+        {filterActive ? (
+          <CatalogActiveFilterChips
+            filters={catalogFilters}
+            onFiltersChange={onFiltersChange}
+          />
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <View className="w-full gap-1.5 pb-2" style={{ maxWidth: pageMaxWidth }}>
       <SearchBar
@@ -51,46 +93,21 @@ export function SearchScreenToolbar({
         onSubmitEditing={onSubmitSearch}
       />
 
-      {isMobile ? (
-        <>
-          <CatalogActionBar
-            activeSort={catalogSort}
-            onSortPress={onSortPress}
-            filters={catalogFilters}
-            onFilterPress={onFilterPress}
-            collection={catalogFilters.collection}
-            onCollectionChange={(collection) =>
-              onFiltersChange({ ...catalogFilters, collection })
-            }
-            simpleAdd={catalogFilters.simpleAdd}
-            onSimpleAddChange={(simpleAdd) =>
-              onFiltersChange({ ...catalogFilters, simpleAdd })
-            }
-          />
-          {filterActive ? (
-            <CatalogActiveFilterChips
-              filters={catalogFilters}
-              onFiltersChange={onFiltersChange}
-            />
-          ) : null}
-        </>
-      ) : (
-        <CatalogDesktopToolbar
-          filters={catalogFilters}
-          onFiltersChange={onFiltersChange}
-          filterActive={filterActive}
-          activeSort={catalogSort}
-          onSortPress={onSortPress}
-          collection={catalogFilters.collection}
-          onCollectionChange={(collection) =>
-            onFiltersChange({ ...catalogFilters, collection })
-          }
-          simpleAdd={catalogFilters.simpleAdd}
-          onSimpleAddChange={(simpleAdd) =>
-            onFiltersChange({ ...catalogFilters, simpleAdd })
-          }
-        />
-      )}
+      <CatalogDesktopToolbar
+        filters={catalogFilters}
+        onFiltersChange={onFiltersChange}
+        filterActive={filterActive}
+        activeSort={catalogSort}
+        onSortPress={onSortPress}
+        collection={catalogFilters.collection}
+        onCollectionChange={(collection) =>
+          onFiltersChange({ ...catalogFilters, collection })
+        }
+        simpleAdd={catalogFilters.simpleAdd}
+        onSimpleAddChange={(simpleAdd) =>
+          onFiltersChange({ ...catalogFilters, simpleAdd })
+        }
+      />
     </View>
   );
 }

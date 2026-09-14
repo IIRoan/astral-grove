@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { DeckFormatBadge } from '@/components/deck/DeckFormatBadge';
 import { DeckLegalityBadge } from '@/components/deck/DeckLegalityBadge';
@@ -23,6 +23,7 @@ import { resolveDeckCardImageUrl } from '@/lib/deck-card';
 import { deckSectionProgress } from '@/lib/deck-display';
 import { deckListStatus } from '@/lib/deck-list-status';
 import { computeDeckStats } from '@/lib/deck-stats';
+import { deckRowLayout } from '@/lib/responsive-layout';
 import type { DeckState } from '@/lib/deck-types';
 import { legendFullCardHeight } from '@/lib/legend-list-art';
 import { hapticPress } from '@/utils/haptics';
@@ -65,8 +66,11 @@ function DeckBrowseCardInner({
   importBusy = false,
   motionIndex = 0,
 }: DeckBrowseCardProps) {
-  const compact = useMobileLayout();
-  const railWidth = compact ? LEGEND_RAIL_NARROW : LEGEND_RAIL_WIDE;
+  const isMobile = useMobileLayout();
+  const [cardWidth, setCardWidth] = useState(0);
+  const rowLayout = deckRowLayout(isMobile ? 0 : cardWidth, LEGEND_RAIL_WIDE);
+  const compact = isMobile || rowLayout.stacked;
+  const railWidth = compact ? LEGEND_RAIL_NARROW : rowLayout.railWidth;
   const railHeight = compact
     ? legendFullCardHeight(railWidth)
     : LEGEND_RAIL_MIN_HEIGHT_WIDE;
@@ -175,10 +179,7 @@ function DeckBrowseCardInner({
           ))}
         </View>
       ) : (
-        <Text
-          className="text-[12px] leading-4 text-muted-foreground"
-          numberOfLines={1}
-        >
+        <Text className="text-[12px] leading-4 text-muted-foreground" numberOfLines={1}>
           {displayDeck.legend ? 'No domain identity' : 'No legend selected'}
         </Text>
       )}
@@ -188,40 +189,41 @@ function DeckBrowseCardInner({
     </View>
   );
 
-  const communityStats = compact ? null : (
-    <View className="min-w-[11rem] flex-1 gap-3.5">
-      {viewsLabel ? (
-        <View className="gap-1">
-          <Text className="font-mono text-[11px] font-medium uppercase tracking-[-0.24px] text-muted-foreground">
-            Views
-          </Text>
-          <Text className="text-[16px] font-semibold leading-5 text-foreground">
-            {viewsLabel}
-          </Text>
-        </View>
-      ) : null}
-      {likesLabel ? (
-        <View className="gap-1">
-          <Text className="font-mono text-[11px] font-medium uppercase tracking-[-0.24px] text-muted-foreground">
-            Likes
-          </Text>
-          <Text className="text-[16px] font-semibold leading-5 text-foreground">
-            {likesLabel}
-          </Text>
-        </View>
-      ) : null}
-      {updatedLabel ? (
-        <View className="gap-1">
-          <Text className="font-mono text-[11px] font-medium uppercase tracking-[-0.24px] text-muted-foreground">
-            Updated
-          </Text>
-          <Text className="text-[16px] font-semibold leading-5 text-foreground">
-            {updatedLabel}
-          </Text>
-        </View>
-      ) : null}
-    </View>
-  );
+  const communityStats =
+    compact || !rowLayout.showSecondary ? null : (
+      <View className="min-w-[11rem] flex-1 gap-3.5">
+        {viewsLabel ? (
+          <View className="gap-1">
+            <Text className="font-mono text-[11px] font-medium uppercase tracking-[-0.24px] text-muted-foreground">
+              Views
+            </Text>
+            <Text className="text-[16px] font-semibold leading-5 text-foreground">
+              {viewsLabel}
+            </Text>
+          </View>
+        ) : null}
+        {likesLabel ? (
+          <View className="gap-1">
+            <Text className="font-mono text-[11px] font-medium uppercase tracking-[-0.24px] text-muted-foreground">
+              Likes
+            </Text>
+            <Text className="text-[16px] font-semibold leading-5 text-foreground">
+              {likesLabel}
+            </Text>
+          </View>
+        ) : null}
+        {updatedLabel ? (
+          <View className="gap-1">
+            <Text className="font-mono text-[11px] font-medium uppercase tracking-[-0.24px] text-muted-foreground">
+              Updated
+            </Text>
+            <Text className="text-[16px] font-semibold leading-5 text-foreground">
+              {updatedLabel}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    );
 
   const readout = compact ? (
     <PressableScale
@@ -317,7 +319,14 @@ function DeckBrowseCardInner({
 
   return (
     <DeckListItemMotion index={motionIndex}>
-      <View className="overflow-hidden rounded-[10px] border border-border bg-card">
+      <View
+        className="overflow-hidden rounded-[10px] border border-border bg-card"
+        onLayout={(event) => {
+          const nextWidth = Math.round(event.nativeEvent.layout.width);
+          if (nextWidth > 0)
+            setCardWidth((current) => (current === nextWidth ? current : nextWidth));
+        }}
+      >
         <View className="flex-row items-stretch">
           {listArt}
           <View

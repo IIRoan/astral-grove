@@ -1,5 +1,6 @@
 import { ChevronLeftIcon, PlusIcon } from '@/components/icons';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CardDetail, VariantDetail } from '@riftbound/contracts';
 import { PrintingPreviewStrip } from '@/components/cards/PrintingPreviewStrip';
 import { CollectionQtyControls } from '@/components/collection/CollectionQtyControls';
@@ -36,6 +37,8 @@ import { useIsDesktopLayout } from '@/hooks/useResponsiveColumns';
 import { useCollectionRecentAdds } from '@/hooks/useCollectionRecentAdds';
 
 const PAGE_CARD_WIDTH = 300;
+const PAGE_CARD_MAX_HEIGHT = 520;
+const PAGE_CARD_MIN_HEIGHT = 280;
 
 interface Props {
   card: CardDetail;
@@ -68,6 +71,13 @@ export function CardDetailPage({
   onSelectPrinting,
 }: Props) {
   const isDesktop = useIsDesktopLayout();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  // Card column does not scroll on wide web — keep art inside short windows.
+  const desktopCardHeight = Math.max(
+    PAGE_CARD_MIN_HEIGHT,
+    Math.min(PAGE_CARD_MAX_HEIGHT, windowHeight - insets.top - insets.bottom)
+  );
   const setCode = activeVariant.variantNumber.split('-')[0] ?? '';
   const marketPrices = getVariantMarketPriceDisplays(activeVariant);
   const singleMarketPrice = marketPrices[0] ?? null;
@@ -200,25 +210,26 @@ export function CardDetailPage({
   );
 
   return (
-    <View className="flex-1 items-center bg-background">
+    <View
+      className="flex-1 items-center bg-background"
+      style={{ paddingTop: insets.top }}
+    >
       <View
-        className={`w-full max-w-[860px] flex-1 bg-background ${isDesktop ? 'min-h-[520px] flex-row' : ''}`}
+        className={`w-full max-w-[860px] flex-1 bg-background ${isDesktop ? 'flex-row' : ''}`}
       >
         {isDesktop ? (
-          <View
-            className="min-h-[520px] bg-card-panel"
-            style={{ width: PAGE_CARD_WIDTH }}
-          >
+          <View className="bg-card-panel" style={{ width: PAGE_CARD_WIDTH }}>
             <CardPreview
               imageUrl={activeVariant.imageUrl}
               width={PAGE_CARD_WIDTH}
-              minHeight={520}
+              minHeight={desktopCardHeight}
             />
           </View>
         ) : null}
         <ScrollView
           className="min-w-0 flex-1"
           contentContainerClassName="pb-8"
+          contentContainerStyle={{ paddingBottom: 32 + insets.bottom }}
           showsVerticalScrollIndicator={false}
         >
           {!isDesktop ? (

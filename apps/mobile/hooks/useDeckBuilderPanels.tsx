@@ -243,8 +243,10 @@ export function useDeckBuilderPanels({
         stats={stats}
         statsOpen={middlePanel === 'stats'}
         onToggleStats={toggleStats}
-        paddingBottom={isMobile ? sheetPaddingBottom : paddingBottomInline}
+        paddingBottom={isMobile ? 0 : paddingBottomInline}
         bordered={false}
+        headerInScroll={isMobile}
+        scrollEnabled={!isMobile}
       />
     ),
     [
@@ -259,7 +261,6 @@ export function useDeckBuilderPanels({
       middlePanel,
       toggleStats,
       isMobile,
-      sheetPaddingBottom,
       paddingBottomInline,
     ]
   );

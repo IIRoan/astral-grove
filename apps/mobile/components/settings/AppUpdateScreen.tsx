@@ -1,4 +1,4 @@
-import { Modal, Pressable, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppUpdate } from '@/hooks/useAppUpdate';
 import {
@@ -6,12 +6,10 @@ import {
   formatDownloadPercent,
   type AppUpdatePhase,
 } from '@/lib/app-update';
-import {
-  RuneChargeLoader,
-  runeSizeForShortSide,
-} from '@/components/riftbound/RuneChargeLoader';
+import { RuneChargeLoader } from '@/components/riftbound/RuneChargeLoader';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { runeSizeForWindow } from '@/lib/rune-size';
 
 type PhaseCopy = {
   kicker: string;
@@ -91,7 +89,7 @@ export function AppUpdateDispatch({
   const { width, height } = useWindowDimensions();
   const copy = copyForPhase(phase, channelLabel, errorMessage);
   const percent = formatDownloadPercent(downloadProgress);
-  const runeSize = runeSizeForShortSide(Math.min(width, height));
+  const runeSize = runeSizeForWindow(width, height);
   const runeProgress =
     phase === 'downloading'
       ? (downloadProgress ?? 0)
@@ -102,16 +100,20 @@ export function AppUpdateDispatch({
           : 0;
 
   return (
-    <View
+    // Scrolls when rune + copy + CTAs outgrow short windows (landscape phones, large text).
+    <ScrollView
       className="flex-1 bg-background"
-      style={{
+      contentContainerStyle={{
+        flexGrow: 1,
         paddingTop: Math.max(insets.top, 16),
         paddingBottom: Math.max(insets.bottom, 16),
         paddingHorizontal: 24,
       }}
+      showsVerticalScrollIndicator={false}
+      bounces={false}
     >
       {header}
-      <View className="min-h-0 flex-1 items-center justify-center gap-6">
+      <View className="grow items-center justify-center gap-6 py-4">
         <RuneChargeLoader
           size={runeSize}
           progress={runeProgress}
@@ -173,7 +175,7 @@ export function AppUpdateDispatch({
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 

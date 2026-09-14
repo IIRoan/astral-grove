@@ -1,5 +1,5 @@
-import { ThemedIcon, LibraryIcon } from '@/components/icons';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { ThemedIcon, LibraryIcon, SlidersHorizontalIcon } from '@/components/icons';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { AppLoader } from '@/components/ui/app-loader';
 import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
@@ -10,6 +10,10 @@ import {
   CatalogFilterSheet,
 } from '@/components/catalog/FilterSheet';
 import { CatalogCollectionPillNav } from '@/components/catalog/CatalogCollectionPillNav';
+import {
+  CatalogToolbarBadgeDot,
+  CatalogToolbarButton,
+} from '@/components/catalog/CatalogToolbarButton';
 import { CatalogDesktopFilterBar } from '@/components/catalog/CatalogDesktopFilterBar';
 import { DeckCatalogGridTile } from '@/components/deck/DeckCatalogGridTile';
 import {
@@ -23,6 +27,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { Text } from '@/components/ui/text';
 import {
   catalogFiltersActive,
+  countCatalogFilters,
   sanitizeCatalogFilters,
   type CatalogFilters,
 } from '@/constants/catalogFilters';
@@ -36,7 +41,6 @@ import {
   defaultDeckAddCatalogFilters,
   defaultDeckAddSearch,
 } from '@/lib/deck-add-catalog';
-import { publishDeckBuilderMobileFilterChrome } from '@/lib/deckBuilderMobileFilterChrome';
 import { isCardTournamentIllegal } from '@/lib/card-legality';
 import { addCardToDeck, changeDeckCardQty } from '@/lib/deck-card';
 import { isCardEligibleForSection } from '@/lib/deck-eligibility';
@@ -187,8 +191,6 @@ export function DeckBuilderCatalogPanel({
     if (next > 0) setMeasuredWidth((prev) => (prev === next ? prev : next));
   }, []);
 
-  useEffect(() => () => publishDeckBuilderMobileFilterChrome(null), []);
-
   return (
     <View className="min-h-0 flex-1" onLayout={onLayout}>
       <DeckBuilderCatalogBrowse
@@ -240,24 +242,13 @@ function DeckBuilderCatalogBrowse({
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const applyCatalogFilters = useCallback((next: CatalogFilters) => {
-    setCatalogFilters(sanitizeCatalogFilters(next));
+    setCatalogFilters(
+      sanitizeCatalogFilters({
+        ...next,
+        collection: next.collection === 'missing' ? 'all' : next.collection,
+      })
+    );
   }, []);
-
-  const openFilterSheet = useCallback(() => {
-    setFilterSheetOpen(true);
-  }, []);
-
-  const mobileFilterChrome = useMemo(
-    () =>
-      readOnly || !isMobile
-        ? null
-        : { filters: catalogFilters, onOpen: openFilterSheet },
-    [catalogFilters, isMobile, openFilterSheet, readOnly]
-  );
-
-  useEffect(() => {
-    publishDeckBuilderMobileFilterChrome(mobileFilterChrome);
-  }, [mobileFilterChrome]);
 
   const catalog = useDeckAddCatalog(deck, section, debouncedQuery, catalogFilters, {
     enabled: !readOnly,
@@ -406,20 +397,28 @@ function DeckBuilderCatalogBrowse({
   return (
     <View className="min-h-0 flex-1">
       <View className="shrink-0 gap-1.5 pb-2">
-        <SearchInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder={searchPlaceholder}
-        />
-
-        {!readOnly && isMobile ? (
-          <CatalogCollectionPillNav
-            value={catalogFilters.collection}
-            onChange={(collection) =>
-              applyCatalogFilters({ ...catalogFilters, collection })
-            }
+        <View className="flex-row items-center gap-2">
+          <SearchInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={searchPlaceholder}
+            className="min-w-0 flex-1"
           />
-        ) : null}
+          {!readOnly && isMobile ? (
+            <CatalogToolbarButton
+              icon={SlidersHorizontalIcon}
+              mobile
+              active={filterActive}
+              accessibilityLabel={
+                filterActive
+                  ? `Open filters, ${countCatalogFilters(catalogFilters)} active`
+                  : 'Open filters'
+              }
+              onPress={() => setFilterSheetOpen(true)}
+              badge={filterActive ? <CatalogToolbarBadgeDot /> : null}
+            />
+          ) : null}
+        </View>
 
         {!readOnly && !isMobile ? (
           <CatalogDesktopFilterBar
@@ -436,7 +435,7 @@ function DeckBuilderCatalogBrowse({
           />
         ) : null}
 
-        {filterActive && !isMobile ? (
+        {filterActive ? (
           <CatalogActiveFilterChips
             filters={catalogFilters}
             onFiltersChange={applyCatalogFilters}

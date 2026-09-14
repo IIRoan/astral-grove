@@ -357,7 +357,7 @@ export function AppSheetTitle({ className, ...props }: ComponentProps<typeof Tex
 
   return (
     <Text
-      className={cn('font-semibold text-foreground text-xl leading-none', className)}
+      className={cn('font-semibold text-foreground text-xl leading-tight', className)}
       {...props}
     />
   );
@@ -428,9 +428,11 @@ export function AppSheetScrollView({
     contentContainerStyle as StyleProp<ViewStyle> | undefined,
   ]);
 
+  // Dialogs size to their content under max-h: flex-1 would collapse to zero height there,
+  // so shrink from content size instead (sheets keep flex-1 inside their snap height).
   return (
     <ScrollView
-      className={cn('min-h-0 flex-1', className)}
+      className={cn('min-h-0 flex-initial', className)}
       contentContainerStyle={dialogContentStyle}
       style={style as StyleProp<ViewStyle> | undefined}
       {...(props as ComponentProps<typeof ScrollView>)}

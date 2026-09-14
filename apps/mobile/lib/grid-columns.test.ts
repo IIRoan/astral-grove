@@ -1,12 +1,20 @@
 import { describe, expect, test } from 'bun:test';
 import { Layout } from '@/constants/Layout';
+import { screenGutterFor } from '@/lib/responsive-layout';
 import {
   GRID_TILE_MIN_WIDTH,
+  GRID_TILE_MIN_WIDTH_DENSE,
   computeMaxCappedGridColumns,
   resolveGridTileMaxWidth,
+  resolveGridTileMinWidth,
 } from '@/lib/grid-columns';
 
 const gap = Layout.gridGap;
+
+function catalogAvailableWidth(windowWidth: number): number {
+  const gutter = screenGutterFor(windowWidth, false);
+  return windowWidth - gutter * 2;
+}
 
 function tileWidthFor(available: number, columns: number) {
   return (available - gap * (columns - 1)) / columns;
@@ -32,6 +40,46 @@ describe('computeMaxCappedGridColumns', () => {
     expect(tileWidthFor(available, columns)).toBeLessThanOrEqual(maxTileWidth);
   });
 
+  test('small cards fit 4-up on iPhone 13 Pro Max catalog width', () => {
+    // iPhone 13 Pro Max logical width is 428; gutters leave ~396pt for the grid.
+    const available = catalogAvailableWidth(428);
+    const maxTileWidth = resolveGridTileMaxWidth('small');
+    const minTileWidth = resolveGridTileMinWidth('small');
+    const columns = computeMaxCappedGridColumns(
+      available,
+      gap,
+      maxTileWidth,
+      minTileWidth
+    );
+    expect(columns).toBe(4);
+    expect(tileWidthFor(available, columns)).toBeLessThanOrEqual(maxTileWidth);
+    expect(tileWidthFor(available, columns)).toBeGreaterThanOrEqual(
+      GRID_TILE_MIN_WIDTH_DENSE
+    );
+  });
+
+  test('small cards still fit 4-up on 430pt Pro Max class phones', () => {
+    const available = catalogAvailableWidth(430);
+    const columns = computeMaxCappedGridColumns(
+      available,
+      gap,
+      resolveGridTileMaxWidth('small'),
+      resolveGridTileMinWidth('small')
+    );
+    expect(columns).toBe(4);
+  });
+
+  test('small cards stay at 3-up on narrower phones', () => {
+    const available = catalogAvailableWidth(375);
+    const columns = computeMaxCappedGridColumns(
+      available,
+      gap,
+      resolveGridTileMaxWidth('small'),
+      resolveGridTileMinWidth('small')
+    );
+    expect(columns).toBe(3);
+  });
+
   test('large cards land around 5-up on landscape tablet instead of 8', () => {
     const available = 1194;
     const maxTileWidth = resolveGridTileMaxWidth('large');
@@ -51,7 +99,8 @@ describe('computeMaxCappedGridColumns', () => {
     const small = computeMaxCappedGridColumns(
       available,
       gap,
-      resolveGridTileMaxWidth('small')
+      resolveGridTileMaxWidth('small'),
+      resolveGridTileMinWidth('small')
     );
     expect(small).toBeGreaterThan(large);
   });

@@ -5,7 +5,6 @@ import {
   BottomSheetPortal,
   BottomSheetScrollView,
 } from '@/components/ui/bottom-sheet';
-import { View } from 'react-native';
 
 type MobilePanel = 'info' | 'list' | null;
 
@@ -28,6 +27,9 @@ export function DeckBuilderMobileSheet({
   infoDrawer,
   compositionList,
 }: DeckBuilderMobileSheetProps) {
+  // Open on the tallest snap so the deck list has room; users can still drag shorter.
+  const defaultSnapIndex = Math.max(0, mobileSnapPoints.length - 1);
+
   return (
     <BottomSheet
       open={mobilePanel != null}
@@ -39,7 +41,7 @@ export function DeckBuilderMobileSheet({
         <BottomSheetOverlay />
         <BottomSheetContent
           snapPoints={mobileSnapPoints}
-          defaultSnapIndex={0}
+          defaultSnapIndex={defaultSnapIndex}
           enablePanDownToClose
           enableOverDrag={!reduceMotion}
           enableContentPanningGesture
@@ -55,7 +57,14 @@ export function DeckBuilderMobileSheet({
             </BottomSheetScrollView>
           ) : null}
           {mobilePanel === 'list' ? (
-            <View className="min-h-0 flex-1">{compositionList}</View>
+            <BottomSheetScrollView
+              className="flex-1"
+              contentContainerStyle={{ paddingBottom: sheetPaddingBottom }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {compositionList}
+            </BottomSheetScrollView>
           ) : null}
         </BottomSheetContent>
       </BottomSheetPortal>

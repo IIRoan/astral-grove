@@ -22,7 +22,7 @@ function isBrowseDecksPath(pathname: string): boolean {
   return pathname.includes('/decks/browse');
 }
 
-export function DecksSubNav() {
+export function DecksSubNav({ iconOnly = false }: { iconOnly?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const isMobile = useMobileLayout();
@@ -36,6 +36,7 @@ export function DecksSubNav() {
       }}
       options={NAV_ITEMS}
       mobile={isMobile}
+      iconOnly={iconOnly}
       accessibilityRole="tablist"
       segmentAccessibilityRole="tab"
     />

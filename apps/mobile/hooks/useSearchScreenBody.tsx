@@ -104,7 +104,12 @@ export function useSearchScreenBody(): React.ReactElement {
   );
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const applyCatalogFilters = useCallback((next: CatalogFilters) => {
-    setCatalogFilters(sanitizeCatalogFilters(next));
+    setCatalogFilters(
+      sanitizeCatalogFilters({
+        ...next,
+        collection: next.collection === 'missing' ? 'all' : next.collection,
+      })
+    );
   }, []);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [catalogSort, setCatalogSort] = useState<CatalogSort>(DEFAULT_CATALOG_SORT);

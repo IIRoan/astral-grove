@@ -188,10 +188,12 @@ export function LegendPicker({
         </View>
       ) : (
         <FlatList
+          // RN FlatList cannot change numColumns on the fly (rotation / Split View resize).
+          key={`legend-grid-${numColumns}`}
           data={legends}
           keyExtractor={(item) => item.variantNumber}
           numColumns={numColumns}
-          columnWrapperStyle={columnWrapperStyle}
+          columnWrapperStyle={numColumns > 1 ? columnWrapperStyle : undefined}
           contentContainerStyle={listContentStyle}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}

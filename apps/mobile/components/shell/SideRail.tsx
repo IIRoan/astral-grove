@@ -30,7 +30,7 @@ import { hapticPress } from '@/utils/haptics';
 import { Image } from 'expo-image';
 import { usePathname, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -151,80 +151,86 @@ export function SideRail() {
           FACTORY_RADIUS_CONTROL_CLASS
         )}
       >
-        <HoverTooltip label="Home" description="Open the card catalog" side="right">
-          <PressableScale
-            accessibilityLabel="The Astral Grove home"
-            className={cn(
-              'mb-2 size-8 items-center justify-center border border-border bg-card-panel',
-              FACTORY_RADIUS_CONTROL_CLASS
-            )}
-            contentClassName="items-center justify-center"
-            onPress={() => {
-              void hapticPress();
-              router.push('/(tabs)/search');
-            }}
-          >
-            <Image
-              source={runeIcon}
-              style={{ width: 20, height: 20 }}
-              contentFit="contain"
-              accessibilityIgnoresInvertColors
-            />
-          </PressableScale>
-        </HoverTooltip>
-
-        <View className="h-px w-6 bg-border" />
-
-        <View className="relative mt-1 gap-0.5" accessibilityRole="tablist">
-          {showNavIndicator ? (
-            <Animated.View
-              pointerEvents="none"
+        {/* Short windows: nav scrolls inside the rail so settings / sign-out stay pinned and reachable. */}
+        <ScrollView
+          className="min-h-0 w-full flex-1"
+          contentContainerClassName="items-center gap-1"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <HoverTooltip label="Home" description="Open the card catalog" side="right">
+            <PressableScale
+              accessibilityLabel="The Astral Grove home"
               className={cn(
-                'absolute top-0 left-0 right-0 bg-card-panel',
+                'mb-2 size-8 items-center justify-center border border-border bg-card-panel',
                 FACTORY_RADIUS_CONTROL_CLASS
               )}
-              style={indicatorStyle}
-            />
-          ) : null}
-          {NAV_ITEMS.map(({ id, href, label, description, icon: Icon }) => {
-            const isActive = active === id;
-            return (
-              <HoverTooltip
-                key={id}
-                label={label}
-                description={description}
-                side="right"
-              >
-                <PressableScale
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: isActive }}
-                  accessibilityLabel={`${label}. ${description}`}
-                  onPress={() => {
-                    void hapticPress();
-                    router.push(href as '/(tabs)/search');
-                  }}
-                  className={cn(
-                    'size-9 items-center justify-center',
-                    FACTORY_RADIUS_CONTROL_CLASS
-                  )}
-                  contentClassName="items-center justify-center"
-                  depth={0.92}
+              contentClassName="items-center justify-center"
+              onPress={() => {
+                void hapticPress();
+                router.push('/(tabs)/search');
+              }}
+            >
+              <Image
+                source={runeIcon}
+                style={{ width: 20, height: 20 }}
+                contentFit="contain"
+                accessibilityIgnoresInvertColors
+              />
+            </PressableScale>
+          </HoverTooltip>
+
+          <View className="h-px w-6 bg-border" />
+
+          <View className="relative mt-1 gap-0.5" accessibilityRole="tablist">
+            {showNavIndicator ? (
+              <Animated.View
+                pointerEvents="none"
+                className={cn(
+                  'absolute top-0 left-0 right-0 bg-card-panel',
+                  FACTORY_RADIUS_CONTROL_CLASS
+                )}
+                style={indicatorStyle}
+              />
+            ) : null}
+            {NAV_ITEMS.map(({ id, href, label, description, icon: Icon }) => {
+              const isActive = active === id;
+              return (
+                <HoverTooltip
+                  key={id}
+                  label={label}
+                  description={description}
+                  side="right"
                 >
-                  <Icon
+                  <PressableScale
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: isActive }}
+                    accessibilityLabel={`${label}. ${description}`}
+                    onPress={() => {
+                      void hapticPress();
+                      router.push(href as '/(tabs)/search');
+                    }}
                     className={cn(
-                      'size-4',
-                      isActive ? 'text-foreground' : 'text-muted-foreground'
+                      'size-9 items-center justify-center',
+                      FACTORY_RADIUS_CONTROL_CLASS
                     )}
-                  />
-                </PressableScale>
-              </HoverTooltip>
-            );
-          })}
-        </View>
+                    contentClassName="items-center justify-center"
+                    depth={0.92}
+                  >
+                    <Icon
+                      className={cn(
+                        'size-4',
+                        isActive ? 'text-foreground' : 'text-muted-foreground'
+                      )}
+                    />
+                  </PressableScale>
+                </HoverTooltip>
+              );
+            })}
+          </View>
+        </ScrollView>
 
-        <View className="flex-1" />
-
-        <View className="gap-0.5">
+        <View className="shrink-0 gap-0.5">
           <HoverTooltip
             label="Settings"
             description="Account, appearance, and app preferences"

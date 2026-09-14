@@ -5,13 +5,7 @@ import {
   type ScaledSize,
 } from 'react-native';
 import type { EdgeInsets } from 'react-native-safe-area-context';
-
-type LayoutPosition = {
-  pageX: number;
-  pageY: number;
-  width: number;
-  height: number;
-};
+import { getVerticalSidePosition, type LayoutPosition } from '@/lib/responsive-layout';
 
 type UseRelativePositionArgs = {
   align?: 'start' | 'center' | 'end';
@@ -42,61 +36,6 @@ type SidePositionParams = {
   avoidCollisions: boolean;
   dimensions: ScaledSize;
 };
-
-function getVerticalSidePosition({
-  side,
-  triggerPosition,
-  contentLayout,
-  sideOffset,
-  insetTop,
-  insetBottom,
-  avoidCollisions,
-  dimensions,
-}: {
-  side: 'top' | 'bottom';
-  triggerPosition: LayoutPosition;
-  contentLayout: LayoutRectangle;
-  sideOffset: number;
-  insetTop: number;
-  insetBottom: number;
-  avoidCollisions: boolean;
-  dimensions: ScaledSize;
-}): { top?: number } {
-  const positionTop = triggerPosition.pageY - sideOffset - contentLayout.height;
-  const positionBottom = triggerPosition.pageY + triggerPosition.height + sideOffset;
-
-  if (!avoidCollisions) {
-    return {
-      top: side === 'top' ? positionTop : positionBottom,
-    };
-  }
-
-  if (side === 'top') {
-    return {
-      top: Math.min(
-        Math.max(insetTop, positionTop),
-        dimensions.height - insetBottom - contentLayout.height
-      ),
-    };
-  }
-
-  // For bottom placement, flip upward when there is more room above.
-  const spaceBelow = dimensions.height - insetBottom - positionBottom;
-  const spaceAbove = triggerPosition.pageY - insetTop - sideOffset;
-
-  if (contentLayout.height > spaceBelow && spaceAbove > spaceBelow) {
-    return {
-      top: Math.max(insetTop, positionTop),
-    };
-  }
-
-  return {
-    top: Math.min(
-      dimensions.height - insetBottom - contentLayout.height,
-      positionBottom
-    ),
-  };
-}
 
 function getHorizontalSidePosition({
   side,

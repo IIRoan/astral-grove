@@ -5,9 +5,9 @@ export const buttonVariants = cva(
   {
     variants: {
       size: {
-        default: 'h-12 px-4',
-        sm: 'h-8 gap-1 px-3',
-        lg: 'h-14 px-6',
+        default: 'min-h-12 px-4',
+        sm: 'min-h-8 gap-1 px-3',
+        lg: 'min-h-14 px-6',
         'icon-sm': 'size-8',
         icon: 'size-12',
         'icon-lg': 'size-14',
@@ -19,7 +19,7 @@ export const buttonVariants = cva(
           'border border-border bg-transparent active:bg-card-panel dark:border-border',
         secondary: 'bg-card-panel active:opacity-80',
         ghost: 'bg-transparent active:bg-card-panel',
-        link: 'h-auto w-auto p-0 active:opacity-50',
+        link: 'h-auto min-h-0 w-auto p-0 active:opacity-50',
       },
     },
     defaultVariants: {

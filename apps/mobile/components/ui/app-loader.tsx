@@ -1,10 +1,10 @@
 import { Modal, useWindowDimensions, View } from 'react-native';
 import {
   RuneChargeLoader,
-  runeSizeForShortSide,
   type RuneChargeSize,
 } from '@/components/riftbound/RuneChargeLoader';
 import { Text } from '@/components/ui/text';
+import { runeSizeForWindow } from '@/lib/rune-size';
 import { cn } from '@/lib/utils';
 
 type AppLoaderProps = {
@@ -44,7 +44,7 @@ export function AppLoader({
 
 export function AppLoadingScreen({ size, label, detail, className }: AppLoaderProps) {
   const { width, height } = useWindowDimensions();
-  const stageSize = size ?? runeSizeForShortSide(Math.min(width, height));
+  const stageSize = size ?? runeSizeForWindow(width, height);
 
   return (
     <View

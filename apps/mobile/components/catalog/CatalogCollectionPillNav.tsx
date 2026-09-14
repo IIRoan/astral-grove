@@ -1,4 +1,5 @@
-import { CardholderIcon, CardsIcon, InboxIcon } from '@/components/icons';
+import { useEffect } from 'react';
+import { CardholderIcon, CardsIcon } from '@/components/icons';
 import { CatalogSegmentedControl } from '@/components/catalog/CatalogSegmentedControl';
 import type { CatalogCollectionFilter } from '@/constants/catalogFilters';
 import { useMobileLayout } from '@/hooks/useBreakpoint';
@@ -16,33 +17,35 @@ const NAV_ITEMS = [
     accessibilityLabel: 'Owned cards',
     icon: CardholderIcon,
   },
-  {
-    id: 'missing' as const,
-    label: 'Missing',
-    accessibilityLabel: 'Missing cards',
-    icon: InboxIcon,
-  },
 ] as const;
 
 interface CatalogCollectionPillNavProps {
   value: CatalogCollectionFilter;
   onChange: (value: CatalogCollectionFilter) => void;
+  /** Desktop icon-only (narrow toolbar); mobile is always icon-only. */
+  iconOnly?: boolean;
   className?: string;
 }
 
 export function CatalogCollectionPillNav({
   value,
   onChange,
+  iconOnly = false,
 }: CatalogCollectionPillNavProps) {
   const isMobile = useMobileLayout();
+  const resolved = value === 'missing' ? 'all' : value;
+
+  useEffect(() => {
+    if (value === 'missing') onChange('all');
+  }, [onChange, value]);
 
   return (
     <CatalogSegmentedControl
-      value={value}
+      value={resolved}
       onChange={onChange}
       options={NAV_ITEMS}
       mobile={isMobile}
-      iconOnly={isMobile}
+      iconOnly={isMobile || iconOnly}
       accessibilityRole="tablist"
       segmentAccessibilityRole="tab"
     />

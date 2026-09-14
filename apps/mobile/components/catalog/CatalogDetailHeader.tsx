@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { Pressable as GesturePressable } from 'react-native-gesture-handler';
 import { CardArtImage } from '@/components/cards/CardArtImage';
 import { CardBannedOverlay } from '@/components/riftbound/CardBannedOverlay';
@@ -6,6 +6,7 @@ import { StatusKeywordBadge } from '@/components/riftbound/RiftboundBadges';
 import { RarityIcon } from '@/components/riftbound/CardIcons';
 import { Text } from '@/components/ui/text';
 import { CARD_ART_RADIUS_CLASS, CATALOG_ART_THUMB_WIDTH } from '@/constants/CardArt';
+import { catalogDetailThumbWidthFor } from '@/lib/responsive-layout';
 import { cn } from '@/lib/utils';
 
 interface CatalogDetailHeaderProps {
@@ -33,6 +34,9 @@ export function CatalogDetailHeader({
   variantFamilySwitcher,
   onOpenFullscreen,
 }: CatalogDetailHeaderProps) {
+  const { width: windowWidth } = useWindowDimensions();
+  const thumbWidth = catalogDetailThumbWidthFor(windowWidth);
+
   return (
     <>
       <View className="flex-row gap-3 bg-card-panel p-3">
@@ -44,10 +48,11 @@ export function CatalogDetailHeader({
         >
           <View
             className={cn(
-              'relative aspect-[5/7] w-[128px] overflow-hidden border',
+              'relative aspect-[5/7] overflow-hidden border',
               isBanned ? 'border-destructive/70' : 'border-white/10',
               CARD_ART_RADIUS_CLASS
             )}
+            style={{ width: thumbWidth }}
           >
             <CardArtImage
               uri={detailImageUri}
@@ -66,7 +71,7 @@ export function CatalogDetailHeader({
         <View className="min-w-0 flex-1 justify-center gap-1.5">
           <View className="flex-row flex-wrap items-center gap-2">
             <Text
-              className="text-xl font-semibold leading-tight tracking-tight text-foreground"
+              className="shrink text-xl font-semibold leading-tight tracking-tight text-foreground"
               numberOfLines={2}
             >
               {cardName}

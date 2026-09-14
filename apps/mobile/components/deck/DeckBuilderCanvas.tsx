@@ -1,6 +1,8 @@
 import { InboxIcon, LayersIcon } from '@/components/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
+import { DECK_INFO_DRAWER_WIDTH } from '@/components/deck/DeckBuilderInfoDrawer';
+import { DECK_COMPOSITION_LIST_WIDTH } from '@/components/deck/DeckCompositionList';
 import { DeckBuilderImportedBanner } from '@/components/deck/DeckBuilderImportedBanner';
 import { DeckBuilderMobileSheet } from '@/components/deck/DeckBuilderMobileSheet';
 import { DeckBuilderWorkspace } from '@/components/deck/DeckBuilderWorkspace';
@@ -8,14 +10,15 @@ import { DeckImportExportSheet } from '@/components/deck/DeckImportExportSheet';
 import { DeckBuilderToolbar } from '@/components/deck/DeckBuilderToolbar';
 import type { DeckBuilderMiddlePanel } from '@/components/deck/DeckBuilderMiddlePanelToggle';
 import { useScreenLayout } from '@/components/shell/ScreenLayout';
+import { Layout } from '@/constants/Layout';
 import { useLatestRef } from '@/hooks/useLatestRef';
-import { useDeckBuilderMobileFilterChrome } from '@/lib/deckBuilderMobileFilterChrome';
 import type { PillNavItem } from '@/components/shell/FloatingPillNav';
 import { useMobileLayout } from '@/hooks/useBreakpoint';
 import { useCollection } from '@/hooks/useCollection';
 import { useDeckRuneCards } from '@/hooks/useLegendRuneCards';
 import { useDeckBuilderPanels } from '@/hooks/useDeckBuilderPanels';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { deckBuilderInfoDrawerFits } from '@/lib/responsive-layout';
 import { deckSectionProgress } from '@/lib/deck-display';
 import { seedDefaultRuneSplit } from '@/lib/deck-runes';
 import type { DeckCard, DeckState } from '@/lib/deck-types';
@@ -27,6 +30,12 @@ type MobilePanel = 'info' | 'list' | null;
 type CatalogSection = 'mainDeck' | 'sideboard';
 
 const EMPTY_RUNE_CARDS_BY_DOMAIN = new Map<string, DeckCard>();
+
+const WORKSPACE_SIZES = {
+  drawerWidth: DECK_INFO_DRAWER_WIDTH,
+  listWidth: DECK_COMPOSITION_LIST_WIDTH,
+  gap: Layout.gridGap,
+};
 
 interface DeckBuilderCanvasProps {
   deck: DeckState;
@@ -66,14 +75,15 @@ export function DeckBuilderCanvas({
 }: DeckBuilderCanvasProps) {
   const isMobile = useMobileLayout();
   const reduceMotion = useReduceMotion();
-  const { paddingBottomInline } = useScreenLayout();
+  const { paddingBottomInline, contentWidth } = useScreenLayout();
   const readOnly = permanentReadOnly || !editing;
   const [validationExpanded, setValidationExpanded] = useState(false);
-  const [infoDrawerOpen, setInfoDrawerOpen] = useState(true);
+  const infoDrawerFits = deckBuilderInfoDrawerFits(contentWidth, WORKSPACE_SIZES);
+  const [infoDrawerOpen, setInfoDrawerOpen] = useState(infoDrawerFits);
+  const infoDrawerFitsRef = useRef(infoDrawerFits);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
   const [middlePanel, setMiddlePanel] = useState<DeckBuilderMiddlePanel>('catalog');
   const [catalogSection, setCatalogSection] = useState<CatalogSection>('mainDeck');
-  const mobileFilterChrome = useDeckBuilderMobileFilterChrome();
 
   const { data: collection = [] } = useCollection();
   const validation = useMemo(() => validateDeck(deck), [deck]);
@@ -107,6 +117,12 @@ export function DeckBuilderCanvas({
     seededRunesForLegendRef.current = runeSeedKey;
     onPersistRef.current(seededDeck);
   }, [runeSeedKey, seededDeck, onPersistRef]);
+
+  useEffect(() => {
+    // Auto-close only when the window shrinks past the threshold; a manual open at narrow widths sticks.
+    if (infoDrawerFitsRef.current && !infoDrawerFits) setInfoDrawerOpen(false);
+    infoDrawerFitsRef.current = infoDrawerFits;
+  }, [infoDrawerFits]);
 
   const handleMiddlePanelChange = useCallback((panel: DeckBuilderMiddlePanel) => {
     setMiddlePanel(panel);
@@ -175,7 +191,7 @@ export function DeckBuilderCanvas({
     ];
   }, [deck]);
 
-  const mobileSnapPoints = reduceMotion ? ['92%'] : ['72%', '92%'];
+  const mobileSnapPoints = reduceMotion ? ['100%'] : ['78%', '100%'];
   const canEdit = !permanentReadOnly && Boolean(onEdit);
 
   return (
@@ -244,16 +260,6 @@ export function DeckBuilderCanvas({
             }
             catalogSectionItems={
               readOnly || middlePanel !== 'catalog' ? undefined : browseSectionNavItems
-            }
-            catalogFilters={
-              readOnly || middlePanel !== 'catalog'
-                ? undefined
-                : mobileFilterChrome?.filters
-            }
-            onOpenCatalogFilters={
-              readOnly || middlePanel !== 'catalog'
-                ? undefined
-                : mobileFilterChrome?.onOpen
             }
           />
         </View>

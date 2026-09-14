@@ -81,12 +81,10 @@ svg {
   }
 }
 
+/* No env(safe-area-inset-*) padding here: react-native-safe-area-context already
+   reads those insets on web, so padding body too would double them. */
 body {
   background-color: oklch(0.97 0 0);
-  padding-top: env(safe-area-inset-top);
-  padding-right: env(safe-area-inset-right);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
 }
 
 body > div,

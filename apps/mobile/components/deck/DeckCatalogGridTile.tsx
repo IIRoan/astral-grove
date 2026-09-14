@@ -14,6 +14,9 @@ import { hapticPress } from '@/utils/haptics';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { cn } from '@/lib/utils';
 
+/** Below this tile width the full stepper (~94pt) no longer fits the tray. */
+const COMPACT_CONTROL_TILE_WIDTH = 120;
+
 export interface DeckCatalogGridTileProps {
   tileWidth: number;
   candidate: DeckCard;
@@ -56,6 +59,7 @@ export const DeckCatalogGridTile = memo(function DeckCatalogGridTile({
   const inDeck = selected || count > 0;
   const shortfall = owned != null && count > 0 && owned < count;
   const showControl = !readOnly || count > 0;
+  const compactControl = tileWidth < COMPACT_CONTROL_TILE_WIDTH;
 
   const handleOpenCard = () => {
     void hapticPress();
@@ -120,7 +124,12 @@ export const DeckCatalogGridTile = memo(function DeckCatalogGridTile({
         </View>
       </Pressable>
 
-      <View className="gap-2 border-t border-border bg-card-panel px-2.5 py-2.5">
+      <View
+        className={cn(
+          'gap-2 border-t border-border bg-card-panel py-2.5',
+          compactControl ? 'px-1.5' : 'px-2.5'
+        )}
+      >
         <Pressable onPress={handleOpenCard} accessibilityRole="button">
           {/* Fixed 2-line title + meta row so Add CTAs align across the grid. */}
           <View className="gap-0.5">
@@ -163,6 +172,7 @@ export const DeckCatalogGridTile = memo(function DeckCatalogGridTile({
             blocked={blocked}
             blockedLabel={blockedLabel}
             readOnly={readOnly}
+            compact={compactControl}
             onAdd={onAdd}
             onRemove={onRemove}
           />

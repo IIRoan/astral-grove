@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils';
 
 /** Side-by-side runes need ~560px+; phones stack (two tiles + rune column). */
 const RUNES_BESIDE_MIN_WIDTH = 560;
+/** Matches `px-1` on the scroll content — onLayout reports the outer ScrollView width. */
+const CONTENT_PAD_X = 4;
 
 interface DeckShowcasePanelProps {
   deck: DeckState;
@@ -48,7 +50,7 @@ export function DeckShowcasePanel({
   const sideCount = getSectionCount(deck, 'sideboard');
 
   const onLayout = (event: LayoutChangeEvent) => {
-    const next = Math.floor(event.nativeEvent.layout.width);
+    const next = Math.floor(event.nativeEvent.layout.width - CONTENT_PAD_X * 2);
     if (next > 0 && next !== contentWidth) setContentWidth(next);
   };
 

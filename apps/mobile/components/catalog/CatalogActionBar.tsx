@@ -9,7 +9,7 @@ import type {
   CatalogFilters,
 } from '@/constants/catalogFilters';
 import type { CatalogSort } from '@/constants/catalogSort';
-import { useMobileLayout } from '@/hooks/useBreakpoint';
+import type { CatalogToolbarDensity } from '@/lib/responsive-layout';
 import { cn } from '@/lib/utils';
 
 interface CatalogActionBarProps {
@@ -23,10 +23,13 @@ interface CatalogActionBarProps {
   onSimpleAddChange: (simpleAdd: boolean) => void;
   showFilterTrigger?: boolean;
   inline?: boolean;
+  /** Inline desktop only — shed labels when the catalog column is narrow. */
+  density?: CatalogToolbarDensity;
   leading?: ReactNode;
   className?: string;
 }
 
+/** Desktop / inline catalog action cluster (collection, quick add, sort, filters). */
 export function CatalogActionBar({
   activeSort,
   onSortPress,
@@ -38,56 +41,42 @@ export function CatalogActionBar({
   onSimpleAddChange,
   showFilterTrigger = true,
   inline = false,
+  density = 'full',
   leading,
   className,
 }: CatalogActionBarProps) {
-  const isMobile = useMobileLayout();
+  const inlineDensity = inline ? density : 'full';
 
-  const collectionControls = (
-    <View className="shrink-0 flex-row items-center gap-1.5">
-      <CatalogCollectionPillNav value={collection} onChange={onCollectionChange} />
-      <CatalogSimpleAddToggle active={simpleAdd} onChange={onSimpleAddChange} />
-    </View>
-  );
-
-  const renderActionControls = (extraClassName?: string) => (
-    <View className={cn('shrink-0 flex-row items-center gap-1.5', extraClassName)}>
-      {collectionControls}
-      <SortTrigger activeSort={activeSort} onPress={onSortPress} mobile={isMobile} />
+  const actionControls = (
+    <View className={cn('shrink-0 flex-row items-center gap-1.5', inline && className)}>
+      <CatalogCollectionPillNav
+        value={collection}
+        onChange={onCollectionChange}
+        iconOnly={inlineDensity === 'compact'}
+      />
+      <CatalogSimpleAddToggle
+        active={simpleAdd}
+        onChange={onSimpleAddChange}
+        iconOnly={inlineDensity !== 'full'}
+      />
+      <SortTrigger
+        activeSort={activeSort}
+        onPress={onSortPress}
+        compact={inlineDensity === 'medium'}
+        iconOnly={inlineDensity === 'compact'}
+      />
       {showFilterTrigger ? (
         <CatalogFilterTrigger
           filters={filters}
           onPress={onFilterPress}
           compact
-          mobile={isMobile}
         />
       ) : null}
     </View>
   );
 
-  if (inline && !isMobile) {
-    return renderActionControls(className);
-  }
-
-  if (isMobile) {
-    return (
-      <View className={cn('w-full gap-2', className)}>
-        <View className="w-full flex-row items-center justify-between gap-2">
-          {collectionControls}
-          <View className="shrink-0 flex-row items-center gap-1.5">
-            <SortTrigger activeSort={activeSort} onPress={onSortPress} mobile />
-            {showFilterTrigger ? (
-              <CatalogFilterTrigger
-                filters={filters}
-                onPress={onFilterPress}
-                compact
-                mobile
-              />
-            ) : null}
-          </View>
-        </View>
-      </View>
-    );
+  if (inline) {
+    return actionControls;
   }
 
   return (
@@ -95,7 +84,7 @@ export function CatalogActionBar({
       className={cn('w-full flex-row items-center justify-between gap-3', className)}
     >
       <View className="min-w-0 flex-1">{leading ?? null}</View>
-      {renderActionControls()}
+      {actionControls}
     </View>
   );
 }

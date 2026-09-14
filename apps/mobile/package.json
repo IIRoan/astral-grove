@@ -15,6 +15,7 @@
     "test": "bun test --isolate --path-ignore-patterns 'e2e/**'",
     "test:ui-e2e": "playwright test",
     "test:ui-e2e:headed": "playwright test --headed",
+    "test:ui-layout": "playwright test -c playwright.layout.config.ts",
     "lint": "expo lint",
     "lint:fix": "expo lint --fix",
     "eas-build-post-install": "bun run --cwd ../../packages/contracts build"

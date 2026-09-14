@@ -1,6 +1,10 @@
 import { cva } from 'class-variance-authority';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, useWindowDimensions, View } from 'react-native';
 import { Easing, FadeInUp, FadeOutDown } from 'react-native-reanimated';
+import { usePathname } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useShowSideRail } from '@/hooks/useBreakpoint';
+import { mobileTabBarVisible, toastBottomOffset } from '@/lib/mobile-chrome';
 import { MOTION } from '@/lib/motion';
 import { useCSSVariable, useUniwind } from 'uniwind';
 import {
@@ -10,6 +14,9 @@ import {
   TriangleAlertIcon,
 } from '@/components/icons';
 import { Toaster as SonnerToaster, type ToasterProps } from '@/lib/sonner';
+
+const TOAST_MAX_WIDTH = 384;
+const TOAST_SIDE_GUTTER = 16;
 
 type ToastVariant = 'default' | 'success' | 'error' | 'warning' | 'info' | 'loading';
 
@@ -44,6 +51,14 @@ const ToastIcon = ({ variant }: { variant: ToastVariant }) => (
 export const Toaster = (props: Omit<ToasterProps, 'theme'>) => {
   const { theme: uniwindTheme } = useUniwind();
   const theme = uniwindTheme === 'dark' ? 'dark' : 'light';
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const pathname = usePathname();
+  const showRail = useShowSideRail();
+  const bottomOffset = toastBottomOffset(
+    insets.bottom,
+    mobileTabBarVisible(pathname, showRail)
+  );
   const [card, border, foreground, mutedForeground] = useCSSVariable([
     '--color-card',
     '--color-border',
@@ -56,7 +71,7 @@ export const Toaster = (props: Omit<ToasterProps, 'theme'>) => {
       duration={3_500}
       enableStacking
       gap={8}
-      offset={12}
+      offset={bottomOffset}
       position="bottom-center"
       swipeToDismissDirection="up"
       visibleToasts={3}
@@ -83,14 +98,15 @@ export const Toaster = (props: Omit<ToasterProps, 'theme'>) => {
           borderRadius: 12,
           borderWidth: 1,
           elevation: 8,
-          maxWidth: 384,
+          // Explicit width: sonner-native adds marginHorizontal 16, so '100%' overflowed phones.
+          marginHorizontal: 0,
+          width: Math.min(TOAST_MAX_WIDTH, windowWidth - TOAST_SIDE_GUTTER * 2),
           paddingHorizontal: 14,
           paddingVertical: 12,
           shadowColor: '#000',
           shadowOffset: { height: 4, width: 0 },
           shadowOpacity: 0.25,
           shadowRadius: 8,
-          width: '100%',
         },
         descriptionStyle: {
           color: mutedForeground,

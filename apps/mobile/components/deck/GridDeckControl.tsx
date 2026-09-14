@@ -23,6 +23,8 @@ interface GridDeckControlProps {
   blocked?: boolean;
   blockedLabel?: string;
   readOnly?: boolean;
+  /** Narrow tiles (< ~120pt): smaller steppers so "+" is not clipped by the tile edge. */
+  compact?: boolean;
   onAdd: () => void;
   onRemove: () => void;
 }
@@ -35,9 +37,11 @@ export function GridDeckControl({
   blocked = false,
   blockedLabel = 'Unavailable',
   readOnly = false,
+  compact = false,
   onAdd,
   onRemove,
 }: GridDeckControlProps) {
+  const stepperClass = compact ? 'size-7' : 'size-8';
   const handleAdd = () => {
     void hapticPress();
     onAdd();
@@ -102,7 +106,8 @@ export function GridDeckControl({
     <View
       className={cn(
         CONTROL_HEIGHT,
-        'w-full flex-row items-center justify-between border border-border bg-card-panel px-0.5',
+        'w-full flex-row items-center justify-between border border-border bg-card-panel',
+        compact ? 'px-0' : 'px-0.5',
         FACTORY_RADIUS_CONTROL_CLASS
       )}
     >
@@ -111,7 +116,8 @@ export function GridDeckControl({
         accessibilityLabel={`Remove one ${name}`}
         hitSlop={6}
         className={cn(
-          'size-8 items-center justify-center active:bg-foreground/10',
+          stepperClass,
+          'items-center justify-center active:bg-foreground/10',
           FACTORY_RADIUS_CONTROL_CLASS,
           !canRemove && 'opacity-40'
         )}
@@ -120,13 +126,14 @@ export function GridDeckControl({
       >
         <ThemedIcon icon={MinusIcon} size={ICON_SIZE} color="foreground" />
       </Pressable>
-      <Text className={OPERATE_QTY_CLASS}>{count}</Text>
+      <Text className={cn(OPERATE_QTY_CLASS, compact && 'min-w-5')}>{count}</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Add one ${name}`}
         hitSlop={6}
         className={cn(
-          'size-8 items-center justify-center active:bg-foreground/10',
+          stepperClass,
+          'items-center justify-center active:bg-foreground/10',
           FACTORY_RADIUS_CONTROL_CLASS,
           !canAdd && 'opacity-40'
         )}

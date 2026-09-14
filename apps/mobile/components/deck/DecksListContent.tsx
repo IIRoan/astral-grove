@@ -1,5 +1,5 @@
 import { ThemedIcon, LayersIcon } from '@/components/icons';
-import { FlatList, useWindowDimensions, View, type ListRenderItem } from 'react-native';
+import { FlatList, View, type ListRenderItem } from 'react-native';
 import { AppLoader } from '@/components/ui/app-loader';
 import { DeckListCard } from '@/components/deck/DeckListCard';
 import { DeckBrowseCard } from '@/components/deck/DeckBrowseCard';
@@ -14,8 +14,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { Layout } from '@/constants/Layout';
-import { SIDE_RAIL_WIDTH, useShowSideRail } from '@/hooks/useBreakpoint';
+import { useScreenLayout } from '@/components/shell/ScreenLayout';
+import { DECK_GRID_GAP, deckGridTileWidth } from '@/lib/responsive-layout';
 import type { DeckListLayout } from '@/lib/deck-list';
 import type { DeckState } from '@/lib/deck-types';
 import type { DeckFormat } from '@riftbound/contracts';
@@ -37,18 +37,10 @@ function DeckListItemSeparator() {
 }
 
 function useOwnedDeckTileWidth(layout: DeckListLayout): number | undefined {
-  const { width } = useWindowDimensions();
-  const showRail = useShowSideRail();
+  // Measured ScreenLayout width already reflects rail + `px-4 sm:px-6` gutters.
+  const { contentWidth } = useScreenLayout();
   if (layout !== 'grid') return undefined;
-  const available =
-    width - (showRail ? SIDE_RAIL_WIDTH : 0) - Layout.screenPaddingHorizontal * 2;
-  const gap = 12;
-  const minTile = 280;
-  const columns = Math.max(
-    1,
-    Math.min(3, Math.floor((available + gap) / (minTile + gap)))
-  );
-  return (available - gap * (columns - 1)) / columns;
+  return deckGridTileWidth(contentWidth, { gap: DECK_GRID_GAP }).tileWidth;
 }
 
 interface DecksListContentProps {
@@ -81,6 +73,8 @@ interface DecksListContentProps {
   onImportPress: () => void;
   listFooter: React.ReactElement;
   renderDeckItem: ListRenderItem<DeckState>;
+  /** Phones: header scrolls with the infinite list instead of pinning above it. */
+  listHeader?: React.ReactElement;
 }
 
 export function DecksListContent({
@@ -109,7 +103,9 @@ export function DecksListContent({
   onImportPress,
   listFooter,
   renderDeckItem,
+  listHeader,
 }: DecksListContentProps) {
+  const { paddingBottomInline } = useScreenLayout();
   const { isLoading, isFetching: _isFetching, isError } = queryStatus;
   const { showCreate, showImport } = emptyActions;
   const showBlockingLoader = isLoading && decks.length === 0;
@@ -117,57 +113,68 @@ export function DecksListContent({
   const grid = variant === 'default' && layout === 'grid';
 
   if (showBlockingLoader) {
-    return <DeckListSkeleton />;
+    return (
+      <>
+        {listHeader}
+        <DeckListSkeleton />
+      </>
+    );
   }
 
   if (isError) {
     return (
-      <Empty className="mt-8 border border-dashed border-border">
-        <EmptyHeader>
-          <EmptyTitle>Could not load decks</EmptyTitle>
-          <EmptyDescription>
-            The deck list timed out or the server returned an error. Try again in a
-            moment.
-          </EmptyDescription>
-        </EmptyHeader>
-        <Button onPress={() => void refetch()}>
-          <ButtonText>Retry</ButtonText>
-        </Button>
-      </Empty>
+      <>
+        {listHeader}
+        <Empty className="mt-8 border border-dashed border-border">
+          <EmptyHeader>
+            <EmptyTitle>Could not load decks</EmptyTitle>
+            <EmptyDescription>
+              The deck list timed out or the server returned an error. Try again in a
+              moment.
+            </EmptyDescription>
+          </EmptyHeader>
+          <Button onPress={() => void refetch()}>
+            <ButtonText>Retry</ButtonText>
+          </Button>
+        </Empty>
+      </>
     );
   }
 
   if (decks.length === 0) {
     return (
-      <Empty className="mt-8 border border-dashed border-border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon" className="mb-1 size-16">
-            <ThemedIcon icon={LayersIcon} size={32} color="ring" />
-          </EmptyMedia>
-          <EmptyTitle>{query.trim() ? 'No matching decks' : emptyTitle}</EmptyTitle>
-          <EmptyDescription>{emptyDescription}</EmptyDescription>
-        </EmptyHeader>
-        {showCreate && !query.trim() ? (
-          <View className="gap-2">
-            <DeckCreateMenu onCreate={onCreateDeck}>
-              <Button>
-                <ButtonText>Create your first deck</ButtonText>
-              </Button>
-            </DeckCreateMenu>
-            {showImport ? (
-              <Button
-                variant="outline"
-                onPress={() => {
-                  hapticPress();
-                  onImportPress();
-                }}
-              >
-                <ButtonText>Import deck list</ButtonText>
-              </Button>
-            ) : null}
-          </View>
-        ) : null}
-      </Empty>
+      <>
+        {listHeader}
+        <Empty className="mt-8 border border-dashed border-border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon" className="mb-1 size-16">
+              <ThemedIcon icon={LayersIcon} size={32} color="ring" />
+            </EmptyMedia>
+            <EmptyTitle>{query.trim() ? 'No matching decks' : emptyTitle}</EmptyTitle>
+            <EmptyDescription>{emptyDescription}</EmptyDescription>
+          </EmptyHeader>
+          {showCreate && !query.trim() ? (
+            <View className="gap-2">
+              <DeckCreateMenu onCreate={onCreateDeck}>
+                <Button>
+                  <ButtonText>Create your first deck</ButtonText>
+                </Button>
+              </DeckCreateMenu>
+              {showImport ? (
+                <Button
+                  variant="outline"
+                  onPress={() => {
+                    hapticPress();
+                    onImportPress();
+                  }}
+                >
+                  <ButtonText>Import deck list</ButtonText>
+                </Button>
+              ) : null}
+            </View>
+          ) : null}
+        </Empty>
+      </>
     );
   }
 
@@ -178,7 +185,10 @@ export function DecksListContent({
         keyExtractor={(deck) => deck.id}
         renderItem={renderDeckItem}
         ItemSeparatorComponent={DeckListItemSeparator}
+        ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
+        // Last card must clear the floating tab bar / home indicator.
+        contentContainerStyle={{ paddingBottom: paddingBottomInline }}
         onEndReached={() => {
           if (infiniteScroll.hasNextPage && !infiniteScroll.isFetchingNextPage) {
             infiniteScroll.fetchNextPage();
@@ -196,7 +206,7 @@ export function DecksListContent({
   return (
     <View
       className={grid ? 'flex-row flex-wrap' : 'gap-3'}
-      style={grid ? { gap: 12 } : undefined}
+      style={grid ? { gap: DECK_GRID_GAP } : undefined}
     >
       {decks.map((deck, index) =>
         variant === 'browse' ? (

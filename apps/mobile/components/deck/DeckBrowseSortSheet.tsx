@@ -88,9 +88,11 @@ export function DeckBrowseSortSheet({
 export function DeckBrowseSortTrigger({
   activeSort,
   onPress,
+  iconOnly = false,
 }: {
   activeSort: DeckBrowseSort;
   onPress: () => void;
+  iconOnly?: boolean;
 }) {
   const label = findDeckBrowseSortOption(activeSort).label;
 
@@ -98,8 +100,8 @@ export function DeckBrowseSortTrigger({
     <CatalogToolbarButton
       icon={ArrowUpDownIcon}
       onPress={onPress}
-      accessibilityLabel="Open sort options"
-      label={label}
+      accessibilityLabel={iconOnly ? `Sort by ${label}` : 'Open sort options'}
+      label={iconOnly ? undefined : label}
       mobile
     />
   );

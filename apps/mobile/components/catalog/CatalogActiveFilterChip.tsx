@@ -135,7 +135,7 @@ export function CatalogActiveFilterChip({
         </FilterChipValuePill>
       ))
     ) : value ? (
-      <Text className={FILTER_CHIP_VALUE_TEXT_CLASS} numberOfLines={1}>
+      <Text className={cn(FILTER_CHIP_VALUE_TEXT_CLASS, 'shrink')} numberOfLines={1}>
         {value}
       </Text>
     ) : null;

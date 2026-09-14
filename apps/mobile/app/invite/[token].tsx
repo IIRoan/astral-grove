@@ -10,6 +10,7 @@ import {
   collectionInviteAcceptPath,
   isLikelyMobileUserAgent,
 } from '@/lib/collection-invite-link';
+import { FORM_COLUMN_CLASS } from '@/lib/responsive-layout';
 
 function readBrowserUserAgent(): string {
   if (Platform.OS !== 'web') return '';
@@ -56,7 +57,7 @@ export default function CollectionInviteLinkingScreen() {
 
   if (!token || !deepLink || !acceptPath) {
     return (
-      <ScreenLayout>
+      <ScreenLayout contentClassName={FORM_COLUMN_CLASS}>
         <ScreenHeader title="Join collection" />
         <Text className="mt-4 text-sm text-muted-foreground">
           Missing invite token.
@@ -70,7 +71,7 @@ export default function CollectionInviteLinkingScreen() {
   }
 
   return (
-    <ScreenLayout>
+    <ScreenLayout contentClassName={FORM_COLUMN_CLASS}>
       <ScreenHeader title="Open The Astral Grove" />
       <View className="mt-4 gap-4">
         <Text className="text-base text-foreground">
@@ -86,7 +87,12 @@ export default function CollectionInviteLinkingScreen() {
             void Linking.openURL(deepLink);
           }}
         >
-          <ButtonText>Open in The Astral Grove</ButtonText>
+          <ButtonText
+            className="shrink py-2 text-center whitespace-normal"
+            numberOfLines={2}
+          >
+            Open in The Astral Grove
+          </ButtonText>
         </Button>
         <Button
           variant="outline"

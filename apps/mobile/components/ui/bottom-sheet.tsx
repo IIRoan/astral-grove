@@ -43,6 +43,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Uniwind } from 'uniwind';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { centeredSheetMargins } from '@/lib/responsive-layout';
 import { SHEET_REDUCED, SHEET_SPRING } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { Button, ButtonIcon } from './button';
@@ -109,6 +110,9 @@ type BottomSheetContextValue = {
   setCurrentSnapIndex: (index: number) => void;
   keyboardVisible: boolean;
 };
+
+/** Extra bottom padding for scroll bodies: home-indicator inset when no footer owns it. */
+const SheetScrollSafeBottomContext = createContext(0);
 
 type BottomSheetRootProps = {
   open?: boolean;
@@ -605,8 +609,13 @@ export const BottomSheetContent = ({
   const reduceMotion = useReduceMotion();
   const animationConfigs = reduceMotion ? SHEET_REDUCED : SHEET_SPRING;
 
-  const { top, bottom } = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { top, bottom, left, right } = useSafeAreaInsets();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  // Center + cap width on iPad / wide web; always clear landscape side insets.
+  const sheetSideMargins = useMemo(
+    () => centeredSheetMargins(windowWidth, { left, right }),
+    [windowWidth, left, right]
+  );
 
   const topInset = top + SHEET_TOP_GAP;
   const maxDynamicContentSize = windowHeight - topInset;
@@ -675,7 +684,8 @@ export const BottomSheetContent = ({
   );
 
   useEffect(() => {
-    if (!(open && enablePanDownToClose)) {
+    // BackHandler is Android-only; react-native-web logs an error when it is used.
+    if (!(open && enablePanDownToClose) || Platform.OS === 'web') {
       return;
     }
 
@@ -780,9 +790,12 @@ export const BottomSheetContent = ({
       activeOffsetY={activeOffsetY}
       ref={bottomSheetRef}
       snapPoints={normalizedSnapPoints}
+      style={sheetSideMargins}
       topInset={topInset}
     >
-      {sheetContent}
+      <SheetScrollSafeBottomContext.Provider value={footer ? 0 : bottom}>
+        {sheetContent}
+      </SheetScrollSafeBottomContext.Provider>
     </GorhomBottomSheet>
   );
 };
@@ -797,21 +810,25 @@ export const BottomSheetScrollView = ({
 }: BottomSheetScrollViewProps & {
   contentContainerClassName?: string;
   headerInset?: number;
-}) => (
-  <SheetScrollView
-    className={cn('min-h-0 flex-1', className)}
-    contentContainerStyle={
-      StyleSheet.flatten([
-        { paddingHorizontal: 16, paddingBottom: 16 },
-        headerInset > 0 ? { paddingTop: headerInset } : null,
-        contentContainerStyle,
-      ]) as BottomSheetScrollViewProps['contentContainerStyle']
-    }
-    enableFooterMarginAdjustment
-    style={StyleSheet.flatten(style) as BottomSheetScrollViewProps['style']}
-    {...props}
-  />
-);
+}) => {
+  const safeBottom = useContext(SheetScrollSafeBottomContext);
+
+  return (
+    <SheetScrollView
+      className={cn('min-h-0 flex-1', className)}
+      contentContainerStyle={
+        StyleSheet.flatten([
+          { paddingHorizontal: 16, paddingBottom: 16 + safeBottom },
+          headerInset > 0 ? { paddingTop: headerInset } : null,
+          contentContainerStyle,
+        ]) as BottomSheetScrollViewProps['contentContainerStyle']
+      }
+      enableFooterMarginAdjustment
+      style={StyleSheet.flatten(style) as BottomSheetScrollViewProps['style']}
+      {...props}
+    />
+  );
+};
 
 BottomSheetScrollView.displayName = 'BottomSheetScrollView';
 
@@ -849,7 +866,7 @@ export const BottomSheetTitle = ({
   ...props
 }: React.ComponentProps<typeof Text>) => (
   <Text
-    className={cn('font-semibold text-foreground text-xl leading-none', className)}
+    className={cn('font-semibold text-foreground text-xl leading-tight', className)}
     {...props}
   />
 );

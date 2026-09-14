@@ -29,6 +29,7 @@ import { deckSectionProgress } from '@/lib/deck-display';
 import type { DeckListLayout } from '@/lib/deck-list';
 import { deckListStatus } from '@/lib/deck-list-status';
 import { computeDeckStats } from '@/lib/deck-stats';
+import { deckRowLayout } from '@/lib/responsive-layout';
 import type { DeckState } from '@/lib/deck-types';
 import { legendFullCardHeight } from '@/lib/legend-list-art';
 import { hapticPress } from '@/utils/haptics';
@@ -118,10 +119,13 @@ function DeckListCardInner({
   layout = 'list',
   motionIndex = 0,
 }: DeckListCardProps) {
-  const compact = useMobileLayout();
+  const isMobile = useMobileLayout();
   const grid = layout === 'grid';
+  const [cardWidth, setCardWidth] = useState(0);
+  const rowLayout = deckRowLayout(isMobile || grid ? 0 : cardWidth, LEGEND_RAIL_WIDE);
+  const compact = isMobile || rowLayout.stacked;
   const readOnly = deck.readOnly === true;
-  const railWidth = compact ? LEGEND_RAIL_NARROW : LEGEND_RAIL_WIDE;
+  const railWidth = compact ? LEGEND_RAIL_NARROW : rowLayout.railWidth;
   const railHeight = compact
     ? legendFullCardHeight(railWidth)
     : LEGEND_RAIL_MIN_HEIGHT_WIDE;
@@ -282,10 +286,7 @@ function DeckListCardInner({
           ))}
         </View>
       ) : (
-        <Text
-          className="text-[12px] leading-4 text-muted-foreground"
-          numberOfLines={1}
-        >
+        <Text className="text-[12px] leading-4 text-muted-foreground" numberOfLines={1}>
           {displayDeck.legend ? 'No domain identity' : 'No legend selected'}
         </Text>
       )}
@@ -299,7 +300,10 @@ function DeckListCardInner({
   );
 
   const timestamps =
-    grid || compact || !(editedLabel || createdLabel) ? null : (
+    grid ||
+    compact ||
+    !rowLayout.showSecondary ||
+    !(editedLabel || createdLabel) ? null : (
       <View className="min-w-[11rem] flex-1 gap-3.5">
         {editedLabel ? (
           <View className="gap-1">
@@ -325,26 +329,26 @@ function DeckListCardInner({
     );
 
   const readout = compact ? (
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityLabel={`${status.title}. ${status.caption}`}
-        onPress={openDeck}
-        className="w-full"
-        contentClassName="flex-row items-center gap-1.5"
-        depth={0.985}
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={`${status.title}. ${status.caption}`}
+      onPress={openDeck}
+      className="w-full"
+      contentClassName="flex-row items-center gap-1.5"
+      depth={0.985}
+    >
+      <StatusMark tone={status.tone} />
+      <Text
+        className={cn(
+          'min-w-0 flex-1 text-[13px] font-semibold leading-4',
+          status.tone === 'illegal' ? 'text-destructive' : 'text-foreground'
+        )}
+        numberOfLines={1}
       >
-        <StatusMark tone={status.tone} />
-        <Text
-          className={cn(
-            'min-w-0 flex-1 text-[13px] font-semibold leading-4',
-            status.tone === 'illegal' ? 'text-destructive' : 'text-foreground'
-          )}
-          numberOfLines={1}
-        >
-          {status.title}
-        </Text>
-      </PressableScale>
-    ) : (
+        {status.title}
+      </Text>
+    </PressableScale>
+  ) : (
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`${status.title}. ${status.caption}`}
@@ -371,7 +375,7 @@ function DeckListCardInner({
       </View>
       {stats.cardCount > 0 ? <DeckListEnergyCurve buckets={stats.energy} /> : null}
     </PressableScale>
-    );
+  );
 
   const actions = (
     <View
@@ -444,7 +448,14 @@ function DeckListCardInner({
 
   return (
     <DeckListItemMotion index={motionIndex}>
-      <View className="overflow-hidden rounded-[10px] border border-border bg-card">
+      <View
+        className="overflow-hidden rounded-[10px] border border-border bg-card"
+        onLayout={(event) => {
+          const nextWidth = Math.round(event.nativeEvent.layout.width);
+          if (nextWidth > 0)
+            setCardWidth((current) => (current === nextWidth ? current : nextWidth));
+        }}
+      >
         {grid ? (
           <>
             {gridArt}
@@ -460,7 +471,9 @@ function DeckListCardInner({
             <View
               className={cn(
                 'min-w-0 flex-1 gap-2.5 p-3',
-                compact ? undefined : 'flex-row items-stretch justify-between gap-6 p-3.5'
+                compact
+                  ? undefined
+                  : 'flex-row items-stretch justify-between gap-6 p-3.5'
               )}
             >
               {identity}

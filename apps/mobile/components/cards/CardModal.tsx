@@ -436,9 +436,14 @@ function ModalInfoPanel({
 function getShellHeight(
   windowWidth: number,
   windowHeight: number,
-  isWide: boolean
+  isWide: boolean,
+  verticalInsets: number
 ): number {
-  const maxHeight = windowHeight - (isWide ? OVERLAY_PAD_Y_WIDE : OVERLAY_PAD_Y_NARROW);
+  // Must match CardModalOverlay contentMaxHeight (safe-area insets + overlay padding).
+  const maxHeight =
+    windowHeight -
+    verticalInsets -
+    (isWide ? OVERLAY_PAD_Y_WIDE : OVERLAY_PAD_Y_NARROW);
   if (isWide) {
     const cardHeight =
       Math.round(CARD_WIDTH_DESKTOP * CARD_ASPECT) + CARD_IMAGE_PAD * 2;
@@ -475,8 +480,14 @@ function getCardColumnWidth(isWide: boolean, shellWidth: number): number {
 export function CardModal(props: Props) {
   const { activeVariant, shellWidth } = props;
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isWide = windowWidth >= MODAL_BREAKPOINT;
-  const shellHeight = getShellHeight(windowWidth, windowHeight, isWide);
+  const shellHeight = getShellHeight(
+    windowWidth,
+    windowHeight,
+    isWide,
+    insets.top + insets.bottom
+  );
   const cardColumnWidth = getCardColumnWidth(isWide, shellWidth);
   const narrowCard = getNarrowCardMetrics(shellWidth, shellHeight);
   const cardInnerWidth = isWide ? CARD_WIDTH_DESKTOP : narrowCard.cardInnerWidth;
@@ -608,9 +619,15 @@ export function CardModalOverlay({
 
 export function CardModalLoading({ onClose }: { onClose: () => void }) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isWide = windowWidth >= MODAL_BREAKPOINT;
   const shellWidth = getModalShellWidth(windowWidth);
-  const shellHeight = getShellHeight(windowWidth, windowHeight, isWide);
+  const shellHeight = getShellHeight(
+    windowWidth,
+    windowHeight,
+    isWide,
+    insets.top + insets.bottom
+  );
 
   return (
     <CardModalOverlay onClose={onClose}>

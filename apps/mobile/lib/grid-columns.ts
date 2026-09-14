@@ -1,6 +1,9 @@
 /** Floor so dense grids stay readable and tappable (px). */
 export const GRID_TILE_MIN_WIDTH = 96;
 
+/** Dense floor for Small cards — allows 4-up on large phones (~87pt tiles). */
+export const GRID_TILE_MIN_WIDTH_DENSE = 84;
+
 /** Historical compact max tile width (px) for callers that omit a size preset. */
 export const GRID_TILE_MAX_WIDTH = 148;
 
@@ -10,7 +13,15 @@ export type GridCardSize = 'large' | 'medium' | 'small';
 export const GRID_CARD_SIZE_MAX_WIDTH: Record<GridCardSize, number> = {
   large: 220,
   medium: 180,
-  small: GRID_TILE_MAX_WIDTH,
+  // Caps so ~396–398pt catalog columns (iPhone 13/14/15 Pro Max) pack 4-up.
+  small: 112,
+};
+
+/** Min tile width per size — Small may go denser than Large/Medium. */
+export const GRID_CARD_SIZE_MIN_WIDTH: Record<GridCardSize, number> = {
+  large: GRID_TILE_MIN_WIDTH,
+  medium: GRID_TILE_MIN_WIDTH,
+  small: GRID_TILE_MIN_WIDTH_DENSE,
 };
 
 export const DEFAULT_GRID_CARD_SIZE: GridCardSize = 'large';
@@ -22,7 +33,7 @@ export const GRID_CARD_SIZE_OPTIONS: readonly {
 }[] = [
   { value: 'large', label: 'Large', description: 'Fewer cards per row' },
   { value: 'medium', label: 'Medium', description: 'Balanced density' },
-  { value: 'small', label: 'Small', description: 'More cards per row' },
+  { value: 'small', label: 'Small', description: 'Four cards per row on large phones' },
 ] as const;
 
 const MIN_GRID_COLUMNS = 2;
@@ -36,6 +47,12 @@ export function resolveGridTileMaxWidth(
   size: GridCardSize = DEFAULT_GRID_CARD_SIZE
 ): number {
   return GRID_CARD_SIZE_MAX_WIDTH[size];
+}
+
+export function resolveGridTileMinWidth(
+  size: GridCardSize = DEFAULT_GRID_CARD_SIZE
+): number {
+  return GRID_CARD_SIZE_MIN_WIDTH[size];
 }
 
 /** Pack columns with ceil so tile width stays ≤ maxTileWidth instead of stretching past it. */

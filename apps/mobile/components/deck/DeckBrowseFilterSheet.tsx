@@ -98,9 +98,11 @@ export function DeckBrowseFilterSheet({
 export function DeckBrowseFilterTrigger({
   filters,
   onPress,
+  iconOnly = false,
 }: {
   filters: DeckBrowseFilters;
   onPress: () => void;
+  iconOnly?: boolean;
 }) {
   const activeCount = countDeckBrowseFilters(filters);
   const active = activeCount > 0;
@@ -109,13 +111,15 @@ export function DeckBrowseFilterTrigger({
     <CatalogToolbarButton
       icon={SlidersHorizontalIcon}
       onPress={onPress}
-      accessibilityLabel="Open filters"
+      accessibilityLabel={
+        active ? `Open filters, ${activeCount} active` : 'Open filters'
+      }
       active={active}
       mobile
-      label="Filters"
+      label={iconOnly ? undefined : 'Filters'}
       badge={
         active ? (
-          activeCount === 1 ? (
+          iconOnly || activeCount === 1 ? (
             <CatalogToolbarBadgeDot />
           ) : (
             <View className="size-5 items-center justify-center rounded-[3px] border border-border bg-card-panel">

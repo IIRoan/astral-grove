@@ -1,15 +1,17 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import {
-  ScrollView,
   View,
   useWindowDimensions,
   type LayoutChangeEvent,
   type ScrollViewProps,
   type ViewProps,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
 import { ListTopSpacer } from '@/components/ui/list-top-spacer';
 import { Layout } from '@/constants/Layout';
+import { screenGutterFor } from '@/lib/responsive-layout';
 import {
   CATALOG_DETAIL_GAP,
   SIDE_RAIL_WIDTH,
@@ -31,15 +33,27 @@ const ScreenLayoutContext = createContext<ScreenLayoutContextValue | null>(null)
 
 const SplitMainContext = createContext<number | null>(null);
 
+/** Screen gutters in px — one source for padding and pre-measure width estimates. */
+function useScreenGutters(showRail: boolean) {
+  const { width } = useWindowDimensions();
+  const { left, right } = useSafeAreaInsets();
+  return useMemo(() => {
+    const gutter = screenGutterFor(width, showRail);
+    return {
+      paddingLeft: gutter + (showRail ? 0 : left),
+      paddingRight: gutter + right,
+    };
+  }, [width, showRail, left, right]);
+}
+
 function useEstimatedContentWidth(showRail: boolean) {
   const { width } = useWindowDimensions();
+  const { paddingLeft, paddingRight } = useScreenGutters(showRail);
   return useMemo(() => {
-    const pad = showRail
-      ? Layout.screenPaddingHorizontalRail * 2
-      : Layout.screenPaddingHorizontal * 2;
     const rail = showRail ? SIDE_RAIL_WIDTH : 0;
-    return Math.max(320, width - rail - pad);
-  }, [width, showRail]);
+    // No artificial floor: a 320pt phone or Slide Over column must not be sized wider than itself.
+    return Math.max(0, width - rail - paddingLeft - paddingRight);
+  }, [width, showRail, paddingLeft, paddingRight]);
 }
 
 function useMeasureContentWidth() {
@@ -100,6 +114,7 @@ export function ScreenLayout({
   const { paddingTop, paddingBottom, paddingBottomCompact, showRail } =
     useScreenInsets();
   const { contentWidth, measuredWidth, onContentLayout } = useMeasureContentWidth();
+  const gutters = useScreenGutters(showRail);
 
   const contextValue = useMemo(
     () => ({
@@ -136,13 +151,7 @@ export function ScreenLayout({
 
   if (mode === 'flex') {
     return (
-      <View
-        className={cn(
-          'flex-1 bg-background',
-          showRail ? 'px-4' : 'px-4 sm:px-6',
-          className
-        )}
-      >
+      <View className={cn('flex-1 bg-background', className)} style={gutters}>
         <ListTopSpacer height={paddingTop} />
         <View className="min-h-0 w-full flex-1">{inner}</View>
       </View>
@@ -150,17 +159,19 @@ export function ScreenLayout({
   }
 
   return (
-    <ScrollView
+    // Keyboard-aware so focused fields (settings credentials, invites) scroll above the keyboard.
+    <KeyboardAwareScrollView
       className={cn('flex-1 bg-background', className)}
-      contentContainerClassName={showRail ? 'px-4' : 'px-4 sm:px-6'}
-      contentContainerStyle={{ width: '100%' }}
+      contentContainerStyle={[{ width: '100%' }, gutters]}
+      keyboardShouldPersistTaps="handled"
+      bottomOffset={Layout.tabBarHeight}
       showsVerticalScrollIndicator={false}
       {...scrollProps}
     >
       <ListTopSpacer height={paddingTop} />
       {inner}
       <ListBottomSpacer height={paddingBottom} />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

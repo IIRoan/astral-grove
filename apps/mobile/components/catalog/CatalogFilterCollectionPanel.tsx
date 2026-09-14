@@ -12,7 +12,7 @@ export function CatalogFilterCollectionPanel({
       <FilterToggleRow
         label="All cards"
         subtitle="No collection filter"
-        active={filters.collection === 'all'}
+        active={filters.collection === 'all' || filters.collection === 'missing'}
         onPress={() => onUpdate({ collection: 'all' })}
         compact={compact}
       />
@@ -23,17 +23,6 @@ export function CatalogFilterCollectionPanel({
         onPress={() =>
           onUpdate({
             collection: filters.collection === 'owned' ? 'all' : 'owned',
-          })
-        }
-        compact={compact}
-      />
-      <FilterToggleRow
-        label="Missing"
-        subtitle="Cards you do not own yet"
-        active={filters.collection === 'missing'}
-        onPress={() =>
-          onUpdate({
-            collection: filters.collection === 'missing' ? 'all' : 'missing',
           })
         }
         compact={compact}

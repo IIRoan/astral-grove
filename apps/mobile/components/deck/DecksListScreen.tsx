@@ -8,6 +8,7 @@ import { DeckImportExportSheet } from '@/components/deck/DeckImportExportSheet';
 import { DeckImportLoadingOverlay } from '@/components/deck/DeckImportLoadingOverlay';
 import { DeckListCard } from '@/components/deck/DeckListCard';
 import { DecksListHeader } from '@/components/deck/DecksListHeader';
+import { useMobileLayout } from '@/hooks/useBreakpoint';
 import { DecksListOwnedToolbar } from '@/components/deck/DecksListOwnedToolbar';
 import { DecksSubNav } from '@/components/deck/DecksSubNav';
 import {
@@ -61,7 +62,10 @@ interface DecksListScreenProps {
   showCreate?: boolean;
   showImport?: boolean;
   showSubNav?: boolean;
-  browseToolbar?: ReactNode;
+  /** Browse: sort + filter controls beside search. */
+  browseSearchActions?: ReactNode;
+  /** Browse: active filter chips / desktop filter bar under the search row. */
+  browseBelow?: ReactNode;
   infiniteScroll?: DeckInfiniteScroll;
   variant?: 'default' | 'browse';
 }
@@ -78,11 +82,13 @@ export function DecksListScreen({
   showCreate = false,
   showImport = false,
   showSubNav = true,
-  browseToolbar,
+  browseSearchActions,
+  browseBelow,
   infiniteScroll,
   variant = 'default',
 }: DecksListScreenProps) {
   const router = useRouter();
+  const isMobile = useMobileLayout();
   const { removeDeck, importDeck, saveDeckNow, createNewDeck, duplicateOwnedDeck } =
     useDeckMutations();
   const collectionQuery = useCollection();
@@ -224,6 +230,45 @@ export function DecksListScreen({
     ]
   );
 
+  // Phones: infinite (browse) lists scroll the header away so decks get the full height.
+  const headerInList = isMobile && Boolean(infiniteScroll);
+  const header = (
+    <DecksListHeader
+      title={title}
+      deckCountLabel={deckCountLabel}
+      query={query}
+      searchPlaceholder={searchPlaceholder}
+      onQueryChange={onQueryChange}
+      showCreate={showCreate}
+      showImport={showImport}
+      onImportPress={() => {
+        hapticPress();
+        setImportOpen(true);
+      }}
+      onCreateDeck={handleCreateDeck}
+      renderNav={
+        showSubNav ? ({ iconOnly }) => <DecksSubNav iconOnly={iconOnly} /> : undefined
+      }
+      searchActions={
+        owned ? (
+          <DecksListOwnedToolbar
+            formatFilter={formatFilter}
+            onFormatFilterChange={setFormatFilter}
+            formatCounts={formatCounts}
+            sort={sort}
+            onSortChange={setSort}
+            layout={layout}
+            onLayoutChange={setLayout}
+          />
+        ) : (
+          browseSearchActions
+        )
+      }
+      below={owned ? null : browseBelow}
+      shrinkHeader={Boolean(infiniteScroll) && !headerInList}
+    />
+  );
+
   return (
     <View className="relative min-h-0 flex-1">
       <ScreenLayout
@@ -241,36 +286,7 @@ export function DecksListScreen({
         <ScreenLayoutBody
           className={infiniteScroll ? 'min-h-0 flex-1 flex-col' : undefined}
         >
-          <DecksListHeader
-            title={title}
-            deckCountLabel={deckCountLabel}
-            query={query}
-            searchPlaceholder={searchPlaceholder}
-            onQueryChange={onQueryChange}
-            showCreate={showCreate}
-            showImport={showImport}
-            onImportPress={() => {
-              hapticPress();
-              setImportOpen(true);
-            }}
-            onCreateDeck={handleCreateDeck}
-            nav={showSubNav ? <DecksSubNav /> : null}
-            ownedToolbar={
-              owned ? (
-                <DecksListOwnedToolbar
-                  formatFilter={formatFilter}
-                  onFormatFilterChange={setFormatFilter}
-                  formatCounts={formatCounts}
-                  sort={sort}
-                  onSortChange={setSort}
-                  layout={layout}
-                  onLayoutChange={setLayout}
-                />
-              ) : null
-            }
-            browseToolbar={browseToolbar}
-            shrinkHeader={Boolean(infiniteScroll)}
-          />
+          {headerInList ? null : header}
 
           <DecksPaneTransition
             pane={owned ? 'mine' : 'browse'}
@@ -280,7 +296,8 @@ export function DecksListScreen({
               transitionKey={
                 owned
                   ? `${formatFilter}:${sort}:${layout}:${query}`
-                  : `${query}:${browseToolbar ? 'browse' : 'list'}`
+                  : // The in-list header holds the search box — don't fade it on every keystroke.
+                    `${headerInList ? '' : query}:browse`
               }
               fill={Boolean(infiniteScroll)}
             >
@@ -315,6 +332,7 @@ export function DecksListScreen({
                 }}
                 listFooter={listFooter}
                 renderDeckItem={renderDeckItem}
+                listHeader={headerInList ? header : undefined}
               />
             </CatalogResultsTransition>
           </DecksPaneTransition>

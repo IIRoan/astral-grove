@@ -55,10 +55,8 @@ export function SortSheet({
           <BottomSheetHeader>
             <BottomSheetTitle>Sort</BottomSheetTitle>
           </BottomSheetHeader>
-          <BottomSheetScrollView
-            contentContainerClassName="px-4 pb-8"
-            showsVerticalScrollIndicator={false}
-          >
+          {/* BottomSheetScrollView owns horizontal + home-indicator bottom padding. */}
+          <BottomSheetScrollView showsVerticalScrollIndicator={false}>
             {CATALOG_SORT_OPTIONS.map((option) => {
               const active = sortOptionKey(activeSort) === sortOptionKey(option);
               return (
@@ -91,16 +89,20 @@ export function SortTrigger({
   onPress,
   compact = false,
   mobile = false,
+  iconOnly = false,
 }: {
   activeSort: CatalogSort;
   onPress: () => void;
   compact?: boolean;
   mobile?: boolean;
+  /** Desktop icon-only (narrow toolbar); mobile is always icon-only. */
+  iconOnly?: boolean;
 }) {
   const option = findSortOption(activeSort);
   const active = !isDefaultCatalogSort(activeSort);
-  // Mobile: icon-only (sort choice lives in the sheet). Desktop keeps the label.
-  const label = mobile ? undefined : compact ? option.shortLabel : option.label;
+  const hideLabel = mobile || iconOnly;
+  // Mobile: icon-only (sort choice lives in the sheet). Desktop keeps the label unless narrow.
+  const label = hideLabel ? undefined : compact ? option.shortLabel : option.label;
 
   return (
     <CatalogToolbarButton
@@ -110,7 +112,8 @@ export function SortTrigger({
       active={active}
       label={label}
       mobile={mobile}
-      badge={mobile && active ? <CatalogToolbarBadgeDot /> : undefined}
+      className={iconOnly && !mobile ? 'size-10' : undefined}
+      badge={hideLabel && active ? <CatalogToolbarBadgeDot /> : undefined}
     />
   );
 }

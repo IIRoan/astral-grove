@@ -126,7 +126,7 @@ export function MobileFilterSheet({
           <BottomSheetFooter className="border-border border-t bg-card-panel pt-3">
             <Button
               className={cn(
-                'h-10 w-full active:opacity-80',
+                'h-10 min-h-10 w-full active:opacity-80',
                 FACTORY_RADIUS_CONTROL_CLASS
               )}
               onPress={onClose}

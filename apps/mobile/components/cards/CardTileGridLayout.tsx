@@ -77,11 +77,11 @@ export function CardTileGridLayout({
 
       <View className="gap-1.5 border-t border-border bg-card-panel px-2 py-2">
         <Pressable onPress={onOpenCard} accessibilityRole="button">
-          {/* Fixed title + meta heights keep grid CTAs aligned across the row. */}
+          {/* Single-line title + meta (min heights) keep grid CTAs aligned across the row and grow with font scale. */}
           <Text className={CARD_TILE_TITLE_CLASS} numberOfLines={1}>
             {card.name}
           </Text>
-          <View className="mt-0.5 h-4 flex-row items-center gap-1">
+          <View className="mt-0.5 min-h-4 flex-row items-center gap-1">
             {showPrice ? (
               <Text className={CARD_TILE_PRICE_CLASS} numberOfLines={1}>
                 {priceLabel ?? '—'}

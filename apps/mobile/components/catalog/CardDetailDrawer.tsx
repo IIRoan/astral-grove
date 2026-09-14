@@ -37,6 +37,7 @@ import {
   shouldIgnoreSpuriousSheetDismiss,
 } from '@/lib/sheet-dismiss-guard';
 import { logDrawer, watchDrawerOpen } from '@/lib/drawer-debug';
+import { centeredSheetMargins } from '@/lib/responsive-layout';
 import { OVERLAY, SHEET_REDUCED, SHEET_SPRING } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
@@ -68,7 +69,7 @@ export function CardDetailDrawer({
   const isOpen = open ?? true;
   const reduceMotion = useReduceMotion();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { actualTheme } = useTheme();
   const isDark = actualTheme === 'dark';
   const dismissingRef = useRef(false);
@@ -103,6 +104,12 @@ export function CardDetailDrawer({
   );
   const paddingBottom = Math.max(insets.bottom, 16) + 32;
   const topInset = Math.max(insets.top, 12) + 16;
+  // Raw Gorhom (not components/ui/bottom-sheet): center + cap width on iPad / landscape,
+  // and clear horizontal safe-area insets (notch / rounded corners).
+  const sheetSideMargins = useMemo(
+    () => centeredSheetMargins(windowWidth, { left: insets.left, right: insets.right }),
+    [windowWidth, insets.left, insets.right]
+  );
   const sheetSurface = isDark ? 'bg-card-panel' : 'bg-card';
   const backdropOpacity = isDark ? OVERLAY.backdropCard : OVERLAY.backdropLight;
   const animationConfigs = reduceMotion ? SHEET_REDUCED : SHEET_SPRING;
@@ -224,7 +231,13 @@ export function CardDetailDrawer({
       ...liveDebug(),
     });
     onDismissedRef.current?.();
-  }, [commitDismiss, liveDebug, onDismissed, onDismissedRef, restoreAfterSpuriousClose]);
+  }, [
+    commitDismiss,
+    liveDebug,
+    onDismissed,
+    onDismissedRef,
+    restoreAfterSpuriousClose,
+  ]);
 
   const renderBackground = useCallback(
     (props: BottomSheetBackgroundProps) => (
@@ -290,6 +303,7 @@ export function CardDetailDrawer({
         index={isControlled ? (isOpen ? 0 : -1) : 0}
         snapPoints={snapPoints}
         topInset={topInset}
+        style={sheetSideMargins}
         animatedIndex={animatedIndex}
         enablePanDownToClose
         enableOverDrag={!reduceMotion}

@@ -1,5 +1,5 @@
 import { ChevronDownIcon, ChevronUpIcon, ThemedIcon } from '@/components/icons';
-import { Pressable, View } from 'react-native';
+import { Pressable, View, useWindowDimensions } from 'react-native';
 import {
   Popover,
   PopoverContent,
@@ -12,6 +12,9 @@ import { deckValidationHeadline } from '@/components/deck/deckValidationMenu.uti
 import type { DeckValidationMessage } from '@/lib/deck-types';
 import { cn } from '@/lib/utils';
 import { hapticPress } from '@/utils/haptics';
+
+const POPOVER_MAX_WIDTH = 304;
+const POPOVER_GUTTER = 16;
 
 function messageTone(type: DeckValidationMessage['type']) {
   if (type === 'error') {
@@ -71,11 +74,15 @@ export function DeckValidationMenu({
   align = 'end',
   className,
 }: DeckValidationMenuProps) {
+  const { width: windowWidth } = useWindowDimensions();
   if (messages.length === 0) return null;
 
   const headline = deckValidationHeadline(messages);
   const tone = triggerTone(headline.status);
   const popoverAlign = align === 'start' ? 'start' : 'end';
+  // 19rem, never wider than the window minus a 1rem gutter each side (numeric: calc/min
+  // arbitrary classes do not resolve on native).
+  const popoverWidth = Math.min(POPOVER_MAX_WIDTH, windowWidth - POPOVER_GUTTER * 2);
 
   return (
     <View className={cn('relative shrink-0', className)}>
@@ -132,11 +139,8 @@ export function DeckValidationMenu({
             side="bottom"
             align={popoverAlign}
             sideOffset={6}
-            width={align === 'stretch' ? 'trigger' : 'fit'}
-            className={cn(
-              'z-50 overflow-hidden rounded-[10px] border border-border bg-popover p-0 shadow-none',
-              align !== 'stretch' && 'w-[min(19rem,calc(100vw-2rem))]'
-            )}
+            width={align === 'stretch' ? 'trigger' : popoverWidth}
+            className="z-50 overflow-hidden rounded-[10px] border border-border bg-popover p-0 shadow-none"
           >
             <View className="border-b border-border px-3 py-2.5">
               <Text className="text-[13px] font-normal text-foreground">
@@ -162,7 +166,10 @@ export function DeckValidationMenu({
                       className={cn('mt-1.5 size-1.5 shrink-0 rounded-[3px]', row.dot)}
                     />
                     <Text
-                      className={cn('min-w-0 flex-1 text-[13px] leading-snug', row.text)}
+                      className={cn(
+                        'min-w-0 flex-1 text-[13px] leading-snug',
+                        row.text
+                      )}
                     >
                       {message.message}
                     </Text>

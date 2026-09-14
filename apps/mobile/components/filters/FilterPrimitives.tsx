@@ -136,8 +136,12 @@ export type FilterPopoverBarItem<T extends string> = {
   hasValue: boolean;
   children: ReactNode;
   contentClassName?: string;
+  /** Popover width in px — PopoverContent's `width` style wins over `w-*` classes. */
+  width?: number;
   maxHeight?: number;
 };
+
+const DEFAULT_POPOVER_WIDTH = 280;
 
 function FilterPopoverTrigger({
   label,
@@ -213,13 +217,17 @@ export function FilterPopoverBar<T extends string>({
   const triggerRefs = useRef<Partial<Record<T, View | null>>>({});
   const contentRef = useRef<ScrollViewType | null>(null);
   const [triggerPosition, setTriggerPosition] = useState<TriggerPosition>();
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const viewportMaxHeight = Math.max(
     160,
     windowHeight - insets.top - insets.bottom - 96
   );
   const activeSegment = segments.find((segment) => segment.id === openId);
+  const popoverWidth = Math.min(
+    activeSegment?.width ?? DEFAULT_POPOVER_WIDTH,
+    windowWidth - 16
+  );
 
   const handleTriggerPress = useCallback(
     (id: T) => {
@@ -314,7 +322,7 @@ export function FilterPopoverBar<T extends string>({
               )}
               side="bottom"
               align="start"
-              width={280}
+              width={popoverWidth}
               style={{ maxHeight: effectiveMaxHeight }}
             >
               <ScrollView

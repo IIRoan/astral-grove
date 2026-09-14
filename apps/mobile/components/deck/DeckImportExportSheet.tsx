@@ -5,12 +5,12 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   AppSheet,
-  AppSheetBody,
   AppSheetContent,
   AppSheetFooter,
   AppSheetHeader,
   AppSheetOverlay,
   AppSheetPortal,
+  AppSheetScrollView,
   AppSheetTitle,
 } from '@/components/ui/app-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
@@ -141,11 +141,18 @@ export function DeckImportExportSheet({
       >
         <AppSheetPortal name="deck-import">
           <AppSheetOverlay />
-          <AppSheetContent>
+          {/* Fixed snap height (like Versions / Filters): a scroll body inside a content-sized
+              native sheet measures as empty. Dialog mode ignores snap points. */}
+          <AppSheetContent snapPoints={['90%']}>
             <AppSheetHeader>
               <AppSheetTitle>Import deck</AppSheetTitle>
             </AppSheetHeader>
-            <AppSheetBody className="gap-5 pb-2">
+            {/* Scrolls on short phones, with the keyboard up, and in the capped desktop dialog. */}
+            <AppSheetScrollView
+              contentContainerStyle={{ gap: 20 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <Text className="text-sm leading-snug text-muted-foreground">
                 {asNewDeck
                   ? 'Paste a deck list or code to create a new deck in your collection.'
@@ -203,7 +210,7 @@ export function DeckImportExportSheet({
                 </Text>
                 .
               </Text>
-            </AppSheetBody>
+            </AppSheetScrollView>
             <AppSheetFooter>
               <View className="w-full flex-row items-center gap-2">
                 <Button

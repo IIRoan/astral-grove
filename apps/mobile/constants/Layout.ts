@@ -11,6 +11,8 @@ export const Layout = {
   tabBarBottomMargin: 12,
   /** Horizontal inset for the floating tab bar pill. */
   tabBarHorizontalInset: 16,
+  /** Tighter pill inset below 360pt so six tab labels still fit (iPhone SE 1st gen, Slide Over). */
+  tabBarHorizontalInsetCompact: 8,
   tabBarMaxWidth: 400,
   /** Minimum touch target per HIG / Material (px). */
   minTouchTarget: 44,

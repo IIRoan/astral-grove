@@ -89,7 +89,13 @@ export function UpdateChannelSection() {
           <Text className="text-[10px] font-normal uppercase tracking-[1.4px] text-muted-foreground">
             Active
           </Text>
-          <Text className="font-mono text-2xl font-normal tabular-nums leading-none text-foreground">
+          {/* Half-width column: "DEVELOPMENT" must not break mid-word on 320–375pt phones. */}
+          <Text
+            className="font-mono text-xl font-normal tabular-nums leading-none text-foreground sm:text-2xl"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+          >
             {formatChannelLabel(Updates.channel)}
           </Text>
         </View>

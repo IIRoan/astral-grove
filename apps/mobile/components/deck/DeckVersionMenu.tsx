@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import {
   ThemedIcon,
   CheckIcon,
@@ -11,16 +11,6 @@ import {
 } from '@/components/icons';
 import { DeckVersionNameSheet } from '@/components/deck/DeckVersionNameSheet';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import {
-  AppSheet,
-  AppSheetContent,
-  AppSheetFooter,
-  AppSheetHeader,
-  AppSheetOverlay,
-  AppSheetPortal,
-  AppSheetScrollView,
-  AppSheetTitle,
-} from '@/components/ui/app-sheet';
 import { Button, ButtonText } from '@/components/ui/button';
 import {
   Popover,
@@ -30,7 +20,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Text } from '@/components/ui/text';
-import { useMobileLayout } from '@/hooks/useBreakpoint';
 import { useDeckSaveStatus } from '@/hooks/useDeckSaveStatus';
 import { useDeckVersions } from '@/hooks/useDeckVersions';
 import { formatVersionUpdatedAt } from '@/lib/deck-version';
@@ -43,13 +32,16 @@ import { hapticPress } from '@/utils/haptics';
 const TOOLBAR_CHIP =
   'h-9 min-w-0 flex-row items-center gap-1 rounded-[3px] border border-border bg-card px-2 active:bg-card-panel';
 
+const POPOVER_MAX_WIDTH = 296;
+const POPOVER_GUTTER = 16;
+
 interface DeckVersionMenuProps {
   deck: DeckState;
   fill?: boolean;
 }
 
 export function DeckVersionMenu({ deck, fill = false }: DeckVersionMenuProps) {
-  const isMobile = useMobileLayout();
+  const { width: windowWidth } = useWindowDimensions();
   const saveStatus = useDeckSaveStatus(deck.id, deck.versionId);
   const { createVersion, renameVersion, deleteVersion, activateVersion } =
     useDeckVersions();
@@ -75,12 +67,13 @@ export function DeckVersionMenu({ deck, fill = false }: DeckVersionMenuProps) {
           ]
         : [];
   const canDelete = versions.length > 1;
-  const versionLabel = deck.versionName ?? 'Current';
+  const versionLabel = deck.versionName?.trim() || 'Current';
   const busy =
     createVersion.isPending ||
     renameVersion.isPending ||
     deleteVersion.isPending ||
     activateVersion.isPending;
+  const popoverWidth = Math.min(POPOVER_MAX_WIDTH, windowWidth - POPOVER_GUTTER * 2);
 
   const closeMenu = useCallback(() => setOpen(false), []);
 
@@ -148,91 +141,64 @@ export function DeckVersionMenu({ deck, fill = false }: DeckVersionMenuProps) {
     [closeMenu]
   );
 
-  const trigger = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Deck version ${versionLabel}`}
-      accessibilityState={{ expanded: open }}
-      className={cn(
-        TOOLBAR_CHIP,
-        fill && 'max-w-full flex-1',
-        open && 'border-foreground'
-      )}
-      onPress={(event) => {
-        event.stopPropagation?.();
-        hapticPress();
-        if (isMobile) setOpen((current) => !current);
-      }}
-    >
-      <Text
-        className="min-w-0 flex-1 text-[13px] font-medium text-foreground"
-        numberOfLines={1}
-      >
-        {versionLabel}
-      </Text>
-      <ThemedIcon icon={ChevronDownIcon} size={14} color="muted-foreground" />
-    </Pressable>
-  );
-
-  const list = (
-    <DeckVersionList
-      deck={deck}
-      versions={versions}
-      canDelete={canDelete}
-      busy={busy}
-      onSwitch={(versionId) => void switchTo(versionId)}
-      onRename={openRename}
-      onDelete={openDelete}
-    />
-  );
-
-  const footer = (
-    <Button className="w-full" disabled={busy} onPress={openCreate}>
-      <ButtonText>New version</ButtonText>
-    </Button>
-  );
-
   return (
     <>
-      {isMobile ? (
-        <View className={cn('min-w-0', fill && 'flex-1')}>
-          {trigger}
-          <AppSheet open={open} onOpenChange={setOpen}>
-            <AppSheetPortal name="deck-versions">
-              <AppSheetOverlay />
-              <AppSheetContent snapPoints={['56%']}>
-                <AppSheetHeader>
-                  <AppSheetTitle>Versions</AppSheetTitle>
-                </AppSheetHeader>
-                <AppSheetScrollView>
-                  <DeckVersionSaveStatus status={saveStatus} onRetry={retrySave} />
-                  {list}
-                </AppSheetScrollView>
-                <AppSheetFooter>{footer}</AppSheetFooter>
-              </AppSheetContent>
-            </AppSheetPortal>
-          </AppSheet>
-        </View>
-      ) : (
-        <View className={cn('relative min-w-0', fill && 'flex-1')}>
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-            <PopoverPortal>
-              <PopoverOverlay className="bg-transparent" closeOnPress />
-              <PopoverContent
-                side="bottom"
-                align="start"
-                sideOffset={4}
-                className="z-50 w-[18.5rem] overflow-hidden rounded-[3px] border border-border bg-popover p-1 shadow-none"
+      <View className={cn('relative min-w-0', fill && 'flex-1')}>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Deck version ${versionLabel}`}
+              accessibilityState={{ expanded: open }}
+              className={cn(
+                TOOLBAR_CHIP,
+                fill && 'max-w-full flex-1',
+                open && 'border-foreground'
+              )}
+              onPress={(event) => {
+                event.stopPropagation?.();
+                hapticPress();
+              }}
+            >
+              <Text
+                className="min-w-0 flex-1 text-[13px] font-medium text-foreground"
+                numberOfLines={1}
               >
-                <DeckVersionSaveStatus status={saveStatus} onRetry={retrySave} />
-                <ScrollView className="max-h-72">{list}</ScrollView>
-                <View className="border-t border-border p-1 pt-1.5">{footer}</View>
-              </PopoverContent>
-            </PopoverPortal>
-          </Popover>
-        </View>
-      )}
+                {versionLabel}
+              </Text>
+              <ThemedIcon icon={ChevronDownIcon} size={14} color="muted-foreground" />
+            </Pressable>
+          </PopoverTrigger>
+          <PopoverPortal>
+            <PopoverOverlay className="bg-transparent" closeOnPress />
+            <PopoverContent
+              side="bottom"
+              align="end"
+              sideOffset={4}
+              width={popoverWidth}
+              className="z-50 overflow-hidden rounded-[3px] border border-border bg-popover p-1 shadow-none"
+            >
+              <DeckVersionSaveStatus status={saveStatus} onRetry={retrySave} />
+              <ScrollView className="max-h-72">
+                <DeckVersionList
+                  deck={deck}
+                  versions={versions}
+                  canDelete={canDelete}
+                  busy={busy}
+                  onSwitch={(versionId) => void switchTo(versionId)}
+                  onRename={openRename}
+                  onDelete={openDelete}
+                />
+              </ScrollView>
+              <View className="border-t border-border p-1 pt-1.5">
+                <Button className="w-full" disabled={busy} onPress={openCreate}>
+                  <ButtonText>New version</ButtonText>
+                </Button>
+              </View>
+            </PopoverContent>
+          </PopoverPortal>
+        </Popover>
+      </View>
 
       <DeckVersionNameSheet
         open={nameMode != null}
@@ -343,6 +309,7 @@ function DeckVersionList({
     <View className="gap-0.5">
       {versions.map((version) => {
         const active = version.id === deck.versionId || version.isActive;
+        const name = version.name.trim() || 'Current';
         return (
           <View
             key={version.id}
@@ -353,7 +320,7 @@ function DeckVersionList({
           >
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Switch to ${version.name}`}
+              accessibilityLabel={`Switch to ${name}`}
               accessibilityState={{ selected: active, disabled: busy }}
               disabled={busy}
               className="min-w-0 flex-1 flex-row items-center gap-2"
@@ -368,8 +335,8 @@ function DeckVersionList({
                 ) : null}
               </View>
               <View className="min-w-0 flex-1">
-                <Text className="text-sm text-popover-foreground" numberOfLines={1}>
-                  {version.name}
+                <Text className="text-sm text-foreground" numberOfLines={1}>
+                  {name}
                 </Text>
                 <Text className="font-mono text-[11px] text-muted-foreground">
                   {formatVersionUpdatedAt(version.updatedAt)}
@@ -378,7 +345,7 @@ function DeckVersionList({
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Rename ${version.name}`}
+              accessibilityLabel={`Rename ${name}`}
               disabled={busy}
               className="size-8 items-center justify-center rounded-[3px] active:bg-card"
               onPress={() => {
@@ -391,7 +358,7 @@ function DeckVersionList({
             {canDelete ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Delete ${version.name}`}
+                accessibilityLabel={`Delete ${name}`}
                 disabled={busy}
                 className="size-8 items-center justify-center rounded-[3px] active:bg-destructive/10"
                 onPress={() => {

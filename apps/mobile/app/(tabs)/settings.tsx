@@ -14,6 +14,7 @@ import { Text } from '@/components/ui/text';
 import { useShowSideRail } from '@/hooks/useBreakpoint';
 import { useEmailVerificationRequired } from '@/hooks/useEmailVerificationRequired';
 import { authClient } from '@/src/lib/auth-client';
+import { FORM_COLUMN_CLASS } from '@/lib/responsive-layout';
 import { cn } from '@/lib/utils';
 
 function SettingsSection({
@@ -90,7 +91,7 @@ export default function SettingsScreen() {
   const showEmailVerification = signedIn && verificationRequired && !emailVerified;
 
   return (
-    <ScreenLayout>
+    <ScreenLayout contentClassName={FORM_COLUMN_CLASS}>
       <ScreenHeader title="Settings" />
 
       <View className="mt-6 gap-8">

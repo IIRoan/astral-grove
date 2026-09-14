@@ -8,6 +8,7 @@ import {
   GRID_TILE_MIN_WIDTH,
   computeMaxCappedGridColumns,
   resolveGridTileMaxWidth,
+  resolveGridTileMinWidth,
   type GridCardSize,
 } from '@/lib/grid-columns';
 
@@ -16,6 +17,7 @@ export {
   GRID_TILE_MIN_WIDTH,
   computeMaxCappedGridColumns,
   resolveGridTileMaxWidth,
+  resolveGridTileMinWidth,
   type GridCardSize,
 } from '@/lib/grid-columns';
 
@@ -29,7 +31,8 @@ function computeGridLayout(
   contentWidth: number,
   fillAvailable = false,
   subtractScreenPadding = true,
-  maxTileWidth = GRID_TILE_MAX_WIDTH
+  maxTileWidth = GRID_TILE_MAX_WIDTH,
+  minTileWidth = GRID_TILE_MIN_WIDTH
 ) {
   const horizontalPad = subtractScreenPadding ? Layout.screenPaddingHorizontal * 2 : 0;
   const gap = Layout.gridGap;
@@ -52,7 +55,7 @@ function computeGridLayout(
   let tileWidth = (available - gap * (numColumns - 1)) / numColumns;
 
   if (fillAvailable) {
-    tileWidth = Math.max(GRID_TILE_MIN_WIDTH, tileWidth);
+    tileWidth = Math.max(minTileWidth, tileWidth);
     return { numColumns, tileWidth, gap };
   }
 
@@ -64,7 +67,7 @@ function computeGridLayout(
     tileWidth = (available - gap * (numColumns - 1)) / numColumns;
   }
 
-  tileWidth = Math.max(GRID_TILE_MIN_WIDTH, Math.min(maxTileWidth, tileWidth));
+  tileWidth = Math.max(minTileWidth, Math.min(maxTileWidth, tileWidth));
 
   return { numColumns, tileWidth, gap };
 }
@@ -74,18 +77,24 @@ function computeMobileGridLayout(
   contentWidth: number,
   fillAvailable = false,
   subtractScreenPadding = true,
-  maxTileWidth = GRID_TILE_MAX_WIDTH
+  maxTileWidth = GRID_TILE_MAX_WIDTH,
+  minTileWidth = GRID_TILE_MIN_WIDTH
 ) {
   const horizontalPad = subtractScreenPadding ? Layout.screenPaddingHorizontal * 2 : 0;
   const gap = Layout.gridGap;
   const available = contentWidth - horizontalPad;
-  const numColumns = computeMaxCappedGridColumns(available, gap, maxTileWidth);
+  const numColumns = computeMaxCappedGridColumns(
+    available,
+    gap,
+    maxTileWidth,
+    minTileWidth
+  );
 
   let tileWidth = (available - gap * (numColumns - 1)) / numColumns;
   if (fillAvailable) {
-    tileWidth = Math.max(GRID_TILE_MIN_WIDTH, tileWidth);
+    tileWidth = Math.max(minTileWidth, tileWidth);
   } else {
-    tileWidth = Math.max(GRID_TILE_MIN_WIDTH, Math.min(maxTileWidth, tileWidth));
+    tileWidth = Math.max(minTileWidth, Math.min(maxTileWidth, tileWidth));
   }
 
   return { numColumns, tileWidth, gap };
@@ -125,6 +134,7 @@ export function useResponsiveColumns(
   const { gridCardSize: settingGridCardSize } = useTheme();
   const gridCardSize = options?.gridCardSize ?? settingGridCardSize;
   const maxTileWidth = resolveGridTileMaxWidth(gridCardSize);
+  const minTileWidth = resolveGridTileMinWidth(gridCardSize);
   const reservedWidth = options?.reservedWidth ?? 0;
   const measuredWidth = options?.measuredWidth;
   const fillAvailable = options?.fillAvailable ?? false;
@@ -155,7 +165,8 @@ export function useResponsiveColumns(
         contentWidth,
         fillAvailable,
         subtractScreenPadding,
-        maxTileWidth
+        maxTileWidth,
+        minTileWidth
       );
       return {
         contentWidth,
@@ -169,7 +180,8 @@ export function useResponsiveColumns(
       contentWidth,
       fillAvailable,
       subtractScreenPadding,
-      maxTileWidth
+      maxTileWidth,
+      minTileWidth
     );
     return {
       contentWidth,
@@ -185,6 +197,7 @@ export function useResponsiveColumns(
     fillAvailable,
     isMobile,
     maxTileWidth,
+    minTileWidth,
   ]);
 }
 

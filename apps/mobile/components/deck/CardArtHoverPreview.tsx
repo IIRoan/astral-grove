@@ -12,6 +12,10 @@ const LANDSCAPE_PREVIEW_WIDTH = 560;
 const LANDSCAPE_PREVIEW_HEIGHT = Math.round(LANDSCAPE_PREVIEW_WIDTH * (5 / 7));
 const EDGE_PAD = 12;
 const GAP = 10;
+/** Compat mouseenter fires right after a tap on iPad Safari / touch laptops — ignore it. */
+const TOUCH_COMPAT_MOUSE_MS = 1000;
+
+type PointerLikeEvent = { nativeEvent?: { pointerType?: string } };
 
 type Anchor = {
   x: number;
@@ -59,6 +63,7 @@ export function CardArtHoverPreview({
   const anchorRef = useRef<View>(null);
   const hoveringRef = useRef(false);
   const hoverSessionRef = useRef(0);
+  const lastTouchAtRef = useRef(0);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
@@ -81,6 +86,23 @@ export function CardArtHoverPreview({
       setAnchor({ x, y, width, height });
     });
   }, [hide]);
+
+  // Hover previews are pointer-first: taps (touch pointers + their compat mouse events) must not flash.
+  const onPointerEnter = useCallback(
+    (event: PointerLikeEvent) => {
+      if (event?.nativeEvent?.pointerType === 'touch') {
+        lastTouchAtRef.current = Date.now();
+        return;
+      }
+      measureAndShow();
+    },
+    [measureAndShow]
+  );
+
+  const onMouseEnter = useCallback(() => {
+    if (Date.now() - lastTouchAtRef.current < TOUCH_COMPAT_MOUSE_MS) return;
+    measureAndShow();
+  }, [measureAndShow]);
 
   // Unmount / image change must always clear.
   useEffect(() => {
@@ -161,9 +183,9 @@ export function CardArtHoverPreview({
       ref={anchorRef}
       className={cn('relative', className)}
       {...({
-        onMouseEnter: measureAndShow,
+        onMouseEnter,
         onMouseLeave: hide,
-        onPointerEnter: measureAndShow,
+        onPointerEnter,
         onPointerLeave: hide,
       } as object)}
     >

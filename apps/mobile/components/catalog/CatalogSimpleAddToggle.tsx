@@ -12,15 +12,23 @@ import { hapticPress } from '@/utils/haptics';
 interface CatalogSimpleAddToggleProps {
   active: boolean;
   onChange: (active: boolean) => void;
+  /**
+   * Force icon-only (`true`) or labeled (`false`).
+   * When omitted, phones are icon-only and desktop shows the label.
+   */
+  iconOnly?: boolean;
   className?: string;
 }
 
 export function CatalogSimpleAddToggle({
   active,
   onChange,
+  iconOnly,
   className,
 }: CatalogSimpleAddToggleProps) {
   const isMobile = useMobileLayout();
+  // Explicit iconOnly wins; otherwise phones default to icon-only, desktop shows the label.
+  const hideLabel = iconOnly ?? isMobile;
   const tone = active ? 'active' : 'inactive';
 
   return (
@@ -34,8 +42,8 @@ export function CatalogSimpleAddToggle({
         onChange(!active);
       }}
       className={cn(
-        catalogToolbarButtonClasses(active, isMobile, !isMobile),
-        isMobile && 'w-11 px-0',
+        catalogToolbarButtonClasses(active, isMobile, !hideLabel),
+        hideLabel && (isMobile ? 'w-11 px-0' : 'w-10 px-0'),
         className
       )}
     >
@@ -44,7 +52,7 @@ export function CatalogSimpleAddToggle({
         size={isMobile ? 18 : 16}
         color={catalogToolbarIconColor(tone)}
       />
-      {isMobile ? null : (
+      {hideLabel ? null : (
         <Text
           className={cn(
             'text-[13px] font-normal leading-none',

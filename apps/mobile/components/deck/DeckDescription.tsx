@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import {
   CatalogSegmentedControl,
   type CatalogSegmentOption,
@@ -167,14 +168,17 @@ export function DeckDescriptionPanel({
   className,
 }: DeckDescriptionPanelProps) {
   return (
-    <View
-      className={cn(
-        'min-h-0 flex-1 overflow-hidden rounded-[10px] border border-border bg-card px-5 py-5',
-        className
-      )}
-      style={{ paddingBottom: Math.max(paddingBottom, 16) }}
-    >
-      <DeckDescriptionEditor value={value} onChange={onChange} fill />
-    </View>
+    // Fill-height textarea: shrink the panel by the keyboard overlap so the caret stays visible.
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, minHeight: 0 }}>
+      <View
+        className={cn(
+          'min-h-0 flex-1 overflow-hidden rounded-[10px] border border-border bg-card px-5 py-5',
+          className
+        )}
+        style={{ paddingBottom: Math.max(paddingBottom, 16) }}
+      >
+        <DeckDescriptionEditor value={value} onChange={onChange} fill />
+      </View>
+    </KeyboardAvoidingView>
   );
 }

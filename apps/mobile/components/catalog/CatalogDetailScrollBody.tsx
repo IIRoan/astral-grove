@@ -86,7 +86,7 @@ export function CatalogDetailScrollBody({
             onWatchPress();
           }}
           className={cn(
-            'h-8 w-full flex-row items-center justify-center gap-1.5 rounded-[3px] px-3.5 web:cursor-pointer active:opacity-80',
+            'min-h-8 w-full flex-row items-center justify-center gap-1.5 rounded-[3px] px-3.5 web:cursor-pointer active:opacity-80',
             OPERATE_SECONDARY_FILL_CLASS,
             watchBusy && 'opacity-60'
           )}

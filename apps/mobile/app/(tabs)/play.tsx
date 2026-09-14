@@ -54,7 +54,13 @@ export default function PlayScreen() {
   return (
     <View
       className="flex-1 bg-background"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      // Left/right keep seats clear of the notch / rounded corners in landscape.
+      style={{
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
     >
       <PlayScoreboard
         state={state}

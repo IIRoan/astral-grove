@@ -178,50 +178,30 @@ export function CardTileListLayout({
             )}
           >
             {owned > 0 ? (
-              <>
-                <View className="size-1.5 rounded-full bg-success" />
-                <Text
-                  className={cn(
-                    'font-normal text-success',
-                    listCompact ? 'text-[11px]' : 'text-xs'
-                  )}
-                >
-                  Owned ×{owned}
-                </Text>
-                {printingsLabel ? (
-                  <Text
-                    className={cn(
-                      'text-muted-foreground',
-                      listCompact ? 'text-[11px]' : 'text-xs'
-                    )}
-                  >
-                    · {printingsLabel}
-                  </Text>
-                ) : null}
-              </>
+              <View className="size-1.5 shrink-0 rounded-full bg-success" />
             ) : (
-              <>
-                <View className="size-1.5 rounded-full border border-muted-foreground" />
-                <Text
-                  className={cn(
-                    'font-normal text-muted-foreground',
-                    listCompact ? 'text-[11px]' : 'text-xs'
-                  )}
-                >
-                  Not owned
-                </Text>
-                {printingsLabel ? (
-                  <Text
-                    className={cn(
-                      'text-muted-foreground',
-                      listCompact ? 'text-[11px]' : 'text-xs'
-                    )}
-                  >
-                    · {printingsLabel}
-                  </Text>
-                ) : null}
-              </>
+              <View className="size-1.5 shrink-0 rounded-full border border-muted-foreground" />
             )}
+            {/* One truncating line so long printing labels never push past the row. */}
+            <Text
+              className={cn(
+                'min-w-0 flex-1 text-muted-foreground',
+                listCompact ? 'text-[11px]' : 'text-xs'
+              )}
+              numberOfLines={1}
+            >
+              <Text
+                className={cn(
+                  'font-normal',
+                  // Nested Text sets its own size (ui Text defaults to text-base).
+                  listCompact ? 'text-[11px]' : 'text-xs',
+                  owned > 0 ? 'text-success' : 'text-muted-foreground'
+                )}
+              >
+                {owned > 0 ? `Owned ×${owned}` : 'Not owned'}
+              </Text>
+              {printingsLabel ? ` · ${printingsLabel}` : ''}
+            </Text>
           </View>
         </View>
 

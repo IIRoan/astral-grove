@@ -76,7 +76,6 @@ export function DeckIdentityHeader({
   const legendPlaceholder = isPreRift ? 'Add Legend (optional)' : 'Choose Legend';
   const championTitle = isPreRift ? 'Champion (optional)' : 'Champion';
   const championPlaceholder = isPreRift ? 'Add Champion (optional)' : 'Add Champion';
-  const columnClass = stretchSlots ? 'min-w-0 flex-1' : undefined;
 
   const legendSlot = legend ? (
     <DeckCardSlot
@@ -128,6 +127,12 @@ export function DeckIdentityHeader({
       />
     )
   ) : null;
+
+  // Cap paired stretched columns so full-width sheets (native iPad, wide web) don't blow
+  // legend/champion art up to ~300pt wide; the lone "Choose Legend" placeholder may span.
+  const columnClass = stretchSlots
+    ? cn('min-w-0 flex-1', championSlot && 'max-w-[11.25rem]')
+    : undefined;
 
   const showRunes = Boolean(legend) || deck.format === 'pre-rift';
   const runePanel = showRunes ? (

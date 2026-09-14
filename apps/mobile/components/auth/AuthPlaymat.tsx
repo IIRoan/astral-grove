@@ -58,7 +58,8 @@ function AuthMobilePlaymat({
           <View className="pointer-events-none absolute inset-0 overflow-hidden rounded-t-2xl">
             <AuthSlabCorners />
           </View>
-          {children}
+          {/* Native iPad (and wide Android) keep this slab; cap the form column so fields don't stretch edge to edge. */}
+          <View className="w-full max-w-md self-center">{children}</View>
         </View>
       </KeyboardAwareScrollView>
     </View>
@@ -78,7 +79,7 @@ function AuthWidePlaymat({
   const slabWidth = Math.min(420, Math.max(360, width * 0.36));
 
   return (
-    <View className="relative min-h-0 flex-1 overflow-hidden bg-background web:min-h-screen web:w-full">
+    <View className="relative min-h-0 flex-1 overflow-hidden bg-background web:min-h-dvh web:w-full">
       <AuthBackdrop mode={mode} variant="contained" />
 
       <View

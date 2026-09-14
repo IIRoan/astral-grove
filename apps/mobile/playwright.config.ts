@@ -6,6 +6,8 @@ const WEB_URL = process.env.UI_E2E_WEB_URL ?? `http://localhost:${WEB_PORT}`;
 
 export default defineConfig({
   testDir: './e2e',
+  // Offline responsive specs run via playwright.layout.config.ts.
+  testIgnore: ['layout/**'],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

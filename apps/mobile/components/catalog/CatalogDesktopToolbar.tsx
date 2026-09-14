@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View } from 'react-native';
 import { CatalogActionBar } from '@/components/catalog/CatalogActionBar';
 import { CatalogActiveFilterChips } from '@/components/catalog/FilterSheet';
@@ -16,6 +17,7 @@ import {
   useCatalogDesktopFilterPopoverState,
   useCatalogDesktopFilterSegments,
 } from '@/hooks/useCatalogDesktopFilterSegments';
+import { catalogToolbarDensityFor } from '@/lib/responsive-layout';
 
 interface CatalogDesktopToolbarProps {
   filters: CatalogFilters;
@@ -43,12 +45,22 @@ export function CatalogDesktopToolbar({
 }: CatalogDesktopToolbarProps) {
   const [openSegment, setOpenSegment] = useCatalogDesktopFilterPopoverState();
   const segments = useCatalogDesktopFilterSegments(filters, onFiltersChange);
+  // Catalog column is ~550px in the 1024–1430 split layout — shed action labels to fit.
+  const [toolbarWidth, setToolbarWidth] = useState<number | null>(null);
+  const density = catalogToolbarDensityFor(toolbarWidth);
 
   return (
-    <View className="w-full gap-1.5">
+    <View
+      className="w-full gap-1.5"
+      onLayout={(event) => {
+        const nextWidth = Math.round(event.nativeEvent.layout.width);
+        setToolbarWidth((prev) => (prev === nextWidth ? prev : nextWidth));
+      }}
+    >
       <View className={CATALOG_TOOLBAR_DESKTOP_SHELL_CLASS}>
         <View className={CATALOG_TOOLBAR_DESKTOP_PRIMARY_ROW_CLASS}>
-          <View className="min-w-0 flex-1 flex-row flex-wrap items-center gap-1">
+          {/* Column wrapper so the trigger row stretches to the free width and wraps as a last resort. */}
+          <View className="min-w-0 flex-1">
             <FilterPopoverBar
               portalName="catalog-filter-bar"
               openId={openSegment}
@@ -62,6 +74,7 @@ export function CatalogDesktopToolbar({
 
           <CatalogActionBar
             inline
+            density={density}
             activeSort={activeSort}
             onSortPress={onSortPress}
             filters={filters}

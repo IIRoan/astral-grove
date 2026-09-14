@@ -20,6 +20,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import type { ButtonProps } from '@/components/ui/button.types';
+import { TEXT_MAX_FONT_SIZE_MULTIPLIER } from '@/components/ui/text';
 import {
   buttonIconVariants,
   buttonSpinnerVariants,
@@ -41,6 +42,8 @@ type InternalButtonContextType = VariantProps<typeof buttonVariants> & {
 type ButtonChildProps = {
   children: React.ReactNode;
   className?: string;
+  /** Defaults to 1 (truncate). Pass 2 for long labels that should wrap on narrow phones. */
+  numberOfLines?: number;
   style?: React.ComponentProps<typeof Text>['style'];
 };
 
@@ -149,6 +152,9 @@ export const ButtonText = (props: ButtonChildProps) => {
 
   return (
     <Text
+      // Truncate by default so labels never spill past the button on narrow phones.
+      numberOfLines={1}
+      maxFontSizeMultiplier={TEXT_MAX_FONT_SIZE_MULTIPLIER}
       {...props}
       className={merged}
       style={[textFontStyleForClassName(merged), props.style]}

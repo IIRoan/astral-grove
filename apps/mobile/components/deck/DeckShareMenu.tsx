@@ -1,7 +1,13 @@
 import * as Clipboard from 'expo-clipboard';
 import { Platform, Pressable, View } from 'react-native';
 import { useMemo, useState } from 'react';
-import { ThemedIcon, CardsThreeIcon, HashIcon, LinkIcon, ShareIcon } from '@/components/icons';
+import {
+  ThemedIcon,
+  CardsThreeIcon,
+  HashIcon,
+  LinkIcon,
+  ShareIcon,
+} from '@/components/icons';
 import {
   Popover,
   PopoverClose,
@@ -12,10 +18,7 @@ import {
 } from '@/components/ui/popover';
 import { Text } from '@/components/ui/text';
 import { toast } from '@/components/ui/toast.api';
-import {
-  resolveDeckSharePayload,
-  type DeckShareFormat,
-} from '@/lib/deck-share';
+import { resolveDeckSharePayload, type DeckShareFormat } from '@/lib/deck-share';
 import type { DeckState } from '@/lib/deck-types';
 import { cn } from '@/lib/utils';
 import { hapticPress } from '@/utils/haptics';
@@ -37,13 +40,8 @@ interface DeckShareMenuProps {
   triggerClassName?: string;
 }
 
-export function DeckShareMenu({
-  deck,
-  className,
-  triggerClassName,
-}: DeckShareMenuProps) {
-  const [open, setOpen] = useState(false);
-
+/** Resolve + copy a share payload for `deck`; shared by the share menu and the mobile overflow menu. */
+export function useDeckShareCopy(deck: DeckState): (format: DeckShareFormat) => void {
   const webOrigin = useMemo(() => {
     if (
       Platform.OS === 'web' &&
@@ -66,6 +64,17 @@ export function DeckShareMenu({
       toast.error('Could not copy to clipboard.');
     });
   };
+
+  return handleSelect;
+}
+
+export function DeckShareMenu({
+  deck,
+  className,
+  triggerClassName,
+}: DeckShareMenuProps) {
+  const [open, setOpen] = useState(false);
+  const handleSelect = useDeckShareCopy(deck);
 
   return (
     <View className={cn('relative shrink-0', className)}>

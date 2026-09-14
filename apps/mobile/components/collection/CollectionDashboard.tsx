@@ -70,7 +70,12 @@ export function DashboardStat({
   return (
     <View className="w-full rounded-[10px] border border-border bg-card p-4">
       <Text className="text-xs font-medium text-muted-foreground">{label}</Text>
-      <Text className="mt-2 font-mono text-2xl font-normal tabular-nums text-foreground">
+      <Text
+        className="mt-2 font-mono text-2xl font-normal tabular-nums text-foreground"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.6}
+      >
         {value}
       </Text>
       <Text className="mt-1 text-xs text-archive-subtle">{sub}</Text>

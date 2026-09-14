@@ -41,19 +41,22 @@ export const CATALOG_TOOLBAR_DESKTOP_DIVIDER_CLASS = 'h-6 w-px shrink-0 bg-borde
 
 // ── Active filter chips (Factory instrument chips — match toolbar chrome) ──
 
-/** Outer chip shell — fixed height so color / set / text chips align. */
+/**
+ * Outer chip shell — fixed height so color / set / text chips align.
+ * `max-w-full` keeps long multi-value chips inside the tray so the dismiss button stays reachable.
+ */
 export const FILTER_CHIP_SHELL_CLASS = cn(
-  'h-8 flex-row items-stretch overflow-hidden border border-border bg-card',
+  'h-8 max-w-full flex-row items-stretch overflow-hidden border border-border bg-card',
   CONTROL_RADIUS
 );
 
 export const FILTER_CHIP_CATEGORY_CLASS =
-  'justify-center border-r border-border px-2.5';
+  'shrink-0 justify-center border-r border-border px-2.5';
 
 export const FILTER_CHIP_CATEGORY_LABEL_CLASS =
   'font-mono text-[11px] font-semibold uppercase leading-none tracking-[-0.24px] text-muted-foreground';
 
-export const FILTER_CHIP_VALUE_CLASS = 'min-w-0 flex-row items-center px-2';
+export const FILTER_CHIP_VALUE_CLASS = 'min-w-0 shrink flex-row items-center px-2';
 
 export const FILTER_CHIP_VALUE_TEXT_CLASS =
   'text-[12px] font-semibold leading-none text-foreground';

@@ -14,6 +14,7 @@ import {
 import { RemoteApiError } from '@/src/api/authedClient';
 import { authClient } from '@/src/lib/auth-client';
 import type { CollectionShareAcceptMode } from '@riftbound/contracts';
+import { FORM_COLUMN_CLASS } from '@/lib/responsive-layout';
 
 function confirmMode(
   mode: CollectionShareAcceptMode,
@@ -82,7 +83,7 @@ function InviteAcceptBody({ token }: { token: string }) {
   };
 
   return (
-    <ScreenLayout>
+    <ScreenLayout contentClassName={FORM_COLUMN_CLASS}>
       <ScreenHeader title="Join collection" />
 
       {previewQuery.isLoading ? (
@@ -162,7 +163,10 @@ function InviteAcceptBody({ token }: { token: string }) {
                   onAccept('use_theirs');
                 }}
               >
-                <ButtonText>
+                <ButtonText
+                  className="shrink py-2 text-center whitespace-normal"
+                  numberOfLines={2}
+                >
                   {submitting === 'use_theirs' ? 'Joining…' : 'Use their collection'}
                 </ButtonText>
               </Button>
@@ -173,7 +177,10 @@ function InviteAcceptBody({ token }: { token: string }) {
                   onAccept('merge');
                 }}
               >
-                <ButtonText>
+                <ButtonText
+                  className="shrink py-2 text-center whitespace-normal"
+                  numberOfLines={2}
+                >
                   {submitting === 'merge' ? 'Merging…' : 'Merge both (sum quantities)'}
                 </ButtonText>
               </Button>
@@ -191,7 +198,7 @@ export default function CollectionInviteScreen() {
 
   if (!token) {
     return (
-      <ScreenLayout>
+      <ScreenLayout contentClassName={FORM_COLUMN_CLASS}>
         <ScreenHeader title="Join collection" />
         <Text className="mt-4 text-sm text-muted-foreground">
           Missing invite token.

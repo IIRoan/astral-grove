@@ -6,7 +6,12 @@ import {
   useState,
   type ReactElement,
 } from 'react';
-import { Platform, useWindowDimensions, View } from 'react-native';
+import {
+  Platform,
+  useWindowDimensions,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import { Portal } from '@/components/ui/portal';
 import { Text } from '@/components/ui/text';
@@ -36,10 +41,10 @@ type HoverTooltipProps = {
   className?: string;
 };
 
-function estimateTooltipSize(hasDescription: boolean): {
-  width: number;
-  height: number;
-} {
+type TooltipSize = { width: number; height: number };
+
+/** First-frame guess only; real size comes from onLayout (descriptions wrap at maxWidth). */
+function estimateTooltipSize(hasDescription: boolean): TooltipSize {
   return {
     width: hasDescription ? 208 : 112,
     height: hasDescription ? 48 : 28,
@@ -117,6 +122,7 @@ export function HoverTooltip({
   const delayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const [entered, setEntered] = useState(false);
+  const [measured, setMeasured] = useState<TooltipSize | null>(null);
   const cardColor = useCSSVariable('--color-card') as string;
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
@@ -166,6 +172,16 @@ export function HoverTooltip({
     };
   }, [hide]);
 
+  const onTipLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width <= 0 || height <= 0) return;
+    setMeasured((prev) =>
+      prev && Math.abs(prev.width - width) < 1 && Math.abs(prev.height - height) < 1
+        ? prev
+        : { width, height }
+    );
+  }, []);
+
   useEffect(() => {
     if (!anchor || Platform.OS !== 'web' || typeof window === 'undefined') return;
 
@@ -194,7 +210,9 @@ export function HoverTooltip({
     return children;
   }
 
-  const tip = estimateTooltipSize(Boolean(description));
+  const tip = measured ?? estimateTooltipSize(Boolean(description));
+  // Stay invisible until measured so the first frame never flashes at the estimated spot.
+  const shown = entered && measured != null;
   let left = 0;
   let top = 0;
   let placement: TooltipPlacement = side;
@@ -202,7 +220,12 @@ export function HoverTooltip({
     if (side === 'right') {
       const preferRight = anchor.x + anchor.width + GAP;
       const fitsRight = preferRight + tip.width <= windowWidth - EDGE_PAD;
-      left = fitsRight ? preferRight : Math.max(EDGE_PAD, anchor.x - tip.width - GAP);
+      left = fitsRight
+        ? preferRight
+        : Math.max(
+            EDGE_PAD,
+            Math.min(anchor.x - tip.width - GAP, windowWidth - tip.width - EDGE_PAD)
+          );
       placement = fitsRight ? 'right' : 'left';
       top = Math.max(
         EDGE_PAD,
@@ -219,7 +242,10 @@ export function HoverTooltip({
           windowWidth - tip.width - EDGE_PAD
         )
       );
-      top = Math.max(EDGE_PAD, anchor.y - tip.height - GAP);
+      top = Math.max(
+        EDGE_PAD,
+        Math.min(anchor.y - tip.height - GAP, windowHeight - tip.height - EDGE_PAD)
+      );
       placement = 'top';
     }
   }
@@ -240,6 +266,7 @@ export function HoverTooltip({
         <Portal name={`hover-tooltip-${portalName}`}>
           <View
             pointerEvents="none"
+            onLayout={onTipLayout}
             style={
               {
                 position: 'fixed',
@@ -247,8 +274,8 @@ export function HoverTooltip({
                 top,
                 zIndex: 100,
                 maxWidth: Math.min(220, windowWidth - EDGE_PAD * 2),
-                opacity: entered ? 1 : 0,
-                transform: entered ? [{ scale: 1 }] : [{ scale: 0.96 }],
+                opacity: shown ? 1 : 0,
+                transform: shown ? [{ scale: 1 }] : [{ scale: 0.96 }],
                 // RN web maps this to CSS transition
                 transitionProperty: 'opacity, transform',
                 transitionDuration: '120ms',

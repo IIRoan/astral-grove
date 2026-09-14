@@ -1,13 +1,16 @@
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
 import {
   FACTORY_RADIUS_CONTROL_CLASS,
   FACTORY_RADIUS_PANEL_CLASS,
 } from '@/constants/factoryShape';
+import { catalogDetailThumbWidthFor } from '@/lib/responsive-layout';
 import { cn } from '@/lib/utils';
 
 export function CatalogDetailPanelSkeleton() {
+  const { width: windowWidth } = useWindowDimensions();
+
   return (
     <View
       className={cn(
@@ -17,9 +20,13 @@ export function CatalogDetailPanelSkeleton() {
     >
       <SkeletonGroup>
         <View className="flex-row gap-3 p-3">
-          <Skeleton
-            className={cn('aspect-[5/7] w-[128px] shrink-0', CARD_ART_RADIUS_CLASS)}
-          />
+          {/* Skeleton spreads props over its animated style — size via a wrapper. */}
+          <View
+            className="shrink-0"
+            style={{ width: catalogDetailThumbWidthFor(windowWidth) }}
+          >
+            <Skeleton className={cn('aspect-[5/7] w-full', CARD_ART_RADIUS_CLASS)} />
+          </View>
 
           <View className="min-w-0 flex-1 justify-center gap-2">
             <Skeleton className="h-6 w-[88%] rounded" />
