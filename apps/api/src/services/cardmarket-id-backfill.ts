@@ -1,4 +1,4 @@
-import { eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { count, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { PaLogicalCard, PaVariant } from '@riftbound/contracts';
 import type { Database } from '../db/client.js';
 import { cards, prices, sets, variants } from '../db/schema.js';
@@ -55,6 +55,14 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string): Map<string, T[]> {
 
 export class CardmarketIdBackfillService {
   constructor(private readonly db: Database) {}
+
+  async countUnmappedVariants(): Promise<number> {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(variants)
+      .where(isNull(variants.cardmarketId));
+    return row?.value ?? 0;
+  }
 
   async backfillMissingIds(
     gameId: number
@@ -151,18 +159,20 @@ export class CardmarketIdBackfillService {
   ): Promise<number> {
     if (assignments.size === 0) return 0;
 
-    const now = new Date();
     const entries = [...assignments.entries()];
 
     for (const batch of chunk(entries, CARDMARKET_ID_ASSIGNMENT_CHUNK)) {
       const valueRows = sql.join(
-        batch.map(([variantId, cardmarketId]) => sql`(${variantId}::uuid, ${cardmarketId})`),
+        batch.map(
+          ([variantId, cardmarketId]) =>
+            sql`(${variantId}::uuid, ${cardmarketId}::integer)`
+        ),
         sql`, `
       );
 
       await this.db.execute(sql`
         UPDATE variants AS v
-        SET cardmarket_id = mapped.cardmarket_id, updated_at = ${now}
+        SET cardmarket_id = mapped.cardmarket_id, updated_at = NOW()
         FROM (VALUES ${valueRows}) AS mapped(variant_id, cardmarket_id)
         WHERE v.id = mapped.variant_id
       `);

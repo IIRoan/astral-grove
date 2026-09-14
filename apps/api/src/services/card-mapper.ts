@@ -12,7 +12,7 @@ import {
 } from '@riftbound/contracts';
 import type { PaLogicalCard, PaPriceRow, PaVariant } from '@riftbound/contracts';
 import { entityHash } from '../lib/hash.js';
-import { baseVariantNumberForCardmarket } from '../lib/variant-cardmarket.js';
+import { resolveCardmarketIdFromMap } from '../lib/variant-cardmarket.js';
 
 export {
   getSearchGroupKey,
@@ -137,25 +137,24 @@ export function mapCardDetail(
       hexCode: c.hexCode,
       imageUrl: c.imageUrl,
     })),
-    variants: inheritFoilSiblingCardmarket(variants, priceRows),
+    variants: inheritSiblingCardmarket(variants, priceRows),
     banEffectiveDate: card.banEffectiveDate ?? null,
   };
 }
 
-function inheritFoilSiblingCardmarket(
+function inheritSiblingCardmarket(
   variants: VariantDetail[],
   priceRows: PaPriceRow[] = []
 ): VariantDetail[] {
-  const byNumber = new Map(
-    variants.map((variant) => [variant.variantNumber.toLowerCase(), variant] as const)
+  const idByNumber = new Map(
+    variants.map(
+      (variant) => [variant.variantNumber.toLowerCase(), variant.cardmarketId] as const
+    )
   );
 
   return variants.map((variant) => {
     if (variant.cardmarketId != null) return variant;
-    const base = baseVariantNumberForCardmarket(variant.variantNumber);
-    if (base == null) return variant;
-    const sibling = byNumber.get(base.toLowerCase());
-    const cmId = sibling?.cardmarketId ?? null;
+    const cmId = resolveCardmarketIdFromMap(variant.variantNumber, idByNumber);
     if (cmId == null) return variant;
     return {
       ...variant,

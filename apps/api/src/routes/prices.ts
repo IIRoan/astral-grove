@@ -12,7 +12,7 @@ import { sql } from 'drizzle-orm';
 import { variants } from '../db/schema.js';
 import type { Database } from '../db/client.js';
 import {
-  baseVariantNumberForCardmarket,
+  cardmarketIdLookupCandidates,
   resolveCardmarketIdFromMap,
 } from '../lib/variant-cardmarket.js';
 import { parseRequest } from '../lib/request-validation.js';
@@ -24,9 +24,7 @@ async function resolveCardmarketId(
 ): Promise<number | undefined> {
   if (!variantNumber || cardmarketId !== undefined) return cardmarketId;
 
-  const numbers = [variantNumber];
-  const base = baseVariantNumberForCardmarket(variantNumber);
-  if (base != null) numbers.push(base);
+  const numbers = cardmarketIdLookupCandidates(variantNumber);
 
   const rows = await db
     .select({

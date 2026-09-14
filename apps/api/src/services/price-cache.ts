@@ -22,7 +22,7 @@ import {
   utcDateString,
 } from '../lib/price-stats.js';
 import {
-  baseVariantNumberForCardmarket,
+  cardmarketIdLookupCandidates,
   resolveCardmarketIdFromMap,
 } from '../lib/variant-cardmarket.js';
 import {
@@ -293,12 +293,7 @@ export class PriceCacheService {
 
     const variantNumbers = [
       ...new Set(
-        items.flatMap((item) => {
-          const numbers = [item.variantNumber];
-          const base = baseVariantNumberForCardmarket(item.variantNumber);
-          if (base != null) numbers.push(base);
-          return numbers;
-        })
+        items.flatMap((item) => cardmarketIdLookupCandidates(item.variantNumber))
       ),
     ];
     const variantRows = await this.db
@@ -426,10 +421,17 @@ export class PriceCacheService {
       });
 
       if (!result.changed) {
+        const backfillProbe = new CardmarketIdBackfillService(this.db);
+        const unmappedCount = await backfillProbe.countUnmappedVariants();
+        if (unmappedCount === 0) {
+          console.log(
+            '[prices] Skipping Cardmarket id backfill (price guide unchanged, catalog fully mapped)'
+          );
+          return { ...result, cardmarketIdsBackfilled: 0 };
+        }
         console.log(
-          '[prices] Skipping Cardmarket id backfill (price guide unchanged)'
+          `[prices] Price guide unchanged but ${String(unmappedCount)} variants lack Cardmarket ids — running backfill`
         );
-        return { ...result, cardmarketIdsBackfilled: 0 };
       }
 
       const backfill = new CardmarketIdBackfillService(this.db);
@@ -727,7 +729,8 @@ export class PriceCacheService {
 
     const valueRows = sql.join(
       batch.map(
-        (row) => sql`(${row.cardmarketId}, ${row.isFoil}, ${row.id}::uuid)`
+        (row) =>
+          sql`(${row.cardmarketId}::integer, ${row.isFoil}::boolean, ${row.id}::uuid)`
       ),
       sql`, `
     );

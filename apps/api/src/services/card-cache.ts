@@ -14,6 +14,7 @@ import {
   type PaVariant,
 } from '@riftbound/contracts';
 import type { Database } from '../db/client.js';
+import { resolveCardmarketIdFromMap } from '../lib/variant-cardmarket.js';
 import { cardColors, cards, colors, sets, syncState, variants } from '../db/schema.js';
 import { PaApiError, type PaClient } from '../upstream/pa-client.js';
 import {
@@ -148,10 +149,18 @@ export class CardCacheService {
   ) { }
 
   private async priceRowsForLogicalCard(card: PaLogicalCard) {
-    const cardmarketIds = card.variants
-      .map((variant) => variant.cardmarketId)
-      .filter((id): id is number => id != null);
-    return this.prices.getRowsForCardmarketIds(cardmarketIds);
+    const idByNumber = new Map(
+      card.variants.map(
+        (variant) => [variant.variantNumber.toLowerCase(), variant.cardmarketId ?? null] as const
+      )
+    );
+    const cardmarketIds = new Set<number>();
+    for (const variant of card.variants) {
+      if (variant.cardmarketId != null) cardmarketIds.add(variant.cardmarketId);
+      const resolved = resolveCardmarketIdFromMap(variant.variantNumber, idByNumber);
+      if (resolved != null) cardmarketIds.add(resolved);
+    }
+    return this.prices.getRowsForCardmarketIds([...cardmarketIds]);
   }
 
   private overlayVariantMarketplaceIds(
@@ -1234,7 +1243,42 @@ export class CardCacheService {
     }
 
     const cardIds = [...new Set(rows.map((row) => row.cardId))];
-    const cardmarketIds = rows
+
+    const rowsMissingId = rows.filter((row) => row.cardmarketId == null);
+    const cardVariantIds = new Map<string, Map<string, number>>();
+    if (rowsMissingId.length > 0) {
+      const resolveCardIds = [...new Set(rowsMissingId.map((row) => row.cardId))];
+      const siblingRows = await this.db
+        .select({
+          cardId: variants.cardId,
+          variantNumber: variants.variantNumber,
+          cardmarketId: variants.cardmarketId,
+        })
+        .from(variants)
+        .where(
+          and(inArray(variants.cardId, resolveCardIds), isNotNull(variants.cardmarketId))
+        );
+      for (const sibling of siblingRows) {
+        if (sibling.cardmarketId == null) continue;
+        let byNumber = cardVariantIds.get(sibling.cardId);
+        if (byNumber == null) {
+          byNumber = new Map();
+          cardVariantIds.set(sibling.cardId, byNumber);
+        }
+        byNumber.set(sibling.variantNumber.toLowerCase(), sibling.cardmarketId);
+      }
+    }
+
+    const enrichedRows = rows.map((row) => {
+      if (row.cardmarketId != null) return row;
+      const byNumber = cardVariantIds.get(row.cardId);
+      if (byNumber == null) return row;
+      const resolved = resolveCardmarketIdFromMap(row.variantNumber, byNumber);
+      if (resolved == null) return row;
+      return { ...row, cardmarketId: resolved };
+    });
+
+    const cardmarketIds = enrichedRows
       .map((row) => row.cardmarketId)
       .filter((id): id is number => id != null);
 
@@ -1256,7 +1300,7 @@ export class CardCacheService {
     const [colorsByCard, priceRows] = await Promise.all([colorsPromise, pricesPromise]);
 
     const mapStart = performance.now();
-    const items = rows.map((row) =>
+    const items = enrichedRows.map((row) =>
       mapListItemFromDbRow(row, colorsByCard.get(row.cardId) ?? [], priceRows, (url) =>
         this.images.rewriteImageUrl(url)
       )
