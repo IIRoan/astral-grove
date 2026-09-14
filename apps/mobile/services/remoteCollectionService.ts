@@ -1,10 +1,12 @@
 import type {
   CollectionActivityEvent,
+  CollectionImportPreviewResponse,
   CollectionItem,
   WishlistItem,
 } from '@riftbound/contracts';
 import {
   chunkArray,
+  CollectionImportPreviewResponse as CollectionImportPreviewResponseSchema,
   CollectionImportResponse,
   CollectionListResponse,
   CollectionQuantitiesResponse,
@@ -157,7 +159,8 @@ export async function remoteImportCollectionItems(
     isGraded?: boolean;
     gradeCompany?: string | null;
     gradeScore?: string | null;
-  }>
+  }>,
+  mode: 'set' | 'add' = 'set'
 ): Promise<{
   imported: number;
   totalCopies: number;
@@ -166,7 +169,7 @@ export async function remoteImportCollectionItems(
 }> {
   const res = await authedFetch<{ data: unknown }>('/api/v1/collection/import', {
     method: 'POST',
-    body: { items },
+    body: { items, mode },
   });
   const parsed = parseOrThrow(
     'collection.import.parse',
@@ -179,6 +182,31 @@ export async function remoteImportCollectionItems(
     failedRows: parsed.failedRows,
     errors: parsed.errors,
   };
+}
+
+export async function remotePreviewCollectionTtsImport(tts: string): Promise<
+  CollectionImportPreviewResponse['data']
+> {
+  const res = await authedFetch<{ data: unknown }>('/api/v1/collection/import/preview', {
+    method: 'POST',
+    body: { tts },
+  });
+  return parseOrThrow(
+    'collection.import.preview.parse',
+    CollectionImportPreviewResponseSchema,
+    res
+  ).data;
+}
+
+export async function remoteAcceptCollectionTtsImport(
+  items: CollectionImportPreviewResponse['data']['items']
+): Promise<{
+  imported: number;
+  totalCopies: number;
+  failedRows: number;
+  errors: Array<{ row: number; message: string }>;
+}> {
+  return remoteImportCollectionItems(items, 'add');
 }
 
 export async function fetchRemoteWishlist(): Promise<WishlistItem[]> {

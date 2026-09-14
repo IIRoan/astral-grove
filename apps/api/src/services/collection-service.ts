@@ -1,12 +1,17 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import {
+  aggregateImportItems,
   chunkArray,
   COLLECTION_IMPORT_BATCH_SIZE,
+  collectionImportPreviewStatus,
   exportRowsToCsv,
   isVariantFoil,
   parseCollectionCsvToImportItems,
+  parseCollectionTtsToImportItems,
   type CollectionExportRow,
   type CollectionImportItem,
+  type CollectionImportMode,
+  type CollectionImportPreviewChange,
 } from '@riftbound/contracts';
 import type {
   CollectionItem as CollectionItemDto,
@@ -645,7 +650,7 @@ export class CollectionService {
       };
     }
 
-    const result = await this.importItems(collectionId, parsed.items, actor);
+    const result = await this.importItems(collectionId, parsed.items, actor, 'set');
     return {
       ...result,
       rowsProcessed: parsed.rowsProcessed,
@@ -654,10 +659,134 @@ export class CollectionService {
     };
   }
 
+  async importTts(
+    collectionId: string,
+    tts: string,
+    actor?: CollectionAuditActorRef
+  ): Promise<{
+    imported: number;
+    totalCopies: number;
+    resolvedFromUpstream: number;
+    failedRows: number;
+    errors: Array<{ row: number; message: string }>;
+  }> {
+    const parsed = parseCollectionTtsToImportItems(tts);
+    const parseErrors = parsed.errors.map((error, index) => ({
+      row: index + 1,
+      message: error.message,
+    }));
+    if (parsed.items.length === 0) {
+      return {
+        imported: 0,
+        totalCopies: 0,
+        resolvedFromUpstream: 0,
+        failedRows: parseErrors.length,
+        errors: parseErrors,
+      };
+    }
+
+    const result = await this.importItems(collectionId, parsed.items, actor, 'add');
+    return {
+      ...result,
+      errors: [...parseErrors, ...result.errors],
+      failedRows: parseErrors.length + result.failedRows,
+    };
+  }
+
+  async previewImportTts(
+    collectionId: string,
+    tts: string
+  ): Promise<{
+    totalTokens: number;
+    totalCopies: number;
+    uniquePrintings: number;
+    unresolvedCount: number;
+    newCount: number;
+    increasedCount: number;
+    decreasedCount: number;
+    unchangedCount: number;
+    changes: CollectionImportPreviewChange[];
+    unresolved: Array<{ token: string; message: string }>;
+    items: CollectionImportItem[];
+  }> {
+    const parsed = parseCollectionTtsToImportItems(tts);
+    const unresolved = [...parsed.errors];
+
+    if (parsed.items.length === 0) {
+      return {
+        totalTokens: parsed.totalTokens,
+        totalCopies: 0,
+        uniquePrintings: 0,
+        unresolvedCount: unresolved.length,
+        newCount: 0,
+        increasedCount: 0,
+        decreasedCount: 0,
+        unchangedCount: 0,
+        changes: [],
+        unresolved,
+        items: [],
+      };
+    }
+
+    const resolved = await this.resolveImportItems(parsed.items);
+    for (const error of resolved.errors) {
+      const variantNumber = error.message.replace(/^Could not resolve variant:\s*/, '');
+      unresolved.push({
+        token: variantNumber,
+        message: error.message,
+      });
+    }
+
+    const catalog = await this.catalogMetaForVariants(
+      resolved.validItems.map((item) => item.variantNumber)
+    );
+
+    const changes: CollectionImportPreviewChange[] = [];
+    for (const item of resolved.validItems) {
+      const isFoil = await this.resolveStackIsFoil(item.variantNumber, item.isFoil);
+      const quantityBefore = await this.readStackQuantity(
+        collectionId,
+        item.variantNumber,
+        item.condition,
+        item.language,
+        isFoil
+      );
+      const quantityAfter = quantityBefore + item.quantity;
+      const meta = catalog.get(item.variantNumber.toLowerCase());
+      changes.push({
+        variantNumber: item.variantNumber,
+        name: meta?.name ?? null,
+        setCode: meta?.setCode ?? null,
+        imageUrl: meta?.imageUrl ?? null,
+        quantityBefore,
+        quantityAfter,
+        quantityDelta: item.quantity,
+        status: collectionImportPreviewStatus(quantityBefore, quantityAfter),
+      });
+    }
+
+    changes.sort((a, b) => a.variantNumber.localeCompare(b.variantNumber));
+
+    return {
+      totalTokens: parsed.totalTokens,
+      totalCopies: changes.reduce((sum, change) => sum + change.quantityDelta, 0),
+      uniquePrintings: changes.length,
+      unresolvedCount: unresolved.length,
+      newCount: changes.filter((change) => change.status === 'new').length,
+      increasedCount: changes.filter((change) => change.status === 'increase').length,
+      decreasedCount: changes.filter((change) => change.status === 'decrease').length,
+      unchangedCount: changes.filter((change) => change.status === 'unchanged').length,
+      changes,
+      unresolved,
+      items: resolved.validItems,
+    };
+  }
+
   async importItems(
     collectionId: string,
     items: CollectionImportItem[],
-    actor?: CollectionAuditActorRef
+    actor?: CollectionAuditActorRef,
+    mode: CollectionImportMode = 'set'
   ): Promise<{
     imported: number;
     totalCopies: number;
@@ -675,17 +804,70 @@ export class CollectionService {
       };
     }
 
+    const aggregated = aggregateImportItems(items);
+    const resolved = await this.resolveImportItems(aggregated);
+    const importActor: CollectionAuditActorRef | undefined = actor
+      ? {
+          userId: actor.userId,
+          action: 'import',
+          ...(actor.metadata ? { metadata: actor.metadata } : {}),
+        }
+      : undefined;
+
+    let imported = 0;
+    let totalCopies = 0;
+    const chunks = chunkArray(resolved.validItems, COLLECTION_IMPORT_BATCH_SIZE);
+    for (const chunk of chunks) {
+      if (mode === 'add') {
+        for (const item of chunk) {
+          await this.adjustQuantity(
+            collectionId,
+            item.variantNumber,
+            item.quantity,
+            {
+              condition: item.condition,
+              language: item.language,
+              ...(item.isFoil === undefined ? {} : { isFoil: item.isFoil }),
+            },
+            importActor
+          );
+          imported += 1;
+          totalCopies += item.quantity;
+        }
+      } else {
+        const result = await this.batchSync(collectionId, chunk, importActor);
+        imported += result.synced;
+        totalCopies += chunk.reduce((sum, item) => sum + item.quantity, 0);
+      }
+    }
+
+    return {
+      imported,
+      totalCopies,
+      resolvedFromUpstream: resolved.resolvedFromUpstream,
+      failedRows: resolved.failedRows,
+      errors: resolved.errors,
+    };
+  }
+
+  private async resolveImportItems(items: CollectionImportItem[]): Promise<{
+    validItems: CollectionImportItem[];
+    resolvedFromUpstream: number;
+    failedRows: number;
+    errors: Array<{ row: number; message: string }>;
+  }> {
     const variantNumbers = items.map((item) => item.variantNumber);
+    const unique = [...new Set(variantNumbers)];
     const lookupBefore = await this.db
       .select({ variantNumber: variants.variantNumber })
       .from(variants)
-      .where(inArray(variants.variantNumber, [...new Set(variantNumbers)]));
+      .where(inArray(variants.variantNumber, unique));
     const knownBefore = new Set(
       lookupBefore.map((row) => row.variantNumber.toLowerCase())
     );
 
     const lookup = await this.variantResolver.loadLookupMap(variantNumbers);
-    const resolvedFromUpstream = [...new Set(variantNumbers)].filter(
+    const resolvedFromUpstream = unique.filter(
       (vn) => !knownBefore.has(vn.toLowerCase()) && lookup.has(vn.toLowerCase())
     ).length;
 
@@ -709,23 +891,41 @@ export class CollectionService {
       validItems.push({ ...item, variantNumber: resolved });
     }
 
-    let imported = 0;
-    let totalCopies = 0;
-    const importActor: CollectionAuditActorRef | undefined = actor
-      ? {
-          userId: actor.userId,
-          action: 'import',
-          ...(actor.metadata ? { metadata: actor.metadata } : {}),
-        }
-      : undefined;
-    const chunks = chunkArray(validItems, COLLECTION_IMPORT_BATCH_SIZE);
-    for (const chunk of chunks) {
-      const result = await this.batchSync(collectionId, chunk, importActor);
-      imported += result.synced;
-      totalCopies += chunk.reduce((sum, item) => sum + item.quantity, 0);
-    }
+    return {
+      validItems: aggregateImportItems(validItems),
+      resolvedFromUpstream,
+      failedRows,
+      errors,
+    };
+  }
 
-    return { imported, totalCopies, resolvedFromUpstream, failedRows, errors };
+  private async catalogMetaForVariants(
+    variantNumbers: string[]
+  ): Promise<Map<string, { name: string; setCode: string; imageUrl: string }>> {
+    const unique = [...new Set(variantNumbers)];
+    const out = new Map<string, { name: string; setCode: string; imageUrl: string }>();
+    if (unique.length === 0) return out;
+
+    const rows = await this.db
+      .select({
+        variantNumber: variants.variantNumber,
+        name: cards.name,
+        setCode: sets.code,
+        imageUrl: variants.imageUrl,
+      })
+      .from(variants)
+      .innerJoin(cards, eq(variants.cardId, cards.id))
+      .innerJoin(sets, eq(variants.setId, sets.id))
+      .where(inArray(variants.variantNumber, unique));
+
+    for (const row of rows) {
+      out.set(row.variantNumber.toLowerCase(), {
+        name: row.name,
+        setCode: row.setCode,
+        imageUrl: this.images.rewriteImageUrl(row.imageUrl),
+      });
+    }
+    return out;
   }
 
   private async readStackQuantity(

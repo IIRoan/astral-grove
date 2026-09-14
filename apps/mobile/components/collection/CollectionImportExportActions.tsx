@@ -1,8 +1,10 @@
 import {
   CloudUploadIcon,
   DownloadIcon,
+  HashIcon,
   type LucideIcon,
 } from '@/components/icons';
+import { CollectionTtsImportSheet } from '@/components/collection/CollectionTtsImportSheet';
 import { ActivityIndicator, Pressable, View, type DimensionValue } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import { HoverTooltip, ToolbarIconSlot } from '@/components/ui/hover-tooltip';
@@ -13,39 +15,6 @@ import {
 import { Text } from '@/components/ui/text';
 import { useCollectionImportExport } from '@/hooks/useCollectionImportExport';
 import { cn } from '@/lib/utils';
-
-function useImportExportUi(disabled: boolean) {
-  const { importCsv, exportCsv, importProgress } = useCollectionImportExport();
-
-  const busy = importCsv.isPending || exportCsv.isPending;
-  const importResult = importCsv.data;
-  const importError =
-    importCsv.error instanceof Error
-      ? importCsv.error.message
-      : exportCsv.error instanceof Error
-        ? exportCsv.error.message
-        : null;
-
-  const progressPercent =
-    importProgress && importProgress.total > 0
-      ? Math.min(100, Math.round((importProgress.current / importProgress.total) * 100))
-      : 0;
-
-  const hasStatus = Boolean(importProgress || importResult || importError);
-  const controlsDisabled = disabled || busy;
-
-  return {
-    importCsv,
-    exportCsv,
-    importProgress,
-    busy,
-    importResult,
-    importError,
-    progressPercent,
-    hasStatus,
-    controlsDisabled,
-  };
-}
 
 function ToolbarIconButton({
   icon,
@@ -99,40 +68,86 @@ export function CollectionImportExportToolbar({
 }: {
   disabled?: boolean;
 }) {
-  const { importCsv, exportCsv, controlsDisabled } = useImportExportUi(disabled);
+  const {
+    importCsv,
+    exportCsv,
+    ttsSheetOpen,
+    setTtsSheetOpen,
+    previewTts,
+    acceptTts,
+  } = useCollectionImportExport();
+
+  const busy =
+    importCsv.isPending ||
+    exportCsv.isPending ||
+    previewTts.isPending ||
+    acceptTts.isPending;
+  const controlsDisabled = disabled || busy;
 
   return (
-    <View className="shrink-0 flex-row items-center rounded-[3px] bg-card-panel p-0.5">
-      <ToolbarIconButton
-        icon={CloudUploadIcon}
-        label="Import CSV"
-        disabled={controlsDisabled}
-        busy={importCsv.isPending}
-        onPress={() => {
-          void importCsv.mutateAsync().catch(() => undefined);
+    <>
+      <View className="shrink-0 flex-row items-center rounded-[3px] bg-card-panel p-0.5">
+        <ToolbarIconButton
+          icon={HashIcon}
+          label="Import TTS list"
+          disabled={controlsDisabled}
+          onPress={() => setTtsSheetOpen(true)}
+        />
+        <ToolbarIconButton
+          icon={CloudUploadIcon}
+          label="Import CSV"
+          disabled={controlsDisabled}
+          busy={importCsv.isPending}
+          onPress={() => {
+            void importCsv.mutateAsync().catch(() => undefined);
+          }}
+        />
+        <ToolbarIconButton
+          icon={DownloadIcon}
+          label="Export CSV"
+          disabled={controlsDisabled}
+          busy={exportCsv.isPending}
+          onPress={() => {
+            void exportCsv.mutateAsync().catch(() => undefined);
+          }}
+        />
+      </View>
+
+      <CollectionTtsImportSheet
+        open={ttsSheetOpen}
+        onClose={() => setTtsSheetOpen(false)}
+        previewPending={previewTts.isPending}
+        acceptPending={acceptTts.isPending}
+        onPreview={(tts) => previewTts.mutateAsync(tts)}
+        onAccept={async (items) => {
+          await acceptTts.mutateAsync(items);
         }}
       />
-      <ToolbarIconButton
-        icon={DownloadIcon}
-        label="Export CSV"
-        disabled={controlsDisabled}
-        busy={exportCsv.isPending}
-        onPress={() => {
-          void exportCsv.mutateAsync().catch(() => undefined);
-        }}
-      />
-    </View>
+    </>
   );
 }
 
 export function CollectionImportExportStatus({
-  disabled = false,
+  disabled: _disabled = false,
 }: {
   disabled?: boolean;
 }) {
-  const { importProgress, importResult, importError, progressPercent, hasStatus } =
-    useImportExportUi(disabled);
+  const { importCsv, exportCsv, importProgress } = useCollectionImportExport();
 
+  const importResult = importCsv.data;
+  const importError =
+    importCsv.error instanceof Error
+      ? importCsv.error.message
+      : exportCsv.error instanceof Error
+        ? exportCsv.error.message
+        : null;
+
+  const progressPercent =
+    importProgress && importProgress.total > 0
+      ? Math.min(100, Math.round((importProgress.current / importProgress.total) * 100))
+      : 0;
+
+  const hasStatus = Boolean(importProgress || importResult || importError);
   if (!hasStatus) return null;
 
   return (

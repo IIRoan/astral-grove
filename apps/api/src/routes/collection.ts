@@ -8,6 +8,8 @@ import {
   CollectionBatchSyncRequest,
   CollectionBatchSyncResponse,
   CollectionDeleteQuery,
+  CollectionImportPreviewRequest,
+  CollectionImportPreviewResponse,
   CollectionImportRequest,
   CollectionImportResponse,
   CollectionItemResponse,
@@ -426,6 +428,21 @@ export function createCollectionRoutes(
       return csv;
     })
     .post(
+      '/import/preview',
+      { detail: { tags: ['collection'] } },
+      async ({ request, set, body }) => {
+        const user = await getSessionUser(auth, request.headers);
+        if (!user) {
+          set.status = 401;
+          return unauthorized();
+        }
+        const { collectionId } = await ensureCollectionMembership(db, user.id);
+        const parsed = parseRequest(CollectionImportPreviewRequest, body);
+        const result = await collection.previewImportTts(collectionId, parsed.tts);
+        return CollectionImportPreviewResponse.parse({ data: result });
+      }
+    )
+    .post(
       '/import',
       { detail: { tags: ['collection'] } },
       async ({ request, set, body }) => {
@@ -450,14 +467,23 @@ export function createCollectionRoutes(
               gradeCompany: item.gradeCompany ?? null,
               gradeScore: item.gradeScore ?? null,
             })),
-            { userId: user.id, action: 'import' }
+            { userId: user.id, action: 'import' },
+            parsed.mode
           );
+          notifyLive(liveHub, collectionId, 'import', user.id);
+          return CollectionImportResponse.parse({ data: result });
+        }
+        if (parsed.tts) {
+          const result = await collection.importTts(collectionId, parsed.tts, {
+            userId: user.id,
+            action: 'import',
+          });
           notifyLive(liveHub, collectionId, 'import', user.id);
           return CollectionImportResponse.parse({ data: result });
         }
         if (!parsed.csv) {
           set.status = 400;
-          return { error: 'Provide csv or items' };
+          return { error: 'Provide csv, tts, or items' };
         }
         const result = await collection.importCsv(collectionId, parsed.csv, {
           userId: user.id,

@@ -153,8 +153,13 @@ export const WishlistItemResponse = z.object({
   data: WishlistItem,
 });
 
+export const CollectionImportMode = z.enum(['set', 'add']);
+export type CollectionImportMode = z.infer<typeof CollectionImportMode>;
+
 export const CollectionImportRequest = z.object({
   csv: z.string().min(1).max(512_000).optional(),
+  tts: z.string().min(1).max(512_000).optional(),
+  mode: CollectionImportMode.optional().default('set'),
   items: z
     .array(
       z.object({

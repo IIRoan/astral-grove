@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { fromTtsCardToken } from '@riftbound/contracts';
 import { addCardToDeck, createEmptyDeck } from '@/lib/deck-card';
 import { exportDeckTts, toTtsCardToken } from '@/lib/deck-tts';
 import type { DeckCard } from '@/lib/deck-types';
@@ -36,6 +37,12 @@ describe('toTtsCardToken', () => {
 
   test('keeps foil as art 1 when the underlying code is standard', () => {
     expect(toTtsCardToken('OGN-001-Foil')).toBe('OGN-001-1');
+  });
+
+  test('round-trips through fromTtsCardToken for deck-code forms', () => {
+    expect(fromTtsCardToken(toTtsCardToken('OGN-261'))).toBe('OGN-261');
+    expect(fromTtsCardToken(toTtsCardToken('UNL-176a'))).toBe('UNL-176a');
+    expect(fromTtsCardToken(toTtsCardToken('OGN-197b-Nexus'))).toBe('OGN-197b');
   });
 });
 

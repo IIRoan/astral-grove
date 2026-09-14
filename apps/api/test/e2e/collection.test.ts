@@ -7,6 +7,7 @@ import {
   setDefaultTimeout,
 } from 'bun:test';
 import {
+  CollectionImportPreviewResponse,
   CollectionImportResponse,
   CollectionListResponse,
   CollectionQuantitiesResponse,
@@ -224,6 +225,60 @@ describe('collection import/export', () => {
     const importBody = CollectionImportResponse.parse(await importRes.json());
     expect(importBody.data.imported).toBe(1);
     expect(importBody.data.totalCopies).toBe(5);
+  });
+
+  test('previews TTS import without writing, then accept adds copies', async () => {
+    const listBefore = CollectionListResponse.parse(
+      await (await authFetch('/api/v1/collection', { cookie: cookieHeader })).json()
+    );
+    const beforeQty =
+      listBefore.data.find((item) => item.variantNumber === 'OGN-001')?.quantity ?? 0;
+
+    const previewRes = await authFetch('/api/v1/collection/import/preview', {
+      method: 'POST',
+      cookie: cookieHeader,
+      body: JSON.stringify({ tts: 'OGN-001-1 OGN-001-1 OGN-002-1' }),
+    });
+    expect(previewRes.status).toBe(200);
+    const preview = CollectionImportPreviewResponse.parse(await previewRes.json());
+    expect(preview.data.totalCopies).toBe(3);
+    expect(preview.data.uniquePrintings).toBe(2);
+    expect(preview.data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ variantNumber: 'OGN-001', quantity: 2 }),
+        expect.objectContaining({ variantNumber: 'OGN-002', quantity: 1 }),
+      ])
+    );
+
+    const ogn001Change = preview.data.changes.find(
+      (change) => change.variantNumber === 'OGN-001'
+    );
+    expect(ogn001Change?.quantityBefore).toBe(beforeQty);
+    expect(ogn001Change?.quantityAfter).toBe(beforeQty + 2);
+    expect(ogn001Change?.status).toBe(beforeQty === 0 ? 'new' : 'increase');
+
+    const listAfterPreview = CollectionListResponse.parse(
+      await (await authFetch('/api/v1/collection', { cookie: cookieHeader })).json()
+    );
+    expect(
+      listAfterPreview.data.find((item) => item.variantNumber === 'OGN-001')?.quantity ?? 0
+    ).toBe(beforeQty);
+
+    const acceptRes = await authFetch('/api/v1/collection/import', {
+      method: 'POST',
+      cookie: cookieHeader,
+      body: JSON.stringify({ items: preview.data.items, mode: 'add' }),
+    });
+    expect(acceptRes.status).toBe(200);
+    const accepted = CollectionImportResponse.parse(await acceptRes.json());
+    expect(accepted.data.totalCopies).toBe(3);
+
+    const listAfter = CollectionListResponse.parse(
+      await (await authFetch('/api/v1/collection', { cookie: cookieHeader })).json()
+    );
+    expect(
+      listAfter.data.find((item) => item.variantNumber === 'OGN-001')?.quantity
+    ).toBe(beforeQty + 2);
   });
 
   test('POST /api/v1/collection/quantities returns owned counts for requested variants', async () => {

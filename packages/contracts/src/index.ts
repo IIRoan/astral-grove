@@ -12,6 +12,7 @@ export * from './api.js';
 export * from './upstream.js';
 export * from './collection.js';
 export * from './collection-csv.js';
+export * from './collection-tts.js';
 export * from './collection-share.js';
 export * from './collection-live.js';
 export * from './collection-audit.js';
