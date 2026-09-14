@@ -7,7 +7,6 @@ import {
   CollectionAuditListResponse,
   CollectionBatchSyncRequest,
   CollectionBatchSyncResponse,
-  CollectionClearResponse,
   CollectionDeleteQuery,
   CollectionImportRequest,
   CollectionImportResponse,
@@ -394,24 +393,6 @@ export function createCollectionRoutes(
         return OkResponse.parse({ data: { ok: true } });
       }
     )
-    .delete('/all', { detail: { tags: ['collection'] } }, async ({ request, set }) => {
-      if (process.env.NODE_ENV === 'production') {
-        set.status = 404;
-        return { error: 'Not found' };
-      }
-      const user = await getSessionUser(auth, request.headers);
-      if (!user) {
-        set.status = 401;
-        return unauthorized();
-      }
-      const { collectionId } = await ensureCollectionMembership(db, user.id);
-      const result = await collection.clearAll(collectionId, {
-        userId: user.id,
-        action: 'clear',
-      });
-      notifyLive(liveHub, collectionId, 'clear', user.id);
-      return CollectionClearResponse.parse({ data: result });
-    })
     .post(
       '/batch',
       { detail: { tags: ['collection'] } },

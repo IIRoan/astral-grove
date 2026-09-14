@@ -1,7 +1,6 @@
 import {
   CloudUploadIcon,
   DownloadIcon,
-  TrashIcon,
   type LucideIcon,
 } from '@/components/icons';
 import { ActivityIndicator, Pressable, View, type DimensionValue } from 'react-native';
@@ -15,23 +14,17 @@ import { Text } from '@/components/ui/text';
 import { useCollectionImportExport } from '@/hooks/useCollectionImportExport';
 import { cn } from '@/lib/utils';
 
-const isDevCollectionToolsEnabled =
-  typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
-
 function useImportExportUi(disabled: boolean) {
-  const { importCsv, exportCsv, clearCollection, importProgress } =
-    useCollectionImportExport();
+  const { importCsv, exportCsv, importProgress } = useCollectionImportExport();
 
-  const busy = importCsv.isPending || exportCsv.isPending || clearCollection.isPending;
+  const busy = importCsv.isPending || exportCsv.isPending;
   const importResult = importCsv.data;
   const importError =
     importCsv.error instanceof Error
       ? importCsv.error.message
       : exportCsv.error instanceof Error
         ? exportCsv.error.message
-        : clearCollection.error instanceof Error
-          ? clearCollection.error.message
-          : null;
+        : null;
 
   const progressPercent =
     importProgress && importProgress.total > 0
@@ -44,7 +37,6 @@ function useImportExportUi(disabled: boolean) {
   return {
     importCsv,
     exportCsv,
-    clearCollection,
     importProgress,
     busy,
     importResult,
@@ -107,8 +99,7 @@ export function CollectionImportExportToolbar({
 }: {
   disabled?: boolean;
 }) {
-  const { importCsv, exportCsv, clearCollection, controlsDisabled } =
-    useImportExportUi(disabled);
+  const { importCsv, exportCsv, controlsDisabled } = useImportExportUi(disabled);
 
   return (
     <View className="shrink-0 flex-row items-center rounded-[3px] bg-card-panel p-0.5">
@@ -130,17 +121,6 @@ export function CollectionImportExportToolbar({
           void exportCsv.mutateAsync().catch(() => undefined);
         }}
       />
-      {isDevCollectionToolsEnabled ? (
-        <ToolbarIconButton
-          icon={TrashIcon}
-          label="Clear collection"
-          disabled={controlsDisabled}
-          busy={clearCollection.isPending}
-          onPress={() => {
-            void clearCollection.mutateAsync().catch(() => undefined);
-          }}
-        />
-      ) : null}
     </View>
   );
 }

@@ -621,51 +621,6 @@ export class CollectionService {
     return exportRowsToCsv(exportRows);
   }
 
-  async clearAll(
-    collectionId: string,
-    actor?: CollectionAuditActorRef
-  ): Promise<{ removed: number }> {
-    const rows = await this.db
-      .select({
-        id: collectionItems.id,
-        variantNumber: collectionItems.variantNumber,
-        quantity: collectionItems.quantity,
-        condition: collectionItems.condition,
-        language: collectionItems.language,
-        isFoil: collectionItems.isFoil,
-      })
-      .from(collectionItems)
-      .where(eq(collectionItems.collectionId, collectionId));
-    if (rows.length === 0) {
-      return { removed: 0 };
-    }
-
-    if (actor) {
-      await this.audit.recordMany(
-        rows.map((row) => ({
-          collectionId,
-          actorUserId: actor.userId,
-          action: 'clear' as const,
-          variantNumber: row.variantNumber,
-          condition: row.condition,
-          language: row.language,
-          isFoil: row.isFoil,
-          quantityBefore: row.quantity,
-          quantityAfter: 0,
-          metadata: {
-            ...actor.metadata,
-            removedStacks: rows.length,
-          },
-        }))
-      );
-    }
-
-    await this.db
-      .delete(collectionItems)
-      .where(eq(collectionItems.collectionId, collectionId));
-    return { removed: rows.length };
-  }
-
   async importCsv(
     collectionId: string,
     csv: string,

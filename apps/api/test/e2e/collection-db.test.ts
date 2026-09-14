@@ -420,23 +420,4 @@ describe('collection database workflows', () => {
       );
     expect(rows).toHaveLength(0);
   });
-
-  test('DELETE /collection/all clears only the current user rows in Postgres', async () => {
-    await authFetch(`/api/v1/collection/${encodeURIComponent('OGN-050')}/add`, {
-      method: 'POST',
-      cookie: cookieHeader,
-      body: JSON.stringify({ delta: 1 }),
-    });
-
-    const before = await countCollectionRows();
-    expect(before).toBeGreaterThan(0);
-
-    const clearRes = await authFetch('/api/v1/collection/all', {
-      method: 'DELETE',
-      cookie: cookieHeader,
-    });
-    expect(clearRes.status).toBe(200);
-
-    expect(await countCollectionRows()).toBe(0);
-  });
 });

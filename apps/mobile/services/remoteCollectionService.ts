@@ -181,12 +181,6 @@ export async function remoteImportCollectionItems(
   };
 }
 
-export async function remoteClearCollection(): Promise<void> {
-  await authedFetch('/api/v1/collection/all', {
-    method: 'DELETE',
-  });
-}
-
 export async function fetchRemoteWishlist(): Promise<WishlistItem[]> {
   const res = await authedFetch<{ data: WishlistItem[] }>('/api/v1/wishlist');
   return parseOrThrow('wishlist.list.parse', WishlistListResponse, res).data;

@@ -26,7 +26,6 @@ import {
   type LayoutChangeEvent,
   Platform,
   Pressable,
-  type PressableProps,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -46,10 +45,7 @@ import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { centeredSheetMargins } from '@/lib/responsive-layout';
 import { SHEET_REDUCED, SHEET_SPRING } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import { Button, ButtonIcon } from './button';
-import { XIcon } from '@/components/icons';
 import { Portal, PortalOverlay } from './portal';
-import { Slot } from './slot';
 
 const BOTTOM_SHEET_PORTAL_NAME = 'bottom-sheet-portal';
 const BOTTOM_SHEET_KEYBOARD_BEHAVIOR = 'extend' as const;
@@ -141,10 +137,6 @@ type BottomSheetContentProps = Omit<React.ComponentProps<typeof View>, 'children
     onAnimate?: BottomSheetProps['onAnimate'];
   };
 
-type BottomSheetCloseProps = PressableProps & {
-  asChild?: boolean;
-};
-
 type BottomSheetStickyScrollContentProps = {
   body: React.ReactNode[];
   className?: string;
@@ -168,10 +160,10 @@ const BottomSheetStickyScrollContent = ({
     : 0;
 
   return (
-    <View className={cn('absolute inset-0 flex flex-col bg-background', className)}>
+    <View className={cn('absolute inset-0 flex flex-col bg-card-panel', className)}>
       {header ? (
         <View
-          className="absolute inset-x-0 top-0 z-10 border-border border-b bg-background"
+          className="absolute inset-x-0 top-0 z-10 border-border border-b bg-card-panel"
           onLayout={onHeaderLayout}
         >
           {header}
@@ -383,10 +375,9 @@ const BottomSheetHandleIndicator = ({
 }) => (
   <View
     className={cn(
-      'items-center pt-2.5',
-      divider
-        ? cn('border-b border-border pb-3', surfaceClassName ?? 'bg-card')
-        : 'pb-1'
+      'items-center bg-card-panel pt-2.5',
+      divider ? 'border-b border-border pb-3' : 'pb-1',
+      surfaceClassName
     )}
   >
     <View className={cn('h-1.5 w-12 rounded-full bg-muted-foreground/60', className)} />
@@ -400,7 +391,7 @@ const BottomSheetBackground = ({
 }: BottomSheetBackgroundProps & { className?: string }) => (
   <View
     className={cn(
-      'overflow-hidden rounded-t-[20px] border-t border-border bg-background',
+      'overflow-hidden rounded-t-[20px] border-t border-border bg-card-panel',
       className
     )}
     style={style}
@@ -756,7 +747,7 @@ export const BottomSheetContent = ({
     )
   ) : (
     <SheetView
-      className={cn('bg-background', className)}
+      className={cn('bg-card-panel', className)}
       enableFooterMarginAdjustment
       style={{ paddingBottom: footer ? 0 : bottom }}
     >
@@ -845,17 +836,10 @@ export const BottomSheetHeader = ({
   ...props
 }: React.ComponentProps<typeof View>) => (
   <View
-    className={cn('flex flex-row items-center gap-2 bg-background p-4', className)}
+    className={cn('flex flex-row items-center gap-2 bg-card-panel p-4', className)}
     {...props}
   >
     <View className="min-w-0 flex-1">{children}</View>
-    <BottomSheetClose asChild>
-      <Button className="shrink-0" size="icon" variant="link">
-        <ButtonIcon className="text-foreground">
-          <XIcon />
-        </ButtonIcon>
-      </Button>
-    </BottomSheetClose>
   </View>
 );
 
@@ -896,7 +880,7 @@ export const BottomSheetFooter = ({
   return (
     <Animated.View
       className={cn(
-        'flex w-full flex-col gap-2 border-border border-t bg-background px-4 pt-4',
+        'flex w-full flex-col gap-2 border-border border-t bg-card-panel px-4 pt-4',
         className
       )}
       style={style}
@@ -911,19 +895,3 @@ export const BottomSheetFooter = ({
 };
 
 BottomSheetFooter.displayName = 'BottomSheetFooter';
-
-const BottomSheetClose = ({ asChild, ...props }: BottomSheetCloseProps) => {
-  const { onOpenChange, bottomSheetRef } = useBottomSheetContext();
-
-  const Comp = asChild ? Slot.Pressable : Pressable;
-
-  return (
-    <Comp
-      {...props}
-      onPress={() => {
-        bottomSheetRef.current?.close();
-        onOpenChange(false);
-      }}
-    />
-  );
-};

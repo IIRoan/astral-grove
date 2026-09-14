@@ -11,7 +11,6 @@ import { mapPool } from '@/lib/asyncPool';
 import {
   remoteExportCollectionCsv,
   remoteImportCollectionItems,
-  remoteClearCollection,
 } from '@/services/remoteCollectionService';
 
 const isWeb = Platform.OS === 'web';
@@ -144,13 +143,6 @@ async function readCsvFromDocumentPicker(): Promise<string> {
   return FileSystem.readAsStringAsync(result.assets[0].uri, {
     encoding: FileSystem.EncodingType.UTF8,
   });
-}
-
-export async function clearCollectionDevOnly(): Promise<void> {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Clear collection is disabled in production');
-  }
-  await remoteClearCollection();
 }
 
 function pickCsvOnWeb(): Promise<string> {

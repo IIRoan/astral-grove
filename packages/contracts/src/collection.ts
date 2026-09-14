@@ -81,11 +81,6 @@ export const CollectionBatchSyncResponse = dataResponse(
 );
 export type CollectionBatchSyncResponse = z.infer<typeof CollectionBatchSyncResponse>;
 
-export const CollectionClearResponse = dataResponse(
-  z.object({ removed: z.number().int().nonnegative() })
-);
-export type CollectionClearResponse = z.infer<typeof CollectionClearResponse>;
-
 export const CollectionListResponse = z.object({
   data: z.array(CollectionItem),
   meta: z.object({

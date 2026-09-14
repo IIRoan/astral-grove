@@ -258,16 +258,4 @@ describe('collection import/export', () => {
     expect(body.data).toHaveLength(variantNumbers.length);
     expect(body.data.every((row) => row.quantity >= 0)).toBe(true);
   });
-
-  test('DELETE /api/v1/collection/all clears the collection in non-production', async () => {
-    const res = await authFetch('/api/v1/collection/all', {
-      method: 'DELETE',
-      cookie: cookieHeader,
-    });
-    expect(res.status).toBe(200);
-
-    const listRes = await authFetch('/api/v1/collection', { cookie: cookieHeader });
-    const listBody = CollectionListResponse.parse(await listRes.json());
-    expect(listBody.meta.total).toBe(0);
-  });
 });

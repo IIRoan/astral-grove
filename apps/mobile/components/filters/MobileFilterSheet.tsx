@@ -77,9 +77,10 @@ export function MobileFilterSheet({
           defaultSnapIndex={0}
           enablePanDownToClose
           enableOverDrag={!reduceMotion}
+          backgroundClassName="bg-card-panel"
           className="bg-card-panel"
         >
-          <BottomSheetHeader className="border-b border-border bg-card-panel">
+          <BottomSheetHeader className="border-b border-border">
             <View className="gap-3">
               <View className="flex-row items-center gap-2">
                 <View className="min-w-0 flex-1 flex-row items-center gap-2">
@@ -123,7 +124,7 @@ export function MobileFilterSheet({
             {children}
           </BottomSheetScrollView>
 
-          <BottomSheetFooter className="border-border border-t bg-card-panel pt-3">
+          <BottomSheetFooter className="border-border border-t pt-3">
             <Button
               className={cn(
                 'h-10 min-h-10 w-full active:opacity-80',

@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import {
-  clearCollectionDevOnly,
   exportCollectionToFile,
   pickAndImportCollectionCsv,
   type ImportProgress,
@@ -50,13 +49,5 @@ export function useCollectionImportExport() {
     meta: { action: 'collection.export_csv' },
   });
 
-  const clearCollection = useMutation({
-    mutationFn: clearCollectionDevOnly,
-    meta: { action: 'collection.clear' },
-    onSuccess: () => {
-      invalidate();
-    },
-  });
-
-  return { importCsv, exportCsv, clearCollection, importProgress };
+  return { importCsv, exportCsv, importProgress };
 }
