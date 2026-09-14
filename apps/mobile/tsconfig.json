@@ -19,6 +19,7 @@
     "**/*.test.tsx",
     "test/**",
     "e2e/**",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "scripts/**"
   ]
 }

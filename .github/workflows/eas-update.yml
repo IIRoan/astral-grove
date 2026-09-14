@@ -53,9 +53,14 @@ jobs:
         working-directory: .
         run: bun run --cwd packages/contracts build
 
-      - name: Publish update
+      - name: Publish production update
         env:
           EXPO_PUBLIC_API_URL: https://riftapi.solace.onl
         run: |
           APP_VARIANT=production eas update --branch main --environment production --message "${{ github.sha }}" --non-interactive
-          APP_VARIANT=preview eas update --branch preview --environment preview --message "preview ${{ github.sha }}" --non-interactive
+
+      - name: Publish preview update
+        env:
+          EXPO_PUBLIC_API_URL: https://riftapi.solace.onl
+        run: |
+          bun run scripts/publish-preview-update.ts --message "preview ${{ github.sha }}"

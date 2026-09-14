@@ -2,6 +2,7 @@ const appJson = require('./app.json');
 
 const variant = process.env.APP_VARIANT ?? 'production';
 const isDev = variant === 'development';
+const pinnedRuntimeVersion = process.env.EAS_UPDATE_RUNTIME_VERSION?.trim();
 
 const expo = appJson.expo;
 
@@ -47,5 +48,8 @@ module.exports = {
       ...expo.extra,
       appVariant: variant,
     },
+    ...(pinnedRuntimeVersion
+      ? { runtimeVersion: pinnedRuntimeVersion }
+      : {}),
   },
 };
