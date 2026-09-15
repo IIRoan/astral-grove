@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_PRICE_HISTORY_PRUNE_ON_CRON } from './lib/price-history-retention.js';
 
 function parseCsv(value: string | undefined): string[] {
   if (!value?.trim()) return [];
@@ -54,7 +55,7 @@ const EnvSchema = z.object({
     .default(30),
   PRICE_HISTORY_PRUNE_ON_CRON: z
     .enum(['true', 'false'])
-    .default('false')
+    .default(DEFAULT_PRICE_HISTORY_PRUNE_ON_CRON ? 'true' : 'false')
     .transform((v) => v === 'true'),
   S3_ACCESS_KEY_ID: z.string().min(1).optional(),
   S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),

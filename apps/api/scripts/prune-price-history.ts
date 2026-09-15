@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/** Manual price_history retention. Charts use price_daily; this never runs on prod cron unless enabled. */
+/** Manual price_history retention. Charts use price_daily. Cron prune is on by default. */
 
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
