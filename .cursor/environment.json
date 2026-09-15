@@ -14,5 +14,8 @@
       "description": "The Astral Grove Expo web app on http://localhost:7001 pointed at the local API."
     }
   ],
-  "ports": [7000, 7001]
+  "ports": [
+    { "name": "api", "port": 7000 },
+    { "name": "mobile-web", "port": 7001 }
+  ]
 }
