@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, ne, notInArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, notInArray, sql } from 'drizzle-orm';
 import type {
   PaPriceRow,
   PriceDailyPoint,
@@ -22,7 +22,7 @@ import {
   utcDateString,
 } from '../lib/price-stats.js';
 import {
-  baseVariantNumberForCardmarket,
+  cardmarketIdLookupCandidates,
   resolveCardmarketIdFromMap,
 } from '../lib/variant-cardmarket.js';
 import {
@@ -293,12 +293,7 @@ export class PriceCacheService {
 
     const variantNumbers = [
       ...new Set(
-        items.flatMap((item) => {
-          const numbers = [item.variantNumber];
-          const base = baseVariantNumberForCardmarket(item.variantNumber);
-          if (base != null) numbers.push(base);
-          return numbers;
-        })
+        items.flatMap((item) => cardmarketIdLookupCandidates(item.variantNumber))
       ),
     ];
     const variantRows = await this.db
@@ -425,6 +420,20 @@ export class PriceCacheService {
         startedAt,
       });
 
+      if (!result.changed) {
+        const backfillProbe = new CardmarketIdBackfillService(this.db);
+        const unmappedCount = await backfillProbe.countUnmappedVariants();
+        if (unmappedCount === 0) {
+          console.log(
+            '[prices] Skipping Cardmarket id backfill (price guide unchanged, catalog fully mapped)'
+          );
+          return { ...result, cardmarketIdsBackfilled: 0 };
+        }
+        console.log(
+          `[prices] Price guide unchanged but ${String(unmappedCount)} variants lack Cardmarket ids — running backfill`
+        );
+      }
+
       const backfill = new CardmarketIdBackfillService(this.db);
       const backfillResult = await backfill.backfillMissingIds(gameId);
       if (backfillResult.updated > 0) {
@@ -534,6 +543,44 @@ export class PriceCacheService {
       `[prices] Persisting ${String(upstream.length)} rows (changed=${String(changed)}, previousHash=${existing?.contentHash?.slice(0, 12) ?? 'none'}, newHash=${hash.slice(0, 12)})`
     );
 
+    if (!changed && existing) {
+      await this.db
+        .insert(syncState)
+        .values({
+          key: 'prices',
+          contentHash: hash,
+          rowCount: existing.rowCount ?? upstream.length,
+          lastSuccessAt: existing.lastSuccessAt,
+          lastAttemptAt: now,
+          status: 'idle',
+          lastError: null,
+        })
+        .onConflictDoUpdate({
+          target: syncState.key,
+          set: {
+            lastAttemptAt: now,
+            status: 'idle',
+            lastError: null,
+          },
+        });
+
+      const elapsed =
+        meta.startedAt !== undefined
+          ? ` elapsedMs=${String(Date.now() - meta.startedAt)}`
+          : '';
+      console.log(
+        `[prices] Cardmarket sync skipped writes (unchanged guide): trigger=${trigger} game=${String(meta.sourceMeta.gameId)} rows=${String(existing.rowCount ?? upstream.length)} export=${meta.sourceMeta.exportCreatedAt}${elapsed}`
+      );
+
+      return {
+        changed: false,
+        rowCount: existing.rowCount ?? upstream.length,
+        productCount: meta.productCount,
+        hash,
+        ...meta.sourceMeta,
+      };
+    }
+
     const dailyRows = upstream.map((row) => ({
       cardmarketId: row.cardmarketId,
       isFoil: row.isFoil,
@@ -600,17 +647,7 @@ export class PriceCacheService {
       }
 
       for (const batch of chunk(currentRows, PRICE_SYNC_CHUNK_SIZE)) {
-        for (const row of batch) {
-          await tx
-            .delete(prices)
-            .where(
-              and(
-                eq(prices.cardmarketId, row.cardmarketId),
-                eq(prices.isFoil, row.isFoil),
-                ne(prices.id, row.id)
-              )
-            );
-        }
+        await this.deleteLegacyPriceRowsForBatch(tx, batch);
 
         await tx
           .insert(prices)
@@ -682,5 +719,28 @@ export class PriceCacheService {
       hash,
       ...meta.sourceMeta,
     };
+  }
+
+  private async deleteLegacyPriceRowsForBatch(
+    tx: Pick<Database, 'execute'>,
+    batch: Array<{ id: string; cardmarketId: number; isFoil: boolean }>
+  ): Promise<void> {
+    if (batch.length === 0) return;
+
+    const valueRows = sql.join(
+      batch.map(
+        (row) =>
+          sql`(${row.cardmarketId}::integer, ${row.isFoil}::boolean, ${row.id}::uuid)`
+      ),
+      sql`, `
+    );
+
+    await tx.execute(sql`
+      DELETE FROM prices AS p
+      USING (VALUES ${valueRows}) AS keep(cardmarket_id, is_foil, keep_id)
+      WHERE p.cardmarket_id = keep.cardmarket_id
+        AND p.is_foil = keep.is_foil
+        AND p.id <> keep.keep_id
+    `);
   }
 }

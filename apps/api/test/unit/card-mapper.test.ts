@@ -131,6 +131,41 @@ describe('mapCardDetail', () => {
     expect(foil?.prices).toHaveLength(2);
     expect(foil?.prices.find((p) => p.isFoil)?.market).toBe(0.22);
   });
+
+  test('inherits cardmarket id + prices onto a Release promo missing its own id', () => {
+    const releaseMissingId = {
+      ...logical,
+      variants: [
+        variant(VARIANT_STANDARD_ID, 'OGN-253', 'Standard', 'Standard', 845001),
+        {
+          ...variant(VARIANT_FOIL_ID, 'OGN-253-Release', 'Release', 'Promo', 0),
+          cardmarketId: null,
+        },
+      ],
+    };
+    const detail = mapCardDetail(PaLogicalCard.parse(releaseMissingId), [
+      {
+        cardmarketId: 845001,
+        isFoil: false,
+        marketPrice: '0.12',
+        lowPrice: '0.05',
+        avg7Day: '0.10',
+        lastUpdated: '2026-01-01',
+      },
+      {
+        cardmarketId: 845001,
+        isFoil: true,
+        marketPrice: '0.40',
+        lowPrice: '0.20',
+        avg7Day: '0.35',
+        lastUpdated: '2026-01-01',
+      },
+    ]);
+    const release = detail.variants.find((v) => v.variantNumber === 'OGN-253-Release');
+    expect(release?.cardmarketId).toBe(845001);
+    expect(release?.prices.length).toBeGreaterThan(0);
+    expect(release?.prices[0]?.market).toBe(0.12);
+  });
 });
 
 describe('mapListItemFromDbRow', () => {

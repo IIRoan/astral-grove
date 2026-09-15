@@ -8,16 +8,48 @@ export function baseVariantNumberForCardmarket(variantNumber: string): string | 
   return base;
 }
 
-/** Prefer variant's own id, then `-Foil` base sibling from the same lookup map. */
+/** Lowercase variant numbers to consult when resolving a Cardmarket product id (most specific first). */
+export function cardmarketIdLookupCandidates(variantNumber: string): string[] {
+  const trimmed = variantNumber.trim();
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+
+  const push = (value: string) => {
+    const key = value.trim().toLowerCase();
+    if (key.length === 0 || seen.has(key)) return;
+    seen.add(key);
+    ordered.push(key);
+  };
+
+  push(trimmed);
+
+  const foilBase = baseVariantNumberForCardmarket(trimmed);
+  if (foilBase != null) push(foilBase);
+
+  if (/-Release$/i.test(trimmed)) {
+    push(trimmed.replace(/-Release$/i, ''));
+  }
+
+  if (trimmed.endsWith('*')) {
+    push(trimmed.slice(0, -1));
+  }
+
+  const altLetter = /^(.+-)(\d+)([a-z])$/i.exec(trimmed);
+  if (altLetter) {
+    push(`${altLetter[1]}${altLetter[2]}`);
+  }
+
+  return ordered;
+}
+
+/** Prefer variant's own id, then sibling printings from the lookup map. */
 export function resolveCardmarketIdFromMap(
   variantNumber: string,
   byNumber: ReadonlyMap<string, number | null | undefined>
 ): number | null {
-  const key = variantNumber.toLowerCase();
-  const direct = byNumber.get(key);
-  if (direct != null) return direct;
-
-  const base = baseVariantNumberForCardmarket(variantNumber);
-  if (base == null) return direct ?? null;
-  return byNumber.get(base.toLowerCase()) ?? null;
+  for (const candidate of cardmarketIdLookupCandidates(variantNumber)) {
+    const id = byNumber.get(candidate);
+    if (id != null) return id;
+  }
+  return null;
 }
