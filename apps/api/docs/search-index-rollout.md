@@ -61,7 +61,7 @@ Text queries currently skip the service result cache; do not restart
 production or `DISCARD` buffers to fake a cold database. `--repeat`
 samples process-warm `searchLocalWithoutUpstream` timings only.
 
-## Benchmark-gated indexes (not in the first migration)
+## Benchmark-gated indexes (not in this migration)
 
 Measure before adding:
 
@@ -71,6 +71,9 @@ Measure before adding:
 - `name_norm` btree / `text_pattern_ops`
 
 Do not add `cards_type_lower_idx` for the current array-overlap type filter.
+
+Keep these off until `scripts/explain-search.ts` on a populated catalog
+shows they remove seq-scan / filter cost. See `docs/postgres-hot-paths.md`.
 
 ## Preflight (production, after separate approval)
 

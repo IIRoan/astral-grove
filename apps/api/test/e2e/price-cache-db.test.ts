@@ -1,7 +1,7 @@
 import { describe, expect, test, setDefaultTimeout, beforeAll } from 'bun:test';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { count, eq } from 'drizzle-orm';
+import { count, eq, sql } from 'drizzle-orm';
 import {
   PriceHistoryResponse,
   PriceStatsBatchResponse,
@@ -42,6 +42,23 @@ describe('price cache database integrity', () => {
     expect(sync?.rowCount ?? 0).toBe(priceCount?.value ?? 0);
     expect(sync?.contentHash).toBeTruthy();
     expect(sync?.lastSuccessAt).toBeTruthy();
+  });
+
+  test('prices are unique on (cardmarket_id, is_foil)', async () => {
+    const { db } = getContext();
+    const duplicates = await db.execute<{
+      cardmarket_id: number;
+      is_foil: boolean;
+      copies: number;
+    }>(
+      sql`
+        SELECT cardmarket_id, is_foil, count(*)::int AS copies
+        FROM prices
+        GROUP BY cardmarket_id, is_foil
+        HAVING count(*) > 1
+      `
+    );
+    expect(duplicates).toHaveLength(0);
   });
 
   test('price_daily has historical rows after sync', async () => {

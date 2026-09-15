@@ -153,6 +153,7 @@ export const variants = pgTable(
     ),
     index('variants_flavor_trgm_idx').using('gin', t.flavorText.op('gin_trgm_ops')),
     index('variants_type_lower_idx').on(sql`lower(${t.variantType})`),
+    index('variants_variant_number_lower_idx').on(sql`lower(${t.variantNumber})`),
   ]
 );
 
@@ -177,7 +178,7 @@ export const prices = pgTable(
     contentHash: char('content_hash', { length: 64 }).notNull(),
     fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
   },
-  (t) => [index('prices_cardmarket_foil_idx').on(t.cardmarketId, t.isFoil)]
+  (t) => [uniqueIndex('prices_cardmarket_foil_idx').on(t.cardmarketId, t.isFoil)]
 );
 
 export const priceHistory = pgTable(
@@ -359,6 +360,10 @@ export const collectionItems = pgTable(
       t.isFoil
     ),
     index('collection_items_collection_id_idx').on(t.collectionId),
+    index('collection_items_collection_updated_idx').on(
+      t.collectionId,
+      t.updatedAt.desc()
+    ),
     index('collection_items_variant_number_idx').on(t.variantNumber),
   ]
 );

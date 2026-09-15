@@ -7,14 +7,34 @@ import {
 } from '@riftbound/contracts';
 import type { ListItemDbRow } from '../services/card-mapper.js';
 
-export type SearchCandidateGroup = {
+export type SearchCandidateSortRow = Pick<
+  ListItemDbRow,
+  | 'cardId'
+  | 'name'
+  | 'type'
+  | 'super'
+  | 'energy'
+  | 'variantId'
+  | 'variantNumber'
+  | 'variantType'
+  | 'foilMode'
+  | 'variantLabel'
+  | 'cardmarketId'
+>;
+
+export type SearchCandidateGroup<
+  T extends SearchCandidateSortRow = SearchCandidateSortRow,
+> = {
   key: string;
   cardId: string;
-  rows: ListItemDbRow[];
+  rows: T[];
 };
 
 export function searchGroupKeyForRow(
-  row: Pick<ListItemDbRow, 'cardId' | 'variantNumber' | 'variantLabel' | 'foilMode'>
+  row: Pick<
+    SearchCandidateSortRow,
+    'cardId' | 'variantNumber' | 'variantLabel' | 'foilMode'
+  >
 ): string {
   return `${row.cardId}:${getSearchGroupKey(
     row.variantNumber,
@@ -24,10 +44,10 @@ export function searchGroupKeyForRow(
   )}`;
 }
 
-export function groupSearchCandidateRows(
-  rows: readonly ListItemDbRow[]
-): SearchCandidateGroup[] {
-  const groups = new Map<string, SearchCandidateGroup>();
+export function groupSearchCandidateRows<T extends SearchCandidateSortRow>(
+  rows: readonly T[]
+): SearchCandidateGroup<T>[] {
+  const groups = new Map<string, SearchCandidateGroup<T>>();
   for (const row of rows) {
     const key = searchGroupKeyForRow(row);
     const existing = groups.get(key);
@@ -40,7 +60,9 @@ export function groupSearchCandidateRows(
   return [...groups.values()];
 }
 
-export function searchRankCardFromGroup(group: SearchCandidateGroup): SearchRankCard {
+export function searchRankCardFromGroup(
+  group: SearchCandidateGroup<SearchCandidateSortRow>
+): SearchRankCard {
   const primary = group.rows[0];
   if (!primary) {
     return {
@@ -63,10 +85,10 @@ export function searchRankCardFromGroup(group: SearchCandidateGroup): SearchRank
   };
 }
 
-export function sortCandidateGroupsLexically(
-  groups: readonly SearchCandidateGroup[],
+export function sortCandidateGroupsLexically<T extends SearchCandidateSortRow>(
+  groups: readonly SearchCandidateGroup<T>[],
   query: string
-): SearchCandidateGroup[] {
+): SearchCandidateGroup<T>[] {
   const tokens = parseSearchQuery(query).identityTokens;
   return [...groups].sort((left, right) => {
     const leftCard = searchRankCardFromGroup(left);
@@ -84,10 +106,10 @@ export function sortCandidateGroupsLexically(
   });
 }
 
-export function sortCandidateGroupsByName(
-  groups: readonly SearchCandidateGroup[],
+export function sortCandidateGroupsByName<T extends SearchCandidateSortRow>(
+  groups: readonly SearchCandidateGroup<T>[],
   dir: 'asc' | 'desc'
-): SearchCandidateGroup[] {
+): SearchCandidateGroup<T>[] {
   const sign = dir === 'asc' ? 1 : -1;
   return [...groups].sort((left, right) => {
     const nameDiff =
@@ -97,10 +119,10 @@ export function sortCandidateGroupsByName(
   });
 }
 
-export function sortCandidateGroupsByEnergy(
-  groups: readonly SearchCandidateGroup[],
+export function sortCandidateGroupsByEnergy<T extends SearchCandidateSortRow>(
+  groups: readonly SearchCandidateGroup<T>[],
   dir: 'asc' | 'desc'
-): SearchCandidateGroup[] {
+): SearchCandidateGroup<T>[] {
   const sign = dir === 'asc' ? 1 : -1;
   return [...groups].sort((left, right) => {
     const diff = ((left.rows[0]?.energy ?? 0) - (right.rows[0]?.energy ?? 0)) * sign;
@@ -109,10 +131,10 @@ export function sortCandidateGroupsByEnergy(
   });
 }
 
-export function sortCandidateGroupsByVariantNumber(
-  groups: readonly SearchCandidateGroup[],
+export function sortCandidateGroupsByVariantNumber<T extends SearchCandidateSortRow>(
+  groups: readonly SearchCandidateGroup<T>[],
   dir: 'asc' | 'desc'
-): SearchCandidateGroup[] {
+): SearchCandidateGroup<T>[] {
   const sign = dir === 'asc' ? 1 : -1;
   return [...groups].sort((left, right) => {
     const diff =
@@ -122,4 +144,17 @@ export function sortCandidateGroupsByVariantNumber(
     if (diff !== 0) return diff;
     return left.key.localeCompare(right.key);
   });
+}
+
+export function toPriceSortRow(row: SearchCandidateSortRow): ListItemDbRow {
+  return {
+    ...row,
+    might: 0,
+    power: 0,
+    banEffectiveDate: null,
+    rarity: '',
+    imageUrl: '',
+    tcgplayerId: null,
+    setCode: '',
+  };
 }

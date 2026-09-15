@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import type {
   PaPriceRow,
   PriceDailyPoint,
@@ -30,8 +30,33 @@ import {
   priceGuideDownloadUrl,
 } from '../upstream/cardmarket-export.js';
 import { CardmarketIdBackfillService } from './cardmarket-id-backfill.js';
+import {
+  resolvePriceHistoryRetention,
+  type PriceHistoryRetention,
+} from '../lib/price-history-retention.js';
+
+export const PRICES_UNIQUE_SLOT = [prices.cardmarketId, prices.isFoil];
 
 export type PriceSyncTrigger = 'http' | 'cron' | 'script' | 'test';
+
+function priceSlotsNotInUpstream(
+  slots: readonly { cardmarketId: number; isFoil: boolean }[]
+) {
+  return sql`(cardmarket_id, is_foil) not in (${sql.join(
+    slots.map((slot) => sql`(${slot.cardmarketId}, ${slot.isFoil})`),
+    sql`, `
+  )})`;
+}
+
+function dedupePriceSlots<T extends { cardmarketId: number; isFoil: boolean }>(
+  rows: T[]
+): T[] {
+  const byKey = new Map<string, T>();
+  for (const row of rows) {
+    byKey.set(`${String(row.cardmarketId)}:${row.isFoil ? '1' : '0'}`, row);
+  }
+  return [...byKey.values()];
+}
 
 function toNumber(value: string | null): number | null {
   return value === null ? null : Number(value);
@@ -594,23 +619,25 @@ export class PriceCacheService {
       syncedAt: now,
     }));
 
-    const currentRows = upstream.map((row) => ({
-      id: row.id,
-      cardmarketId: row.cardmarketId,
-      isFoil: row.isFoil,
-      provider: row.provider,
-      currency: row.currency,
-      lowPrice: row.lowPrice,
-      marketPrice: row.marketPrice,
-      midPrice: row.midPrice,
-      highPrice: row.highPrice,
-      avg1Day: row.avg1Day,
-      avg7Day: row.avg7Day,
-      avg30Day: row.avg30Day,
-      upstreamLastUpdated: row.lastUpdated,
-      contentHash: row.contentHash,
-      fetchedAt: now,
-    }));
+    const currentRows = dedupePriceSlots(
+      upstream.map((row) => ({
+        id: row.id,
+        cardmarketId: row.cardmarketId,
+        isFoil: row.isFoil,
+        provider: row.provider,
+        currency: row.currency,
+        lowPrice: row.lowPrice,
+        marketPrice: row.marketPrice,
+        midPrice: row.midPrice,
+        highPrice: row.highPrice,
+        avg1Day: row.avg1Day,
+        avg7Day: row.avg7Day,
+        avg30Day: row.avg30Day,
+        upstreamLastUpdated: row.lastUpdated,
+        contentHash: row.contentHash,
+        fetchedAt: now,
+      }))
+    );
 
     const historyRows = upstream.map((row) => ({
       cardmarketId: row.cardmarketId,
@@ -647,14 +674,14 @@ export class PriceCacheService {
       }
 
       for (const batch of chunk(currentRows, PRICE_SYNC_CHUNK_SIZE)) {
-        await this.deleteLegacyPriceRowsForBatch(tx, batch);
-
         await tx
           .insert(prices)
           .values(batch)
           .onConflictDoUpdate({
-            target: prices.id,
+            target: PRICES_UNIQUE_SLOT,
             set: {
+              provider: sql`excluded.provider`,
+              currency: sql`excluded.currency`,
               lowPrice: sql`excluded.low_price`,
               marketPrice: sql`excluded.market_price`,
               midPrice: sql`excluded.mid_price`,
@@ -669,9 +696,14 @@ export class PriceCacheService {
           });
       }
 
-      const upstreamIds = upstream.map((row) => row.id);
-      if (upstreamIds.length > 0) {
-        await tx.delete(prices).where(notInArray(prices.id, upstreamIds));
+      const upstreamSlots = dedupePriceSlots(
+        upstream.map((row) => ({
+          cardmarketId: row.cardmarketId,
+          isFoil: row.isFoil,
+        }))
+      );
+      if (upstreamSlots.length > 0) {
+        await tx.delete(prices).where(priceSlotsNotInUpstream(upstreamSlots));
       }
 
       if (changed) {
@@ -721,26 +753,59 @@ export class PriceCacheService {
     };
   }
 
-  private async deleteLegacyPriceRowsForBatch(
-    tx: Pick<Database, 'execute'>,
-    batch: Array<{ id: string; cardmarketId: number; isFoil: boolean }>
-  ): Promise<void> {
-    if (batch.length === 0) return;
+  async pruneHistory(
+    retention?: Partial<PriceHistoryRetention>,
+    options?: { dryRun?: boolean }
+  ): Promise<{
+    deleted: number;
+    wouldDelete: number;
+    retainDays: number;
+    retainSnapshotsPerSlot: number;
+    dryRun: boolean;
+  }> {
+    const resolved = resolvePriceHistoryRetention(retention);
+    const staleIds = sql`
+      SELECT id
+      FROM (
+        SELECT
+          id,
+          captured_at,
+          row_number() OVER (
+            PARTITION BY cardmarket_id, is_foil
+            ORDER BY captured_at DESC, id DESC
+          ) AS rn
+        FROM price_history
+      ) ranked
+      WHERE captured_at < (now() - (${resolved.retainDays}::text || ' days')::interval)
+         OR rn > ${resolved.retainSnapshotsPerSlot}
+    `;
 
-    const valueRows = sql.join(
-      batch.map(
-        (row) =>
-          sql`(${row.cardmarketId}::integer, ${row.isFoil}::boolean, ${row.id}::uuid)`
-      ),
-      sql`, `
-    );
+    if (options?.dryRun) {
+      const counted = await this.db.execute<{ count: number }>(sql`
+        SELECT count(*)::int AS count FROM (${staleIds}) stale
+      `);
+      const wouldDelete = Number(counted[0]?.count ?? 0);
+      return {
+        deleted: 0,
+        wouldDelete,
+        retainDays: resolved.retainDays,
+        retainSnapshotsPerSlot: resolved.retainSnapshotsPerSlot,
+        dryRun: true,
+      };
+    }
 
-    await tx.execute(sql`
-      DELETE FROM prices AS p
-      USING (VALUES ${valueRows}) AS keep(cardmarket_id, is_foil, keep_id)
-      WHERE p.cardmarket_id = keep.cardmarket_id
-        AND p.is_foil = keep.is_foil
-        AND p.id <> keep.keep_id
+    const removed = await this.db.execute<{ id: string }>(sql`
+      DELETE FROM price_history
+      WHERE id IN (${staleIds})
+      RETURNING id
     `);
+
+    return {
+      deleted: removed.length,
+      wouldDelete: removed.length,
+      retainDays: resolved.retainDays,
+      retainSnapshotsPerSlot: resolved.retainSnapshotsPerSlot,
+      dryRun: false,
+    };
   }
 }

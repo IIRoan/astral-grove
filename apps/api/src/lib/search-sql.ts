@@ -34,6 +34,20 @@ export const SEARCH_CANDIDATE_COLUMNS = {
   setCode: sets.code,
 } as const;
 
+export const SEARCH_SLIM_CANDIDATE_COLUMNS = {
+  cardId: cards.id,
+  name: cards.name,
+  type: cards.type,
+  super: cards.super,
+  energy: cards.energy,
+  variantId: variants.id,
+  variantNumber: variants.variantNumber,
+  variantType: variants.variantType,
+  foilMode: variants.foilMode,
+  variantLabel: variants.variantLabel,
+  cardmarketId: variants.cardmarketId,
+} as const;
+
 export function shouldMaterializeThenPage(query: CardsListQuery): boolean {
   const hasSearch = Boolean(query.q?.trim());
   const hasDeckBuilderFilters = Boolean(
@@ -168,6 +182,14 @@ export function buildCandidateOrderBy(query: CardsListQuery): SQL[] {
   return [query.dir === 'desc' ? desc(cards.name) : asc(cards.name)];
 }
 
+export function canSqlPageCandidates(query: CardsListQuery): boolean {
+  return !shouldMaterializeThenPage(query);
+}
+
+export function isPureSqlCandidateOrder(query: CardsListQuery): boolean {
+  return !query.q?.trim() && query.sortBy !== 'price';
+}
+
 export function buildSearchCandidateQuery(db: Database, query: CardsListQuery) {
   const where = buildSearchWhere(query);
   const orderBy = buildCandidateOrderBy(query);
@@ -190,4 +212,25 @@ export function buildSearchCandidateQueryUnsorted(
     .innerJoin(cards, eq(variants.cardId, cards.id))
     .innerJoin(sets, eq(variants.setId, sets.id))
     .where(where);
+}
+
+export function buildSearchSlimCandidateQueryUnsorted(
+  db: Database,
+  where: SQL | undefined
+) {
+  return db
+    .select(SEARCH_SLIM_CANDIDATE_COLUMNS)
+    .from(variants)
+    .innerJoin(cards, eq(variants.cardId, cards.id))
+    .innerJoin(sets, eq(variants.setId, sets.id))
+    .where(where);
+}
+
+export function buildSearchCandidateByIdsQuery(db: Database, variantIds: string[]) {
+  return db
+    .select(SEARCH_CANDIDATE_COLUMNS)
+    .from(variants)
+    .innerJoin(cards, eq(variants.cardId, cards.id))
+    .innerJoin(sets, eq(variants.setId, sets.id))
+    .where(inArray(variants.id, variantIds));
 }

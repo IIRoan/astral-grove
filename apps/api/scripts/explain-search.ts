@@ -11,8 +11,9 @@ import * as schema from '../src/db/schema.js';
 import { SEARCH_BENCHMARK_CASES } from '../src/lib/search-benchmark-cases.js';
 import {
   buildSearchCandidateQuery,
-  buildSearchCandidateQueryUnsorted,
+  buildSearchSlimCandidateQueryUnsorted,
   buildSearchWhere,
+  canSqlPageCandidates,
   shouldMaterializeThenPage,
 } from '../src/lib/search-sql.js';
 import {
@@ -237,7 +238,10 @@ async function captureCatalog(sql: postgres.Sql): Promise<Record<string, unknown
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public'
-      and c.relname in ('cards', 'variants', 'sets', 'prices')
+      and c.relname in (
+        'cards', 'variants', 'sets', 'prices',
+        'price_history', 'price_daily', 'collection_items'
+      )
     order by c.relname
   `;
   const indexes = await sql<
@@ -246,7 +250,10 @@ async function captureCatalog(sql: postgres.Sql): Promise<Record<string, unknown
     select i.indexname, i.tablename, i.indexdef, pg_relation_size(i.indexname::regclass)::text as "sizeBytes"
     from pg_indexes i
     where i.schemaname = 'public'
-      and i.tablename in ('cards', 'variants', 'sets')
+      and i.tablename in (
+        'cards', 'variants', 'sets', 'prices',
+        'price_history', 'price_daily', 'collection_items'
+      )
     order by i.tablename, i.indexname
   `;
   const stats = await sql<
@@ -254,7 +261,10 @@ async function captureCatalog(sql: postgres.Sql): Promise<Record<string, unknown
   >`
     select relname, last_analyze::text as "lastAnalyze", last_autoanalyze::text as "lastAutoanalyze"
     from pg_stat_user_tables
-    where schemaname = 'public' and relname in ('cards', 'variants', 'sets', 'prices')
+    where schemaname = 'public' and relname in (
+      'cards', 'variants', 'sets', 'prices',
+      'price_history', 'price_daily', 'collection_items'
+    )
     order by relname
   `;
   return {
@@ -341,11 +351,12 @@ async function main(): Promise<void> {
     for (const benchmark of SEARCH_BENCHMARK_CASES) {
       const where = buildSearchWhere(benchmark.query);
       const materializeThenPage = shouldMaterializeThenPage(benchmark.query);
-      const query = materializeThenPage
-        ? buildSearchCandidateQueryUnsorted(db, where)
-        : buildSearchCandidateQuery(db, benchmark.query)
+      const sqlPaged = canSqlPageCandidates(benchmark.query);
+      const query = sqlPaged
+        ? buildSearchCandidateQuery(db, benchmark.query)
             .limit(benchmark.query.limit)
-            .offset((benchmark.query.page - 1) * benchmark.query.limit);
+            .offset((benchmark.query.page - 1) * benchmark.query.limit)
+        : buildSearchSlimCandidateQueryUnsorted(db, where);
       const compiled = query.toSQL();
 
       const explain = await client.begin(async (tx) => {
@@ -368,6 +379,7 @@ async function main(): Promise<void> {
       cases.push({
         id: benchmark.id,
         materializeThenPage,
+        sqlPaged,
         page: benchmark.query.page,
         limit: benchmark.query.limit,
         sortBy: benchmark.query.sortBy,

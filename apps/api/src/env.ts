@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_PRICE_HISTORY_PRUNE_ON_CRON } from './lib/price-history-retention.js';
 
 function parseCsv(value: string | undefined): string[] {
   if (!value?.trim()) return [];
@@ -45,6 +46,17 @@ const EnvSchema = z.object({
     .transform((value) => parseBooleanFlag(value, false)),
   /** Cardmarket `idGame` for daily price guide export (Riftbound = 22). */
   CARDMARKET_GAME_ID: z.coerce.number().int().positive().default(22),
+  PRICE_HISTORY_RETAIN_DAYS: z.coerce.number().int().positive().max(3650).default(90),
+  PRICE_HISTORY_RETAIN_SNAPSHOTS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(1000)
+    .default(30),
+  PRICE_HISTORY_PRUNE_ON_CRON: z
+    .enum(['true', 'false'])
+    .default(DEFAULT_PRICE_HISTORY_PRUNE_ON_CRON ? 'true' : 'false')
+    .transform((v) => v === 'true'),
   S3_ACCESS_KEY_ID: z.string().min(1).optional(),
   S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   S3_BUCKET: z.string().min(1).optional(),
