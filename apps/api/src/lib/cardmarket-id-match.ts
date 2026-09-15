@@ -16,6 +16,20 @@ function sortProducts(items: CardmarketProduct[]): CardmarketProduct[] {
   return [...items].sort((a, b) => a.idProduct - b.idProduct);
 }
 
+function isDistinctFoilSku(variantNumber: string): boolean {
+  return /-foil$/i.test(variantNumber);
+}
+
+function availableProducts(
+  products: CardmarketProduct[],
+  reservedProductIds: ReadonlySet<number>
+): CardmarketProduct[] {
+  const available = products.filter(
+    (product) => !reservedProductIds.has(product.idProduct)
+  );
+  return available.length > 0 ? available : products;
+}
+
 function isPremiumVariant(variant: VariantForCardmarketMatch): boolean {
   const haystack = `${variant.variantType} ${variant.variantLabel} ${variant.rarity}`;
   return /alt art|showcase|overnumbered|promo|signed|textured|borderless/i.test(
@@ -113,6 +127,40 @@ export function matchVariantsToProducts(
   }
 
   return result;
+}
+
+export function matchUnmappedVariantsToProducts(
+  variants: VariantForCardmarketMatch[],
+  products: CardmarketProduct[],
+  reservedProductIds: ReadonlySet<number>,
+  priceRankByProduct?: ReadonlyMap<number, number>,
+  foilBaseProductId?: number | null
+): Map<string, number> {
+  if (variants.length === 0 || products.length === 0) return new Map();
+
+  const pool = availableProducts(products, reservedProductIds);
+
+  if (variants.length === 1) {
+    const only = variants[0]!;
+    if (isDistinctFoilSku(only.variantNumber)) {
+      if (foilBaseProductId != null) {
+        return new Map([[only.variantNumber, foilBaseProductId]]);
+      }
+      if (pool.length === 1) {
+        return new Map([[only.variantNumber, pool[0]!.idProduct]]);
+      }
+      if (reservedProductIds.size === 1) {
+        const siblingId = [...reservedProductIds][0];
+        if (siblingId != null && products.some((row) => row.idProduct === siblingId)) {
+          return new Map([[only.variantNumber, siblingId]]);
+        }
+      }
+    } else if (pool.length === 1) {
+      return new Map([[only.variantNumber, pool[0]!.idProduct]]);
+    }
+  }
+
+  return matchVariantsToProducts(variants, pool, priceRankByProduct);
 }
 
 export function buildSetExpansionMap(
