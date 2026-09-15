@@ -110,4 +110,7 @@ ENV
 }
 ensure_api_env
 
+log "verifying monorepo typecheck (contracts, api, mobile)"
+bun run typecheck
+
 log "install complete"
