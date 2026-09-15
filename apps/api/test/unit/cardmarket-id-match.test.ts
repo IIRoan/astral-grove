@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   buildSetExpansionMap,
   inferExpansionId,
+  matchUnmappedVariantsToProducts,
   matchVariantsToProducts,
   type VariantForCardmarketMatch,
 } from '../../src/lib/cardmarket-id-match.js';
@@ -133,6 +134,61 @@ describe('matchVariantsToProducts', () => {
     expect(matches.get('VEN-189')).toBe(897978);
     expect(matches.has('VEN-189*')).toBe(false);
     expect(matches.size).toBe(3);
+  });
+});
+
+describe('matchUnmappedVariantsToProducts', () => {
+  test('assigns promo SKUs the leftover product after the standard printing id is reserved', () => {
+    const matches = matchUnmappedVariantsToProducts(
+      [variant('OGN-034-Skirmish', 'Summoner Skirmish', 'Promo')],
+      [product(847151, 'Tryndamere, Barbarian'), product(861138, 'Tryndamere, Barbarian')],
+      new Set([847151])
+    );
+
+    expect(matches.get('OGN-034-Skirmish')).toBe(861138);
+  });
+
+  test('assigns -Foil SKUs the same product id as the mapped standard printing', () => {
+    const matches = matchUnmappedVariantsToProducts(
+      [variant('SFD-001-Foil', 'Foil')],
+      [product(866723, 'Against the Odds')],
+      new Set([866723])
+    );
+
+    expect(matches.get('SFD-001-Foil')).toBe(866723);
+  });
+
+  test('prefers the base printing id when another sibling shares the same card', () => {
+    const matches = matchUnmappedVariantsToProducts(
+      [variant('SFD-099-Foil', 'Foil')],
+      [
+        product(866834, 'Veteran Poro'),
+        product(884215, 'Veteran Poro'),
+      ],
+      new Set([866834, 884215]),
+      undefined,
+      866834
+    );
+
+    expect(matches.get('SFD-099-Foil')).toBe(866834);
+  });
+
+  test('maps multiple unmapped premium printings to non-reserved products', () => {
+    const matches = matchUnmappedVariantsToProducts(
+      [
+        variant('OGN-193a-Regionals', 'Regionals Top 8', 'Promo'),
+        variant('OGN-193b-Regionals', 'Regionals 1st Place', 'Promo'),
+      ],
+      [
+        product(847360, 'Miss Fortune, Buccaneer'),
+        product(862196, 'Miss Fortune, Buccaneer'),
+        product(862197, 'Miss Fortune, Buccaneer'),
+      ],
+      new Set([847360, 847361])
+    );
+
+    expect(matches.get('OGN-193a-Regionals')).toBe(862196);
+    expect(matches.get('OGN-193b-Regionals')).toBe(862197);
   });
 });
 
