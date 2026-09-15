@@ -72,6 +72,22 @@ bun scripts/prune-price-history.ts --target=staging --database-url=... --apply
 `PRICE_HISTORY_PRUNE_ON_CRON=true`. Do not enable that in production
 until explicitly approved.
 
+## Local measurements (2026-09-15, `riftbound_test`)
+
+After migration 0014, Cardmarket sync wrote 2979 unique `(cardmarket_id, is_foil)`
+slots. `GROUP BY … HAVING count(*) > 1` was empty. Slot lookup used:
+
+```
+Index Scan using prices_cardmarket_foil_idx
+  Index Cond: ((cardmarket_id = 845712) AND (is_foil = false))
+```
+
+Catalog tables were empty (no PA API key in this environment), so collection
+and `lower(variant_number)` plans seq-scanned 0 rows — expected. Phase 2
+filter indexes were not added.
+
+History prune dry-run: `wouldDelete: 0` (snapshots younger than 90 days).
+
 ## Env
 
 | Variable                         | Default | Notes                        |

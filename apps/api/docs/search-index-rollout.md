@@ -72,10 +72,8 @@ Measure before adding:
 
 Do not add `cards_type_lower_idx` for the current array-overlap type filter.
 
-Keep these off the migration until `scripts/explain-search.ts` on a
-populated catalog (staging or a full local copy) shows seq-scan /
-filter cost those indexes remove. The e2e test catalog is too small
-for that proof. See `docs/postgres-hot-paths.md`.
+Keep these off until `scripts/explain-search.ts` on a populated catalog
+shows they remove seq-scan / filter cost. See `docs/postgres-hot-paths.md`.
 
 ## Preflight (production, after separate approval)
 
