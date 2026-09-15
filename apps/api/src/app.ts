@@ -161,7 +161,7 @@ export function startSyncCrons(ctx: AppContext, env: Env): void {
     );
     void ctx.priceCache
       .syncFromCardmarket(env.CARDMARKET_GAME_ID, { trigger: 'cron' })
-      .then((result) => {
+      .then(async (result) => {
         if (result.changed) {
           ctx.cardCache.invalidateSearchCache();
           console.log('[prices] Search cache invalidated after cron price change');
@@ -169,6 +169,15 @@ export function startSyncCrons(ctx: AppContext, env: Env): void {
           ctx.cardCache.invalidateSearchCache();
           console.log(
             '[prices] Search cache invalidated after cron Cardmarket id backfill'
+          );
+        }
+        if (env.PRICE_HISTORY_PRUNE_ON_CRON) {
+          const pruned = await ctx.priceCache.pruneHistory({
+            retainDays: env.PRICE_HISTORY_RETAIN_DAYS,
+            retainSnapshotsPerSlot: env.PRICE_HISTORY_RETAIN_SNAPSHOTS,
+          });
+          console.log(
+            `[prices] History prune (cron): deleted=${String(pruned.deleted)} retainDays=${String(pruned.retainDays)} retainSnapshots=${String(pruned.retainSnapshotsPerSlot)}`
           );
         }
       })

@@ -43,11 +43,14 @@ import {
 } from '../lib/search-metrics.js';
 import { TtlCache } from '../lib/ttl-cache.js';
 import {
+  buildSearchCandidateByIdsQuery,
   buildSearchCandidateQuery,
-  buildSearchCandidateQueryUnsorted,
+  buildSearchSlimCandidateQueryUnsorted,
   buildSearchFilterWhere,
   buildSearchTypeIntentWhere,
   buildSearchWhere,
+  canSqlPageCandidates,
+  isPureSqlCandidateOrder,
   shouldMaterializeThenPage,
 } from '../lib/search-sql.js';
 import {
@@ -58,7 +61,9 @@ import {
   sortCandidateGroupsByName,
   sortCandidateGroupsByVariantNumber,
   sortCandidateGroupsLexically,
+  toPriceSortRow,
   type SearchCandidateGroup,
+  type SearchCandidateSortRow,
 } from '../lib/search-candidates.js';
 import {
   buildUpstreamListParams,
@@ -146,12 +151,13 @@ export class CardCacheService {
     private readonly prices: PriceCacheService,
     private readonly images: ImageStoreService,
     private readonly embeddings: EmbeddingService | null = null
-  ) { }
+  ) {}
 
   private async priceRowsForLogicalCard(card: PaLogicalCard) {
     const idByNumber = new Map(
       card.variants.map(
-        (variant) => [variant.variantNumber.toLowerCase(), variant.cardmarketId ?? null] as const
+        (variant) =>
+          [variant.variantNumber.toLowerCase(), variant.cardmarketId ?? null] as const
       )
     );
     const cardmarketIds = new Set<number>();
@@ -701,10 +707,10 @@ export class CardCacheService {
 
         const listCardId =
           item.card &&
-            typeof item.card === 'object' &&
-            item.card !== null &&
-            'id' in item.card &&
-            typeof (item.card as { id?: unknown }).id === 'string'
+          typeof item.card === 'object' &&
+          item.card !== null &&
+          'id' in item.card &&
+          typeof (item.card as { id?: unknown }).id === 'string'
             ? (item.card as { id: string }).id
             : undefined;
         if (
@@ -1256,7 +1262,10 @@ export class CardCacheService {
         })
         .from(variants)
         .where(
-          and(inArray(variants.cardId, resolveCardIds), isNotNull(variants.cardmarketId))
+          and(
+            inArray(variants.cardId, resolveCardIds),
+            isNotNull(variants.cardmarketId)
+          )
         );
       for (const sibling of siblingRows) {
         if (sibling.cardmarketId == null) continue;
@@ -1326,24 +1335,25 @@ export class CardCacheService {
     const resolvedCatalogHash = catalogHash ?? (await this.getCatalogHash());
 
     const dbStart = performance.now();
-    const rows = materializeThenPage
-      ? await buildSearchCandidateQueryUnsorted(this.db, where)
-      : await buildSearchCandidateQuery(this.db, query)
+    const sqlPaged = canSqlPageCandidates(query);
+    if (sqlPaged) {
+      const rows = await buildSearchCandidateQuery(this.db, query)
         .limit(query.limit)
         .offset(offset);
-    const dbMs = performance.now() - dbStart;
+      const dbMs = performance.now() - dbStart;
 
-    logSearchPostgresQuery({
-      path: 'cards_list',
-      ...summarizeCardsListQuery(query),
-      engine: 'postgres',
-      materializeThenPage,
-      fetchCap: null,
-      variantsSelected: rows.length,
-      dbMs: Math.round(dbMs * 100) / 100,
-    });
+      logSearchPostgresQuery({
+        path: 'cards_list',
+        ...summarizeCardsListQuery(query),
+        engine: 'postgres',
+        materializeThenPage,
+        sqlPaged,
+        pureSqlOrder: isPureSqlCandidateOrder(query),
+        fetchCap: null,
+        variantsSelected: rows.length,
+        dbMs: Math.round(dbMs * 100) / 100,
+      });
 
-    if (!materializeThenPage) {
       const {
         items: rawItems,
         colorsMs,
@@ -1393,6 +1403,21 @@ export class CardCacheService {
       return { items: grouped, total, catalogHash: resolvedCatalogHash, timings };
     }
 
+    const rows = await buildSearchSlimCandidateQueryUnsorted(this.db, where);
+    const dbMs = performance.now() - dbStart;
+
+    logSearchPostgresQuery({
+      path: 'cards_list',
+      ...summarizeCardsListQuery(query),
+      engine: 'postgres',
+      materializeThenPage,
+      sqlPaged,
+      pureSqlOrder: isPureSqlCandidateOrder(query),
+      fetchCap: null,
+      variantsSelected: rows.length,
+      dbMs: Math.round(dbMs * 100) / 100,
+    });
+
     const groupStart = performance.now();
     let groups = groupSearchCandidateRows(rows);
     let rankMs = 0;
@@ -1411,8 +1436,14 @@ export class CardCacheService {
       const sign = query.dir === 'asc' ? 1 : -1;
       groups = [...groups].sort((left, right) => {
         const diff =
-          (candidateGroupMaxMarketPrice(left.rows, sortPriceRows ?? []) -
-            candidateGroupMaxMarketPrice(right.rows, sortPriceRows ?? [])) *
+          (candidateGroupMaxMarketPrice(
+            left.rows.map(toPriceSortRow),
+            sortPriceRows ?? []
+          ) -
+            candidateGroupMaxMarketPrice(
+              right.rows.map(toPriceSortRow),
+              sortPriceRows ?? []
+            )) *
           sign;
         if (diff !== 0) return diff;
         return (left.rows[0]?.name ?? '').localeCompare(right.rows[0]?.name ?? '');
@@ -1437,7 +1468,9 @@ export class CardCacheService {
 
     const total = groups.length;
     const pageGroups = groups.slice(offset, offset + query.limit);
-    const pageRows = pageGroups.flatMap((group) => group.rows);
+    const hydrateStart = performance.now();
+    const hydratedGroups = await this.hydrateCandidatePage(pageGroups);
+    const pageRows = hydratedGroups.flatMap((group) => group.rows);
     const {
       items: rawItems,
       colorsMs,
@@ -1445,12 +1478,13 @@ export class CardCacheService {
       mapMs,
     } = await this.hydrateSlimRows(pageRows, sortPriceRows);
     if (sortPriceRows === undefined) pricesMs = pagePricesMs;
+    const hydrateMs = performance.now() - hydrateStart;
 
     const grouped = groupCardListItems(rawItems);
     const byKey = new Map(
       grouped.map((item) => [searchGroupKeyForItem(item), item] as const)
     );
-    const items = pageGroups.flatMap((group) => {
+    const items = hydratedGroups.flatMap((group) => {
       const item = byKey.get(group.key);
       return item ? [item] : [];
     });
@@ -1482,6 +1516,7 @@ export class CardCacheService {
       groupMs: Math.round(groupMs * 100) / 100,
       rankMs: Math.round(rankMs * 100) / 100,
       countMs: 0,
+      hydratePageMs: Math.round(hydrateMs * 100) / 100,
       totalMs: Math.round(timings.totalMs * 100) / 100,
     });
 
@@ -1543,6 +1578,26 @@ export class CardCacheService {
     return this.embeddings.embedMissing();
   }
 
+  private async hydrateCandidatePage(
+    pageGroups: SearchCandidateGroup<SearchCandidateSortRow>[]
+  ): Promise<SearchCandidateGroup<ListItemDbRow>[]> {
+    const variantIds = [
+      ...new Set(pageGroups.flatMap((group) => group.rows.map((row) => row.variantId))),
+    ];
+    if (variantIds.length === 0) return [];
+
+    const fullRows = await buildSearchCandidateByIdsQuery(this.db, variantIds);
+    const byId = new Map(fullRows.map((row) => [row.variantId, row] as const));
+    return pageGroups.flatMap((group) => {
+      const rows = group.rows.flatMap((row) => {
+        const full = byId.get(row.variantId);
+        return full ? [full] : [];
+      });
+      if (rows.length === 0) return [];
+      return [{ key: group.key, cardId: group.cardId, rows }];
+    });
+  }
+
   private async rerankSearchGroups(
     query: string,
     groups: SearchCandidateGroup[],
@@ -1569,7 +1624,10 @@ export class CardCacheService {
         const extraWhere = filterWhere
           ? and(filterWhere, inArray(cards.id, extraIds))
           : inArray(cards.id, extraIds);
-        const extraRows = await buildSearchCandidateQueryUnsorted(this.db, extraWhere);
+        const extraRows = await buildSearchSlimCandidateQueryUnsorted(
+          this.db,
+          extraWhere
+        );
         const extraGroups = groupSearchCandidateRows(extraRows);
         const seen = new Set(lexical.map((group) => group.key));
         merged = [...lexical, ...extraGroups.filter((group) => !seen.has(group.key))];

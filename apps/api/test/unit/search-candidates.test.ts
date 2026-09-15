@@ -2,11 +2,14 @@ import { describe, expect, test } from 'bun:test';
 import {
   groupSearchCandidateRows,
   sortCandidateGroupsLexically,
+  toPriceSortRow,
   type SearchCandidateGroup,
 } from '../../src/lib/search-candidates.js';
 import type { ListItemDbRow } from '../../src/services/card-mapper.js';
 
-function row(overrides: Partial<ListItemDbRow> & Pick<ListItemDbRow, 'variantNumber'>): ListItemDbRow {
+function row(
+  overrides: Partial<ListItemDbRow> & Pick<ListItemDbRow, 'variantNumber'>
+): ListItemDbRow {
   return {
     cardId: '00000000-0000-0000-0000-000000000001',
     name: 'Jinx',
@@ -93,5 +96,18 @@ describe('sortCandidateGroupsLexically', () => {
     };
     const ordered = sortCandidateGroupsLexically([unit, legend], 'ambessa');
     expect(ordered[0]?.key).toBe('legend');
+  });
+});
+
+describe('toPriceSortRow', () => {
+  test('pads slim candidates without changing grouping keys', () => {
+    const slim = row({ variantNumber: 'OGN-001' });
+    const padded = toPriceSortRow(slim);
+    expect(padded.variantId).toBe(slim.variantId);
+    expect(padded.cardmarketId).toBe(slim.cardmarketId);
+    expect(padded.imageUrl).toBe('');
+    expect(groupSearchCandidateRows([padded])[0]?.key).toBe(
+      groupSearchCandidateRows([slim])[0]?.key
+    );
   });
 });
