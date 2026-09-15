@@ -1,0 +1,18 @@
+{
+  "name": "The Astral Grove",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "api",
+      "command": "export PATH=\"$HOME/.bun/bin:$PATH\"; bun run dev:api",
+      "description": "The Astral Grove API (Elysia on Bun) on http://localhost:7000 with hot reload."
+    },
+    {
+      "name": "mobile-web",
+      "command": "export PATH=\"$HOME/.bun/bin:$PATH\"; EXPO_PUBLIC_API_URL=http://localhost:7000 bun run --cwd apps/mobile web",
+      "description": "The Astral Grove Expo web app on http://localhost:7001 pointed at the local API."
+    }
+  ],
+  "ports": [7000, 7001]
+}
