@@ -15,7 +15,7 @@ import {
   InputAddonButtonIcon,
 } from '@/components/ui/input';
 import { SearchInput } from '@/components/ui/search-input';
-import { XIcon } from '@/components/icons';
+import { CameraIcon, XIcon } from '@/components/icons';
 import { useHoldResultsSearchInput } from '@/hooks/useHoldResultsSearchInput';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useWebSlashFocus } from '@/hooks/useWebSlashFocus';
@@ -32,6 +32,8 @@ interface SearchBarProps extends Pick<TextInputProps, 'onSubmitEditing' | 'autoF
   enableSlashFocus?: boolean;
   /** Draft when typing, else committed — drives catalog search while the field is focused. */
   onActiveQueryChange?: (query: string) => void;
+  /** Renders a camera addon that opens the card scanner. Omit to hide it entirely. */
+  onScanPress?: () => void;
 }
 
 /** Focus/`/` clears draft without committing; X commits empty and resets results. */
@@ -45,6 +47,7 @@ export const SearchBar = memo(function SearchBar({
   autoFocus,
   enableSlashFocus = true,
   onActiveQueryChange,
+  onScanPress,
 }: SearchBarProps) {
   const inputRef = useRef<TextInput>(null);
   const searchFocusedRef = useRef(false);
@@ -124,6 +127,10 @@ export const SearchBar = memo(function SearchBar({
 
   // Keep end-addon slots mounted — toggling Pressable children remounts the field on web.
   const showClear = draft.length > 0 || value.length > 0;
+  // The spinner floats over the field, so it has to clear whichever end addons are up.
+  const endAddonCount = (showClear ? 1 : 0) + (onScanPress ? 1 : 0);
+  const spinnerInset =
+    endAddonCount === 2 ? 'right-[76px]' : endAddonCount === 1 ? 'right-11' : 'right-3';
 
   return (
     <View className="relative w-full">
@@ -142,6 +149,22 @@ export const SearchBar = memo(function SearchBar({
         autoFocus={autoFocus}
         shortcutHint={enableSlashFocus ? '/' : undefined}
       >
+        {onScanPress ? (
+          <InputAddon align="inline-end">
+            <InputAddonButton
+              accessibilityLabel="Scan a card with the camera"
+              onPress={onScanPress}
+              size="sm"
+              tabIndex={0}
+              variant="ghost"
+            >
+              <InputAddonButtonIcon>
+                <CameraIcon />
+              </InputAddonButtonIcon>
+            </InputAddonButton>
+          </InputAddon>
+        ) : null}
+
         <InputAddon
           align="inline-end"
           className={cn(!showClear && 'w-0 min-w-0 overflow-hidden opacity-0')}
@@ -164,10 +187,7 @@ export const SearchBar = memo(function SearchBar({
       {isLoading ? (
         <View
           accessibilityElementsHidden
-          className={cn(
-            'absolute bottom-0 top-0 justify-center',
-            showClear ? 'right-11' : 'right-3'
-          )}
+          className={cn('absolute bottom-0 top-0 justify-center', spinnerInset)}
           importantForAccessibility="no-hide-descendants"
           pointerEvents="none"
         >

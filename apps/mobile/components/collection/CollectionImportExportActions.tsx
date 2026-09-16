@@ -1,11 +1,19 @@
 import {
+  CameraIcon,
   CloudUploadIcon,
   DownloadIcon,
   HashIcon,
   type LucideIcon,
 } from '@/components/icons';
 import { CollectionTtsImportSheet } from '@/components/collection/CollectionTtsImportSheet';
-import { ActivityIndicator, Pressable, View, type DimensionValue } from 'react-native';
+import { router } from 'expo-router';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  View,
+  type DimensionValue,
+} from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import { HoverTooltip, ToolbarIconSlot } from '@/components/ui/hover-tooltip';
 import {
@@ -68,14 +76,8 @@ export function CollectionImportExportToolbar({
 }: {
   disabled?: boolean;
 }) {
-  const {
-    importCsv,
-    exportCsv,
-    ttsSheetOpen,
-    setTtsSheetOpen,
-    previewTts,
-    acceptTts,
-  } = useCollectionImportExport();
+  const { importCsv, exportCsv, ttsSheetOpen, setTtsSheetOpen, previewTts, acceptTts } =
+    useCollectionImportExport();
 
   const busy =
     importCsv.isPending ||
@@ -87,6 +89,14 @@ export function CollectionImportExportToolbar({
   return (
     <>
       <View className="shrink-0 flex-row items-center rounded-[3px] bg-card-panel p-0.5">
+        {Platform.OS === 'ios' ? (
+          <ToolbarIconButton
+            icon={CameraIcon}
+            label="Scan cards"
+            disabled={controlsDisabled}
+            onPress={() => router.push('/collection/scan')}
+          />
+        ) : null}
         <ToolbarIconButton
           icon={HashIcon}
           label="Import TTS list"

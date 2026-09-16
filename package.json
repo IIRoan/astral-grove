@@ -68,7 +68,10 @@
     "js-yaml@4": "4.3.2",
     "postcss": "8.5.28",
     "baseline-browser-mapping": "2.11.23",
-    "decode-uri-component": "0.5.0"
+    "decode-uri-component": "0.5.0",
+    "@expo/plist": {
+      "@xmldom/xmldom": "0.8.13"
+    }
   },
   "patchedDependencies": {
     "uniwind@1.10.0": "patches/uniwind@1.10.0.patch"
