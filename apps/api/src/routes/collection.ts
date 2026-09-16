@@ -438,7 +438,19 @@ export function createCollectionRoutes(
         }
         const { collectionId } = await ensureCollectionMembership(db, user.id);
         const parsed = parseRequest(CollectionImportPreviewRequest, body);
-        const result = await collection.previewImportTts(collectionId, parsed.tts);
+        const result =
+          'tts' in parsed
+            ? await collection.previewImportTts(collectionId, parsed.tts)
+            : await collection.previewImportItems(
+                collectionId,
+                parsed.items.map((item) => ({
+                  variantNumber: item.variantNumber,
+                  quantity: item.quantity,
+                  condition: item.condition,
+                  language: item.language,
+                  ...(item.isFoil === undefined ? {} : { isFoil: item.isFoil }),
+                }))
+              );
         return CollectionImportPreviewResponse.parse({ data: result });
       }
     )

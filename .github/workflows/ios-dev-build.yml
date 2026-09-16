@@ -1,0 +1,138 @@
+name: iOS development build
+
+# A stand-in for `eas build` that does not spend cloud build credits. EAS still does
+# the work and still manages the signing credentials, but `--local` runs the build on
+# GitHub's macOS runner instead of Expo's infrastructure, which Expo documents as
+# always free. The repo is public, so macOS runner minutes are free too.
+on:
+  pull_request:
+    # PRs aimed at main get the `development` profile, matching how these were built
+    # on EAS before.
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+# A PR update supersedes whatever was already building — iOS builds are slow and
+# there is no point finishing one for a commit that has been replaced.
+concurrency:
+  group: ios-dev-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # create the release that hosts the .ipa
+  pull-requests: write # post the install QR back onto the PR
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      APP_VARIANT: development
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      # `itms-services` needs this to match the built app exactly, or iOS installs
+      # nothing and gives no reason. The dev variant appends `.dev` in app.config.js.
+      BUNDLE_ID: com.iroan.astralgrove.dev
+      TAG: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('manual-{0}', github.run_number) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build .ipa
+        working-directory: apps/mobile
+        # --local keeps it off Expo's builders; credentials are still fetched from EAS,
+        # so this signs with the same ad-hoc profile (and registered devices) as before.
+        run: |
+          eas build \
+            --platform ios \
+            --profile development \
+            --local \
+            --non-interactive \
+            --output "$RUNNER_TEMP/astral-grove.ipa"
+
+      - name: Publish build and install manifest
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+          IPA_URL="${BASE}/astral-grove.ipa"
+
+          # Over-the-air install manifest. iOS fetches this, then the .ipa it points at.
+          cat > "$RUNNER_TEMP/manifest.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+            <dict>
+              <key>items</key>
+              <array>
+                <dict>
+                  <key>assets</key>
+                  <array>
+                    <dict>
+                      <key>kind</key><string>software-package</string>
+                      <key>url</key><string>${IPA_URL}</string>
+                    </dict>
+                  </array>
+                  <key>metadata</key>
+                  <dict>
+                    <key>bundle-identifier</key><string>${BUNDLE_ID}</string>
+                    <key>bundle-version</key><string>${GITHUB_RUN_NUMBER}</string>
+                    <key>kind</key><string>software</string>
+                    <key>title</key><string>Astral Grove Dev</string>
+                  </dict>
+                </dict>
+              </array>
+            </dict>
+          </plist>
+          PLIST
+
+          INSTALL_URL="itms-services://?action=download-manifest&url=${BASE}/manifest.plist"
+          bunx qrcode -o "$RUNNER_TEMP/install-qr.png" -w 512 "$INSTALL_URL"
+
+          # Recreate the release each run so the tag always points at this commit.
+          gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
+          gh release create "$TAG" \
+            --title "Astral Grove Dev · ${TAG}" \
+            --notes "Development build of ${GITHUB_SHA}. Install from an iPhone already registered for ad-hoc builds." \
+            --prerelease \
+            "$RUNNER_TEMP/astral-grove.ipa" \
+            "$RUNNER_TEMP/manifest.plist" \
+            "$RUNNER_TEMP/install-qr.png"
+
+          {
+            echo "install_url=${INSTALL_URL}"
+            echo "qr_url=${BASE}/install-qr.png"
+            echo "ipa_url=${IPA_URL}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post install QR on the PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: ios-dev-build
+          message: |
+            ### iOS development build ready
+
+            Scan from the iPhone you normally install dev builds on — the QR is an
+            over-the-air install link, the same mechanism EAS internal distribution uses.
+
+            <img src="${{ steps.publish.outputs.qr_url }}" width="240" alt="Install QR" />
+
+            [Install directly](${{ steps.publish.outputs.install_url }}) ·
+            [Download .ipa](${{ steps.publish.outputs.ipa_url }})
+
+            Built from `${{ github.sha }}` with the `development` profile.
+            Requires this device's UDID to be registered for ad-hoc distribution.

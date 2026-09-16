@@ -184,13 +184,33 @@ export async function remoteImportCollectionItems(
   };
 }
 
-export async function remotePreviewCollectionTtsImport(tts: string): Promise<
-  CollectionImportPreviewResponse['data']
-> {
-  const res = await authedFetch<{ data: unknown }>('/api/v1/collection/import/preview', {
-    method: 'POST',
-    body: { tts },
-  });
+export async function remotePreviewCollectionTtsImport(
+  tts: string
+): Promise<CollectionImportPreviewResponse['data']> {
+  const res = await authedFetch<{ data: unknown }>(
+    '/api/v1/collection/import/preview',
+    {
+      method: 'POST',
+      body: { tts },
+    }
+  );
+  return parseOrThrow(
+    'collection.import.preview.parse',
+    CollectionImportPreviewResponseSchema,
+    res
+  ).data;
+}
+
+export async function remotePreviewCollectionImportItems(
+  items: CollectionImportPreviewResponse['data']['items']
+): Promise<CollectionImportPreviewResponse['data']> {
+  const res = await authedFetch<{ data: unknown }>(
+    '/api/v1/collection/import/preview',
+    {
+      method: 'POST',
+      body: { items },
+    }
+  );
   return parseOrThrow(
     'collection.import.preview.parse',
     CollectionImportPreviewResponseSchema,

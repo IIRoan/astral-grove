@@ -1,4 +1,6 @@
-import { View } from 'react-native';
+import { useCallback } from 'react';
+import { Platform, View } from 'react-native';
+import { router } from 'expo-router';
 import { CatalogDesktopToolbar } from '@/components/catalog/CatalogDesktopToolbar';
 import {
   CatalogActiveFilterChips,
@@ -42,6 +44,13 @@ export function SearchScreenToolbar({
   onSortPress,
   onFilterPress,
 }: SearchScreenToolbarProps) {
+  // Stable identity: SearchBar is memo'd, so a fresh arrow every render would defeat it.
+  const openScanner = useCallback(() => {
+    router.push('/collection/scan?mode=lookup');
+  }, []);
+  // Camera OCR is iOS-only for now; elsewhere the addon is simply absent.
+  const onScanPress = Platform.OS === 'ios' ? openScanner : undefined;
+
   if (isMobile) {
     return (
       <View className="w-full gap-2 pb-2" style={{ maxWidth: pageMaxWidth }}>
@@ -55,14 +64,10 @@ export function SearchScreenToolbar({
               isLoading={searchLoading}
               placeholder="Search cards…"
               onSubmitEditing={onSubmitSearch}
+              onScanPress={onScanPress}
             />
           </View>
-          <SortTrigger
-            activeSort={catalogSort}
-            onPress={onSortPress}
-            mobile
-            iconOnly
-          />
+          <SortTrigger activeSort={catalogSort} onPress={onSortPress} mobile iconOnly />
           <CatalogFilterTrigger
             filters={catalogFilters}
             onPress={onFilterPress}
@@ -91,6 +96,7 @@ export function SearchScreenToolbar({
         isLoading={searchLoading}
         placeholder="Search cards, artists, tags, or set numbers"
         onSubmitEditing={onSubmitSearch}
+        onScanPress={onScanPress}
       />
 
       <CatalogDesktopToolbar

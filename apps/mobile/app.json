@@ -42,6 +42,12 @@
           "backgroundColor": "#121212"
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Scan the collector code on your cards to add them to your collection. Photos are read on-device and never uploaded."
+        }
+      ],
       "expo-web-browser",
       "expo-updates"
     ],

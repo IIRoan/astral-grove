@@ -10,7 +10,9 @@ export function openCard(
   variantNumber: string,
   present: CardPresentMode = 'modal',
   source?: CardOpenSource,
-  queryClient?: QueryClient
+  queryClient?: QueryClient,
+  /** `replace` swaps the current screen out — used by the scanner so it does not linger. */
+  navigate: 'push' | 'replace' = 'push'
 ) {
   // Start rules-text fetch during the navigation animation.
   if (queryClient) {
@@ -18,6 +20,11 @@ export function openCard(
   }
   const params = new URLSearchParams({ present });
   if (source) params.set('source', source);
+  // Inline rather than hoisted to a const — typed routes need the template literal type.
+  if (navigate === 'replace') {
+    router.replace(`/card/${encodeURIComponent(variantNumber)}?${params.toString()}`);
+    return;
+  }
   router.push(`/card/${encodeURIComponent(variantNumber)}?${params.toString()}`);
 }
 

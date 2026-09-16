@@ -4,10 +4,11 @@ import { BREAKPOINTS } from '@/lib/responsive-layout';
 /** Extra list padding below the home indicator when the floating tab bar is hidden. */
 const HIDDEN_TAB_BAR_LIST_PAD = 16;
 
-/** Hide floating tab bar on desktop rail, card modals, Play, and deep deck routes (edge-to-edge). */
+/** Hide floating tab bar on desktop rail, card modals, the scanner, Play, and deep deck routes (edge-to-edge). */
 export function mobileTabBarVisible(pathname: string, showRail: boolean): boolean {
   if (showRail) return false;
   if (pathname.startsWith('/card/')) return false;
+  if (pathname === '/collection/scan') return false;
   if (pathname === '/play' || pathname.startsWith('/play/')) return false;
   if (pathname.startsWith('/decks/') && pathname !== '/decks/browse') return false;
   return true;
