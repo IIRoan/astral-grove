@@ -54,12 +54,24 @@ jobs:
         # --local keeps it off Expo's builders; credentials are still fetched from EAS,
         # so this signs with the same ad-hoc profile (and registered devices) as before.
         run: |
+          set -o pipefail
+
+          # EAS prints the whole credential configuration before it builds: the Apple
+          # Team and account holder's name, certificate serial, provisioning profile
+          # id, and every provisioned device by name and UDID. Workflow logs on a
+          # public repo are world-readable, so that block is scrubbed on its way to
+          # the console. pipefail keeps the build's own exit code.
           eas build \
             --platform ios \
             --profile development \
             --local \
             --non-interactive \
-            --output "$RUNNER_TEMP/astral-grove.ipa"
+            --output "$RUNNER_TEMP/astral-grove.ipa" 2>&1 | sed -E \
+              -e 's/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}/[redacted udid]/g' \
+              -e 's/\b[0-9A-Fa-f]{40}\b/[redacted udid]/g' \
+              -e 's/^([[:space:]]*(Apple Team|Serial Number|Developer Portal ID)[[:space:]]+).*/\1[redacted]/' \
+              -e 's/^([[:space:]]*-[[:space:]]+).*\(UDID:.*/\1[redacted device]/' \
+              -e 's/^([[:space:]]*Provisioned devices[[:space:]]+).*/\1[redacted]/'
 
       - name: Publish build and install manifest
         id: publish
