@@ -102,12 +102,6 @@ private func rectify(
   return corrected.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
 }
 
-internal final class MissingPixelBufferException: Exception {
-  override var reason: String {
-    "The frame has no pixel buffer to recognize text in"
-  }
-}
-
 final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
   func scan(frame: (any HybridFrameSpec), options: FrameScanOptions) throws
     -> FrameScanResult
