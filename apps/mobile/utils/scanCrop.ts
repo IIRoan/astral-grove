@@ -101,3 +101,28 @@ export function toVisionRegion(rect: NormalizedRect): NormalizedRect {
     height: rect.height,
   };
 }
+
+/** Map the aspect-filled preview's Vision region into an oriented camera buffer. */
+export function previewRegionToFrameRegion(
+  region: {
+    regionX: number;
+    regionY: number;
+    regionWidth: number;
+    regionHeight: number;
+  },
+  frame: { width: number; height: number; orientation: string }
+) {
+  'worklet';
+  const rotated = frame.orientation === 'left' || frame.orientation === 'right';
+  const width = rotated ? frame.height : frame.width;
+  const height = rotated ? frame.width : frame.height;
+  const aspect = width / height;
+  const visibleW = aspect > PREVIEW_ASPECT ? PREVIEW_ASPECT / aspect : 1;
+  const visibleH = aspect < PREVIEW_ASPECT ? aspect / PREVIEW_ASPECT : 1;
+  return {
+    regionX: (1 - visibleW) / 2 + region.regionX * visibleW,
+    regionY: (1 - visibleH) / 2 + region.regionY * visibleH,
+    regionWidth: region.regionWidth * visibleW,
+    regionHeight: region.regionHeight * visibleH,
+  };
+}

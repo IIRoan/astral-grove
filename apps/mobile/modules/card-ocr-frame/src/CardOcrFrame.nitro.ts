@@ -22,7 +22,7 @@ export interface FrameScanOptions {
   rectifiedWidth: number;
   /**
    * Fallback region of interest, used only when no card is located in the frame.
-   * Normalized, origin bottom-left (Vision's convention).
+   * Normalized within the oriented frame, origin bottom-left (Vision's convention).
    */
   regionX: number;
   regionY: number;
@@ -54,8 +54,8 @@ export interface FrameScanResult {
    */
   cardDetected: boolean;
   /**
-   * Nearest catalog images, best first. Empty until `setIndex` has been called, and
-   * whenever no card was located — a raw frame is mostly table.
+   * Nearest catalog images, best first. Empty until `setIndex` has been called.
+   * Whole-card fallback passes match the visible guide when card edges are missing.
    */
   matches: ImageMatch[];
   /** False when only the collector strip was read, so `lines` holds no card name. */

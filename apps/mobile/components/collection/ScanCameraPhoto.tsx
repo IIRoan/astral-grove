@@ -15,16 +15,18 @@ export function ScanCameraPhoto({
   session,
   level,
   active,
+  torch,
 }: {
   session: ScanSession;
   level: ScannerRecognitionLevel;
   active: boolean;
+  torch: boolean;
 }) {
   const cameraRef = useRef<CameraView | null>(null);
   const [ready, setReady] = useState(false);
   const { runPass, passGapMs } = useCardScannerPhoto(session, level);
 
-  const looping = active && ready && session.ready;
+  const looping = active && ready && session.ready && !session.pending;
   useEffect(() => {
     if (!looping) return;
     let cancelled = false;
@@ -47,6 +49,8 @@ export function ScanCameraPhoto({
         ref={cameraRef}
         style={{ flex: 1 }}
         facing="back"
+        active={active}
+        enableTorch={active && torch}
         animateShutter={false}
         onCameraReady={() => setReady(true)}
       />
