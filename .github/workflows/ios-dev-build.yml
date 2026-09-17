@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write # create the release that hosts the .ipa
+  contents: read
   pull-requests: write # post the install QR back onto the PR
 
 jobs:
@@ -29,10 +29,6 @@ jobs:
     env:
       APP_VARIANT: development
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      # `itms-services` needs this to match the built app exactly, or iOS installs
-      # nothing and gives no reason. The dev variant appends `.dev` in app.config.js.
-      BUNDLE_ID: com.iroan.astralgrove.dev
-      TAG: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('manual-{0}', github.run_number) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -73,62 +69,25 @@ jobs:
               -e 's/^([[:space:]]*-[[:space:]]+).*\(UDID:.*/\1[redacted device]/' \
               -e 's/^([[:space:]]*Provisioned devices[[:space:]]+).*/\1[redacted]/'
 
-      - name: Publish build and install manifest
+      - name: Upload build to Expo
         id: publish
-        env:
-          GH_TOKEN: ${{ github.token }}
+        working-directory: apps/mobile
         run: |
           set -euo pipefail
-          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
-          IPA_URL="${BASE}/astral-grove.ipa"
+          eas upload \
+            --platform ios \
+            --build-path "$RUNNER_TEMP/astral-grove.ipa" \
+            --non-interactive \
+            --json > "$RUNNER_TEMP/ios-upload.json"
 
-          # Over-the-air install manifest. iOS fetches this, then the .ipa it points at.
-          cat > "$RUNNER_TEMP/manifest.plist" <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-            <dict>
-              <key>items</key>
-              <array>
-                <dict>
-                  <key>assets</key>
-                  <array>
-                    <dict>
-                      <key>kind</key><string>software-package</string>
-                      <key>url</key><string>${IPA_URL}</string>
-                    </dict>
-                  </array>
-                  <key>metadata</key>
-                  <dict>
-                    <key>bundle-identifier</key><string>${BUNDLE_ID}</string>
-                    <key>bundle-version</key><string>${GITHUB_RUN_NUMBER}</string>
-                    <key>kind</key><string>software</string>
-                    <key>title</key><string>Astral Grove Dev</string>
-                  </dict>
-                </dict>
-              </array>
-            </dict>
-          </plist>
-          PLIST
-
-          INSTALL_URL="itms-services://?action=download-manifest&url=${BASE}/manifest.plist"
-          bunx qrcode -o "$RUNNER_TEMP/install-qr.png" -w 512 "$INSTALL_URL"
-
-          # Recreate the release each run so the tag always points at this commit.
-          gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
-          gh release create "$TAG" \
-            --title "Astral Grove Dev · ${TAG}" \
-            --notes "Development build of ${GITHUB_SHA}. Install from an iPhone already registered for ad-hoc builds." \
-            --prerelease \
-            "$RUNNER_TEMP/astral-grove.ipa" \
-            "$RUNNER_TEMP/manifest.plist" \
-            "$RUNNER_TEMP/install-qr.png"
-
+          INSTALL_URL=$(jq -er '.url | select(type == "string" and startswith("https://expo.dev/"))' "$RUNNER_TEMP/ios-upload.json")
+          ENCODED_URL=$(printf '%s' "$INSTALL_URL" | jq -sRr @uri)
           {
             echo "install_url=${INSTALL_URL}"
-            echo "qr_url=${BASE}/install-qr.png"
-            echo "ipa_url=${IPA_URL}"
+            # A hosted QR image can render inline in GitHub comments without a release.
+            echo "qr_url=https://quickchart.io/qr?size=512&text=${ENCODED_URL}"
           } >> "$GITHUB_OUTPUT"
+          echo "[Install iOS development build](${INSTALL_URL})" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post install QR on the PR
         if: github.event_name == 'pull_request'
@@ -138,13 +97,11 @@ jobs:
           message: |
             ### iOS development build ready
 
-            Scan from the iPhone you normally install dev builds on — the QR is an
-            over-the-air install link, the same mechanism EAS internal distribution uses.
+            Scan from your registered iPhone to open the Expo build page and install the app.
 
             <img src="${{ steps.publish.outputs.qr_url }}" width="240" alt="Install QR" />
 
-            [Install directly](${{ steps.publish.outputs.install_url }}) ·
-            [Download .ipa](${{ steps.publish.outputs.ipa_url }})
+            [Download and install](${{ steps.publish.outputs.install_url }})
 
             Built from `${{ github.sha }}` with the `development` profile.
             Requires this device's UDID to be registered for ad-hoc distribution.
