@@ -14,6 +14,8 @@ public protocol HybridCardOcrFrameSpec_protocol: HybridObject {
   var embeddingVersion: String { get }
 
   // Methods
+  func pollScan(frame: (any HybridFrameSpec), options: FrameScanOptions) throws -> FrameScanResult?
+  func resetScan() throws -> Void
   func scan(frame: (any HybridFrameSpec), options: FrameScanOptions) throws -> FrameScanResult
   func embedImage(url: String) throws -> Promise<ArrayBuffer>
   func setIndex(keys: [String], vectors: ArrayBuffer) throws -> Void

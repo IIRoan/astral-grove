@@ -67,6 +67,12 @@ export interface FrameScanResult {
 }
 
 export interface CardOcrFrame extends HybridObject<{ ios: 'swift' }> {
+  /** Return a completed scan, or submit this frame to the native worker when idle. */
+  pollScan(frame: Frame, options: FrameScanOptions): FrameScanResult | undefined;
+
+  /** Discard results from before a pause, confirmation, or camera remount. */
+  resetScan(): void;
+
   /**
    * Locate the card in the frame, straighten it, read it with Apple Vision text
    * recognition and look its artwork up in the index — all on the frame's own buffer.

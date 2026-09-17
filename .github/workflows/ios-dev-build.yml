@@ -40,6 +40,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Test native scan worker
+        run: |
+          swiftc apps/mobile/modules/card-ocr-frame/ios/ScanWorker.swift \
+            apps/mobile/modules/card-ocr-frame/test/ScanWorkerTests.swift \
+            -o "$RUNNER_TEMP/scan-worker-tests"
+          "$RUNNER_TEMP/scan-worker-tests"
+
       - uses: expo/expo-github-action@v8
         with:
           # The upload adapter is tested against this CLI's local-build metadata API.
