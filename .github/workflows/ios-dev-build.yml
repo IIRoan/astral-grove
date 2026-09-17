@@ -42,7 +42,8 @@ jobs:
 
       - uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
+          # The upload adapter is tested against this CLI's local-build metadata API.
+          eas-version: 24.6.0
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build .ipa
@@ -72,9 +73,11 @@ jobs:
       - name: Upload build to Expo
         id: publish
         working-directory: apps/mobile
+        env:
+          EAS_BUILD_SOURCE_REF: ${{ github.head_ref || github.ref_name }}
         run: |
           set -euo pipefail
-          eas upload \
+          node scripts/upload-development-build.cjs "$(command -v eas)" \
             --platform ios \
             --build-path "$RUNNER_TEMP/astral-grove.ipa" \
             --non-interactive \

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
-import { useFrameOutput } from 'react-native-vision-camera';
+import { useAsyncRunner, useFrameOutput } from 'react-native-vision-camera';
+import type { Frame } from 'react-native-vision-camera';
+import { dispatchScanFrame } from '@/lib/scan-frame-dispatch';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { scheduleOnRN } from 'react-native-worklets';
 import {
@@ -18,16 +20,7 @@ import {
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
 
-/**
- * Breathing room between recognition passes, from the end of one to the start of the
- * next.
- *
- * `dropFramesWhileBusy` stops two passes overlapping, but on its own the next frame
- * starts a pass the instant the previous one ends, so the pipeline never gets a moment
- * of slack and the camera reports `frame-was-late`. Measured from the end because a
- * pass that only reads the collector strip is several times quicker than a whole-card
- * one, and a fixed start-to-start interval would spend that saving idling.
- */
+/** Allow exposure to settle between passes; recognition runs on a separate worker. */
 const SCAN_IDLE_MS = 80;
 
 /**
@@ -52,7 +45,7 @@ function describeMatches(matches: ImageMatch[]): string {
 
 /**
  * Frame engine: Apple Vision locates, straightens, reads and recognizes the card, all
- * on the camera's own pixel buffer. No photo is captured, so the preview never stutters.
+ * on the camera's pixel buffer, using a separate worker so delivery can continue.
  */
 export function useCardScannerFrame(
   session: ScanSession,
@@ -60,6 +53,9 @@ export function useCardScannerFrame(
   enabled: boolean
 ) {
   const { resolve, present, noteCard } = session;
+  const asyncRunner = useAsyncRunner();
+  const [scanError, setScanError] = useState(false);
+  const lastError = useRef<string | null>(null);
   const enabledRef = useLatestRef(enabled);
   const scanning = useSharedValue(enabled);
   useEffect(() => {
@@ -87,6 +83,8 @@ export function useCardScannerFrame(
       stageMs: number[]
     ) => {
       if (!enabledRef.current) return;
+      lastError.current = null;
+      setScanError(false);
       setCardDetected(detected);
       noteCard(detected);
       if (__DEV__) {
@@ -131,16 +129,30 @@ export function useCardScannerFrame(
     };
   }, [level]);
 
-  const frameOutput = useFrameOutput({
-    // Vision is slower than the preview frame rate; without this the pipeline would queue frames
-    // and stall the camera rather than simply skipping the ones it cannot keep up with.
-    dropFramesWhileBusy: true,
-    onFrame(frame) {
+  const handleError = useCallback(
+    (message: string) => {
+      if (!enabledRef.current) return;
+      if (lastError.current !== message) console.warn(`Card recognition: ${message}`);
+      lastError.current = message;
+      setScanError(true);
+    },
+    [enabledRef]
+  );
+
+  const reportError = useCallback(
+    (error: unknown) => {
+      'worklet';
+      lastScanEnd.value = performance.now();
+      scheduleOnRN(handleError, error instanceof Error ? error.message : String(error));
+    },
+    [handleError, lastScanEnd]
+  );
+
+  const processFrame = useCallback(
+    (frame: Frame) => {
       'worklet';
       let scanned = false;
       try {
-        // Frames we skip are disposed immediately and cost the pipeline nothing, so
-        // the preview keeps running at full rate while Vision works at its own pace.
         if (!scanning.value || performance.now() - lastScanEnd.value < SCAN_IDLE_MS)
           return;
         scanned = true;
@@ -200,12 +212,23 @@ export function useCardScannerFrame(
         // Only a real pass restarts the clock — a skipped frame doing so would mean
         // the gap never elapses and nothing is ever scanned.
         if (scanned) lastScanEnd.value = performance.now();
-        // Must happen even on a throw or an early return, or the camera pipeline
-        // stalls out of buffers.
-        frame.dispose();
       }
+    },
+    [scanning, lastScanEnd, wantWholeCard, cardOptions, codeOptions, handleResult]
+  );
+
+  const frameOutput = useFrameOutput({
+    pixelFormat: 'yuv',
+    dropFramesWhileBusy: true,
+    onFrame(frame) {
+      'worklet';
+      if (!scanning.value || performance.now() - lastScanEnd.value < SCAN_IDLE_MS) {
+        frame.dispose();
+        return;
+      }
+      dispatchScanFrame(frame, asyncRunner, processFrame, reportError);
     },
   });
 
-  return { frameOutput, cardDetected, artDebug };
+  return { frameOutput, cardDetected, artDebug, scanError };
 }
