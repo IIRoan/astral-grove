@@ -45,10 +45,14 @@ namespace margelo::nitro::cardocr {
     std::vector<std::vector<std::string>> lines     SWIFT_PRIVATE;
     bool cardDetected     SWIFT_PRIVATE;
     std::vector<ImageMatch> matches     SWIFT_PRIVATE;
+    bool wholeCard     SWIFT_PRIVATE;
+    double locateMs     SWIFT_PRIVATE;
+    double matchMs     SWIFT_PRIVATE;
+    double readMs     SWIFT_PRIVATE;
 
   public:
     FrameScanResult() = default;
-    explicit FrameScanResult(std::vector<std::vector<std::string>> lines, bool cardDetected, std::vector<ImageMatch> matches): lines(lines), cardDetected(cardDetected), matches(matches) {}
+    explicit FrameScanResult(std::vector<std::vector<std::string>> lines, bool cardDetected, std::vector<ImageMatch> matches, bool wholeCard, double locateMs, double matchMs, double readMs): lines(lines), cardDetected(cardDetected), matches(matches), wholeCard(wholeCard), locateMs(locateMs), matchMs(matchMs), readMs(readMs) {}
 
   public:
     friend bool operator==(const FrameScanResult& lhs, const FrameScanResult& rhs) = default;
@@ -66,7 +70,11 @@ namespace margelo::nitro {
       return margelo::nitro::cardocr::FrameScanResult(
         JSIConverter<std::vector<std::vector<std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "lines"))),
         JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cardDetected"))),
-        JSIConverter<std::vector<margelo::nitro::cardocr::ImageMatch>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matches")))
+        JSIConverter<std::vector<margelo::nitro::cardocr::ImageMatch>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matches"))),
+        JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "wholeCard"))),
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "locateMs"))),
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matchMs"))),
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "readMs")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::cardocr::FrameScanResult& arg) {
@@ -74,6 +82,10 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "lines"), JSIConverter<std::vector<std::vector<std::string>>>::toJSI(runtime, arg.lines));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "cardDetected"), JSIConverter<bool>::toJSI(runtime, arg.cardDetected));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "matches"), JSIConverter<std::vector<margelo::nitro::cardocr::ImageMatch>>::toJSI(runtime, arg.matches));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "wholeCard"), JSIConverter<bool>::toJSI(runtime, arg.wholeCard));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "locateMs"), JSIConverter<double>::toJSI(runtime, arg.locateMs));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "matchMs"), JSIConverter<double>::toJSI(runtime, arg.matchMs));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "readMs"), JSIConverter<double>::toJSI(runtime, arg.readMs));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -87,6 +99,10 @@ namespace margelo::nitro {
       if (!JSIConverter<std::vector<std::vector<std::string>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "lines")))) return false;
       if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cardDetected")))) return false;
       if (!JSIConverter<std::vector<margelo::nitro::cardocr::ImageMatch>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matches")))) return false;
+      if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "wholeCard")))) return false;
+      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "locateMs")))) return false;
+      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matchMs")))) return false;
+      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "readMs")))) return false;
       return true;
     }
   };

@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  buildScanCatalog,
   confidentArt,
+  decideScan,
   IMAGE_MATCH_FLOOR,
   IMAGE_TIE_MARGIN,
   nameSimilarity,
@@ -197,5 +199,123 @@ describe('confidentArt', () => {
         { key: 'b', score: 0.95 - IMAGE_TIE_MARGIN / 2 },
       ])
     ).toBeNull();
+  });
+});
+
+describe('decideScan', () => {
+  // The shapes the real catalog throws up: a unique card, a standard/alt-art pair with
+  // their own pictures, and a rune reprinted across sets under one picture.
+  const card = (variantNumber: string, name: string, image = variantNumber) => ({
+    variantNumber,
+    name,
+    setCode: variantNumber.split('-')[0]!,
+    imageUrl: `${image}.webp`,
+  });
+  const abandon = card('UNL-131', 'Abandon');
+  const ahri = card('OGN-066', 'Ahri, Alluring');
+  const ahriAlt = card('OGN-066a', 'Ahri, Alluring');
+  const fury = card('OGN-007', 'Fury Rune');
+  const furySfd = card('SFD-R01', 'Fury Rune', 'OGN-007');
+  const annie = card('OGN-119', 'Annie, Fiery');
+  const catalog = buildScanCatalog([abandon, ahri, ahriAlt, fury, furySfd, annie]);
+
+  const art = (...ranked: [string, number][]) =>
+    ranked.map(([key, score]) => ({ key: `${key}.webp`, score }));
+
+  test('a code the artwork agrees with is the one sure outcome', () => {
+    const lines = ['OGN • 066a/298'];
+    expect(
+      decideScan(catalog, lines, art(['OGN-066a', 0.9], ['OGN-066', 0.8]))
+    ).toEqual({
+      kind: 'card',
+      card: ahriAlt,
+      via: 'code',
+      sure: true,
+    });
+  });
+
+  test('a code alone still identifies, but is not sure', () => {
+    expect(decideScan(catalog, ['UNL • 131/219'])).toEqual({
+      kind: 'card',
+      card: abandon,
+      via: 'code',
+      sure: false,
+    });
+  });
+
+  test('a misread code is overruled when artwork and name both disagree', () => {
+    // 066 read as 119: a real card, but neither the picture nor the name is Annie's.
+    const lines = ['Ahri, Alluring', 'OGN • 119/298'];
+    const decision = decideScan(
+      catalog,
+      lines,
+      art(['OGN-066', 0.9], ['OGN-066a', 0.7])
+    );
+    expect(decision).toEqual({ kind: 'card', card: ahri, via: 'art', sure: false });
+  });
+
+  test('the code stands when only one of them disagrees', () => {
+    // Glare threw the artwork off, but the name vouches for the code.
+    const glare = decideScan(
+      catalog,
+      ['Annie, Fiery', 'OGN • 119/298'],
+      art(['UNL-131', 0.6])
+    );
+    expect(glare).toMatchObject({
+      kind: 'card',
+      card: annie,
+      via: 'code',
+      sure: false,
+    });
+  });
+
+  test('a strip-only read waits for the name before crossing the artwork', () => {
+    const lines = ['OGN • 119/298'];
+    const matches = art(['OGN-066', 0.9]);
+    expect(decideScan(catalog, lines, matches, false)).toBeNull();
+    // The whole card was read and still shows no name: the code is all there is.
+    expect(decideScan(catalog, lines, matches, true)).toMatchObject({ card: annie });
+  });
+
+  test('artwork picks the printing when the name has several', () => {
+    const decision = decideScan(
+      catalog,
+      ['Ahri, Alluring'],
+      art(['OGN-066a', 0.88], ['OGN-066', 0.71])
+    );
+    expect(decision).toEqual({ kind: 'card', card: ahriAlt, via: 'art', sure: false });
+  });
+
+  test('reprints under one picture are held for the user, narrowed by the artwork', () => {
+    const alone = decideScan(catalog, ['Fury Rune']);
+    expect(alone).toMatchObject({ kind: 'hold', key: 'Fury Rune' });
+    expect(alone?.kind === 'hold' && alone.options).toEqual([fury, furySfd]);
+
+    const seen = decideScan(catalog, ['Fury Rune'], art(['OGN-007', 0.93]));
+    expect(seen?.kind === 'hold' && seen.options).toEqual([fury, furySfd]);
+  });
+
+  test('a unique name is enough on its own', () => {
+    expect(decideScan(catalog, ['Abandon'])).toEqual({
+      kind: 'card',
+      card: abandon,
+      via: 'name',
+      sure: false,
+    });
+  });
+
+  test('with nothing legible, only confident artwork is held', () => {
+    const clear = decideScan(catalog, [], art(['UNL-131', 0.92], ['OGN-119', 0.6]));
+    expect(clear).toEqual({
+      kind: 'hold',
+      key: 'UNL-131.webp',
+      name: 'Abandon',
+      options: [abandon],
+    });
+    expect(decideScan(catalog, [], art(['UNL-131', 0.5]))).toBeNull();
+    expect(
+      decideScan(catalog, [], art(['UNL-131', 0.9], ['OGN-119', 0.89]))
+    ).toBeNull();
+    expect(decideScan(catalog, [])).toBeNull();
   });
 });

@@ -188,25 +188,88 @@ private func nearest(to query: [Float], in index: ImageIndex) -> [ImageMatch] {
 }
 
 /**
- Reference art is stored portrait even for battlefields, which are printed landscape.
- A landscape card is tried turned both ways, which also covers it being held upside down.
+ The ways a located card might really be lying, as images to look up.
+
+ Reference art is stored portrait even for battlefields, which are printed landscape, so
+ a landscape card is turned both ways. A portrait card is also tried upside down: cards
+ come off a pile any way up, and nothing else in the pipeline can tell.
  */
-private func portraitCandidates(of card: CIImage) -> [CIImage] {
-  guard card.extent.width > card.extent.height else { return [card] }
-  return [card.oriented(.left), card.oriented(.right)]
+private func lookupCandidates(of card: CIImage) -> [CIImage] {
+  card.extent.width > card.extent.height
+    ? [card.oriented(.left), card.oriented(.right)]
+    : [card, card.oriented(.down)]
 }
 
-/** Look the rectified card up in the index: the best result across its orientations. */
-private func recognize(_ card: CIImage, in index: ImageIndex) -> [ImageMatch] {
+/**
+ A second orientation has to beat the first by this much to win. Some art is close to
+ symmetrical, and a coin flip there would turn a readable card upside down.
+ */
+private let orientationMargin = 0.05
+
+/**
+ Look the rectified card up in the index. Returns the best matches across the ways it
+ might be lying, and whether it was the second of them that won.
+ */
+private func recognize(_ card: CIImage, in index: ImageIndex) -> (
+  matches: [ImageMatch], turned: Bool
+) {
   var best: [ImageMatch] = []
-  for candidate in portraitCandidates(of: card) {
+  var turned = false
+  for (position, candidate) in lookupCandidates(of: card).enumerated() {
     guard let vector = featureVector(of: candidate) else { continue }
     let found = nearest(to: vector, in: index)
-    if (found.first?.score ?? 0) > (best.first?.score ?? 0) {
+    let lead = position == 0 ? 0 : orientationMargin
+    if (found.first?.score ?? 0) > (best.first?.score ?? 0) + lead {
       best = found
+      turned = position > 0
     }
   }
-  return best
+  return (best, turned)
+}
+
+/**
+ The collector line sits in the bottom sixth of every card face. Vision's region of
+ interest is normalized with the origin bottom-left, so this is that strip.
+ */
+private let collectorStrip = CGRect(x: 0, y: 0, width: 1, height: 0.16)
+
+// The shape every printed collector number has: `179/298`, `166b/298`, or a signed
+// card's star before the slash. (A line comment on purpose — that star-slash pair
+// would end a block comment.)
+private func looksLikeCollectorCode(_ readings: [String]) -> Bool {
+  readings.contains {
+    $0.range(of: #"\d\s*[A-Za-z*]?\s*/\s*\d"#, options: .regularExpression) != nil
+  }
+}
+
+/** One text pass over `image`, or over just `region` of it: ranked readings per line. */
+private func readText(
+  in image: CIImage,
+  region: CGRect?,
+  options: FrameScanOptions
+) throws -> [[String]] {
+  let request = VNRecognizeTextRequest()
+  request.recognitionLevel = options.recognitionLevel == "fast" ? .fast : .accurate
+  request.usesLanguageCorrection = options.usesLanguageCorrection
+  request.recognitionLanguages = ["en-US"]
+  if let region {
+    request.regionOfInterest = region
+  }
+
+  let handler = VNImageRequestHandler(ciImage: image, options: [.ciContext: ciContext])
+  try handler.perform([request])
+
+  // `VNRequest.results` is `[VNObservation]?`, so it has to be narrowed before
+  // `topCandidates` is available.
+  let observations = (request.results as? [VNRecognizedTextObservation]) ?? []
+  let maxCandidates = max(1, Int(options.maxCandidates))
+  return observations.map { observation in
+    observation.topCandidates(maxCandidates).map { $0.string }
+  }
+}
+
+private func milliseconds(since start: CFAbsoluteTime) -> Double {
+  (CFAbsoluteTimeGetCurrent() - start) * 1000
 }
 
 final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
@@ -253,66 +316,70 @@ final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
       let sampleBuffer = nativeFrame.sampleBuffer,
       let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
     else {
-      return FrameScanResult(lines: [], cardDetected: false, matches: [])
+      return FrameScanResult(
+        lines: [], cardDetected: false, matches: [], wholeCard: true,
+        locateMs: 0, matchMs: 0, readMs: 0)
     }
 
     // Frames arrive continuously; without the pool every intermediate Vision and
     // CoreImage allocation would be held until the thread's run loop drains.
-    return try autoreleasepool {
+    return try autoreleasepool { () throws -> FrameScanResult in
       // Bake the rotation in once, so every step below works in upright coordinates.
       let oriented = CIImage(cvPixelBuffer: pixelBuffer)
         .oriented(cgOrientation(from: options.orientation))
 
-      let request = VNRecognizeTextRequest()
-      request.recognitionLevel = options.recognitionLevel == "fast" ? .fast : .accurate
-      request.usesLanguageCorrection = options.usesLanguageCorrection
-      request.recognitionLanguages = ["en-US"]
-
+      var clock = CFAbsoluteTimeGetCurrent()
       let card = detectCard(in: oriented)
       let rectified = card.flatMap {
         rectify(oriented, to: $0, width: CGFloat(options.rectifiedWidth))
       }
+      let locateMs = milliseconds(since: clock)
 
-      let target: CIImage
-      if let rectified {
-        // The card now fills the image, so the whole thing is worth reading: one pass
-        // picks up both the name and the collector code.
-        target = rectified
-      } else {
+      guard var reading = rectified else {
         // No card located — fall back to the caller's fixed region on the raw frame.
-        target = oriented
-        if options.regionWidth > 0, options.regionHeight > 0 {
-          request.regionOfInterest = CGRect(
-            x: options.regionX,
-            y: options.regionY,
-            width: options.regionWidth,
-            height: options.regionHeight
-          )
+        clock = CFAbsoluteTimeGetCurrent()
+        let hasRegion = options.regionWidth > 0 && options.regionHeight > 0
+        let region = CGRect(
+          x: options.regionX, y: options.regionY,
+          width: options.regionWidth, height: options.regionHeight)
+        let lines = try readText(
+          in: oriented, region: hasRegion ? region : nil, options: options)
+        return FrameScanResult(
+          lines: lines, cardDetected: false, matches: [], wholeCard: true,
+          locateMs: locateMs, matchMs: 0, readMs: milliseconds(since: clock))
+      }
+
+      // Recognize before reading: the artwork is also the only thing that can say the
+      // card is upside down, and text is only legible the right way up. A landscape
+      // card is left as it lies — its reference art is sideways, its print is not.
+      clock = CFAbsoluteTimeGetCurrent()
+      var matches: [ImageMatch] = []
+      if let index = currentIndex() {
+        let recognized = recognize(reading, in: index)
+        matches = recognized.matches
+        if recognized.turned, reading.extent.width <= reading.extent.height {
+          reading = reading.oriented(.down)
         }
       }
+      let matchMs = milliseconds(since: clock)
 
-      let handler = VNImageRequestHandler(
-        ciImage: target,
-        options: [.ciContext: ciContext]
-      )
-      try handler.perform([request])
-
-      // `VNRequest.results` is `[VNObservation]?`, so it has to be narrowed before
-      // `topCandidates` is available.
-      let observations = (request.results as? [VNRecognizedTextObservation]) ?? []
-      let maxCandidates = max(1, Int(options.maxCandidates))
-      let lines = observations.map { observation in
-        observation.topCandidates(maxCandidates).map { $0.string }
+      // The collector strip first: it is a fraction of a whole-card pass, and once the
+      // artwork is recognized the code is all that is left to learn. The rest of the
+      // card is only read when the strip shows no code, or the caller wants the name.
+      clock = CFAbsoluteTimeGetCurrent()
+      var lines: [[String]] = []
+      var wholeCard = options.wholeCard
+      if !wholeCard {
+        lines = try readText(in: reading, region: collectorStrip, options: options)
+        wholeCard = !lines.contains(where: looksLikeCollectorCode)
       }
-
-      // Only a located card is worth looking up: a raw frame is mostly table.
-      var matches: [ImageMatch] = []
-      if let rectified, let index = currentIndex() {
-        matches = recognize(rectified, in: index)
+      if wholeCard {
+        lines = try readText(in: reading, region: nil, options: options)
       }
 
       return FrameScanResult(
-        lines: lines, cardDetected: rectified != nil, matches: matches)
+        lines: lines, cardDetected: true, matches: matches, wholeCard: wholeCard,
+        locateMs: locateMs, matchMs: matchMs, readMs: milliseconds(since: clock))
     }
   }
 }

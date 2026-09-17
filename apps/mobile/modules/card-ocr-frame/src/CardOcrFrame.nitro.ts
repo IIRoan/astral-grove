@@ -28,6 +28,13 @@ export interface FrameScanOptions {
   regionY: number;
   regionWidth: number;
   regionHeight: number;
+  /**
+   * Read the whole card straight away. Normally the collector strip is read first and
+   * the rest only when that finds no code — the strip is a fraction of the work, and
+   * with the artwork recognized the code is all that is left to learn. Set when the
+   * quick read did not settle it, so the name gets a say.
+   */
+  wholeCard: boolean;
 }
 
 /** A catalog image the card in frame looks like. */
@@ -51,6 +58,12 @@ export interface FrameScanResult {
    * whenever no card was located — a raw frame is mostly table.
    */
   matches: ImageMatch[];
+  /** False when only the collector strip was read, so `lines` holds no card name. */
+  wholeCard: boolean;
+  /** Milliseconds spent locating, recognizing and reading. Reported in dev builds. */
+  locateMs: number;
+  matchMs: number;
+  readMs: number;
 }
 
 export interface CardOcrFrame extends HybridObject<{ ios: 'swift' }> {

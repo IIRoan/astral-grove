@@ -51,7 +51,8 @@ function OptionRow<T extends string>({
  * settings — it exists to pick a winner, then the loser can be deleted.
  */
 export function ScannerEngineSection() {
-  const { engine, setEngine, level, setLevel } = useScannerEngine();
+  const { engine, setEngine, level, setLevel, autoAdd, setAutoAdd } =
+    useScannerEngine();
 
   if (Platform.OS !== 'ios') return null;
 
@@ -92,6 +93,24 @@ export function ScannerEngineSection() {
             onPress={() => setLevel(option.value)}
           />
         ))}
+      </View>
+
+      <View className="gap-2">
+        <Text className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
+          Confirmation
+        </Text>
+        <OptionRow
+          label="Confirm every card"
+          detail="Each card waits for a yes before it counts."
+          selected={!autoAdd}
+          onPress={() => setAutoAdd(false)}
+        />
+        <OptionRow
+          label="Add sure matches straight away"
+          detail="When the printed number and the artwork agree, the card is added without asking. Anything less certain still waits for you."
+          selected={autoAdd}
+          onPress={() => setAutoAdd(true)}
+        />
       </View>
     </View>
   );

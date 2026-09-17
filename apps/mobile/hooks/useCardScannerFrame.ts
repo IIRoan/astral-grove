@@ -13,13 +13,16 @@ import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
 
 /**
- * Minimum gap between recognition passes.
+ * Breathing room between recognition passes, from the end of one to the start of the
+ * next.
  *
  * `dropFramesWhileBusy` stops two passes overlapping, but on its own the next frame
  * starts a pass the instant the previous one ends, so the pipeline never gets a moment
- * of slack and the camera reports `frame-was-late`.
+ * of slack and the camera reports `frame-was-late`. Measured from the end because a
+ * pass that only reads the collector strip is several times quicker than a whole-card
+ * one, and a fixed start-to-start interval would spend that saving idling.
  */
-const SCAN_INTERVAL_MS = 220;
+const SCAN_IDLE_MS = 80;
 
 /**
  * Width the located card is straightened to. The collector code is roughly 1.5% of the
@@ -49,23 +52,39 @@ export function useCardScannerFrame(
   session: ScanSession,
   level: ScannerRecognitionLevel
 ) {
-  const { resolve, present } = session;
-  // Shared value, not a ref: the worklet runs off the JS thread and needs state that
+  const { resolve, present, noteCard } = session;
+  // Shared values, not refs: the worklet runs off the JS thread and needs state that
   // survives between frames on its own runtime.
-  const lastScanAt = useSharedValue(0);
+  const lastScanEnd = useSharedValue(0);
+  /** Set when a quick strip-only read settled nothing, so the next pass reads it all. */
+  const wantWholeCard = useSharedValue(false);
   const [cardDetected, setCardDetected] = useState(false);
-  /** Live artwork scores, dev builds only: what `IMAGE_MATCH_FLOOR` is tuned against. */
+  /**
+   * Live artwork scores and stage timings (locate + match + read), dev builds only:
+   * what `IMAGE_MATCH_FLOOR` and the pass budget are tuned against.
+   */
   const [artDebug, setArtDebug] = useState('');
 
   // Called back on the JS thread once a frame has been read.
   const handleResult = useCallback(
-    (lines: string[][], detected: boolean, matches: ImageMatch[]) => {
+    (
+      lines: string[][],
+      detected: boolean,
+      matches: ImageMatch[],
+      wholeCard: boolean,
+      stageMs: number[]
+    ) => {
       setCardDetected(detected);
-      if (__DEV__) setArtDebug(describeMatches(matches));
-      const outcome = resolve(lines, matches);
+      noteCard(detected);
+      if (__DEV__) {
+        const timing = stageMs.length > 0 ? `${stageMs.join('+')}ms` : '';
+        setArtDebug([describeMatches(matches), timing].filter(Boolean).join(' '));
+      }
+      const outcome = resolve(lines, matches, wholeCard);
+      wantWholeCard.value = detected && !outcome;
       if (outcome) present(outcome);
     },
-    [present, resolve]
+    [noteCard, present, resolve, wantWholeCard]
   );
 
   const { codeOptions, cardOptions } = useMemo(() => {
@@ -86,7 +105,7 @@ export function useCardScannerFrame(
         regionY: band.y,
         regionWidth: band.width,
         regionHeight: band.height,
-      } satisfies Omit<FrameScanOptions, 'orientation'>,
+      } satisfies Omit<FrameScanOptions, 'orientation' | 'wholeCard'>,
       cardOptions: {
         ...base,
         // The name is large; two readings are plenty and it keeps the pass cheap.
@@ -95,7 +114,7 @@ export function useCardScannerFrame(
         regionY: card.y,
         regionWidth: card.width,
         regionHeight: card.height,
-      } satisfies Omit<FrameScanOptions, 'orientation'>,
+      } satisfies Omit<FrameScanOptions, 'orientation' | 'wholeCard'>,
     };
   }, [level]);
 
@@ -105,18 +124,19 @@ export function useCardScannerFrame(
     dropFramesWhileBusy: true,
     onFrame(frame) {
       'worklet';
+      let scanned = false;
       try {
         // Frames we skip are disposed immediately and cost the pipeline nothing, so
         // the preview keeps running at full rate while Vision works at its own pace.
-        const now = performance.now();
-        if (now - lastScanAt.value < SCAN_INTERVAL_MS) return;
-        lastScanAt.value = now;
+        if (performance.now() - lastScanEnd.value < SCAN_IDLE_MS) return;
+        scanned = true;
 
         const orientation = frame.orientation;
         // Older builds resolve to `string[][]`; the current spec says `FrameScanResult`.
         const result = cardOcrFrame.scan(frame, {
           ...codeOptions,
           orientation,
+          wholeCard: wantWholeCard.value,
         }) as unknown as FrameScanResult | string[][];
 
         // A build from before card detection returns the lines as a bare array. Keep
@@ -124,7 +144,7 @@ export function useCardScannerFrame(
         // rather than the app breaking until it is rebuilt.
         if (Array.isArray(result)) {
           if (result.length > 0) {
-            scheduleOnRN(handleResult, result, false, []);
+            scheduleOnRN(handleResult, result, false, [], true, []);
             return;
           }
           // No detection to lean on, so fall back to reading the card as a whole and
@@ -132,23 +152,37 @@ export function useCardScannerFrame(
           const cardLines = cardOcrFrame.scan(frame, {
             ...cardOptions,
             orientation,
+            wholeCard: true,
           }) as unknown as FrameScanResult | string[][];
           if (Array.isArray(cardLines) && cardLines.length > 0) {
-            scheduleOnRN(handleResult, cardLines, false, []);
+            scheduleOnRN(handleResult, cardLines, false, [], true, []);
           }
           return;
         }
 
-        // Card detection build: one call locates the card, straightens it and reads it,
-        // so a single pass picks up the name, the collector code and the artwork.
+        // Card detection build: one call locates the card, straightens it, recognizes
+        // the artwork and reads the collector strip — or the whole card when asked.
         const lines = result?.lines ?? [];
         const detected = result?.cardDetected ?? false;
         // Absent on a build from before artwork matching, and until the index is in.
         const matches = result?.matches ?? [];
-        if (lines.length > 0 || detected) {
-          scheduleOnRN(handleResult, lines, detected, matches);
-        }
+        // Reported even when empty: a card being taken away is news too — it unlocks
+        // the guide and lets the same card be scanned again.
+        scheduleOnRN(
+          handleResult,
+          lines,
+          detected,
+          matches,
+          // A build from before strip-first reading always read the whole card.
+          result?.wholeCard ?? true,
+          result?.readMs === undefined
+            ? []
+            : [result.locateMs, result.matchMs, result.readMs].map(Math.round)
+        );
       } finally {
+        // Only a real pass restarts the clock — a skipped frame doing so would mean
+        // the gap never elapses and nothing is ever scanned.
+        if (scanned) lastScanEnd.value = performance.now();
         // Must happen even on a throw or an early return, or the camera pipeline
         // stalls out of buffers.
         frame.dispose();

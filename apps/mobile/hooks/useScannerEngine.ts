@@ -47,6 +47,7 @@ export const SCANNER_LEVELS: {
 
 const ENGINE_KEY = 'scanner.engine';
 const LEVEL_KEY = 'scanner.recognitionLevel';
+const AUTO_ADD_KEY = 'scanner.autoAdd';
 
 const DEFAULT_ENGINE: ScannerEngine = 'frame';
 const DEFAULT_LEVEL: ScannerRecognitionLevel = 'accurate';
@@ -62,21 +63,28 @@ function isLevel(value: string | null): value is ScannerRecognitionLevel {
 export function useScannerEngine() {
   const [engine, setEngineState] = useState<ScannerEngine>(DEFAULT_ENGINE);
   const [level, setLevelState] = useState<ScannerRecognitionLevel>(DEFAULT_LEVEL);
+  /**
+   * Off by default: the scanner promises that every card is confirmed, and that stays
+   * true until someone asks for otherwise.
+   */
+  const [autoAdd, setAutoAddState] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const [storedEngine, storedLevel] = await AsyncStorage.multiGet([
+        const [storedEngine, storedLevel, storedAutoAdd] = await AsyncStorage.multiGet([
           ENGINE_KEY,
           LEVEL_KEY,
+          AUTO_ADD_KEY,
         ]);
         if (cancelled) return;
         if (isEngine(storedEngine?.[1] ?? null))
           setEngineState(storedEngine![1] as ScannerEngine);
         if (isLevel(storedLevel?.[1] ?? null))
           setLevelState(storedLevel![1] as ScannerRecognitionLevel);
+        setAutoAddState(storedAutoAdd?.[1] === 'true');
       } catch {
         // A missing preference just means the defaults.
       } finally {
@@ -98,5 +106,10 @@ export function useScannerEngine() {
     void AsyncStorage.setItem(LEVEL_KEY, next).catch(() => undefined);
   }, []);
 
-  return { engine, setEngine, level, setLevel, loaded };
+  const setAutoAdd = useCallback((next: boolean) => {
+    setAutoAddState(next);
+    void AsyncStorage.setItem(AUTO_ADD_KEY, String(next)).catch(() => undefined);
+  }, []);
+
+  return { engine, setEngine, level, setLevel, autoAdd, setAutoAdd, loaded };
 }
