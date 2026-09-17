@@ -18,7 +18,8 @@ import { resolveImageUrl } from '@/utils/resolveImageUrl';
 
 /** Matches the confirm screen's art, so most of these are already cached upstream. */
 const EMBED_WIDTH = 320;
-const CONCURRENCY = 6;
+// Reference embeddings share Vision resources with the live camera pipeline.
+const CONCURRENCY = 2;
 /** Checkpoint interval, so a build interrupted halfway resumes rather than restarts. */
 const SAVE_EVERY = 150;
 /** Progress is published in steps; per-image updates would re-render the camera. */
