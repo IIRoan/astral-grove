@@ -156,6 +156,30 @@ export const variants = pgTable(
   ]
 );
 
+/**
+ * One visual fingerprint per distinct catalog image, for the camera scanner.
+ *
+ * Keyed by image rather than by printing because reprints share artwork: one picture
+ * printed across four sets is one row here, and the client expands a match back into
+ * the printings that carry it.
+ *
+ * Card images at a given key never change — the images route serves them `immutable` —
+ * so a row is stale only when `descriptor_version` moves.
+ */
+export const cardArtFingerprints = pgTable(
+  'card_art_fingerprints',
+  {
+    imageKey: text('image_key').primaryKey(),
+    descriptorVersion: integer('descriptor_version').notNull(),
+    /** Base64 int8, `ART_VECTOR_DIMENSION` long. */
+    vector: text('vector').notNull(),
+    /** Base64, `ART_BIT_BYTES` long. */
+    bits: text('bits').notNull(),
+    computedAt: timestamp('computed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('card_art_fingerprints_version_idx').on(t.descriptorVersion)]
+);
+
 export const prices = pgTable(
   'prices',
   {

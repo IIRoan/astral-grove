@@ -31,6 +31,10 @@ export const FiltersResponse = dataMetaResponse(
     // Price sync updates this hash and invalidates the catalog index cache.
     pricesCatalogHash: z.string(),
     variantCount: z.number().int().nonnegative(),
+    // Staleness check for the scanner's packed artwork index, which the client caches
+    // separately from the catalog because it changes on a different schedule.
+    artIndexHash: z.string(),
+    artDescriptorVersion: z.number().int().nonnegative(),
   })
 );
 

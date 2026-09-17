@@ -1,8 +1,8 @@
-import type { CardListItem, MatchKind } from '@riftbound/contracts';
+import type { CardListItem } from '@riftbound/contracts';
 import { getCardPrintings, variantNumbersMatch } from '@/utils/variants';
 
 export type ScanOutcome =
-  | { kind: 'card'; card: CardListItem; via: MatchKind; sure: boolean }
+  | { kind: 'card'; card: CardListItem }
   | { kind: 'ambiguous'; name: string; options: CardListItem[] };
 
 type ConfirmationState = {
@@ -59,10 +59,7 @@ export function createScanConfirmation(
     select: (card: CardListItem) => {
       if (state.saving || state.pending?.kind !== 'ambiguous') return;
       if (!state.pending.options.includes(card)) return;
-      update({
-        pending: { kind: 'card', card, via: 'name', sure: false },
-        error: null,
-      });
+      update({ pending: { kind: 'card', card }, error: null });
     },
     confirm: async () => {
       if (state.saving || state.pending?.kind !== 'card') return;

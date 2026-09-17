@@ -18,46 +18,24 @@ public extension FrameScanResult {
   /**
    * Create a new instance of `FrameScanResult`.
    */
-  init(lines: [[String]], cardDetected: Bool, matches: [ImageMatch], wholeCard: Bool, locateMs: Double, matchMs: Double, readMs: Double) {
-    self.init({ () -> bridge.std__vector_std__vector_std__string__ in
-      var __vector = bridge.create_std__vector_std__vector_std__string__(lines.count)
-      for __item in lines {
-        __vector.push_back({ () -> bridge.std__vector_std__string_ in
-          var __vector = bridge.create_std__vector_std__string_(__item.count)
-          for __item in __item {
-            __vector.push_back(std.string(__item))
-          }
-          return __vector
-        }())
-      }
-      return __vector
-    }(), cardDetected, { () -> bridge.std__vector_ImageMatch_ in
-      var __vector = bridge.create_std__vector_ImageMatch_(matches.count)
+  init(cardDetected: Bool, matches: [CardMatch], locateMs: Double, describeMs: Double, searchMs: Double) {
+    self.init(cardDetected, { () -> bridge.std__vector_CardMatch_ in
+      var __vector = bridge.create_std__vector_CardMatch_(matches.count)
       for __item in matches {
         __vector.push_back(__item)
       }
       return __vector
-    }(), wholeCard, locateMs, matchMs, readMs)
+    }(), locateMs, describeMs, searchMs)
   }
 
-  @inline(__always)
-  var lines: [[String]] {
-    return self.__lines.map({ __item in __item.map({ __item in String(__item) }) })
-  }
-  
   @inline(__always)
   var cardDetected: Bool {
     return self.__cardDetected
   }
   
   @inline(__always)
-  var matches: [ImageMatch] {
+  var matches: [CardMatch] {
     return self.__matches.map({ __item in __item })
-  }
-  
-  @inline(__always)
-  var wholeCard: Bool {
-    return self.__wholeCard
   }
   
   @inline(__always)
@@ -66,12 +44,12 @@ public extension FrameScanResult {
   }
   
   @inline(__always)
-  var matchMs: Double {
-    return self.__matchMs
+  var describeMs: Double {
+    return self.__describeMs
   }
   
   @inline(__always)
-  var readMs: Double {
-    return self.__readMs
+  var searchMs: Double {
+    return self.__searchMs
   }
 }

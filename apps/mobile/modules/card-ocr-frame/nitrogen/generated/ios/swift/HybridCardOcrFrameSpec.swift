@@ -11,14 +11,13 @@ import NitroModules
 /// See ``HybridCardOcrFrameSpec``
 public protocol HybridCardOcrFrameSpec_protocol: HybridObject {
   // Properties
-  var embeddingVersion: String { get }
+  var descriptorVersion: Double { get }
 
   // Methods
   func pollScan(frame: (any HybridFrameSpec), options: FrameScanOptions) throws -> FrameScanResult?
   func resetScan() throws -> Void
   func scan(frame: (any HybridFrameSpec), options: FrameScanOptions) throws -> FrameScanResult
-  func embedImage(url: String) throws -> Promise<ArrayBuffer>
-  func setIndex(keys: [String], vectors: ArrayBuffer) throws -> Void
+  func setArtIndex(index: ArrayBuffer) throws -> Double
 }
 
 public extension HybridCardOcrFrameSpec_protocol {
