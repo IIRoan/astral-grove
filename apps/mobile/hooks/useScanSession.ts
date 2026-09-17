@@ -11,19 +11,10 @@ import { getCatalogIndexItems, useCatalogIndex } from '@/hooks/useCatalogIndex';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { hapticPress } from '@/utils/haptics';
 import { createScanConfirmation, type ScanOutcome } from '@/lib/scan-confirmation';
+import { createScanStability } from '@/lib/scan-stability';
 
 /** A card just answered on stays suppressed this long, so it cannot instantly re-fire. */
 const SUPPRESS_MS = 2500;
-/**
- * How many consecutive name-only reads before we stop waiting for the collector code
- * and just ask which printing it is. Roughly a second and a half of scanning.
- */
-const AMBIGUOUS_PATIENCE = 6;
-/**
- * How many consecutive frames the artwork alone has to agree with itself before it is
- * offered. Nothing legible backs it up, so one lucky frame is not enough.
- */
-const ART_PATIENCE = 3;
 /** Consecutive passes with no card in view before it counts as having been taken away. */
 const ABSENT_PASSES = 2;
 
@@ -41,7 +32,7 @@ export function useScanSession({
   const catalog = useMemo(() => buildScanCatalog(catalogItems), [catalogItems]);
 
   const suppressed = useRef(new Map<string, number>());
-  const streak = useRef<{ key: string; count: number } | null>(null);
+  const [stability] = useState(() => createScanStability<CardListItem>());
   const absentPasses = useRef(0);
   const [confirmation] = useState(() =>
     createScanConfirmation(
@@ -51,7 +42,7 @@ export function useScanSession({
         for (const card of cards) {
           suppressed.current.set(card.variantNumber, Date.now() + SUPPRESS_MS);
         }
-        streak.current = null;
+        stability.reset();
       }
     )
   );
@@ -87,38 +78,31 @@ export function useScanSession({
         via: MatchKind,
         sure: boolean
       ): ScanOutcome | null => {
-        streak.current = null;
         return isSuppressed(card.variantNumber)
           ? null
           : { kind: 'card', card, via, sure };
       };
 
-      const decision = decideScan(catalog, lines, matches, wholeCard);
-      if (!decision) {
-        streak.current = null;
-        return null;
-      }
+      const decision = stability.record(
+        decideScan(catalog, lines, matches, wholeCard),
+        Date.now()
+      );
+      if (!decision) return null;
       if (decision.kind === 'card') {
         return offer(decision.card, decision.via, decision.sure);
       }
 
-      // Undecided. A better frame may still settle it — the collector code coming into
-      // focus, usually — so the same answer has to keep coming back before we act on it.
       const [only] = decision.options;
       const alone = decision.options.length === 1;
-      const count = streak.current?.key === decision.key ? streak.current.count + 1 : 1;
-      streak.current = { key: decision.key, count };
-      if (count < (alone ? ART_PATIENCE : AMBIGUOUS_PATIENCE)) return null;
       if (alone && only) return offer(only, 'art', false);
 
       const selectable = decision.options.filter(
         (card) => !isSuppressed(card.variantNumber)
       );
       if (selectable.length === 0) return null;
-      streak.current = null;
       return { kind: 'ambiguous', name: decision.name, options: selectable };
     },
-    [catalog, confirmation, isSuppressed]
+    [catalog, confirmation, isSuppressed, stability]
   );
 
   const noteCard = useCallback(
