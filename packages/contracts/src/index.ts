@@ -1,3 +1,4 @@
+export * from './card-art.js';
 export * from './card-scan.js';
 export * from './card-legality.js';
 export * from './card-printings.js';

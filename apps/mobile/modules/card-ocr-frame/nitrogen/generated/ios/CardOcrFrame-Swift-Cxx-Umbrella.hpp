@@ -8,6 +8,8 @@
 #pragma once
 
 // Forward declarations of C++ defined types
+// Forward declaration of `CardMatch` to properly resolve imports.
+namespace margelo::nitro::cardocr { struct CardMatch; }
 // Forward declaration of `FrameScanOptions` to properly resolve imports.
 namespace margelo::nitro::cardocr { struct FrameScanOptions; }
 // Forward declaration of `FrameScanResult` to properly resolve imports.
@@ -16,16 +18,13 @@ namespace margelo::nitro::cardocr { struct FrameScanResult; }
 namespace margelo::nitro::cardocr { class HybridCardOcrFrameSpec; }
 // Forward declaration of `HybridFrameSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridFrameSpec; }
-// Forward declaration of `ImageMatch` to properly resolve imports.
-namespace margelo::nitro::cardocr { struct ImageMatch; }
 
 // Include C++ defined types
+#include "CardMatch.hpp"
 #include "FrameScanOptions.hpp"
 #include "FrameScanResult.hpp"
 #include "HybridCardOcrFrameSpec.hpp"
-#include "ImageMatch.hpp"
 #include <NitroModules/ArrayBuffer.hpp>
-#include <NitroModules/Promise.hpp>
 #include <NitroModules/Result.hpp>
 #include <VisionCamera/HybridFrameSpec.hpp>
 #include <exception>

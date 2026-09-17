@@ -1,12 +1,12 @@
 import { NitroModules } from 'react-native-nitro-modules';
 import type {
+  CardMatch,
   CardOcrFrame,
   FrameScanOptions,
   FrameScanResult,
-  ImageMatch,
 } from './CardOcrFrame.nitro';
 
-export type { CardOcrFrame, FrameScanOptions, FrameScanResult, ImageMatch };
+export type { CardMatch, CardOcrFrame, FrameScanOptions, FrameScanResult };
 
 /**
  * The frame-processor plugin. Created once at module scope so the worklet thread

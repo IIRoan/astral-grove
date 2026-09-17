@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { ART_DESCRIPTOR_VERSION } from '@riftbound/contracts';
 import type { FilterSnapshot } from '@riftbound/contracts';
 import { catalogFingerprint } from '../../src/lib/hash.js';
 import { CatalogMetadataService } from '../../src/services/catalog-metadata.js';
@@ -30,6 +31,7 @@ type ServiceOptions = {
   localSetCounts?: Array<{ code: string; name: string; printCount: number }>;
   probeDelayMs?: number;
   probeDisabled?: boolean;
+  artIndexFails?: boolean;
 };
 
 function createService(options?: ServiceOptions) {
@@ -89,7 +91,23 @@ function createService(options?: ServiceOptions) {
     delete process.env.CATALOG_PROBE_DISABLED;
   }
 
-  const service = new CatalogMetadataService(db as never, pa as never);
+  const artIndex = {
+    getMeta: async () => {
+      if (options?.artIndexFails) throw new Error('art index unavailable');
+      return {
+        descriptorVersion: 1,
+        indexHash: 'art-hash',
+        count: 2,
+        bytes: 128,
+      };
+    },
+  };
+
+  const service = new CatalogMetadataService(
+    db as never,
+    pa as never,
+    artIndex as never
+  );
 
   (
     service as unknown as {
@@ -233,6 +251,32 @@ describe('CatalogMetadataService', () => {
     expect(meta.catalogHash).toBe(matchingFingerprint);
     expect(meta.pricesCatalogHash).toBe('prices-hash');
     expect(meta.snapshot.sets[0]?.printCount).toBe(200);
+  });
+
+  test('getFiltersMeta reports the art index hash alongside the catalog hash', async () => {
+    const { service } = createService({
+      latestSnapshot: null,
+      syncStateRows: [null],
+    });
+
+    const meta = await service.getFiltersMeta();
+
+    expect(meta.artIndexHash).toBe('art-hash');
+    expect(meta.artDescriptorVersion).toBe(1);
+  });
+
+  test('getFiltersMeta still resolves when the art index is unavailable', async () => {
+    const { service } = createService({
+      latestSnapshot: null,
+      syncStateRows: [null],
+      artIndexFails: true,
+    });
+
+    const meta = await service.getFiltersMeta();
+
+    expect(meta.artIndexHash).toBe('');
+    expect(meta.artDescriptorVersion).toBe(ART_DESCRIPTOR_VERSION);
+    expect(meta.snapshot.sets[0]?.code).toBe('OGN');
   });
 
   test('getFiltersSnapshot uses latest DB snapshot when probe is disabled', async () => {

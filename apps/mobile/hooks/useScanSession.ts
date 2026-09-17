@@ -1,10 +1,9 @@
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   buildScanCatalog,
-  decideCollectorScan,
+  decideArtScan,
+  type ArtMatch,
   type CardListItem,
-  type MatchKind,
-  type OcrLine,
 } from '@riftbound/contracts';
 import { getCatalogIndexItems, useCatalogIndex } from '@/hooks/useCatalogIndex';
 import { useLatestRef } from '@/hooks/useLatestRef';
@@ -17,7 +16,7 @@ const SUPPRESS_MS = 2500;
 /** Consecutive passes with no card in view before it counts as having been taken away. */
 const ABSENT_PASSES = 2;
 
-export type { MatchKind, ScanOutcome };
+export type { ScanOutcome };
 
 export function useScanSession({
   onConfirm,
@@ -59,36 +58,22 @@ export function useScanSession({
   }, []);
 
   /**
-   * Turn one frame's evidence into an outcome. `decideCollectorScan` does the judging; this adds
-   * what needs memory between frames — patience, and not re-offering an answered card.
+   * Turn one frame's matches into an outcome. `decideArtScan` does the judging; this
+   * adds what needs memory between frames — patience, and not re-offering an answered
+   * card.
    */
   const resolve = useCallback(
-    (lines: readonly OcrLine[]): ScanOutcome | null => {
-      if (confirmation.getSnapshot().pending || catalog.byVariantNumber.size === 0)
+    (matches: readonly ArtMatch[]): ScanOutcome | null => {
+      if (confirmation.getSnapshot().pending || catalog.byImageKey.size === 0)
         return null;
 
-      const offer = (
-        card: CardListItem,
-        via: MatchKind,
-        sure: boolean
-      ): ScanOutcome | null => {
-        return isSuppressed(card.variantNumber)
-          ? null
-          : { kind: 'card', card, via, sure };
-      };
-
-      const decision = stability.record(
-        decideCollectorScan(catalog, lines),
-        Date.now()
-      );
+      const decision = stability.record(decideArtScan(catalog, matches), Date.now());
       if (!decision) return null;
       if (decision.kind === 'card') {
-        return offer(decision.card, decision.via, decision.sure);
+        return isSuppressed(decision.card.variantNumber)
+          ? null
+          : { kind: 'card', card: decision.card };
       }
-
-      const [only] = decision.options;
-      const alone = decision.options.length === 1;
-      if (alone && only) return offer(only, 'art', false);
 
       const selectable = decision.options.filter(
         (card) => !isSuppressed(card.variantNumber)
@@ -97,6 +82,18 @@ export function useScanSession({
       return { kind: 'ambiguous', name: decision.name, options: selectable };
     },
     [catalog, confirmation, isSuppressed, stability]
+  );
+
+  /**
+   * The card the frame looks most like right now, with none of the caution `resolve`
+   * applies. Display only: it changes with every frame and can be wrong.
+   */
+  const identify = useCallback(
+    (matches: readonly ArtMatch[]): CardListItem | null => {
+      const best = matches[0];
+      return (best && catalog.byImageKey.get(best.key)?.[0]) ?? null;
+    },
+    [catalog]
   );
 
   const noteCard = useCallback(
@@ -118,10 +115,10 @@ export function useScanSession({
 
   return {
     ...state,
-    ready: catalog.byVariantNumber.size > 0,
+    ready: catalog.byImageKey.size > 0,
     items: catalogItems,
-    setCodes: catalog.setCodes,
     resolve,
+    identify,
     noteCard,
     present,
     selectPrinting: confirmation.select,

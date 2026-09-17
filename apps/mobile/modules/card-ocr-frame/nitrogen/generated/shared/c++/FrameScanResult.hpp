@@ -28,12 +28,11 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
-// Forward declaration of `ImageMatch` to properly resolve imports.
-namespace margelo::nitro::cardocr { struct ImageMatch; }
+// Forward declaration of `CardMatch` to properly resolve imports.
+namespace margelo::nitro::cardocr { struct CardMatch; }
 
-#include <string>
+#include "CardMatch.hpp"
 #include <vector>
-#include "ImageMatch.hpp"
 
 namespace margelo::nitro::cardocr {
 
@@ -42,17 +41,15 @@ namespace margelo::nitro::cardocr {
    */
   struct FrameScanResult final {
   public:
-    std::vector<std::vector<std::string>> lines     SWIFT_PRIVATE;
     bool cardDetected     SWIFT_PRIVATE;
-    std::vector<ImageMatch> matches     SWIFT_PRIVATE;
-    bool wholeCard     SWIFT_PRIVATE;
+    std::vector<CardMatch> matches     SWIFT_PRIVATE;
     double locateMs     SWIFT_PRIVATE;
-    double matchMs     SWIFT_PRIVATE;
-    double readMs     SWIFT_PRIVATE;
+    double describeMs     SWIFT_PRIVATE;
+    double searchMs     SWIFT_PRIVATE;
 
   public:
     FrameScanResult() = default;
-    explicit FrameScanResult(std::vector<std::vector<std::string>> lines, bool cardDetected, std::vector<ImageMatch> matches, bool wholeCard, double locateMs, double matchMs, double readMs): lines(lines), cardDetected(cardDetected), matches(matches), wholeCard(wholeCard), locateMs(locateMs), matchMs(matchMs), readMs(readMs) {}
+    explicit FrameScanResult(bool cardDetected, std::vector<CardMatch> matches, double locateMs, double describeMs, double searchMs): cardDetected(cardDetected), matches(matches), locateMs(locateMs), describeMs(describeMs), searchMs(searchMs) {}
 
   public:
     friend bool operator==(const FrameScanResult& lhs, const FrameScanResult& rhs) = default;
@@ -68,24 +65,20 @@ namespace margelo::nitro {
     static inline margelo::nitro::cardocr::FrameScanResult fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
       return margelo::nitro::cardocr::FrameScanResult(
-        JSIConverter<std::vector<std::vector<std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "lines"))),
         JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cardDetected"))),
-        JSIConverter<std::vector<margelo::nitro::cardocr::ImageMatch>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matches"))),
-        JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "wholeCard"))),
+        JSIConverter<std::vector<margelo::nitro::cardocr::CardMatch>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matches"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "locateMs"))),
-        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matchMs"))),
-        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "readMs")))
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "describeMs"))),
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "searchMs")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::cardocr::FrameScanResult& arg) {
       jsi::Object obj(runtime);
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "lines"), JSIConverter<std::vector<std::vector<std::string>>>::toJSI(runtime, arg.lines));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "cardDetected"), JSIConverter<bool>::toJSI(runtime, arg.cardDetected));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "matches"), JSIConverter<std::vector<margelo::nitro::cardocr::ImageMatch>>::toJSI(runtime, arg.matches));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "wholeCard"), JSIConverter<bool>::toJSI(runtime, arg.wholeCard));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "matches"), JSIConverter<std::vector<margelo::nitro::cardocr::CardMatch>>::toJSI(runtime, arg.matches));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "locateMs"), JSIConverter<double>::toJSI(runtime, arg.locateMs));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "matchMs"), JSIConverter<double>::toJSI(runtime, arg.matchMs));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "readMs"), JSIConverter<double>::toJSI(runtime, arg.readMs));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "describeMs"), JSIConverter<double>::toJSI(runtime, arg.describeMs));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "searchMs"), JSIConverter<double>::toJSI(runtime, arg.searchMs));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -96,13 +89,11 @@ namespace margelo::nitro {
       if (!nitro::isPlainObject(runtime, obj)) {
         return false;
       }
-      if (!JSIConverter<std::vector<std::vector<std::string>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "lines")))) return false;
       if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cardDetected")))) return false;
-      if (!JSIConverter<std::vector<margelo::nitro::cardocr::ImageMatch>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matches")))) return false;
-      if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "wholeCard")))) return false;
+      if (!JSIConverter<std::vector<margelo::nitro::cardocr::CardMatch>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matches")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "locateMs")))) return false;
-      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matchMs")))) return false;
-      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "readMs")))) return false;
+      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "describeMs")))) return false;
+      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "searchMs")))) return false;
       return true;
     }
   };

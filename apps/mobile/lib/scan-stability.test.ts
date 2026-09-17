@@ -2,94 +2,82 @@ import { describe, expect, test } from 'bun:test';
 import type { ScanDecision } from '@riftbound/contracts';
 import { createScanStability } from './scan-stability';
 
-const lux = { name: 'Lux, Crownguard', variantNumber: 'OGS-014', imageUrl: 'lux' };
-const other = { ...lux, variantNumber: 'OGS-015' };
-const code: ScanDecision<typeof lux> = {
-  kind: 'card',
-  card: lux,
-  via: 'code',
-  sure: false,
+const lux = {
+  name: 'Lux, Crownguard',
+  variantNumber: 'OGS-014',
+  imageUrl: 'cards/lux.png',
 };
-const art: ScanDecision<typeof lux> = {
+const other = { ...lux, variantNumber: 'OGS-015' };
+const card: ScanDecision<typeof lux> = { kind: 'card', card: lux };
+const hold: ScanDecision<typeof lux> = {
   kind: 'hold',
-  key: 'lux',
+  key: 'cards/lux.png',
   name: lux.name,
-  options: [lux],
+  options: [lux, other],
 };
 
 describe('scan stability', () => {
-  test('a single uncertain OCR reading cannot open confirmation', () => {
+  test('a single frame cannot open confirmation', () => {
     const tracker = createScanStability<typeof lux>();
-    expect(tracker.record(code, 0)).toBeNull();
-    expect(tracker.record(code, 300)).toEqual(code);
+    expect(tracker.record(card, 0)).toBeNull();
+    expect(tracker.record(card, 100)).toEqual(card);
   });
 
-  test('agreement between collector code and artwork remains immediate', () => {
+  test('a shared artwork needs more agreement than a single printing', () => {
     const tracker = createScanStability<typeof lux>();
-    const agreed = { ...code, sure: true };
-    expect(tracker.record(agreed, 0)).toEqual(agreed);
+    expect(tracker.record(hold, 0)).toBeNull();
+    expect(tracker.record(hold, 100)).toBeNull();
+    expect(tracker.record(hold, 200)).toEqual(hold);
   });
 
-  test('art recognition survives one unreadable frame in dim light', () => {
+  test('recognition survives one unreadable frame in dim light', () => {
     const tracker = createScanStability<typeof lux>();
-    expect(tracker.record(art, 0)).toBeNull();
-    expect(tracker.record(null, 300)).toBeNull();
-    expect(tracker.record(art, 600)).toBeNull();
-    expect(tracker.record(art, 900)).toEqual(art);
+    expect(tracker.record(card, 0)).toBeNull();
+    expect(tracker.record(null, 100)).toBeNull();
+    expect(tracker.record(card, 200)).toEqual(card);
   });
 
   test('repeated blank frames reset earlier evidence', () => {
     const tracker = createScanStability<typeof lux>();
-    tracker.record(code, 0);
-    tracker.record(null, 300);
-    tracker.record(null, 600);
-    expect(tracker.record(code, 900)).toBeNull();
+    tracker.record(card, 0);
+    tracker.record(null, 100);
+    tracker.record(null, 200);
+    expect(tracker.record(card, 300)).toBeNull();
   });
 
   test('a competing card resets earlier evidence', () => {
     const tracker = createScanStability<typeof lux>();
-    tracker.record(code, 0);
-    expect(tracker.record({ ...code, card: other }, 300)).toBeNull();
-    expect(tracker.record(code, 600)).toBeNull();
-    expect(tracker.record(code, 900)).toEqual(code);
+    tracker.record(card, 0);
+    expect(tracker.record({ kind: 'card', card: other }, 100)).toBeNull();
+    expect(tracker.record(card, 200)).toBeNull();
+    expect(tracker.record(card, 300)).toEqual(card);
   });
 
   test('evidence expires after a pause', () => {
     const tracker = createScanStability<typeof lux>();
-    tracker.record(code, 0);
-    expect(tracker.record(code, 2000)).toBeNull();
-    expect(tracker.record(code, 2300)).toEqual(code);
+    tracker.record(card, 0);
+    expect(tracker.record(card, 600)).toBeNull();
+    expect(tracker.record(card, 700)).toEqual(card);
+  });
+
+  test('a match and the artwork it shares are different evidence', () => {
+    const tracker = createScanStability<typeof lux>();
+    tracker.record(hold, 0);
+    expect(tracker.record(card, 100)).toBeNull();
+    expect(tracker.record(card, 200)).toEqual(card);
   });
 
   test('reset after answering a card prevents evidence carrying into the next scan', () => {
     const tracker = createScanStability<typeof lux>();
-    tracker.record(code, 0);
+    tracker.record(card, 0);
     tracker.reset();
-    expect(tracker.record(code, 300)).toBeNull();
-  });
-
-  test('ambiguous printings need six consistent reads, independent of option order', () => {
-    const tracker = createScanStability<typeof lux>();
-    const ambiguous = { ...art, options: [lux, other] };
-    for (let i = 0; i < 5; i++) {
-      expect(tracker.record(ambiguous, i * 300)).toBeNull();
-    }
-    const reordered = { ...ambiguous, options: [other, lux] };
-    expect(tracker.record(reordered, 1500)).toEqual(reordered);
-  });
-
-  test('different printing options with the same name do not share evidence', () => {
-    const tracker = createScanStability<typeof lux>();
-    const ambiguous = { ...art, options: [lux, other] };
-    for (let i = 0; i < 5; i++) tracker.record(ambiguous, i * 300);
-    expect(tracker.record({ ...ambiguous, options: [lux] }, 1500)).toBeNull();
+    expect(tracker.record(card, 100)).toBeNull();
   });
 
   test('scattered matches cannot accumulate indefinitely', () => {
     const tracker = createScanStability<typeof lux>();
-    const ambiguous = { ...art, options: [lux, other] };
     for (let i = 0; i < 10; i++) {
-      expect(tracker.record(ambiguous, i * 1400)).toBeNull();
+      expect(tracker.record(hold, i * 500)).toBeNull();
     }
   });
 });

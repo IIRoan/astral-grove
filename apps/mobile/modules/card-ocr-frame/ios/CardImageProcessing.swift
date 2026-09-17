@@ -21,14 +21,6 @@ func cgOrientation(from orientation: String) -> CGImagePropertyOrientation {
   }
 }
 
-// Lift shadows and separate text from colored artwork without changing reference embeddings.
-func enhancedTextImage(_ image: CIImage) -> CIImage {
-  image.applyingFilter("CIHighlightShadowAdjust", parameters: ["inputShadowAmount": 0.7])
-    .applyingFilter("CIColorControls", parameters: [
-      kCIInputSaturationKey: 0.0, kCIInputContrastKey: 1.25,
-    ])
-}
-
 func cropGuide(_ image: CIImage, region: CGRect, width: CGFloat) -> CIImage? {
   let extent = image.extent
   let rect = CGRect(
@@ -44,17 +36,7 @@ func cropGuide(_ image: CIImage, region: CGRect, width: CGFloat) -> CIImage? {
 }
 
 /** Locate the most prominent card-shaped quadrilateral, if there is one. */
-func detectCard(in image: CIImage, useDocumentSegmentation: Bool = false) -> VNRectangleObservation? {
-  if useDocumentSegmentation {
-    let document = VNDetectDocumentSegmentationRequest()
-    let handler = VNImageRequestHandler(ciImage: image, options: [.ciContext: ciContext])
-    try? handler.perform([document])
-    if let candidate = (document.results as? [VNRectangleObservation])?.first,
-      candidate.confidence >= 0.6,
-      candidate.boundingBox.width * candidate.boundingBox.height >= 0.3 {
-      return candidate
-    }
-  }
+func detectCard(in image: CIImage) -> VNRectangleObservation? {
   let request = VNDetectRectanglesRequest()
   request.minimumAspectRatio = minCardAspect
   request.maximumAspectRatio = maxCardAspect
@@ -103,8 +85,8 @@ func rectify(
     return nil
   }
 
-  // Enlarge (or reduce) to a known width so the printed code is a predictable size
-  // regardless of how far away the card was held.
+  // Reduce to a known width so the descriptor sees the same amount of detail whether
+  // the card was held at arm's length or up against the lens.
   let scale = width / corrected.extent.width
   return corrected.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
 }

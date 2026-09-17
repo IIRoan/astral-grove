@@ -62,7 +62,21 @@ function createCardsApp(overrides?: {
     batchGet: async () => ({ found: [], notFound: [], source: 'cache' as const }),
   };
 
-  return createErrorPlugin().use(createCardsRoutes(cards as never, env()));
+  const artIndex = {
+    getIndex: async () => ({
+      bytes: new Uint8Array([1, 2, 3, 4]),
+      meta: {
+        descriptorVersion: 1,
+        indexHash: 'art-hash',
+        count: 1,
+        bytes: 4,
+      },
+    }),
+  };
+
+  return createErrorPlugin().use(
+    createCardsRoutes(cards as never, artIndex as never, env())
+  );
 }
 
 describe('cards routes', () => {
@@ -105,6 +119,33 @@ describe('cards routes', () => {
     const body = CatalogIndexResponse.parse(await response.json());
     expect(response.status).toBe(200);
     expect(body.meta.source).toBe('cache');
+  });
+
+  test('GET /api/v1/cards/art-index serves the packed index with a strong etag', async () => {
+    const app = createCardsApp();
+    const response = await app.handle(
+      new Request('http://localhost/api/v1/cards/art-index')
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('application/octet-stream');
+    expect(response.headers.get('etag')).toBe('"art-hash"');
+    expect(response.headers.get('x-art-descriptor-version')).toBe('1');
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array([1, 2, 3, 4])
+    );
+  });
+
+  test('GET /api/v1/cards/art-index returns 304 for a matching etag', async () => {
+    const app = createCardsApp();
+    const response = await app.handle(
+      new Request('http://localhost/api/v1/cards/art-index', {
+        headers: { 'if-none-match': '"art-hash"' },
+      })
+    );
+
+    expect(response.status).toBe(304);
+    expect(await response.text()).toBe('');
   });
 
   test('GET /api/v1/cards/:variantNumber rejects malformed ids', async () => {
