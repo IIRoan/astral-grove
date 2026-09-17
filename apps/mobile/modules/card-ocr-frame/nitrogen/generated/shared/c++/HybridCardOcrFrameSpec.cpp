@@ -15,6 +15,8 @@ namespace margelo::nitro::cardocr {
     // load custom methods/properties
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridGetter("embeddingVersion", &HybridCardOcrFrameSpec::getEmbeddingVersion);
+      prototype.registerHybridMethod("pollScan", &HybridCardOcrFrameSpec::pollScan);
+      prototype.registerHybridMethod("resetScan", &HybridCardOcrFrameSpec::resetScan);
       prototype.registerHybridMethod("scan", &HybridCardOcrFrameSpec::scan);
       prototype.registerHybridMethod("embedImage", &HybridCardOcrFrameSpec::embedImage);
       prototype.registerHybridMethod("setIndex", &HybridCardOcrFrameSpec::setIndex);

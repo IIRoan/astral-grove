@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
-import { useAsyncRunner, useFrameOutput } from 'react-native-vision-camera';
-import type { Frame } from 'react-native-vision-camera';
-import { dispatchScanFrame } from '@/lib/scan-frame-dispatch';
+import { useFrameOutput } from 'react-native-vision-camera';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { scheduleOnRN } from 'react-native-worklets';
 import {
   cardOcrFrame,
   type FrameScanOptions,
-  type FrameScanResult,
   type ImageMatch,
 } from '@/modules/card-ocr-frame/src';
 import {
@@ -53,13 +50,17 @@ export function useCardScannerFrame(
   enabled: boolean
 ) {
   const { resolve, present, noteCard } = session;
-  const asyncRunner = useAsyncRunner();
   const [scanError, setScanError] = useState(false);
   const lastError = useRef<string | null>(null);
   const enabledRef = useLatestRef(enabled);
   const scanning = useSharedValue(enabled);
   useEffect(() => {
+    cardOcrFrame.resetScan();
     scanning.value = enabled;
+    return () => {
+      scanning.value = false;
+      cardOcrFrame.resetScan();
+    };
   }, [enabled, scanning]);
   // Shared values, not refs: the worklet runs off the JS thread and needs state that
   // survives between frames on its own runtime.
@@ -99,8 +100,7 @@ export function useCardScannerFrame(
   );
 
   const { codeOptions, cardOptions } = useMemo(() => {
-    // The code band is the region to read when the card has not been located — either
-    // because this build predates card detection, or because detection missed.
+    // Read the code band when card detection misses.
     const band = toVisionRegion(codeBandRect());
     const card = toVisionRegion(cardRect());
     const base = {
@@ -139,94 +139,41 @@ export function useCardScannerFrame(
     [enabledRef]
   );
 
-  const reportError = useCallback(
-    (error: unknown) => {
-      'worklet';
-      lastScanEnd.value = performance.now();
-      scheduleOnRN(handleError, error instanceof Error ? error.message : String(error));
-    },
-    [handleError, lastScanEnd]
-  );
-
-  const processFrame = useCallback(
-    (frame: Frame) => {
-      'worklet';
-      let scanned = false;
-      try {
-        if (!scanning.value || performance.now() - lastScanEnd.value < SCAN_IDLE_MS)
-          return;
-        scanned = true;
-
-        const orientation = frame.orientation;
-        const options = wantWholeCard.value ? cardOptions : codeOptions;
-        // Older builds resolve to `string[][]`; the current spec says `FrameScanResult`.
-        const result = cardOcrFrame.scan(frame, {
-          ...options,
-          ...previewRegionToFrameRegion(options, frame),
-          orientation,
-          wholeCard: wantWholeCard.value,
-        }) as unknown as FrameScanResult | string[][];
-
-        // A build from before card detection returns the lines as a bare array. Keep
-        // working against it so the native change can be picked up whenever it suits,
-        // rather than the app breaking until it is rebuilt.
-        if (Array.isArray(result)) {
-          if (result.length > 0) {
-            scheduleOnRN(handleResult, result, false, [], true, []);
-            return;
-          }
-          // No detection to lean on, so fall back to reading the card as a whole and
-          // letting the name narrow it down.
-          const cardLines = cardOcrFrame.scan(frame, {
-            ...cardOptions,
-            ...previewRegionToFrameRegion(cardOptions, frame),
-            orientation,
-            wholeCard: true,
-          }) as unknown as FrameScanResult | string[][];
-          if (Array.isArray(cardLines) && cardLines.length > 0) {
-            scheduleOnRN(handleResult, cardLines, false, [], true, []);
-          }
-          return;
-        }
-
-        // Card detection build: one call locates the card, straightens it, recognizes
-        // the artwork and reads the collector strip — or the whole card when asked.
-        const lines = result?.lines ?? [];
-        const detected = result?.cardDetected ?? false;
-        // Absent on a build from before artwork matching, and until the index is in.
-        const matches = result?.matches ?? [];
-        // Reported even when empty: a card being taken away is news too — it unlocks
-        // the guide and lets the same card be scanned again.
-        scheduleOnRN(
-          handleResult,
-          lines,
-          detected,
-          matches,
-          // A build from before strip-first reading always read the whole card.
-          result?.wholeCard ?? true,
-          result?.readMs === undefined
-            ? []
-            : [result.locateMs, result.matchMs, result.readMs].map(Math.round)
-        );
-      } finally {
-        // Only a real pass restarts the clock — a skipped frame doing so would mean
-        // the gap never elapses and nothing is ever scanned.
-        if (scanned) lastScanEnd.value = performance.now();
-      }
-    },
-    [scanning, lastScanEnd, wantWholeCard, cardOptions, codeOptions, handleResult]
-  );
-
   const frameOutput = useFrameOutput({
     pixelFormat: 'yuv',
     dropFramesWhileBusy: true,
     onFrame(frame) {
       'worklet';
-      if (!scanning.value || performance.now() - lastScanEnd.value < SCAN_IDLE_MS) {
+      try {
+        if (!scanning.value || performance.now() - lastScanEnd.value < SCAN_IDLE_MS)
+          return;
+        const options = wantWholeCard.value ? cardOptions : codeOptions;
+        const result = cardOcrFrame.pollScan(frame, {
+          ...options,
+          ...previewRegionToFrameRegion(options, frame),
+          orientation: frame.orientation,
+          wholeCard: wantWholeCard.value,
+        });
+        if (!result) return;
+        lastScanEnd.value = performance.now();
+        scheduleOnRN(
+          handleResult,
+          result.lines,
+          result.cardDetected,
+          result.matches,
+          result.wholeCard,
+          [result.locateMs, result.matchMs, result.readMs].map(Math.round)
+        );
+      } catch (error) {
+        lastScanEnd.value = performance.now();
+        scheduleOnRN(
+          handleError,
+          error instanceof Error ? error.message : String(error)
+        );
+      } finally {
+        // The native queue retains only the accepted pixel buffer, never this JS Frame.
         frame.dispose();
-        return;
       }
-      dispatchScanFrame(frame, asyncRunner, processFrame, reportError);
     },
   });
 

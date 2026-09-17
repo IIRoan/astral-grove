@@ -11,6 +11,22 @@ private func milliseconds(since start: CFAbsoluteTime) -> Double {
 }
 
 final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
+  private let worker = ScanWorker<FrameScanResult>()
+
+  func resetScan() throws {
+    worker.reset()
+  }
+
+  func pollScan(frame: (any HybridFrameSpec), options: FrameScanOptions) throws -> FrameScanResult? {
+    guard let nativeFrame = frame as? any NativeFrame,
+      let sampleBuffer = nativeFrame.sampleBuffer,
+      let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
+    else { return nil }
+
+    // The closure retains the pixel buffer so JS can dispose its Frame immediately.
+    return try worker.poll { try self.recognizeFrame(pixelBuffer: pixelBuffer, options: options) }
+  }
+
   var embeddingVersion: String {
     "featureprint-r\(VNGenerateImageFeaturePrintRequest().revision)"
   }
@@ -57,6 +73,10 @@ final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
         locateMs: 0, matchMs: 0, readMs: 0)
     }
 
+    return try recognizeFrame(pixelBuffer: pixelBuffer, options: options)
+  }
+
+  private func recognizeFrame(pixelBuffer: CVPixelBuffer, options: FrameScanOptions) throws -> FrameScanResult {
     // Frames arrive continuously; without the pool every intermediate Vision and
     // CoreImage allocation would be held until the thread's run loop drains.
     return try autoreleasepool { () throws -> FrameScanResult in

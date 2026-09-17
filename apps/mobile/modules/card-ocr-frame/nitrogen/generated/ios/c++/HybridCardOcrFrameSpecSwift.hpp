@@ -25,6 +25,7 @@ namespace NitroModules { class ArrayBufferHolder; }
 
 #include <string>
 #include "FrameScanResult.hpp"
+#include <optional>
 #include <vector>
 #include "ImageMatch.hpp"
 #include <memory>
@@ -87,6 +88,20 @@ namespace margelo::nitro::cardocr {
 
   public:
     // Methods
+    inline std::optional<FrameScanResult> pollScan(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame, const FrameScanOptions& options) override {
+      auto __result = _swiftPart.pollScan(frame, std::forward<decltype(options)>(options));
+      if (__result.hasError()) [[unlikely]] {
+        std::rethrow_exception(__result.error());
+      }
+      auto __value = std::move(__result.value());
+      return __value;
+    }
+    inline void resetScan() override {
+      auto __result = _swiftPart.resetScan();
+      if (__result.hasError()) [[unlikely]] {
+        std::rethrow_exception(__result.error());
+      }
+    }
     inline FrameScanResult scan(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame, const FrameScanOptions& options) override {
       auto __result = _swiftPart.scan(frame, std::forward<decltype(options)>(options));
       if (__result.hasError()) [[unlikely]] {

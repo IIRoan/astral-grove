@@ -7,22 +7,36 @@ import { useCardScannerFrame } from '@/hooks/useCardScannerFrame';
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
 import { PREVIEW_ASPECT } from '@/utils/scanCrop';
-import { scannerLowLightProps } from '@/lib/scan-frame-dispatch';
+import {
+  scannerLowLightProps,
+  supportsNativeScanQueue,
+} from '@/lib/scan-camera-support';
+import { cardOcrFrame } from '@/modules/card-ocr-frame/src';
+import { ScanCameraPhoto } from '@/components/collection/ScanCameraPhoto';
 
-/**
- * Frame engine surface. A 30fps target gives auto-exposure more room in dim light.
- */
-export function ScanCameraFrame({
-  session,
-  level,
-  active,
-  torch,
-}: {
+type ScanCameraFrameProps = {
   session: ScanSession;
   level: ScannerRecognitionLevel;
   active: boolean;
   torch: boolean;
-}) {
+};
+
+export function ScanCameraFrame(props: ScanCameraFrameProps) {
+  // Metro can serve newer JS to an installed binary; keep scanning with local photo OCR.
+  return supportsNativeScanQueue(cardOcrFrame) ? (
+    <NativeScanCameraFrame {...props} />
+  ) : (
+    <ScanCameraPhoto {...props} />
+  );
+}
+
+/** A 30fps target gives auto-exposure more room in dim light. */
+function NativeScanCameraFrame({
+  session,
+  level,
+  active,
+  torch,
+}: ScanCameraFrameProps) {
   const device = useCameraDevice('back');
   const { frameOutput, cardDetected, artDebug, scanError } = useCardScannerFrame(
     session,

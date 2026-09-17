@@ -22,6 +22,7 @@ namespace margelo::nitro::cardocr { struct FrameScanOptions; }
 
 #include <string>
 #include "FrameScanResult.hpp"
+#include <optional>
 #include <memory>
 #include <VisionCamera/HybridFrameSpec.hpp>
 #include "FrameScanOptions.hpp"
@@ -60,6 +61,8 @@ namespace margelo::nitro::cardocr {
 
     public:
       // Methods
+      virtual std::optional<FrameScanResult> pollScan(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame, const FrameScanOptions& options) = 0;
+      virtual void resetScan() = 0;
       virtual FrameScanResult scan(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& frame, const FrameScanOptions& options) = 0;
       virtual std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>> embedImage(const std::string& url) = 0;
       virtual void setIndex(const std::vector<std::string>& keys, const std::shared_ptr<ArrayBuffer>& vectors) = 0;

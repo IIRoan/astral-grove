@@ -85,7 +85,7 @@ open class HybridCardOcrFrameSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -131,6 +131,39 @@ open class HybridCardOcrFrameSpec_cxx {
 
   // Methods
   @inline(__always)
+  public final func pollScan(frame: bridge.std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_, options: FrameScanOptions) -> bridge.Result_std__optional_FrameScanResult__ {
+    do {
+      let __result = try self.__implementation.pollScan(frame: { () -> any HybridFrameSpec in
+        let __unsafePointer = bridge.get_std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_(frame)
+        let __instance = HybridFrameSpec_cxx.fromUnsafe(__unsafePointer)
+        return __instance.getHybridFrameSpec()
+      }(), options: options)
+      let __resultCpp = { () -> bridge.std__optional_FrameScanResult_ in
+        if let __unwrappedValue = __result {
+          return bridge.create_std__optional_FrameScanResult_(__unwrappedValue)
+        } else {
+          return .init()
+        }
+      }()
+      return bridge.create_Result_std__optional_FrameScanResult__(__resultCpp)
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_std__optional_FrameScanResult__(__exceptionPtr)
+    }
+  }
+
+  @inline(__always)
+  public final func resetScan() -> bridge.Result_void_ {
+    do {
+      try self.__implementation.resetScan()
+      return bridge.create_Result_void_()
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_void_(__exceptionPtr)
+    }
+  }
+
+  @inline(__always)
   public final func scan(frame: bridge.std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_, options: FrameScanOptions) -> bridge.Result_FrameScanResult_ {
     do {
       let __result = try self.__implementation.scan(frame: { () -> any HybridFrameSpec in
@@ -145,7 +178,7 @@ open class HybridCardOcrFrameSpec_cxx {
       return bridge.create_Result_FrameScanResult_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func embedImage(url: std.string) -> bridge.Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____ {
     do {
@@ -164,7 +197,7 @@ open class HybridCardOcrFrameSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func setIndex(keys: bridge.std__vector_std__string_, vectors: ArrayBuffer) -> bridge.Result_void_ {
     do {
