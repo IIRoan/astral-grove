@@ -6,6 +6,7 @@ import {
   cardOcrFrame,
   type FrameScanOptions,
   type FrameScanResult,
+  type ImageMatch,
 } from '@/modules/card-ocr-frame/src';
 import { cardRect, codeBandRect, toVisionRegion } from '@/utils/scanCrop';
 import type { ScanSession } from '@/hooks/useScanSession';
@@ -27,9 +28,22 @@ const SCAN_INTERVAL_MS = 220;
  */
 const RECTIFIED_WIDTH = 1000;
 
+/** `0.91 Δ0.12 OGN-007` — best score, its lead over the runner-up, and what it matched. */
+function describeMatches(matches: ImageMatch[]): string {
+  const [best, next] = matches;
+  if (!best) return '';
+  const lead = best.score - (next?.score ?? 0);
+  const label =
+    best.key
+      .split('/')
+      .pop()
+      ?.replace(/\.\w+$/, '') ?? '';
+  return `${best.score.toFixed(2)} Δ${lead.toFixed(2)} ${label}`;
+}
+
 /**
- * Frame engine: Apple Vision locates, straightens and reads the card, all on the
- * camera's own pixel buffer. No photo is captured, so the preview never stutters.
+ * Frame engine: Apple Vision locates, straightens, reads and recognizes the card, all
+ * on the camera's own pixel buffer. No photo is captured, so the preview never stutters.
  */
 export function useCardScannerFrame(
   session: ScanSession,
@@ -40,12 +54,15 @@ export function useCardScannerFrame(
   // survives between frames on its own runtime.
   const lastScanAt = useSharedValue(0);
   const [cardDetected, setCardDetected] = useState(false);
+  /** Live artwork scores, dev builds only: what `IMAGE_MATCH_FLOOR` is tuned against. */
+  const [artDebug, setArtDebug] = useState('');
 
   // Called back on the JS thread once a frame has been read.
   const handleResult = useCallback(
-    (lines: string[][], detected: boolean) => {
+    (lines: string[][], detected: boolean, matches: ImageMatch[]) => {
       setCardDetected(detected);
-      const outcome = resolve(lines);
+      if (__DEV__) setArtDebug(describeMatches(matches));
+      const outcome = resolve(lines, matches);
       if (outcome) present(outcome);
     },
     [present, resolve]
@@ -107,7 +124,7 @@ export function useCardScannerFrame(
         // rather than the app breaking until it is rebuilt.
         if (Array.isArray(result)) {
           if (result.length > 0) {
-            scheduleOnRN(handleResult, result, false);
+            scheduleOnRN(handleResult, result, false, []);
             return;
           }
           // No detection to lean on, so fall back to reading the card as a whole and
@@ -117,17 +134,19 @@ export function useCardScannerFrame(
             orientation,
           }) as unknown as FrameScanResult | string[][];
           if (Array.isArray(cardLines) && cardLines.length > 0) {
-            scheduleOnRN(handleResult, cardLines, false);
+            scheduleOnRN(handleResult, cardLines, false, []);
           }
           return;
         }
 
         // Card detection build: one call locates the card, straightens it and reads it,
-        // so a single pass picks up both the name and the collector code.
+        // so a single pass picks up the name, the collector code and the artwork.
         const lines = result?.lines ?? [];
         const detected = result?.cardDetected ?? false;
+        // Absent on a build from before artwork matching, and until the index is in.
+        const matches = result?.matches ?? [];
         if (lines.length > 0 || detected) {
-          scheduleOnRN(handleResult, lines, detected);
+          scheduleOnRN(handleResult, lines, detected, matches);
         }
       } finally {
         // Must happen even on a throw or an early return, or the camera pipeline
@@ -137,5 +156,5 @@ export function useCardScannerFrame(
     },
   });
 
-  return { frameOutput, cardDetected };
+  return { frameOutput, cardDetected, artDebug };
 }

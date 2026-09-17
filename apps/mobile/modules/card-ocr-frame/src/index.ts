@@ -3,9 +3,10 @@ import type {
   CardOcrFrame,
   FrameScanOptions,
   FrameScanResult,
+  ImageMatch,
 } from './CardOcrFrame.nitro';
 
-export type { CardOcrFrame, FrameScanOptions, FrameScanResult };
+export type { CardOcrFrame, FrameScanOptions, FrameScanResult, ImageMatch };
 
 /**
  * The frame-processor plugin. Created once at module scope so the worklet thread

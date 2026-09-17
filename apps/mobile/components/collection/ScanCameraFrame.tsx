@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { ScanGuideOverlay } from '@/components/collection/ScanGuideOverlay';
 import { Text } from '@/components/ui/text';
+import { useCardArtIndex } from '@/hooks/useCardArtIndex';
 import { useCardScannerFrame } from '@/hooks/useCardScannerFrame';
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
@@ -21,7 +22,13 @@ export function ScanCameraFrame({
   active: boolean;
 }) {
   const device = useCameraDevice('back');
-  const { frameOutput, cardDetected } = useCardScannerFrame(session, level);
+  const { frameOutput, cardDetected, artDebug } = useCardScannerFrame(session, level);
+  const artIndex = useCardArtIndex(session.items);
+  // Scanning already works on text alone, so this is progress, not a blocker.
+  const learning =
+    artIndex.supported && !artIndex.ready && artIndex.total > 0
+      ? ` · learning card art ${artIndex.done.toLocaleString()}/${artIndex.total.toLocaleString()}`
+      : '';
 
   if (!device) {
     return (
@@ -55,8 +62,8 @@ export function ScanCameraFrame({
           !session.ready
             ? 'Loading catalog…'
             : cardDetected
-              ? 'Card found — reading it'
-              : 'Show a card — it does not need to line up exactly'
+              ? `Card found — reading it${artDebug ? ` · ${artDebug}` : ''}`
+              : `Show a card — it does not need to line up exactly${learning}`
         }
       />
     </View>

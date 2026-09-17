@@ -325,7 +325,9 @@ function ConfirmCard({
         <Text className="text-center text-sm text-muted-foreground">
           {via === 'code'
             ? 'Is this the card you scanned?'
-            : 'Matched on name — check the printing is right.'}
+            : via === 'art'
+              ? 'Matched on artwork — check the printing is right.'
+              : 'Matched on name — check the printing is right.'}
         </Text>
         <View className="flex-row items-stretch gap-3">
           <Pressable
@@ -353,9 +355,9 @@ function ConfirmCard({
 }
 
 /**
- * Shown when the name matched but the collector code did not. Over half the catalog
- * shares a name with another printing, so guessing one would quietly add the wrong
- * card — one tap is cheaper than an import to unpick later.
+ * Shown when the name matched but the collector code did not, and the artwork could
+ * not settle it either — reprints share a picture. Guessing one would quietly add the
+ * wrong card, and one tap is cheaper than an import to unpick later.
  */
 function PrintingPicker({
   name,
@@ -373,8 +375,8 @@ function PrintingPicker({
       <View className="gap-1">
         <Text className="text-xl font-semibold text-foreground">{name}</Text>
         <Text className="text-sm leading-snug text-muted-foreground">
-          Could not read the number at the bottom. This name has{' '}
-          {options.length.toLocaleString()} printings — which one is it?
+          Could not read the number at the bottom, and {options.length.toLocaleString()}{' '}
+          printings look like this — which one is it?
         </Text>
       </View>
 
