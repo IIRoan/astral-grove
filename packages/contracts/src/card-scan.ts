@@ -216,3 +216,173 @@ export function scannedNameCandidates(lines: readonly OcrLine[]): string[] {
 
   return names.sort((a, b) => b.length - a.length);
 }
+
+/** How close an OCR'd name must be to a catalog name to be offered at all. */
+const NAME_MATCH_THRESHOLD = 0.72;
+
+/** What the scanner needs to know about a printing. */
+export type ScanCard = {
+  variantNumber: string;
+  name: string;
+  setCode: string;
+  imageUrl?: string | null;
+};
+
+/** The catalog, indexed every way a frame's evidence can point into it. */
+export type ScanCatalog<T extends ScanCard> = {
+  byVariantNumber: ReadonlyMap<string, T>;
+  /** Every printing of a name, not the first — picking one arbitrarily adds wrong cards. */
+  byName: ReadonlyMap<string, readonly T[]>;
+  /**
+   * Reprints share artwork (Fury Rune is one picture across four sets), so an image
+   * match lands on every printing that carries it.
+   */
+  byImage: ReadonlyMap<string, readonly T[]>;
+  /** Each name with its normalized length, to rule names out before comparing them. */
+  nameLengths: readonly (readonly [string, number])[];
+  setCodes: readonly string[];
+};
+
+export function buildScanCatalog<T extends ScanCard>(
+  items: readonly T[]
+): ScanCatalog<T> {
+  const byVariantNumber = new Map<string, T>();
+  const byName = new Map<string, T[]>();
+  const byImage = new Map<string, T[]>();
+  const setCodes = new Set<string>();
+
+  const file = (map: Map<string, T[]>, key: string, card: T) => {
+    const bucket = map.get(key);
+    if (bucket) bucket.push(card);
+    else map.set(key, [card]);
+  };
+  for (const card of items) {
+    byVariantNumber.set(card.variantNumber.toUpperCase(), card);
+    file(byName, card.name, card);
+    if (card.imageUrl) file(byImage, card.imageUrl, card);
+    setCodes.add(card.setCode.toUpperCase());
+  }
+
+  return {
+    byVariantNumber,
+    byName,
+    byImage,
+    nameLengths: [...byName.keys()].map(
+      (name) => [name, normalizeScannedName(name).length] as const
+    ),
+    setCodes: [...setCodes],
+  };
+}
+
+/** Closest catalog name to any of the OCR'd readings, if one is close enough. */
+export function matchScannedName(
+  lines: readonly OcrLine[],
+  nameLengths: ScanCatalog<ScanCard>['nameLengths']
+): string | null {
+  let best: { name: string; score: number } | null = null;
+
+  for (const reading of scannedNameCandidates(lines)) {
+    const readLength = normalizeScannedName(reading).length;
+    for (const [name, length] of nameLengths) {
+      // Lengths this far apart cannot reach the threshold whatever the letters are,
+      // which spares an edit distance against every line of rules text.
+      const longest = Math.max(readLength, length);
+      if (Math.abs(readLength - length) > longest * (1 - NAME_MATCH_THRESHOLD))
+        continue;
+
+      const score = nameSimilarity(reading, name);
+      if (score >= NAME_MATCH_THRESHOLD && (!best || score > best.score)) {
+        best = { name, score };
+      }
+    }
+    if (best?.score === 1) break;
+  }
+
+  return best?.name ?? null;
+}
+
+/** How a card was identified — the confirm screen says so. */
+export type MatchKind = 'code' | 'name' | 'art';
+
+/** What one frame's evidence amounts to. Stateless: the caller owns patience. */
+export type ScanDecision<T extends ScanCard> =
+  | {
+      kind: 'card';
+      card: T;
+      via: MatchKind;
+      /**
+       * Two independent signals agree: the collector code names a real printing, and
+       * that printing's artwork is among the nearest matches. The only outcome worth
+       * acting on without asking.
+       */
+      sure: boolean;
+    }
+  /**
+   * Narrowed down but not settled. If the same `key` keeps coming back, the caller
+   * offers the one option or asks between several — a better frame may still decide.
+   */
+  | { kind: 'hold'; key: string; name: string; options: readonly T[] }
+  | null;
+
+/**
+ * Turn one frame's evidence into a decision.
+ *
+ * Three signals, each good at a different thing. The collector code names a printing
+ * outright but is tiny and misreads. The name reads easily but 281 names have more than
+ * one printing. The artwork survives glare and blur and tells an alt art from the
+ * standard, but cannot tell reprints that share a picture apart. Text decides which
+ * card it is; art decides which printing, and stands in when text is missing.
+ *
+ * `wholeCard` is false when only the collector strip was read, so no name could be.
+ */
+export function decideScan<T extends ScanCard>(
+  catalog: ScanCatalog<T>,
+  lines: readonly OcrLine[],
+  matches: readonly ImageMatch[] = [],
+  wholeCard = true
+): ScanDecision<T> {
+  const code = parseScannedCardCode(lines, catalog.setCodes, (variantNumber) =>
+    catalog.byVariantNumber.has(variantNumber.toUpperCase())
+  );
+  const byCode = code ? catalog.byVariantNumber.get(code.toUpperCase()) : undefined;
+  const name = matchScannedName(lines, catalog.nameLengths);
+
+  if (byCode) {
+    // A misread digit still lands on a real card, so the code can be overruled — but
+    // only when the artwork and the name both say it is a different card.
+    const artAgrees = narrowByArt([byCode], matches).length > 0;
+    const artDisagrees = matches.length > 0 && !artAgrees;
+    // The name has had no say yet: wait for a whole-card read before going either way.
+    if (artDisagrees && !wholeCard) return null;
+    const nameDisagrees = name !== null && name !== byCode.name;
+    if (!(artDisagrees && nameDisagrees)) {
+      return { kind: 'card', card: byCode, via: 'code', sure: artAgrees };
+    }
+  }
+
+  if (name) {
+    const printings = catalog.byName.get(name) ?? [];
+    if (printings.length === 1) {
+      return { kind: 'card', card: printings[0]!, via: 'name', sure: false };
+    }
+
+    // Several printings share this name. The alt art is a different picture, so the
+    // artwork usually settles it; reprints that share a picture still need the code.
+    const narrowed = narrowByArt(printings, matches);
+    if (narrowed.length === 1) {
+      return { kind: 'card', card: narrowed[0]!, via: 'art', sure: false };
+    }
+    return {
+      kind: 'hold',
+      key: name,
+      name,
+      options: narrowed.length > 0 ? narrowed : printings,
+    };
+  }
+
+  // Nothing legible at all — glare, blur, a foil. The artwork has to carry it alone.
+  const art = confidentArt(matches);
+  const sameArt = art ? (catalog.byImage.get(art) ?? []) : [];
+  if (!art || sameArt.length === 0) return null;
+  return { kind: 'hold', key: art, name: sameArt[0]!.name, options: sameArt };
+}

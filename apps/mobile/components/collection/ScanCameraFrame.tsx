@@ -61,9 +61,11 @@ export function ScanCameraFrame({
         hint={
           !session.ready
             ? 'Loading catalog…'
-            : cardDetected
-              ? `Card found — reading it${artDebug ? ` · ${artDebug}` : ''}`
-              : `Show a card — it does not need to line up exactly${learning}`
+            : session.justAdded
+              ? `Added ${session.justAdded} — next card`
+              : cardDetected
+                ? `Card found — reading it${artDebug ? ` · ${artDebug}` : ''}`
+                : `Show a card — it does not need to line up exactly${learning}`
         }
       />
     </View>

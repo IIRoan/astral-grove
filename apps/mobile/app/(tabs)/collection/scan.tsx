@@ -43,7 +43,7 @@ export default function CollectionScanRoute() {
   const [permission, requestPermission] = useCameraPermissions();
   const [step, setStep] = useState<Step>(lookup ? 'scanning' : 'idle');
   const [preview, setPreview] = useState<ImportPreviewData | null>(null);
-  const { engine, level, loaded: engineLoaded } = useScannerEngine();
+  const { engine, level, autoAdd, loaded: engineLoaded } = useScannerEngine();
 
   /**
    * Lookup mode is one-shot. `replace` rather than back-then-push: the two would race,
@@ -57,7 +57,10 @@ export default function CollectionScanRoute() {
     [queryClient]
   );
 
-  const session = useScanSession(lookup ? { onCard: openScannedCard } : {});
+  const session = useScanSession({
+    autoAdd,
+    ...(lookup ? { onCard: openScannedCard } : {}),
+  });
   const { previewItems, acceptTts } = useCollectionImportExport();
 
   const granted = permission?.granted ?? false;
@@ -131,8 +134,10 @@ export default function CollectionScanRoute() {
               Scan cards in
             </Text>
             <Text className="text-center text-sm leading-snug text-muted-foreground">
-              Hold each card in the frame. You confirm every card before it counts, and
-              nothing is written to your collection until you finish.
+              {autoAdd
+                ? 'Hold each card in the frame. Cards the scanner is sure of are added straight away and the rest wait for you.'
+                : 'Hold each card in the frame. You confirm every card before it counts.'}{' '}
+              Nothing is written to your collection until you finish.
             </Text>
           </View>
           <View className="w-full gap-2">

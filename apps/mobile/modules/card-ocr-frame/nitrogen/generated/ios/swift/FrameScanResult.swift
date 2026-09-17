@@ -18,7 +18,7 @@ public extension FrameScanResult {
   /**
    * Create a new instance of `FrameScanResult`.
    */
-  init(lines: [[String]], cardDetected: Bool, matches: [ImageMatch]) {
+  init(lines: [[String]], cardDetected: Bool, matches: [ImageMatch], wholeCard: Bool, locateMs: Double, matchMs: Double, readMs: Double) {
     self.init({ () -> bridge.std__vector_std__vector_std__string__ in
       var __vector = bridge.create_std__vector_std__vector_std__string__(lines.count)
       for __item in lines {
@@ -37,7 +37,7 @@ public extension FrameScanResult {
         __vector.push_back(__item)
       }
       return __vector
-    }())
+    }(), wholeCard, locateMs, matchMs, readMs)
   }
 
   @inline(__always)
@@ -53,5 +53,25 @@ public extension FrameScanResult {
   @inline(__always)
   var matches: [ImageMatch] {
     return self.__matches.map({ __item in __item })
+  }
+  
+  @inline(__always)
+  var wholeCard: Bool {
+    return self.__wholeCard
+  }
+  
+  @inline(__always)
+  var locateMs: Double {
+    return self.__locateMs
+  }
+  
+  @inline(__always)
+  var matchMs: Double {
+    return self.__matchMs
+  }
+  
+  @inline(__always)
+  var readMs: Double {
+    return self.__readMs
   }
 }
