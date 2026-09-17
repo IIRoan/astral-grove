@@ -3,45 +3,21 @@ import { useSharedValue } from 'react-native-reanimated';
 import { useFrameOutput } from 'react-native-vision-camera';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { scheduleOnRN } from 'react-native-worklets';
-import {
-  cardOcrFrame,
-  type FrameScanOptions,
-  type ImageMatch,
-} from '@/modules/card-ocr-frame/src';
-import {
-  cardRect,
-  codeBandRect,
-  toVisionRegion,
-  previewRegionToFrameRegion,
-} from '@/utils/scanCrop';
+import { cardOcrFrame, type FrameScanOptions } from '@/modules/card-ocr-frame/src';
+import { cardRect, toVisionRegion, previewRegionToFrameRegion } from '@/utils/scanCrop';
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
 
 /** Allow exposure to settle between passes; recognition runs on a separate worker. */
 const SCAN_IDLE_MS = 80;
 
-/**
- * Width the located card is straightened to. The collector code is roughly 1.5% of the
- * card's height, so at 1000px wide it lands around 20px tall — comfortably inside what
- * Vision reads reliably, without paying for a needlessly large pass.
- */
-const RECTIFIED_WIDTH = 1000;
-
-/** `0.91 Δ0.12 OGN-007` — best score, its lead over the runner-up, and what it matched. */
-function describeMatches(matches: ImageMatch[]): string {
-  const [best, next] = matches;
-  if (!best) return '';
-  const lead = best.score - (next?.score ?? 0);
-  const label =
-    best.key
-      .split('/')
-      .pop()
-      ?.replace(/\.\w+$/, '') ?? '';
-  return `${best.score.toFixed(2)} Δ${lead.toFixed(2)} ${label}`;
-}
+/** Native footer rectification target. */
+const RECTIFIED_WIDTH = 1200;
+// Capture real extra detail for the footer; enlarging a 720p frame cannot restore it.
+const SCAN_RESOLUTION = { width: 1920, height: 1080 };
 
 /**
- * Frame engine: Apple Vision locates, straightens, reads and recognizes the card, all
+ * Frame engine: Apple Vision locates the card and reads only its collector footer, all
  * on the camera's pixel buffer, using a separate worker so delivery can continue.
  */
 export function useCardScannerFrame(
@@ -65,24 +41,13 @@ export function useCardScannerFrame(
   // Shared values, not refs: the worklet runs off the JS thread and needs state that
   // survives between frames on its own runtime.
   const lastScanEnd = useSharedValue(0);
-  /** Set when a quick strip-only read settled nothing, so the next pass reads it all. */
-  const wantWholeCard = useSharedValue(false);
   const [cardDetected, setCardDetected] = useState(false);
-  /**
-   * Live artwork scores and stage timings (locate + match + read), dev builds only:
-   * what `IMAGE_MATCH_FLOOR` and the pass budget are tuned against.
-   */
-  const [artDebug, setArtDebug] = useState('');
+  /** Stage timings for physical-device performance checks, dev builds only. */
+  const [scanDebug, setScanDebug] = useState('');
 
   // Called back on the JS thread once a frame has been read.
   const handleResult = useCallback(
-    (
-      lines: string[][],
-      detected: boolean,
-      matches: ImageMatch[],
-      wholeCard: boolean,
-      stageMs: number[]
-    ) => {
+    (lines: string[][], detected: boolean, stageMs: number[]) => {
       if (!enabledRef.current) return;
       lastError.current = null;
       setScanError(false);
@@ -90,43 +55,26 @@ export function useCardScannerFrame(
       noteCard(detected);
       if (__DEV__) {
         const timing = stageMs.length > 0 ? `${stageMs.join('+')}ms` : '';
-        setArtDebug([describeMatches(matches), timing].filter(Boolean).join(' '));
+        setScanDebug(timing);
       }
-      const outcome = resolve(lines, matches, wholeCard);
-      wantWholeCard.value = !outcome;
+      const outcome = resolve(lines);
       if (outcome) present(outcome);
     },
-    [enabledRef, noteCard, present, resolve, wantWholeCard]
+    [enabledRef, noteCard, present, resolve]
   );
 
-  const { codeOptions, cardOptions } = useMemo(() => {
-    // Read the code band when card detection misses.
-    const band = toVisionRegion(codeBandRect());
-    const card = toVisionRegion(cardRect());
-    const base = {
+  const options = useMemo(() => {
+    const guide = toVisionRegion(cardRect());
+    return {
       recognitionLevel: level,
       usesLanguageCorrection: false,
       rectifiedWidth: RECTIFIED_WIDTH,
-    };
-    return {
-      codeOptions: {
-        ...base,
-        maxCandidates: 3,
-        regionX: band.x,
-        regionY: band.y,
-        regionWidth: band.width,
-        regionHeight: band.height,
-      } satisfies Omit<FrameScanOptions, 'orientation' | 'wholeCard'>,
-      cardOptions: {
-        ...base,
-        // The name is large; two readings are plenty and it keeps the pass cheap.
-        maxCandidates: 2,
-        regionX: card.x,
-        regionY: card.y,
-        regionWidth: card.width,
-        regionHeight: card.height,
-      } satisfies Omit<FrameScanOptions, 'orientation' | 'wholeCard'>,
-    };
+      maxCandidates: 3,
+      regionX: guide.x,
+      regionY: guide.y,
+      regionWidth: guide.width,
+      regionHeight: guide.height,
+    } satisfies Omit<FrameScanOptions, 'orientation' | 'wholeCard'>;
   }, [level]);
 
   const handleError = useCallback(
@@ -141,18 +89,18 @@ export function useCardScannerFrame(
 
   const frameOutput = useFrameOutput({
     pixelFormat: 'yuv',
+    targetResolution: SCAN_RESOLUTION,
     dropFramesWhileBusy: true,
     onFrame(frame) {
       'worklet';
       try {
         if (!scanning.value || performance.now() - lastScanEnd.value < SCAN_IDLE_MS)
           return;
-        const options = wantWholeCard.value ? cardOptions : codeOptions;
         const result = cardOcrFrame.pollScan(frame, {
           ...options,
           ...previewRegionToFrameRegion(options, frame),
           orientation: frame.orientation,
-          wholeCard: wantWholeCard.value,
+          wholeCard: false,
         });
         if (!result) return;
         lastScanEnd.value = performance.now();
@@ -160,9 +108,7 @@ export function useCardScannerFrame(
           handleResult,
           result.lines,
           result.cardDetected,
-          result.matches,
-          result.wholeCard,
-          [result.locateMs, result.matchMs, result.readMs].map(Math.round)
+          [result.locateMs, result.readMs].map(Math.round)
         );
       } catch (error) {
         lastScanEnd.value = performance.now();
@@ -177,5 +123,5 @@ export function useCardScannerFrame(
     },
   });
 
-  return { frameOutput, cardDetected, artDebug, scanError };
+  return { frameOutput, cardDetected, scanDebug, scanError };
 }

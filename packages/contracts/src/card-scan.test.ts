@@ -3,6 +3,7 @@ import {
   buildScanCatalog,
   confidentArt,
   decideScan,
+  decideCollectorScan,
   IMAGE_MATCH_FLOOR,
   IMAGE_TIE_MARGIN,
   nameSimilarity,
@@ -391,5 +392,45 @@ describe('Lux full-art recognition', () => {
 
   test('a champion tag alone cannot pick a Lux title', () => {
     expect(decideScan(catalog, ['LUX'])).toBeNull();
+  });
+});
+
+describe('collector-first camera decisions', () => {
+  const lux = { variantNumber: 'OGS-014', name: 'Lux, Crownguard', setCode: 'OGS' };
+  const other = { variantNumber: 'OGS-006', name: 'Lux, Illuminated', setCode: 'OGS' };
+  const catalog = buildScanCatalog([lux, other]);
+
+  test('middle text and names never identify a card', () => {
+    expect(decideCollectorScan(catalog, ['Lux, Crownguard'])).toBeNull();
+    expect(
+      decideCollectorScan(catalog, ['Use only to play spells.', 'LUX'])
+    ).toBeNull();
+  });
+
+  test('the footer code identifies the printing even if body text mentions another card', () => {
+    expect(decideCollectorScan(catalog, ['Lux, Illuminated', 'OGS • 014/024'])).toEqual(
+      { kind: 'card', card: lux, via: 'code', sure: false }
+    );
+  });
+
+  test('split and low-light Lux footer readings resolve against the catalog', () => {
+    expect(decideCollectorScan(catalog, ['OGS', '014/024'])).toMatchObject({
+      card: lux,
+    });
+    expect(decideCollectorScan(catalog, ['OGS • OI4/024'])).toMatchObject({
+      card: lux,
+    });
+  });
+
+  test('conflicting valid OCR alternatives wait for a clearer frame', () => {
+    expect(
+      decideCollectorScan(catalog, [['OGS • 014/024', 'OGS • 006/024']])
+    ).toBeNull();
+  });
+
+  test('an unknown number never falls back to a familiar name', () => {
+    expect(
+      decideCollectorScan(catalog, ['Lux, Crownguard', 'OGS • 999/024'])
+    ).toBeNull();
   });
 });
