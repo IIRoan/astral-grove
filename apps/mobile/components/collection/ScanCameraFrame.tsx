@@ -7,6 +7,7 @@ import { useCardScannerFrame } from '@/hooks/useCardScannerFrame';
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
 import { PREVIEW_ASPECT } from '@/utils/scanCrop';
+import { scannerLowLightProps } from '@/lib/scan-frame-dispatch';
 
 /**
  * Frame engine surface. A 30fps target gives auto-exposure more room in dim light.
@@ -23,7 +24,7 @@ export function ScanCameraFrame({
   torch: boolean;
 }) {
   const device = useCameraDevice('back');
-  const { frameOutput, cardDetected, artDebug } = useCardScannerFrame(
+  const { frameOutput, cardDetected, artDebug, scanError } = useCardScannerFrame(
     session,
     level,
     active && !session.pending
@@ -56,7 +57,7 @@ export function ScanCameraFrame({
         // the duplicate connection.
         outputs={[frameOutput]}
         constraints={[{ fps: 30 }]}
-        enableLowLightBoost={device.supportsLowLightBoost}
+        {...scannerLowLightProps(device.supportsLowLightBoost)}
         torchMode={active && torch && device.hasTorch ? 'on' : 'off'}
         isActive={active}
         resizeMode="cover"
@@ -64,13 +65,15 @@ export function ScanCameraFrame({
       <ScanGuideOverlay
         locked={cardDetected}
         hint={
-          !session.ready
-            ? 'Loading catalog…'
-            : session.justAdded
-              ? `Added ${session.justAdded} — next card`
-              : cardDetected
-                ? `Card found — reading it${artDebug ? ` · ${artDebug}` : ''}`
-                : `Hold the card inside the guide${learning}`
+          scanError
+            ? 'Camera could not read this frame. Retrying…'
+            : !session.ready
+              ? 'Loading catalog…'
+              : session.justAdded
+                ? `Added ${session.justAdded} — next card`
+                : cardDetected
+                  ? `Card found — reading it${artDebug ? ` · ${artDebug}` : ''}`
+                  : `Hold the card inside the guide${learning}`
         }
       />
     </View>
