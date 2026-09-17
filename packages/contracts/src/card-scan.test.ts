@@ -319,3 +319,77 @@ describe('decideScan', () => {
     expect(decideScan(catalog, [])).toBeNull();
   });
 });
+
+describe('Lux full-art recognition', () => {
+  const lux = {
+    variantNumber: 'OGS-014',
+    name: 'Lux, Crownguard',
+    setCode: 'OGS',
+    imageUrl: 'lux.webp',
+  };
+  const illuminated = {
+    ...lux,
+    variantNumber: 'OGS-006',
+    name: 'Lux, Illuminated',
+    imageUrl: 'illuminated.webp',
+  };
+  const catalog = buildScanCatalog([lux, illuminated]);
+
+  test('joins title lines and ranked alternatives when the collector strip is unreadable', () => {
+    expect(
+      decideScan(catalog, [
+        ['LUX'],
+        ['CR0WNGUARD', 'CROWNGUAR0'],
+        ['Use only to play spells.'],
+      ])
+    ).toMatchObject({ kind: 'card', card: lux, via: 'name' });
+  });
+
+  test('joins the set and collector number when Vision splits the footer', () => {
+    expect(decideScan(catalog, ['OGS', '014/024'])).toMatchObject({
+      kind: 'card',
+      card: lux,
+      via: 'code',
+    });
+  });
+
+  test('recovers digit-shaped letters only for a known collector number', () => {
+    expect(decideScan(catalog, ['OGS • OI4/024'])).toMatchObject({
+      kind: 'card',
+      card: lux,
+      via: 'code',
+    });
+    expect(
+      parseScannedCardCode(['OGS • OI9/024'], ['OGS'], (code) => code === 'OGS-014')
+    ).toBeNull();
+  });
+
+  test('weak low-light artwork does not override a readable code and title', () => {
+    expect(
+      decideScan(
+        catalog,
+        ['LUX', 'CROWNGUARD', 'OGS • 014/024'],
+        [{ key: 'illuminated.webp', score: 0.55 }]
+      )
+    ).toMatchObject({ card: lux, via: 'code' });
+  });
+
+  test('weak artwork does not choose between same-name printings', () => {
+    const alternate = {
+      ...lux,
+      variantNumber: 'VEN-SP6',
+      setCode: 'VEN',
+      imageUrl: 'alt-lux.webp',
+    };
+    const decision = decideScan(
+      buildScanCatalog([lux, alternate]),
+      ['LUX', 'CROWNGUARD'],
+      [{ key: 'alt-lux.webp', score: 0.55 }]
+    );
+    expect(decision).toMatchObject({ kind: 'hold', options: [lux, alternate] });
+  });
+
+  test('a champion tag alone cannot pick a Lux title', () => {
+    expect(decideScan(catalog, ['LUX'])).toBeNull();
+  });
+});

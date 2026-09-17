@@ -51,6 +51,28 @@ private func cgOrientation(from orientation: String) -> CGImagePropertyOrientati
   }
 }
 
+// Lift shadows and separate text from colored artwork without changing reference embeddings.
+private func enhancedTextImage(_ image: CIImage) -> CIImage {
+  image.applyingFilter("CIHighlightShadowAdjust", parameters: ["inputShadowAmount": 0.7])
+    .applyingFilter("CIColorControls", parameters: [
+      kCIInputSaturationKey: 0.0, kCIInputContrastKey: 1.25,
+    ])
+}
+
+private func cropGuide(_ image: CIImage, region: CGRect, width: CGFloat) -> CIImage? {
+  let extent = image.extent
+  let rect = CGRect(
+    x: extent.minX + region.minX * extent.width,
+    y: extent.minY + region.minY * extent.height,
+    width: region.width * extent.width, height: region.height * extent.height
+  ).intersection(extent)
+  guard !rect.isNull, rect.width > 0, rect.height > 0 else { return nil }
+  let crop = image.cropped(to: rect)
+    .transformed(by: CGAffineTransform(translationX: -rect.minX, y: -rect.minY))
+  let scale = width / rect.width
+  return crop.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+}
+
 /** Locate the most prominent card-shaped quadrilateral, if there is one. */
 private func detectCard(in image: CIImage) -> VNRectangleObservation? {
   let request = VNDetectRectanglesRequest()
@@ -252,6 +274,7 @@ private func readText(
   request.recognitionLevel = options.recognitionLevel == "fast" ? .fast : .accurate
   request.usesLanguageCorrection = options.usesLanguageCorrection
   request.recognitionLanguages = ["en-US"]
+  request.minimumTextHeight = 0
   if let region {
     request.regionOfInterest = region
   }
@@ -330,22 +353,25 @@ final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
 
       var clock = CFAbsoluteTimeGetCurrent()
       let card = detectCard(in: oriented)
+        ?? (options.wholeCard ? detectCard(in: enhancedTextImage(oriented)) : nil)
       let rectified = card.flatMap {
         rectify(oriented, to: $0, width: CGFloat(options.rectifiedWidth))
       }
       let locateMs = milliseconds(since: clock)
 
-      guard var reading = rectified else {
-        // No card located — fall back to the caller's fixed region on the raw frame.
+      let region = CGRect(
+        x: options.regionX, y: options.regionY,
+        width: options.regionWidth, height: options.regionHeight)
+      // When edges disappear into a dark table, the full guide still contains useful art.
+      let guide = options.wholeCard
+        ? cropGuide(oriented, region: region, width: CGFloat(options.rectifiedWidth)) : nil
+      guard var reading = rectified ?? guide else {
         clock = CFAbsoluteTimeGetCurrent()
         let hasRegion = options.regionWidth > 0 && options.regionHeight > 0
-        let region = CGRect(
-          x: options.regionX, y: options.regionY,
-          width: options.regionWidth, height: options.regionHeight)
         let lines = try readText(
           in: oriented, region: hasRegion ? region : nil, options: options)
         return FrameScanResult(
-          lines: lines, cardDetected: false, matches: [], wholeCard: true,
+          lines: lines, cardDetected: false, matches: [], wholeCard: options.wholeCard,
           locateMs: locateMs, matchMs: 0, readMs: milliseconds(since: clock))
       }
 
@@ -375,10 +401,14 @@ final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
       }
       if wholeCard {
         lines = try readText(in: reading, region: nil, options: options)
+        if !lines.contains(where: looksLikeCollectorCode) {
+          // Retain the original readings: enhancement can help small print but lose fine detail.
+          lines += try readText(in: enhancedTextImage(reading), region: nil, options: options)
+        }
       }
 
       return FrameScanResult(
-        lines: lines, cardDetected: true, matches: matches, wholeCard: wholeCard,
+        lines: lines, cardDetected: rectified != nil, matches: matches, wholeCard: wholeCard,
         locateMs: locateMs, matchMs: matchMs, readMs: milliseconds(since: clock))
     }
   }

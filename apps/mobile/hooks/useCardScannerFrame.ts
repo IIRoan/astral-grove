@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 import { useFrameOutput } from 'react-native-vision-camera';
+import { useLatestRef } from '@/hooks/useLatestRef';
 import { scheduleOnRN } from 'react-native-worklets';
 import {
   cardOcrFrame,
@@ -8,7 +9,12 @@ import {
   type FrameScanResult,
   type ImageMatch,
 } from '@/modules/card-ocr-frame/src';
-import { cardRect, codeBandRect, toVisionRegion } from '@/utils/scanCrop';
+import {
+  cardRect,
+  codeBandRect,
+  toVisionRegion,
+  previewRegionToFrameRegion,
+} from '@/utils/scanCrop';
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
 
@@ -50,9 +56,15 @@ function describeMatches(matches: ImageMatch[]): string {
  */
 export function useCardScannerFrame(
   session: ScanSession,
-  level: ScannerRecognitionLevel
+  level: ScannerRecognitionLevel,
+  enabled: boolean
 ) {
   const { resolve, present, noteCard } = session;
+  const enabledRef = useLatestRef(enabled);
+  const scanning = useSharedValue(enabled);
+  useEffect(() => {
+    scanning.value = enabled;
+  }, [enabled, scanning]);
   // Shared values, not refs: the worklet runs off the JS thread and needs state that
   // survives between frames on its own runtime.
   const lastScanEnd = useSharedValue(0);
@@ -74,6 +86,7 @@ export function useCardScannerFrame(
       wholeCard: boolean,
       stageMs: number[]
     ) => {
+      if (!enabledRef.current) return;
       setCardDetected(detected);
       noteCard(detected);
       if (__DEV__) {
@@ -81,10 +94,10 @@ export function useCardScannerFrame(
         setArtDebug([describeMatches(matches), timing].filter(Boolean).join(' '));
       }
       const outcome = resolve(lines, matches, wholeCard);
-      wantWholeCard.value = detected && !outcome;
+      wantWholeCard.value = !outcome;
       if (outcome) present(outcome);
     },
-    [noteCard, present, resolve, wantWholeCard]
+    [enabledRef, noteCard, present, resolve, wantWholeCard]
   );
 
   const { codeOptions, cardOptions } = useMemo(() => {
@@ -119,7 +132,7 @@ export function useCardScannerFrame(
   }, [level]);
 
   const frameOutput = useFrameOutput({
-    // Vision is far slower than 60fps; without this the pipeline would queue frames
+    // Vision is slower than the preview frame rate; without this the pipeline would queue frames
     // and stall the camera rather than simply skipping the ones it cannot keep up with.
     dropFramesWhileBusy: true,
     onFrame(frame) {
@@ -128,13 +141,16 @@ export function useCardScannerFrame(
       try {
         // Frames we skip are disposed immediately and cost the pipeline nothing, so
         // the preview keeps running at full rate while Vision works at its own pace.
-        if (performance.now() - lastScanEnd.value < SCAN_IDLE_MS) return;
+        if (!scanning.value || performance.now() - lastScanEnd.value < SCAN_IDLE_MS)
+          return;
         scanned = true;
 
         const orientation = frame.orientation;
+        const options = wantWholeCard.value ? cardOptions : codeOptions;
         // Older builds resolve to `string[][]`; the current spec says `FrameScanResult`.
         const result = cardOcrFrame.scan(frame, {
-          ...codeOptions,
+          ...options,
+          ...previewRegionToFrameRegion(options, frame),
           orientation,
           wholeCard: wantWholeCard.value,
         }) as unknown as FrameScanResult | string[][];
@@ -151,6 +167,7 @@ export function useCardScannerFrame(
           // letting the name narrow it down.
           const cardLines = cardOcrFrame.scan(frame, {
             ...cardOptions,
+            ...previewRegionToFrameRegion(cardOptions, frame),
             orientation,
             wholeCard: true,
           }) as unknown as FrameScanResult | string[][];

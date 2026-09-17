@@ -9,20 +9,25 @@ import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
 import { PREVIEW_ASPECT } from '@/utils/scanCrop';
 
 /**
- * Frame engine surface. The preview asks for 60fps and Vision reads the same buffers
- * that feed it, so nothing ever interrupts the stream to take a picture.
+ * Frame engine surface. A 30fps target gives auto-exposure more room in dim light.
  */
 export function ScanCameraFrame({
   session,
   level,
   active,
+  torch,
 }: {
   session: ScanSession;
   level: ScannerRecognitionLevel;
   active: boolean;
+  torch: boolean;
 }) {
   const device = useCameraDevice('back');
-  const { frameOutput, cardDetected, artDebug } = useCardScannerFrame(session, level);
+  const { frameOutput, cardDetected, artDebug } = useCardScannerFrame(
+    session,
+    level,
+    active && !session.pending
+  );
   const artIndex = useCardArtIndex(session.items);
   // Scanning already works on text alone, so this is progress, not a blocker.
   const learning =
@@ -50,9 +55,9 @@ export function ScanCameraFrame({
         // prepends it, so passing one here adds a second and the session rejects
         // the duplicate connection.
         outputs={[frameOutput]}
-        // The 60Hz preview. Treated as a constraint, so a device that cannot hit it
-        // negotiates down rather than failing to start.
-        constraints={[{ fps: 60 }]}
+        constraints={[{ fps: 30 }]}
+        enableLowLightBoost={device.supportsLowLightBoost}
+        torchMode={active && torch && device.hasTorch ? 'on' : 'off'}
         isActive={active}
         resizeMode="cover"
       />
@@ -65,7 +70,7 @@ export function ScanCameraFrame({
               ? `Added ${session.justAdded} — next card`
               : cardDetected
                 ? `Card found — reading it${artDebug ? ` · ${artDebug}` : ''}`
-                : `Show a card — it does not need to line up exactly${learning}`
+                : `Hold the card inside the guide${learning}`
         }
       />
     </View>

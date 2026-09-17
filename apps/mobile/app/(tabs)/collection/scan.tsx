@@ -1,315 +1,241 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { useCameraPermissions } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useIsFocused } from 'expo-router/react-navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import type { CardListItem } from '@riftbound/contracts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardArtImage } from '@/components/cards/CardArtImage';
-import {
-  ImportPreviewBody,
-  type ImportPreviewData,
-} from '@/components/collection/ImportPreviewBody';
 import { ScanCameraFrame } from '@/components/collection/ScanCameraFrame';
 import { ScanCameraPhoto } from '@/components/collection/ScanCameraPhoto';
-import { CameraIcon, CheckIcon, MinusIcon, PlusIcon, XIcon } from '@/components/icons';
+import { CameraIcon, XIcon } from '@/components/icons';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { toast } from '@/components/ui/toast.api';
 import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
-import { useCollectionImportExport } from '@/hooks/useCollectionImportExport';
-import {
-  useScanSession,
-  type MatchKind,
-  type ScannedCard,
-} from '@/hooks/useScanSession';
+import { useCollectionMutations } from '@/hooks/useCollection';
+import { useScanSession } from '@/hooks/useScanSession';
 import { useScannerEngine } from '@/hooks/useScannerEngine';
+import { normalScanInput } from '@/lib/scan-confirmation';
 import { cn } from '@/lib/utils';
 import { openCard } from '@/utils/cardNavigation';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
-import { hapticPress } from '@/utils/haptics';
+import { PREVIEW_ASPECT } from '@/utils/scanCrop';
 
 const THUMB_WIDTH = 48;
 const CONFIRM_ART_WIDTH = 320;
 
-type Step = 'idle' | 'scanning' | 'review';
-
 export default function CollectionScanRoute() {
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const focused = useIsFocused();
+  const [torch, setTorch] = useState(false);
   const queryClient = useQueryClient();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const lookup = mode === 'lookup';
-
   const [permission, requestPermission] = useCameraPermissions();
-  const [step, setStep] = useState<Step>(lookup ? 'scanning' : 'idle');
-  const [preview, setPreview] = useState<ImportPreviewData | null>(null);
-  const { engine, level, autoAdd, loaded: engineLoaded } = useScannerEngine();
-
-  /**
-   * Lookup mode is one-shot. `replace` rather than back-then-push: the two would race,
-   * and it leaves the scanner out of the back stack so dismissing the card returns to
-   * search, where the scan started.
-   */
-  const openScannedCard = useCallback(
-    (card: CardListItem) => {
-      openCard(router, card.variantNumber, 'modal', 'catalog', queryClient, 'replace');
+  const { engine, level, loaded: engineLoaded } = useScannerEngine();
+  const { addCard } = useCollectionMutations();
+  const saveCard = useCallback(
+    async (card: CardListItem) => {
+      if (lookup) {
+        openCard(
+          router,
+          card.variantNumber,
+          'modal',
+          'catalog',
+          queryClient,
+          'replace'
+        );
+        return;
+      }
+      await addCard.mutateAsync(normalScanInput(card));
     },
-    [queryClient]
+    [addCard.mutateAsync, lookup, queryClient]
   );
-
-  const session = useScanSession({
-    autoAdd,
-    ...(lookup ? { onCard: openScannedCard } : {}),
-  });
-  const { previewItems, acceptTts } = useCollectionImportExport();
-
-  const granted = permission?.granted ?? false;
-  // Paused whenever a card is waiting on an answer, or we are not on the camera step.
-  const cameraActive = granted && step === 'scanning' && !session.pending;
-
-  const handleReview = async () => {
-    void hapticPress();
-    try {
-      const result = await previewItems.mutateAsync(
-        session.staged.map((row) => ({
-          variantNumber: row.variantNumber,
-          quantity: row.quantity,
-          condition: 'near_mint' as const,
-          language: 'en',
-        }))
-      );
-      setPreview(result);
-      setStep('review');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not preview scan.');
-    }
-  };
-
-  const handleConfirmImport = async () => {
-    if (!preview) return;
-    try {
-      await acceptTts.mutateAsync(preview.items);
-      toast.success(
-        `Added ${preview.totalCopies.toLocaleString()} copies across ${preview.uniquePrintings.toLocaleString()} printings.`
-      );
-      session.reset();
-      setPreview(null);
-      router.back();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not import cards.');
-    }
-  };
+  const session = useScanSession({ onConfirm: saveCard });
 
   if (!permission || !engineLoaded) return <View className="flex-1 bg-background" />;
 
-  if (!granted) {
+  if (!permission.granted) {
     return (
-      <Screen insets={insets}>
-        <View className="flex-1 items-center justify-center gap-4 px-8">
-          <CameraIcon size={32} className="text-muted-foreground" />
-          <Text className="text-center text-sm leading-snug text-muted-foreground">
-            Scanning reads the card with Apple Vision, entirely on this device — no
-            photo leaves your phone.
-          </Text>
-          <View className="w-full gap-2">
-            <Button onPress={() => void requestPermission()}>
-              <ButtonText>Allow camera</ButtonText>
-            </Button>
-            <Button variant="outline" onPress={() => router.back()}>
-              <ButtonText>Back</ButtonText>
-            </Button>
-          </View>
+      <View className="flex-1 items-center justify-center gap-4 bg-background px-8">
+        <CameraIcon size={32} className="text-muted-foreground" />
+        <Text className="text-center text-xl font-semibold text-foreground">
+          Scan a card
+        </Text>
+        <Text className="text-center text-sm leading-snug text-muted-foreground">
+          Allow camera access to recognize your cards. Photos stay on your device.
+        </Text>
+        <View className="w-full gap-2">
+          <Button
+            onPress={() =>
+              void (permission.canAskAgain
+                ? requestPermission()
+                : Linking.openSettings())
+            }
+          >
+            <ButtonText>
+              {permission.canAskAgain ? 'Allow camera' : 'Open settings'}
+            </ButtonText>
+          </Button>
+          <Button variant="outline" onPress={() => router.back()}>
+            <ButtonText>Back</ButtonText>
+          </Button>
         </View>
-      </Screen>
-    );
-  }
-
-  if (step === 'idle') {
-    return (
-      <Screen insets={insets}>
-        <View className="flex-1 items-center justify-center gap-5 px-8">
-          <CameraIcon size={40} className="text-foreground" />
-          <View className="gap-2">
-            <Text className="text-center text-xl font-semibold text-foreground">
-              Scan cards in
-            </Text>
-            <Text className="text-center text-sm leading-snug text-muted-foreground">
-              {autoAdd
-                ? 'Hold each card in the frame. Cards the scanner is sure of are added straight away and the rest wait for you.'
-                : 'Hold each card in the frame. You confirm every card before it counts.'}{' '}
-              Nothing is written to your collection until you finish.
-            </Text>
-          </View>
-          <View className="w-full gap-2">
-            <Button
-              onPress={() => {
-                void hapticPress();
-                setStep('scanning');
-              }}
-            >
-              <ButtonText>Start scanning</ButtonText>
-            </Button>
-            <Button variant="outline" onPress={() => router.back()}>
-              <ButtonText>Cancel</ButtonText>
-            </Button>
-          </View>
-          <Text className="font-mono text-[11px] text-muted-foreground">
-            Engine: {engine === 'frame' ? 'frame processor' : 'photo capture'} · {level}
-          </Text>
-        </View>
-      </Screen>
-    );
-  }
-
-  if (step === 'review' && preview) {
-    return (
-      <Screen insets={insets}>
-        <View className="flex-1 gap-3 px-4 pt-3">
-          <Text className="text-lg font-semibold text-foreground">Review scan</Text>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <ImportPreviewBody preview={preview} totalLabel="cards scanned" />
-          </ScrollView>
-          <View className="flex-row items-center gap-2">
-            <Button
-              variant="outline"
-              className="w-auto flex-1"
-              disabled={acceptTts.isPending}
-              onPress={() => {
-                setPreview(null);
-                setStep('scanning');
-              }}
-            >
-              <ButtonText>Keep scanning</ButtonText>
-            </Button>
-            <Button
-              className="w-auto flex-[1.4]"
-              busy={acceptTts.isPending}
-              onPress={() => void handleConfirmImport()}
-            >
-              <ButtonText>
-                {acceptTts.isPending ? 'Importing…' : 'Confirm import'}
-              </ButtonText>
-            </Button>
-          </View>
-        </View>
-      </Screen>
-    );
-  }
-
-  if (session.pending?.kind === 'card') {
-    return (
-      <Screen insets={insets}>
-        <ConfirmCard
-          card={session.pending.card}
-          via={session.pending.via}
-          onYes={session.confirmPending}
-          onNo={session.rejectPending}
-        />
-      </Screen>
-    );
-  }
-
-  if (session.pending?.kind === 'ambiguous') {
-    return (
-      <Screen insets={insets}>
-        <PrintingPicker
-          name={session.pending.name}
-          options={session.pending.options}
-          onPick={session.accept}
-          onSkip={session.rejectPending}
-        />
-      </Screen>
+      </View>
     );
   }
 
   const CameraSurface = engine === 'frame' ? ScanCameraFrame : ScanCameraPhoto;
-
-  return (
-    <View className="flex-1 bg-background">
-      <View style={{ marginTop: insets.top }}>
-        <CameraSurface session={session} level={level} active={cameraActive} />
-
-        <Pressable
-          accessibilityLabel="Close scanner"
-          accessibilityRole="button"
-          onPress={() => router.back()}
-          className="absolute left-3 top-3 h-10 w-10 items-center justify-center rounded-[3px] bg-background/70"
-        >
-          <XIcon size={20} className="text-foreground" />
-        </Pressable>
-      </View>
-
-      {lookup ? null : (
-        <View
-          className="flex-1 gap-3 border-t border-border bg-background px-4 pt-3"
-          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
-        >
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <StagedList staged={session.staged} onSetQuantity={session.setQuantity} />
-          </ScrollView>
-          <Button
-            disabled={session.staged.length === 0 || previewItems.isPending}
-            busy={previewItems.isPending}
-            onPress={() => void handleReview()}
-          >
-            <ButtonText>
-              {session.staged.length === 0
-                ? 'Scan a card to begin'
-                : `Finish · ${session.totalCopies.toLocaleString()} scanned`}
-            </ButtonText>
-          </Button>
-        </View>
-      )}
-    </View>
+  const previewWidth = Math.max(
+    0,
+    Math.min(width, (height - insets.top - insets.bottom - 180) * PREVIEW_ASPECT)
   );
-}
 
-function Screen({
-  insets,
-  children,
-}: {
-  insets: { top: number; bottom: number };
-  children: React.ReactNode;
-}) {
   return (
     <View
       className="flex-1 bg-background"
       style={{ paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 12) }}
     >
-      {children}
+      <View
+        className="flex-1"
+        accessibilityElementsHidden={Boolean(session.pending)}
+        importantForAccessibility={session.pending ? 'no-hide-descendants' : 'auto'}
+      >
+        <View className="flex-row items-center justify-between px-4 py-2">
+          <Text className="text-lg font-semibold text-foreground">
+            {lookup ? 'Find a card' : 'Scan to collection'}
+          </Text>
+          <View className="flex-row items-center gap-2">
+            <Button
+              variant="outline"
+              className="w-auto"
+              accessibilityLabel={
+                torch ? 'Turn camera light off' : 'Turn camera light on'
+              }
+              accessibilityState={{ selected: torch }}
+              onPress={() => setTorch((value) => !value)}
+            >
+              <ButtonText>{torch ? 'Light off' : 'Light on'}</ButtonText>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              accessibilityLabel="Close scanner"
+              disabled={session.saving}
+              onPress={() => router.back()}
+            >
+              <XIcon size={20} className="text-foreground" />
+            </Button>
+          </View>
+        </View>
+        <View className="min-h-0 flex-1 items-center justify-center overflow-hidden">
+          <View style={{ width: previewWidth }}>
+            <CameraSurface
+              session={session}
+              level={level}
+              active={focused}
+              torch={torch}
+            />
+          </View>
+        </View>
+        <View className="gap-2 border-t border-border px-4 pt-4">
+          <Text
+            accessibilityLiveRegion="polite"
+            className="text-center text-base font-semibold text-foreground"
+          >
+            {session.justAdded && !lookup
+              ? `Added ${session.justAdded}`
+              : 'Ready for the next card'}
+          </Text>
+          <Text className="text-center text-sm text-muted-foreground">
+            {lookup
+              ? 'Hold a card in view, then confirm the match.'
+              : 'Confirm each match to add one normal copy. No foil scanning yet.'}
+          </Text>
+          {!lookup ? (
+            <Text className="text-center text-sm text-muted-foreground">
+              {session.totalCopies.toLocaleString()} added this session
+            </Text>
+          ) : null}
+        </View>
+      </View>
+      {session.pending ? (
+        <View
+          accessibilityViewIsModal
+          className="absolute inset-0 bg-background"
+          style={{ paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 12) }}
+        >
+          {session.pending.kind === 'card' ? (
+            <ConfirmCard
+              card={session.pending.card}
+              lookup={lookup}
+              saving={session.saving}
+              error={session.error}
+              onYes={() => void session.confirmPending()}
+              onNo={session.rejectPending}
+            />
+          ) : (
+            <PrintingPicker
+              name={session.pending.name}
+              options={session.pending.options}
+              onPick={session.selectPrinting}
+              onSkip={session.rejectPending}
+            />
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }
 
-/** The yes/no gate. Deliberately two big targets — this is tapped once per card. */
 function ConfirmCard({
   card,
-  via,
+  lookup,
+  saving,
+  error,
   onYes,
   onNo,
 }: {
   card: CardListItem;
-  via: MatchKind;
+  lookup: boolean;
+  saving: boolean;
+  error: string | null;
   onYes: () => void;
   onNo: () => void;
 }) {
   const uri = card.imageUrl ? resolveImageUrl(card.imageUrl) : '';
-
+  const { width, height } = useWindowDimensions();
+  const artWidth = Math.min(260, width * 0.6, height * 0.32);
   return (
-    <View className="flex-1 justify-between gap-4 px-4 pt-3">
-      <View className="min-h-0 flex-1 items-center justify-center gap-4">
+    <View className="flex-1 gap-4 px-4 pt-4">
+      <Text className="text-center text-xl font-semibold text-foreground">
+        Is this the card you scanned?
+      </Text>
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="grow items-center justify-center gap-4 py-4"
+      >
         <View
           className={cn(
-            'aspect-[5/7] w-[68%] overflow-hidden border border-border bg-card-panel',
+            'aspect-[5/7] overflow-hidden border border-border bg-card-panel',
             CARD_ART_RADIUS_CLASS
           )}
+          style={{ width: artWidth }}
         >
           {uri ? (
             <CardArtImage
               uri={uri}
               recyclingKey={card.variantNumber}
               className="h-full w-full"
-              contentFit="cover"
+              contentFit="contain"
               transition={0}
               instant
               thumbWidth={CONFIRM_ART_WIDTH}
@@ -320,50 +246,53 @@ function ConfirmCard({
           <Text className="text-center text-xl font-semibold text-foreground">
             {card.name}
           </Text>
-          <Text className="text-center font-mono text-[12px] text-muted-foreground">
+          <Text className="text-center font-mono text-xs text-muted-foreground">
             {card.setCode} · {card.variantNumber} · {card.rarity}
           </Text>
+          {!lookup ? (
+            <Text className="text-center text-sm text-muted-foreground">
+              Adds 1 normal copy to your collection
+            </Text>
+          ) : null}
         </View>
-      </View>
-
-      <View className="gap-2">
-        <Text className="text-center text-sm text-muted-foreground">
-          {via === 'code'
-            ? 'Is this the card you scanned?'
-            : via === 'art'
-              ? 'Matched on artwork — check the printing is right.'
-              : 'Matched on name — check the printing is right.'}
-        </Text>
-        <View className="flex-row items-stretch gap-3">
-          <Pressable
-            accessibilityLabel="No, this is the wrong card"
-            accessibilityRole="button"
-            onPress={onNo}
-            className="h-16 flex-1 flex-row items-center justify-center gap-2 rounded-[3px] border border-border bg-card-panel active:bg-background"
+        {error ? (
+          <Text
+            accessibilityRole="alert"
+            className="text-center text-sm text-destructive"
           >
-            <XIcon size={22} className="text-foreground" />
-            <Text className="text-base font-semibold text-foreground">No</Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel={`Yes, add ${card.name}`}
-            accessibilityRole="button"
-            onPress={onYes}
-            className="h-16 flex-[1.4] flex-row items-center justify-center gap-2 rounded-[3px] bg-cta active:opacity-80"
-          >
-            <CheckIcon size={22} className="text-cta-foreground" />
-            <Text className="text-base font-bold text-cta-foreground">Yes, add</Text>
-          </Pressable>
-        </View>
+            {error}
+          </Text>
+        ) : null}
+      </ScrollView>
+      <View className="flex-row gap-3">
+        <Button
+          variant="outline"
+          className="h-16 w-auto flex-1"
+          accessibilityLabel="No, scan again"
+          disabled={saving}
+          onPress={onNo}
+        >
+          <ButtonText>No</ButtonText>
+        </Button>
+        <Button
+          className="h-16 w-auto flex-[1.4]"
+          accessibilityLabel={
+            lookup
+              ? `Yes, view ${card.name}`
+              : `Yes, add one normal copy of ${card.name}`
+          }
+          busy={saving}
+          onPress={onYes}
+        >
+          <ButtonText>
+            {saving ? 'Adding…' : lookup ? 'Yes, view card' : 'Yes, add card'}
+          </ButtonText>
+        </Button>
       </View>
     </View>
   );
 }
 
-/**
- * Shown when the name matched but the collector code did not, and the artwork could
- * not settle it either — reprints share a picture. Guessing one would quietly add the
- * wrong card, and one tap is cheaper than an import to unpick later.
- */
 function PrintingPicker({
   name,
   options,
@@ -414,85 +343,6 @@ function PrintingPicker({
         <ButtonText>None of these — keep scanning</ButtonText>
       </Button>
     </View>
-  );
-}
-
-function StagedList({
-  staged,
-  onSetQuantity,
-}: {
-  staged: ScannedCard[];
-  onSetQuantity: (variantNumber: string, quantity: number) => void;
-}) {
-  if (staged.length === 0) {
-    return (
-      <Text className="py-6 text-center text-sm text-muted-foreground">
-        Hold a card up. You will be asked to confirm each one.
-      </Text>
-    );
-  }
-
-  return (
-    <View className="gap-2">
-      {staged.map((row) => (
-        <View
-          key={row.variantNumber}
-          className="flex-row items-center gap-3 rounded-[3px] border border-border px-3 py-2"
-        >
-          <Thumb uri={row.imageUrl} recyclingKey={row.variantNumber} />
-          <View className="min-w-0 flex-1 gap-0.5">
-            <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-              {row.name}
-            </Text>
-            <Text className="font-mono text-[11px] text-muted-foreground">
-              {row.setCode} · {row.variantNumber}
-            </Text>
-          </View>
-          <View className="flex-row items-center gap-2">
-            <QtyButton
-              label={`Remove one ${row.name}`}
-              onPress={() => onSetQuantity(row.variantNumber, row.quantity - 1)}
-            >
-              <MinusIcon size={14} className="text-foreground" />
-            </QtyButton>
-            <Text className="min-w-6 text-center font-mono text-[13px] tabular-nums text-foreground">
-              {row.quantity}
-            </Text>
-            <QtyButton
-              label={`Add one ${row.name}`}
-              onPress={() => onSetQuantity(row.variantNumber, row.quantity + 1)}
-            >
-              <PlusIcon size={14} className="text-foreground" />
-            </QtyButton>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function QtyButton({
-  label,
-  onPress,
-  children,
-}: {
-  label: string;
-  onPress: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <Pressable
-      accessibilityLabel={label}
-      accessibilityRole="button"
-      hitSlop={6}
-      onPress={() => {
-        void hapticPress();
-        onPress();
-      }}
-      className="h-7 w-7 items-center justify-center rounded-[3px] bg-card-panel active:bg-background"
-    >
-      {children}
-    </Pressable>
   );
 }
 

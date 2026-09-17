@@ -3,6 +3,7 @@ import {
   codeBandRect,
   guideRect,
   previewRectToPhotoCrop,
+  previewRegionToFrameRegion,
   PREVIEW_ASPECT,
   toVisionRegion,
 } from '@/utils/scanCrop';
@@ -94,5 +95,52 @@ describe('toVisionRegion', () => {
     const band = toVisionRegion(codeBandRect());
     expect(band.y).toBeGreaterThanOrEqual(0);
     expect(band.y + band.height).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('previewRegionToFrameRegion', () => {
+  test('crops away off-screen background from a rotated 16:9 camera buffer', () => {
+    const guide = toVisionRegion(guideRect());
+    const crop = previewRegionToFrameRegion(
+      {
+        regionX: guide.x,
+        regionY: guide.y,
+        regionWidth: guide.width,
+        regionHeight: guide.height,
+      },
+      { width: 1920, height: 1080, orientation: 'right' }
+    );
+    expect(crop.regionX).toBeCloseTo(0.1);
+    expect(crop.regionY).toBeCloseTo(0.185);
+    expect(crop.regionWidth).toBeCloseTo(0.8);
+    expect(crop.regionHeight).toBeCloseTo(0.63);
+  });
+
+  test('maps the collector strip to the same visible pixels as the photo engine', () => {
+    const band = codeBandRect();
+    const vision = toVisionRegion(band);
+    for (const [width, height] of [
+      [1080, 1920],
+      [1920, 1080],
+      [3000, 4000],
+    ]) {
+      const frame = { width: width!, height: height!, orientation: 'up' };
+      const crop = previewRegionToFrameRegion(
+        {
+          regionX: vision.x,
+          regionY: vision.y,
+          regionWidth: vision.width,
+          regionHeight: vision.height,
+        },
+        frame
+      );
+      const photo = previewRectToPhotoCrop(band, frame);
+      expect(Math.round(crop.regionX * frame.width)).toBe(photo.originX);
+      expect(Math.round((1 - crop.regionY - crop.regionHeight) * frame.height)).toBe(
+        photo.originY
+      );
+      expect(Math.round(crop.regionWidth * frame.width)).toBe(photo.width);
+      expect(Math.round(crop.regionHeight * frame.height)).toBe(photo.height);
+    }
   });
 });

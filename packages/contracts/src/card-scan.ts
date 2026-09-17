@@ -117,24 +117,62 @@ export function parseScannedCardCode(
 ): string | null {
   if (knownSetCodes.length === 0) return null;
 
-  for (const line of lines) {
-    for (const reading of readingsOf(line)) {
-      PRINTED_CODE.lastIndex = 0;
-      let match: RegExpExecArray | null;
-
-      while ((match = PRINTED_CODE.exec(reading)) !== null) {
-        const setCode = resolveSetCode(match[1]!, knownSetCodes);
-        if (!setCode) continue;
-
-        // The card prints `179`; the database stores `OGN-179` but `OGN-001` for card 1.
-        // A lettered series is stored exactly as printed: `SP1`.
-        const series = match[2]!.toUpperCase();
-        const number = series ? match[3]! : match[3]!.padStart(3, '0');
-        const suffix = match[4] ? match[4].toLowerCase() : '';
-
-        const variantNumber = `${setCode}-${series}${number}${suffix}`;
-        if (isKnown(variantNumber)) return variantNumber;
+  const readings = lines.flatMap((line, index) => {
+    const values = [...readingsOf(line)];
+    const next = lines[index + 1];
+    if (next !== undefined) {
+      for (const value of readingsOf(line)) {
+        const prefix = value
+          .trim()
+          .replace(/[•·.-]$/, '')
+          .trim();
+        if (
+          !/^[A-Za-z0-9]{2,4}$/.test(prefix) ||
+          !resolveSetCode(prefix, knownSetCodes)
+        )
+          continue;
+        for (const number of readingsOf(next)) {
+          if (/^[A-Za-z0-9*]{1,6}\s*\//.test(number.trim()))
+            values.push(`${prefix} ${number}`);
+        }
       }
+    }
+    return values;
+  });
+  // Correct only the numeric field, after trying every unmodified OCR alternative.
+  const digits: Record<string, string> = {
+    O: '0',
+    I: '1',
+    l: '1',
+    L: '1',
+    S: '5',
+    B: '8',
+    Z: '2',
+  };
+  const corrected = readings.map((reading) =>
+    reading.replace(
+      /([A-Za-z0-9]{2,4}[\s•·.-]+)([0-9OIlLSBZ]{1,3})(\s*[a-z*]?\s*\/\s*\d{1,3})/g,
+      (_match, prefix: string, number: string, suffix: string) =>
+        prefix + [...number].map((char) => digits[char] ?? char).join('') + suffix
+    )
+  );
+
+  for (const reading of [...readings, ...corrected]) {
+    PRINTED_CODE.lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = PRINTED_CODE.exec(reading)) !== null) {
+      const setCode = resolveSetCode(match[1]!, knownSetCodes);
+      if (!setCode) continue;
+
+      // The card prints `179`; the database stores `OGN-179` but `OGN-001` for card 1.
+      // A lettered series is stored exactly as printed: `SP1`.
+      const series = match[2]!.toUpperCase();
+      const number = series ? match[3]! : match[3]!.padStart(3, '0');
+      const suffix = match[4] ? match[4].toLowerCase() : '';
+
+      const variantNumber = `${setCode}-${series}${number}${suffix}`;
+      if (isKnown(variantNumber)) return variantNumber;
     }
   }
 
@@ -159,14 +197,18 @@ export const IMAGE_TIE_MARGIN = 0.03;
 /**
  * The printings among `options` that the artwork supports: those carrying the
  * best-scoring art, plus any whose art ties with it. Text has already said which card
- * this is and art only picks the printing, so this is rank-based and needs no absolute
- * threshold. Empty when none of the options' art is among the matches.
+ * this is and art only picks the printing; weak matches cannot select one.
+ * Empty when none of the options' art has enough evidence.
  */
 export function narrowByArt<T extends { imageUrl?: string | null }>(
   options: readonly T[],
   matches: readonly ImageMatch[]
 ): T[] {
-  const scores = new Map(matches.map((match) => [match.key, match.score]));
+  const scores = new Map(
+    matches
+      .filter((match) => match.score >= IMAGE_MATCH_FLOOR)
+      .map((match) => [match.key, match.score])
+  );
   const scoreOf = (option: T) =>
     (option.imageUrl ? scores.get(option.imageUrl) : undefined) ?? -Infinity;
 
@@ -281,7 +323,23 @@ export function matchScannedName(
 ): string | null {
   let best: { name: string; score: number } | null = null;
 
-  for (const reading of scannedNameCandidates(lines)) {
+  const joined: string[] = [];
+  for (const [index, line] of lines.entries()) {
+    const next = lines[index + 1];
+    if (next === undefined) continue;
+    for (const first of readingsOf(line).slice(0, 3)) {
+      for (const second of readingsOf(next).slice(0, 3)) {
+        if (
+          first.trim().length >= 3 &&
+          second.trim().length >= 3 &&
+          first.length + second.length <= 80
+        ) {
+          joined.push(`${first} ${second}`);
+        }
+      }
+    }
+  }
+  for (const reading of scannedNameCandidates([...lines, ...joined])) {
     const readLength = normalizeScannedName(reading).length;
     for (const [name, length] of nameLengths) {
       // Lengths this far apart cannot reach the threshold whatever the letters are,
@@ -351,7 +409,8 @@ export function decideScan<T extends ScanCard>(
     // A misread digit still lands on a real card, so the code can be overruled — but
     // only when the artwork and the name both say it is a different card.
     const artAgrees = narrowByArt([byCode], matches).length > 0;
-    const artDisagrees = matches.length > 0 && !artAgrees;
+    const artDisagrees =
+      matches.some((match) => match.score >= IMAGE_MATCH_FLOOR) && !artAgrees;
     // The name has had no say yet: wait for a whole-card read before going either way.
     if (artDisagrees && !wholeCard) return null;
     const nameDisagrees = name !== null && name !== byCode.name;
