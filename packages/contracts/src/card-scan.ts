@@ -7,6 +7,10 @@
  *   VEN • 150/166 • EN   → VEN-150
  *   ARC-001/006          → ARC-001
  *   OGN • 166b/298       → OGN-166b   (alt art / promo)
+ *   SFD • 227*\/221       → SFD-227*   (signed overnumbered; `\/` is a plain slash)
+ *   VEN • SP1/006 • EN   → VEN-SP1    (a lettered series)
+ *
+ * Tokens print no total at all (`UNL • T01`), so they are left to the name and artwork.
  *
  * The trailing `/<set total>` is what makes the match unambiguous against rules text.
  *
@@ -18,9 +22,14 @@
 /** A recognized line: either the text, or Vision's ranked readings for it, best first. */
 export type OcrLine = string | readonly string[];
 
-/** `SET` sep `NUMBER` optional-letter `/` `TOTAL`. The separator is often eaten by OCR. */
+/**
+ * `SET` sep `NUMBER` optional-suffix `/` `TOTAL`. The separator is often eaten by OCR.
+ * The number may carry a letter series (`SP1`) and the suffix may be a star. Letters in
+ * the number are also what a misread digit looks like (`I79`), which is why callers
+ * pass `isKnown`: only a code that names a real card is believed.
+ */
 const PRINTED_CODE =
-  /([A-Za-z0-9]{2,4})\s*[-•·.*]?\s*(\d{1,3})\s*([A-Za-z])?\s*\/\s*\d{1,3}/g;
+  /([A-Za-z0-9]{2,4})\s*[-•·.*]?\s*([A-Za-z]{0,2})(\d{1,3})\s*([A-Za-z*])?\s*\/\s*\d{1,3}/g;
 
 /**
  * OCR reads these glyphs as digits inside an otherwise-alphabetic set prefix. Only the
@@ -97,11 +106,14 @@ function resolveSetCode(raw: string, knownSetCodes: readonly string[]): string |
 /**
  * Pull a variant number out of OCR lines, or null when nothing resolves confidently.
  * `knownSetCodes` come from the locally cached catalog index, so this works offline.
- * Every ranked reading of every line is tried before giving up.
+ * Every ranked reading of every line is tried before giving up. With `isKnown`, a
+ * reading that parses but names no real card is passed over — the next-ranked reading
+ * of the same line is often the right one.
  */
 export function parseScannedCardCode(
   lines: readonly OcrLine[],
-  knownSetCodes: readonly string[]
+  knownSetCodes: readonly string[],
+  isKnown: (variantNumber: string) => boolean = () => true
 ): string | null {
   if (knownSetCodes.length === 0) return null;
 
@@ -115,15 +127,63 @@ export function parseScannedCardCode(
         if (!setCode) continue;
 
         // The card prints `179`; the database stores `OGN-179` but `OGN-001` for card 1.
-        const padded = match[2]!.padStart(3, '0');
-        const suffix = match[3] ? match[3].toLowerCase() : '';
+        // A lettered series is stored exactly as printed: `SP1`.
+        const series = match[2]!.toUpperCase();
+        const number = series ? match[3]! : match[3]!.padStart(3, '0');
+        const suffix = match[4] ? match[4].toLowerCase() : '';
 
-        return `${setCode}-${padded}${suffix}`;
+        const variantNumber = `${setCode}-${series}${number}${suffix}`;
+        if (isKnown(variantNumber)) return variantNumber;
       }
     }
   }
 
   return null;
+}
+
+/**
+ * A catalog image the card in frame resembles, as ranked by the on-device artwork
+ * lookup. `key` is the catalog `imageUrl`; `score` is cosine similarity, 1 = identical.
+ */
+export type ImageMatch = { key: string; score: number };
+
+/**
+ * Below this the nearest catalog image is only the least different one, not a match.
+ * A starting point, not a measurement: tune it against the live scores the scanner's
+ * dev overlay prints on real cards.
+ */
+export const IMAGE_MATCH_FLOOR = 0.8;
+/** Runners-up this close to the best score count as a tie rather than a loss. */
+export const IMAGE_TIE_MARGIN = 0.03;
+
+/**
+ * The printings among `options` that the artwork supports: those carrying the
+ * best-scoring art, plus any whose art ties with it. Text has already said which card
+ * this is and art only picks the printing, so this is rank-based and needs no absolute
+ * threshold. Empty when none of the options' art is among the matches.
+ */
+export function narrowByArt<T extends { imageUrl?: string | null }>(
+  options: readonly T[],
+  matches: readonly ImageMatch[]
+): T[] {
+  const scores = new Map(matches.map((match) => [match.key, match.score]));
+  const scoreOf = (option: T) =>
+    (option.imageUrl ? scores.get(option.imageUrl) : undefined) ?? -Infinity;
+
+  const best = Math.max(-Infinity, ...options.map(scoreOf));
+  if (best === -Infinity) return [];
+  return options.filter((option) => scoreOf(option) >= best - IMAGE_TIE_MARGIN);
+}
+
+/**
+ * The one image worth trusting with no text to back it up: a strong best match with
+ * nothing close behind it. `matches` must be sorted best first.
+ */
+export function confidentArt(matches: readonly ImageMatch[]): string | null {
+  const [best, next] = matches;
+  if (!best || best.score < IMAGE_MATCH_FLOOR) return null;
+  if (next && best.score - next.score < IMAGE_TIE_MARGIN) return null;
+  return best.key;
 }
 
 /**

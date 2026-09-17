@@ -28,10 +28,12 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
-
+// Forward declaration of `ImageMatch` to properly resolve imports.
+namespace margelo::nitro::cardocr { struct ImageMatch; }
 
 #include <string>
 #include <vector>
+#include "ImageMatch.hpp"
 
 namespace margelo::nitro::cardocr {
 
@@ -42,10 +44,11 @@ namespace margelo::nitro::cardocr {
   public:
     std::vector<std::vector<std::string>> lines     SWIFT_PRIVATE;
     bool cardDetected     SWIFT_PRIVATE;
+    std::vector<ImageMatch> matches     SWIFT_PRIVATE;
 
   public:
     FrameScanResult() = default;
-    explicit FrameScanResult(std::vector<std::vector<std::string>> lines, bool cardDetected): lines(lines), cardDetected(cardDetected) {}
+    explicit FrameScanResult(std::vector<std::vector<std::string>> lines, bool cardDetected, std::vector<ImageMatch> matches): lines(lines), cardDetected(cardDetected), matches(matches) {}
 
   public:
     friend bool operator==(const FrameScanResult& lhs, const FrameScanResult& rhs) = default;
@@ -62,13 +65,15 @@ namespace margelo::nitro {
       jsi::Object obj = arg.asObject(runtime);
       return margelo::nitro::cardocr::FrameScanResult(
         JSIConverter<std::vector<std::vector<std::string>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "lines"))),
-        JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cardDetected")))
+        JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cardDetected"))),
+        JSIConverter<std::vector<margelo::nitro::cardocr::ImageMatch>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matches")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::cardocr::FrameScanResult& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "lines"), JSIConverter<std::vector<std::vector<std::string>>>::toJSI(runtime, arg.lines));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "cardDetected"), JSIConverter<bool>::toJSI(runtime, arg.cardDetected));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "matches"), JSIConverter<std::vector<margelo::nitro::cardocr::ImageMatch>>::toJSI(runtime, arg.matches));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -81,6 +86,7 @@ namespace margelo::nitro {
       }
       if (!JSIConverter<std::vector<std::vector<std::string>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "lines")))) return false;
       if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "cardDetected")))) return false;
+      if (!JSIConverter<std::vector<margelo::nitro::cardocr::ImageMatch>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matches")))) return false;
       return true;
     }
   };

@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  confidentArt,
+  IMAGE_MATCH_FLOOR,
+  IMAGE_TIE_MARGIN,
   nameSimilarity,
+  narrowByArt,
   normalizeScannedName,
   parseScannedCardCode,
   scannedNameCandidates,
@@ -15,6 +19,24 @@ describe('parseScannedCardCode', () => {
     expect(parseScannedCardCode(['VEN • 150/166 • EN'], SETS)).toBe('VEN-150');
     expect(parseScannedCardCode(['ARC-001/006'], SETS)).toBe('ARC-001');
     expect(parseScannedCardCode(['OGN • 166b/298'], SETS)).toBe('OGN-166b');
+  });
+
+  test('reads a lettered series and the signed star', () => {
+    expect(parseScannedCardCode(['VEN • SP1/006 • EN'], SETS)).toBe('VEN-SP1');
+    expect(parseScannedCardCode(['SFD • 227*/221'], SETS)).toBe('SFD-227*');
+  });
+
+  test('passes over a reading that names no real card', () => {
+    const real = new Set(['OGN-179']);
+    const isKnown = (variantNumber: string) => real.has(variantNumber);
+    // Vision ranked a misread first each time; the second reading is the card.
+    expect(
+      parseScannedCardCode([['OGN • 779/298', 'OGN • 179/298']], SETS, isKnown)
+    ).toBe('OGN-179');
+    expect(
+      parseScannedCardCode([['OGN • I79/298', 'OGN • 179/298']], SETS, isKnown)
+    ).toBe('OGN-179');
+    expect(parseScannedCardCode(['OGN • 779/298'], SETS, isKnown)).toBeNull();
   });
 
   test('zero-pads short numbers to match stored variant numbers', () => {
@@ -113,5 +135,67 @@ describe('nameSimilarity', () => {
 describe('normalizeScannedName', () => {
   test('strips everything but letters and digits', () => {
     expect(normalizeScannedName('Ahri, Nine-Tailed!')).toBe('ahrininetailed');
+  });
+});
+
+describe('narrowByArt', () => {
+  const standard = { variantNumber: 'OGN-066', imageUrl: 'ogn-066.webp' };
+  const altArt = { variantNumber: 'OGN-066a', imageUrl: 'ogn-066a.webp' };
+  const launch = { variantNumber: 'OGN-066-Launch', imageUrl: 'ogn-066.webp' };
+
+  test('picks the printing whose art the camera saw', () => {
+    const matches = [
+      { key: 'ogn-066a.webp', score: 0.91 },
+      { key: 'ogn-066.webp', score: 0.7 },
+    ];
+    expect(narrowByArt([standard, altArt], matches)).toEqual([altArt]);
+  });
+
+  test('keeps every printing that shares the winning art', () => {
+    const matches = [{ key: 'ogn-066.webp', score: 0.9 }];
+    expect(narrowByArt([standard, altArt, launch], matches)).toEqual([
+      standard,
+      launch,
+    ]);
+  });
+
+  test('keeps near-ties rather than guessing between them', () => {
+    const matches = [
+      { key: 'ogn-066.webp', score: 0.9 },
+      { key: 'ogn-066a.webp', score: 0.9 - IMAGE_TIE_MARGIN / 2 },
+    ];
+    expect(narrowByArt([standard, altArt], matches)).toEqual([standard, altArt]);
+  });
+
+  test('is empty when the art is not among the matches', () => {
+    expect(narrowByArt([standard], [{ key: 'other.webp', score: 0.95 }])).toEqual([]);
+    expect(narrowByArt([standard], [])).toEqual([]);
+    expect(narrowByArt([], [{ key: 'ogn-066.webp', score: 0.95 }])).toEqual([]);
+  });
+});
+
+describe('confidentArt', () => {
+  test('trusts a strong match that stands clear of the runner-up', () => {
+    expect(
+      confidentArt([
+        { key: 'a', score: IMAGE_MATCH_FLOOR + 0.1 },
+        { key: 'b', score: IMAGE_MATCH_FLOOR },
+      ])
+    ).toBe('a');
+    expect(confidentArt([{ key: 'a', score: IMAGE_MATCH_FLOOR + 0.1 }])).toBe('a');
+  });
+
+  test('refuses a weak best match', () => {
+    expect(confidentArt([{ key: 'a', score: IMAGE_MATCH_FLOOR - 0.01 }])).toBeNull();
+    expect(confidentArt([])).toBeNull();
+  });
+
+  test('refuses when the runner-up is too close to call', () => {
+    expect(
+      confidentArt([
+        { key: 'a', score: 0.95 },
+        { key: 'b', score: 0.95 - IMAGE_TIE_MARGIN / 2 },
+      ])
+    ).toBeNull();
   });
 });

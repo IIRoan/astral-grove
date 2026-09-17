@@ -1,9 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  confidentArt,
   nameSimilarity,
+  narrowByArt,
+  normalizeScannedName,
   parseScannedCardCode,
   scannedNameCandidates,
   type CardListItem,
+  type ImageMatch,
   type OcrLine,
 } from '@riftbound/contracts';
 import { getCatalogIndexItems, useCatalogIndex } from '@/hooks/useCatalogIndex';
@@ -19,6 +23,11 @@ const SUPPRESS_MS = 2500;
  * and just ask which printing it is. Roughly a second and a half of scanning.
  */
 const AMBIGUOUS_PATIENCE = 6;
+/**
+ * How many consecutive frames the artwork alone has to agree with itself before it is
+ * offered. Nothing legible backs it up, so one lucky frame is not enough.
+ */
+const ART_PATIENCE = 3;
 
 export type ScannedCard = {
   variantNumber: string;
@@ -29,7 +38,7 @@ export type ScannedCard = {
 };
 
 /** How a card was identified — the confirm screen says so. */
-export type MatchKind = 'code' | 'name';
+export type MatchKind = 'code' | 'name' | 'art';
 
 /**
  * Over half the catalog shares a name with another printing (Fury Rune alone has five),
@@ -50,19 +59,35 @@ export function useScanSession({
   const catalogIndex = useCatalogIndex();
   const catalogItems = getCatalogIndexItems(catalogIndex.data);
 
-  const { byVariantNumber, byName, setCodes } = useMemo(() => {
+  const { byVariantNumber, byName, byImage, nameLengths, setCodes } = useMemo(() => {
     const variants = new Map<string, CardListItem>();
     // Every printing, not the first — picking one arbitrarily is the bug this fixes.
     const names = new Map<string, CardListItem[]>();
+    // Reprints share artwork (Fury Rune is one picture across four sets), so an image
+    // match lands on every printing that carries it.
+    const images = new Map<string, CardListItem[]>();
     const codes = new Set<string>();
     for (const card of catalogItems) {
       variants.set(card.variantNumber.toUpperCase(), card);
       const printings = names.get(card.name);
       if (printings) printings.push(card);
       else names.set(card.name, [card]);
+      if (card.imageUrl) {
+        const sameArt = images.get(card.imageUrl);
+        if (sameArt) sameArt.push(card);
+        else images.set(card.imageUrl, [card]);
+      }
       codes.add(card.setCode.toUpperCase());
     }
-    return { byVariantNumber: variants, byName: names, setCodes: [...codes] };
+    return {
+      byVariantNumber: variants,
+      byName: names,
+      byImage: images,
+      nameLengths: [...names.keys()].map(
+        (name) => [name, normalizeScannedName(name).length] as const
+      ),
+      setCodes: [...codes],
+    };
   }, [catalogItems]);
 
   const [staged, setStaged] = useState<ScannedCard[]>([]);
@@ -70,7 +95,8 @@ export function useScanSession({
 
   // Refs, not state: the hot path reads these and must not re-render to do it.
   const suppressed = useRef(new Map<string, number>());
-  const ambiguousStreak = useRef<{ name: string; count: number } | null>(null);
+  /** The same undecided answer, frame after frame — a name or an artwork key. */
+  const streak = useRef<{ key: string; count: number } | null>(null);
 
   const stage = useCallback((card: CardListItem) => {
     setStaged((prev) => {
@@ -96,7 +122,7 @@ export function useScanSession({
   /** Answering suppresses the card briefly — it is still in front of the lens. */
   const settle = useCallback((card: CardListItem) => {
     suppressed.current.set(card.variantNumber, Date.now() + SUPPRESS_MS);
-    ambiguousStreak.current = null;
+    streak.current = null;
     setPending(null);
   }, []);
 
@@ -133,7 +159,7 @@ export function useScanSession({
     for (const option of pending.options) {
       suppressed.current.set(option.variantNumber, until);
     }
-    ambiguousStreak.current = null;
+    streak.current = null;
     setPending(null);
   }, [pending, settle]);
 
@@ -143,7 +169,14 @@ export function useScanSession({
       let best: { name: string; score: number } | null = null;
 
       for (const reading of scannedNameCandidates(lines)) {
-        for (const name of byName.keys()) {
+        const readLength = normalizeScannedName(reading).length;
+        for (const [name, length] of nameLengths) {
+          // Lengths this far apart cannot reach the threshold whatever the letters
+          // are, which spares an edit distance against every line of rules text.
+          const longest = Math.max(readLength, length);
+          if (Math.abs(readLength - length) > longest * (1 - NAME_MATCH_THRESHOLD)) {
+            continue;
+          }
           const score = nameSimilarity(reading, name);
           if (score >= NAME_MATCH_THRESHOLD && (!best || score > best.score)) {
             best = { name, score };
@@ -154,7 +187,7 @@ export function useScanSession({
 
       return best?.name ?? null;
     },
-    [byName]
+    [nameLengths]
   );
 
   const isSuppressed = useCallback((variantNumber: string) => {
@@ -165,61 +198,88 @@ export function useScanSession({
   }, []);
 
   /**
-   * Turn OCR lines into an outcome, without side effects.
+   * Turn one frame's evidence into an outcome, without side effects.
    *
-   * The collector code is the only signal that identifies a *printing*, so it wins
-   * whenever it is legible. A name narrows things down but, for the 281 names that
-   * have more than one printing, it cannot finish the job on its own.
+   * Three signals, each good at a different thing. The collector code names a printing
+   * outright but is tiny and misreads. The name reads easily but 281 names have more
+   * than one printing. The artwork survives glare and blur and tells an alt art from
+   * the standard, but cannot tell reprints that share a picture apart. Text decides
+   * which card it is; art decides which printing, and stands in when text is missing.
    */
   const resolve = useCallback(
-    (lines: readonly OcrLine[]): ScanOutcome | null => {
+    (
+      lines: readonly OcrLine[],
+      matches: readonly ImageMatch[] = []
+    ): ScanOutcome | null => {
       if (byVariantNumber.size === 0) return null;
 
-      const code = parseScannedCardCode(lines, setCodes);
+      const offer = (card: CardListItem, via: MatchKind): ScanOutcome | null => {
+        streak.current = null;
+        return isSuppressed(card.variantNumber) ? null : { kind: 'card', card, via };
+      };
+      /** True once the same undecided answer has come back `patience` frames running. */
+      const held = (key: string, patience: number) => {
+        const count = streak.current?.key === key ? streak.current.count + 1 : 1;
+        streak.current = { key, count };
+        return count >= patience;
+      };
+      const ask = (name: string, options: CardListItem[]): ScanOutcome | null => {
+        const selectable = options.filter((card) => !isSuppressed(card.variantNumber));
+        if (selectable.length === 0) return null;
+        streak.current = null;
+        return { kind: 'ambiguous', name, options: selectable };
+      };
+
+      const code = parseScannedCardCode(lines, setCodes, (variantNumber) =>
+        byVariantNumber.has(variantNumber.toUpperCase())
+      );
       const byCode = code ? byVariantNumber.get(code.toUpperCase()) : undefined;
+      const name = matchByName(lines);
+
       if (byCode) {
-        ambiguousStreak.current = null;
-        if (isSuppressed(byCode.variantNumber)) return null;
-        return { kind: 'card', card: byCode, via: 'code' };
+        // A misread digit still lands on a real card, so the code can be overruled —
+        // but only when the artwork and the name both say it is a different card.
+        const artDisagrees =
+          matches.length > 0 && narrowByArt([byCode], matches).length === 0;
+        const nameDisagrees = name !== null && name !== byCode.name;
+        if (!(artDisagrees && nameDisagrees)) return offer(byCode, 'code');
       }
 
-      const name = matchByName(lines);
-      if (!name) {
-        ambiguousStreak.current = null;
+      if (name) {
+        const printings = byName.get(name) ?? [];
+        if (printings.length === 1) return offer(printings[0]!, 'name');
+
+        // Several printings share this name. The alt art is a different picture, so the
+        // artwork usually settles it; reprints that share a picture still need the code.
+        const narrowed = narrowByArt(printings, matches);
+        if (narrowed.length === 1) return offer(narrowed[0]!, 'art');
+
+        // Give the collector code a few more frames before giving up on it.
+        if (!held(name, AMBIGUOUS_PATIENCE)) return null;
+        return ask(name, narrowed.length > 0 ? narrowed : printings);
+      }
+
+      // Nothing legible at all — glare, blur, a foil. The artwork has to carry it alone.
+      const art = confidentArt(matches);
+      const sameArt = art ? (byImage.get(art) ?? []) : [];
+      if (!art || sameArt.length === 0) {
+        streak.current = null;
         return null;
       }
-
-      const options = byName.get(name) ?? [];
-      if (options.length === 1) {
-        ambiguousStreak.current = null;
-        const only = options[0]!;
-        if (isSuppressed(only.variantNumber)) return null;
-        return { kind: 'card', card: only, via: 'name' };
-      }
-
-      // Ambiguous: give the collector code a few more frames before giving up on it.
-      const streak = ambiguousStreak.current;
-      const count = streak?.name === name ? streak.count + 1 : 1;
-      ambiguousStreak.current = { name, count };
-      if (count < AMBIGUOUS_PATIENCE) return null;
-
-      const selectable = options.filter((card) => !isSuppressed(card.variantNumber));
-      if (selectable.length === 0) return null;
-
-      ambiguousStreak.current = null;
-      return { kind: 'ambiguous', name, options: selectable };
+      if (!held(art, sameArt.length === 1 ? ART_PATIENCE : AMBIGUOUS_PATIENCE))
+        return null;
+      return sameArt.length === 1
+        ? offer(sameArt[0]!, 'art')
+        : ask(sameArt[0]!.name, sameArt);
     },
-    [byName, byVariantNumber, isSuppressed, matchByName, setCodes]
+    [byImage, byName, byVariantNumber, isSuppressed, matchByName, setCodes]
   );
 
   /** Surface an outcome: hand a card straight to lookup mode, or ask the user. */
-  const present = useCallback(
-    (outcome: ScanOutcome) => {
-      void hapticPress();
-      setPending(outcome);
-    },
-    []
-  );
+  const present = useCallback((outcome: ScanOutcome) => {
+    void hapticPress();
+    setPending(outcome);
+  }, []);
 
   const setQuantity = useCallback((variantNumber: string, quantity: number) => {
     setStaged((prev) =>
@@ -235,7 +295,7 @@ export function useScanSession({
     setStaged([]);
     setPending(null);
     suppressed.current.clear();
-    ambiguousStreak.current = null;
+    streak.current = null;
   }, []);
 
   const totalCopies = staged.reduce((sum, row) => sum + row.quantity, 0);
@@ -245,6 +305,7 @@ export function useScanSession({
     totalCopies,
     pending,
     ready: byVariantNumber.size > 0,
+    items: catalogItems,
     setCodes,
     resolve,
     present,
