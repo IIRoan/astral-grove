@@ -2,13 +2,23 @@
 
 Reviewed 17 September 2026.
 
-## Recommendation
+## Current camera pipeline
 
-Keep Apple Vision for the current development build. The app already performs on-device machine learning: `VNGenerateImageFeaturePrintRequest` embeds both the catalog artwork and the camera crop, then the native matcher compares their normalized vectors. OCR supplies the collector code and name. Camera frames are not uploaded for inference; the reference catalog and artwork must first be downloaded and cached.
+The default scanner now uses collector-code OCR exclusively. It no longer identifies a card from its title, rules text, or whole-card image similarity. Apple Vision's accurate text-recognition model reads a physical crop of the bottom 16% of the card directly from the camera pixel buffer. No photo capture, JPEG encoding, camera-frame upload, or reference-art download is needed. The model remains Apple's on-device model; this is a different recognition pipeline, not a newly trained Riftbound model.
 
-Apple documents feature prints specifically for image similarity. Our implementation uses cosine similarity over extracted floats; Apple's sample uses feature-print distance. Neither approach has yet been benchmarked on physical Riftbound cards in this project. Changing the metric or model requires recalibrating the acceptance thresholds. [Apple image similarity documentation](https://developer.apple.com/documentation/vision/analyzing-image-similarity-with-feature-print)
+The frame output requests 1080p instead of the previous 720p default. A native serial worker crops to the preview guide, locates and straightens the card using a 640px detection image, and enlarges only the footer for accurate OCR. One OCR request runs per accepted frame. Failed reads schedule a contrast-enhanced crop and alternative orientation on subsequent frames. Apple Vision document segmentation is tried during recovery for difficult borders. The camera supports native tap-to-focus and optional torch/low-light boost where supported.
 
-For this catalog, my recommendation is image retrieval plus OCR: new artwork can be indexed without retraining a classifier, while the collector code distinguishes printings that share a picture. A model cannot reliably infer a printing or finish from identical reference art. Confirmation remains mandatory and Yes adds the normal finish only.
+The catalog parser accepts only a known collector identifier, including split set/number observations and constrained OCR glyph corrections. Conflicting valid identifiers abstain. Two agreeing scans are required before the confirmation prompt. Yes still adds one normal copy and keeps the camera open. Printings without a readable collector identifier cannot be resolved by name in this mode.
+
+The photo compatibility path also reads only the footer. Legacy artwork bridge methods remain for binary compatibility but are absent from the active recognition path.
+
+Apple describes restricting live OCR to a region of interest for responsiveness, and document segmentation supplies document corner coordinates. These APIs support the implementation, but they do not establish accuracy or latency on physical Riftbound cards. [Apple live-camera OCR sample](https://developer.apple.com/documentation/Vision/extracting-phone-numbers-from-text-in-images), [Apple document segmentation](https://developer.apple.com/documentation/vision/vndetectdocumentsegmentationrequest).
+
+The macOS workflow compiles the native pipeline and runs real Vision OCR against a rendered fixture containing different valid-looking codes in the footer and body, plus a dimmed version. It also tests recovery scheduling. This proves crop isolation and basic native OCR operation, not real-camera glare handling or a device latency target. The development overlay reports locate + OCR timings for that evaluation.
+
+## Earlier artwork model research
+
+The previous pipeline used `VNGenerateImageFeaturePrintRequest` and cosine similarity before OCR. That broad similarity lookup was expensive and could leave text in the card body driving the result. It is no longer used by the scanner. The alternatives below remain research options for a future measured artwork fallback.
 
 ## Models considered
 
@@ -24,17 +34,6 @@ Sources: [Apple Create ML](https://developer.apple.com/documentation/createml/cr
 Apple recommends diverse lighting and angles, at least ten images per class, and separate testing images. Ten is a starting minimum, not a guarantee of useful accuracy on fine-grained card printings. A clean catalog image with synthetic darkening alone does not establish real-camera performance. [Create ML training guidance](https://developer.apple.com/documentation/createml/creating-an-image-classifier-model)
 
 Core ML supports image inputs and tensor outputs, which fits a replacement embedding model. Keep the reference and camera preprocessing identical, version the model and preprocessing together, rebuild the cached index, and retain OCR and the explicit confirmation step. [Core ML input/output documentation](https://apple.github.io/coremltools/docs-guides/source/model-input-and-output-types.html)
-
-## Changes in this branch
-
-- Capture: 30 fps target, supported low-light boost, torch control, and correct mapping from the preview guide to the oriented camera buffer.
-- Camera delivery: a serial native queue runs Vision recognition, retaining at most one pixel buffer. The camera worklet only submits a buffer or polls a completed result and always disposes its JS frame. This removes the nested JavaScript worker handoff. Reset discards pending results when scanning pauses; errors are reported without blocking the next pass. The low-light option is omitted entirely on unsupported devices because this VisionCamera version rejects even `false`.
-- Build compatibility: the native queue requires a new development binary. Newer Metro JavaScript falls back to local photo OCR when the installed native module lacks the queue methods. Artwork matching in the frame pipeline resumes after installing the updated binary.
-- Difficult layouts: full-guide fallback when card edges disappear; shadow/contrast OCR retry; split title/footer parsing, including Lux, Crownguard (`OGS-014`, printed `014/024`).
-- Temporal evidence: uncertain card decisions require two agreeing reads, artwork alone three, and ambiguous printings six. A brief unreadable frame is tolerated. A different card or printing-option set, two consecutive misses, or a gap over 1.5 seconds resets evidence. Votes older than five seconds expire. Agreement between code and artwork can prompt immediately, but still requires Yes.
-- Resource use: reference embedding concurrency is reduced from six to two to limit competition with live recognition. Device measurements are still needed to quantify the effect.
-- Native structure: `CardImageProcessing.swift` handles cropping and perspective; `CardArtMatcher.swift` owns embeddings and the index; `CardTextRecognizer.swift` handles OCR and enhancement. `HybridCardOcrFrame.swift` coordinates the native bridge. The refactor preserves image and embedding preprocessing.
-- Distribution: the `iOS development build` workflow builds the development profile locally on GitHub's macOS runner and uploads the IPA to Expo. It does not create a GitHub release or submit to the App Store.
 
 ### Development upload labels
 

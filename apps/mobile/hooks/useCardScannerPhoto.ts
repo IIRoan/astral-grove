@@ -3,14 +3,12 @@ import type { CameraView } from 'expo-camera';
 import { ImageManipulator } from 'expo-image-manipulator';
 import type { OcrLine } from '@riftbound/contracts';
 import { recognizeCardText, type RecognizeOptions } from '@/modules/card-ocr';
-import { cardRect, codeBandRect, previewRectToPhotoCrop } from '@/utils/scanCrop';
+import { codeBandRect, previewRectToPhotoCrop } from '@/utils/scanCrop';
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
 
 /** Breather between passes. Short, because a human confirms every hit. */
 const PASS_GAP_MS = 150;
-/** The card pass only reads the name — large text, so it needs less resolution. */
-const CARD_TARGET_WIDTH = 1200;
 /** The code band is a thin strip of ~12px print, so it gets enlarged hard. */
 const BAND_TARGET_WIDTH = 1600;
 
@@ -26,21 +24,11 @@ export function useCardScannerPhoto(
 ) {
   const busy = useRef(false);
 
-  const { codeOcr, nameOcr } = useMemo<{
-    codeOcr: RecognizeOptions;
-    nameOcr: RecognizeOptions;
-  }>(
+  const codeOcr = useMemo<RecognizeOptions>(
     () => ({
-      codeOcr: {
-        recognitionLevel: level,
-        usesLanguageCorrection: false,
-        maxCandidates: 3,
-      },
-      nameOcr: {
-        recognitionLevel: level,
-        usesLanguageCorrection: false,
-        maxCandidates: 2,
-      },
+      recognitionLevel: level,
+      usesLanguageCorrection: false,
+      maxCandidates: 3,
     }),
     [level]
   );
@@ -70,27 +58,13 @@ export function useCardScannerPhoto(
           return recognizeCardText(rendered, options);
         };
 
-        // The collector code decides which printing this is, so the enlarged band is
-        // read first and on its own. Only if it is illegible do we fall back to the
-        // card as a whole for the name.
+        // This compatibility engine follows the same footer-only identity policy.
         const bandLines = await readCrop(
           previewRectToPhotoCrop(codeBandRect(), picture),
           BAND_TARGET_WIDTH,
           codeOcr
         );
-        const fromCode = session.resolve(bandLines);
-        if (fromCode?.kind === 'card') {
-          session.present(fromCode);
-          return;
-        }
-
-        const cardLines = await readCrop(
-          previewRectToPhotoCrop(cardRect(), picture),
-          CARD_TARGET_WIDTH,
-          nameOcr
-        );
-        const fromCard = session.resolve(cardLines);
-        const outcome = fromCard ?? fromCode;
+        const outcome = session.resolve(bandLines);
         if (outcome) session.present(outcome);
       } catch {
         // A dropped frame is not worth surfacing — the next pass is milliseconds away.
@@ -98,7 +72,7 @@ export function useCardScannerPhoto(
         busy.current = false;
       }
     },
-    [codeOcr, nameOcr, session]
+    [codeOcr, session]
   );
 
   return { runPass, passGapMs: PASS_GAP_MS };
