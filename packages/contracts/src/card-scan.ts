@@ -104,18 +104,19 @@ function resolveSetCode(raw: string, knownSetCodes: readonly string[]): string |
 }
 
 /**
- * Pull a variant number out of OCR lines, or null when nothing resolves confidently.
- * `knownSetCodes` come from the locally cached catalog index, so this works offline.
- * Every ranked reading of every line is tried before giving up. With `isKnown`, a
- * reading that parses but names no real card is passed over — the next-ranked reading
- * of the same line is often the right one.
+ * Every variant number the OCR lines could be naming, best reading first, without
+ * repeats. `knownSetCodes` come from the locally cached catalog index, so this works
+ * offline. Every ranked reading of every line is tried. With `isKnown`, a reading that
+ * parses but names no real card is passed over — the next-ranked reading of the same
+ * line is often the right one, and when a misread digit still names a real card, the
+ * right reading is often the one just behind it, which is why all of them are kept.
  */
-export function parseScannedCardCode(
+export function parseScannedCardCodes(
   lines: readonly OcrLine[],
   knownSetCodes: readonly string[],
   isKnown: (variantNumber: string) => boolean = () => true
-): string | null {
-  if (knownSetCodes.length === 0) return null;
+): string[] {
+  if (knownSetCodes.length === 0) return [];
 
   const readings = lines.flatMap((line, index) => {
     const values = [...readingsOf(line)];
@@ -157,6 +158,7 @@ export function parseScannedCardCode(
     )
   );
 
+  const found: string[] = [];
   for (const reading of [...readings, ...corrected]) {
     PRINTED_CODE.lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -172,11 +174,21 @@ export function parseScannedCardCode(
       const suffix = match[4] ? match[4].toLowerCase() : '';
 
       const variantNumber = `${setCode}-${series}${number}${suffix}`;
-      if (isKnown(variantNumber)) return variantNumber;
+      if (isKnown(variantNumber) && !found.includes(variantNumber))
+        found.push(variantNumber);
     }
   }
 
-  return null;
+  return found;
+}
+
+/** The best-ranked variant number the OCR lines name, or null when none resolves. */
+export function parseScannedCardCode(
+  lines: readonly OcrLine[],
+  knownSetCodes: readonly string[],
+  isKnown?: (variantNumber: string) => boolean
+): string | null {
+  return parseScannedCardCodes(lines, knownSetCodes, isKnown)[0] ?? null;
 }
 
 /**
@@ -359,6 +371,20 @@ export function matchScannedName(
   return best?.name ?? null;
 }
 
+/** The card the confident artwork names, if its number is one edit from `variantNumber`. */
+function artNeighbour<T extends ScanCard>(
+  catalog: ScanCatalog<T>,
+  matches: readonly ImageMatch[],
+  variantNumber: string
+): T | undefined {
+  const art = confidentArt(matches);
+  if (!art) return undefined;
+  const read = variantNumber.toUpperCase();
+  return (catalog.byImage.get(art) ?? []).find(
+    (card) => editDistance(card.variantNumber.toUpperCase(), read) === 1
+  );
+}
+
 /** How a card was identified — the confirm screen says so. */
 export type MatchKind = 'code' | 'name' | 'art';
 
@@ -399,20 +425,30 @@ export function decideScan<T extends ScanCard>(
   matches: readonly ImageMatch[] = [],
   wholeCard = true
 ): ScanDecision<T> {
-  const code = parseScannedCardCode(lines, catalog.setCodes, (variantNumber) =>
+  const codes = parseScannedCardCodes(lines, catalog.setCodes, (variantNumber) =>
     catalog.byVariantNumber.has(variantNumber.toUpperCase())
-  );
-  const byCode = code ? catalog.byVariantNumber.get(code.toUpperCase()) : undefined;
+  ).map((code) => catalog.byVariantNumber.get(code.toUpperCase())!);
   const name = matchScannedName(lines, catalog.nameLengths);
 
+  // Vision ranks its readings, and a misread digit (019 read as 029) often has the
+  // right reading just behind it. When the artwork backs a lower-ranked reading, that
+  // is the card; otherwise the best reading stands.
+  const byCode =
+    codes.find((card) => narrowByArt([card], matches).length > 0) ?? codes[0];
+
   if (byCode) {
-    // A misread digit still lands on a real card, so the code can be overruled — but
-    // only when the artwork and the name both say it is a different card.
     const artAgrees = narrowByArt([byCode], matches).length > 0;
     const artDisagrees =
       matches.some((match) => match.score >= IMAGE_MATCH_FLOOR) && !artAgrees;
-    // The name has had no say yet: wait for a whole-card read before going either way.
-    if (artDisagrees && !wholeCard) return null;
+    if (artDisagrees) {
+      // A misread digit lands on a neighbouring number. When the artwork is confident
+      // of a card one edit away from what was read, the print was misread, not the
+      // picture — the other way round takes the name as well, below.
+      const neighbour = artNeighbour(catalog, matches, byCode.variantNumber);
+      if (neighbour) return { kind: 'card', card: neighbour, via: 'art', sure: false };
+      // The name has had no say yet: wait for a whole-card read before going either way.
+      if (!wholeCard) return null;
+    }
     const nameDisagrees = name !== null && name !== byCode.name;
     if (!(artDisagrees && nameDisagrees)) {
       return { kind: 'card', card: byCode, via: 'code', sure: artAgrees };

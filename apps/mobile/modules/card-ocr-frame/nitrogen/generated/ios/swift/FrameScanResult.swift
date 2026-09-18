@@ -18,7 +18,7 @@ public extension FrameScanResult {
   /**
    * Create a new instance of `FrameScanResult`.
    */
-  init(lines: [[String]], cardDetected: Bool, matches: [ImageMatch], wholeCard: Bool, locateMs: Double, matchMs: Double, readMs: Double, brightness: Double?) {
+  init(lines: [[String]], cardDetected: Bool, matches: [ImageMatch], wholeCard: Bool, locateMs: Double, matchMs: Double, readMs: Double) {
     self.init({ () -> bridge.std__vector_std__vector_std__string__ in
       var __vector = bridge.create_std__vector_std__vector_std__string__(lines.count)
       for __item in lines {
@@ -37,13 +37,7 @@ public extension FrameScanResult {
         __vector.push_back(__item)
       }
       return __vector
-    }(), wholeCard, locateMs, matchMs, readMs, { () -> bridge.std__optional_double_ in
-      if let __unwrappedValue = brightness {
-        return bridge.create_std__optional_double_(__unwrappedValue)
-      } else {
-        return .init()
-      }
-    }())
+    }(), wholeCard, locateMs, matchMs, readMs)
   }
 
   @inline(__always)
@@ -79,17 +73,5 @@ public extension FrameScanResult {
   @inline(__always)
   var readMs: Double {
     return self.__readMs
-  }
-  
-  @inline(__always)
-  var brightness: Double? {
-    return { () -> Double? in
-      if bridge.has_value_std__optional_double_(self.__brightness) {
-        let __unwrapped = bridge.get_std__optional_double_(self.__brightness)
-        return __unwrapped
-      } else {
-        return nil
-      }
-    }()
   }
 }

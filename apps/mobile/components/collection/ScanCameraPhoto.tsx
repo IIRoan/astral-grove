@@ -6,7 +6,6 @@ import { useCardScannerPhoto } from '@/hooks/useCardScannerPhoto';
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
 import { PREVIEW_ASPECT } from '@/utils/scanCrop';
-import type { TorchSetting } from '@/lib/scan-camera-support';
 
 /**
  * Photo engine surface. The preview is pinned to a fixed aspect ratio because the crop
@@ -16,12 +15,10 @@ export function ScanCameraPhoto({
   session,
   level,
   active,
-  torch,
 }: {
   session: ScanSession;
   level: ScannerRecognitionLevel;
   active: boolean;
-  torch: TorchSetting;
 }) {
   const cameraRef = useRef<CameraView | null>(null);
   const [ready, setReady] = useState(false);
@@ -51,8 +48,6 @@ export function ScanCameraPhoto({
         style={{ flex: 1 }}
         facing="back"
         active={active}
-        // No light meter on this engine, so `auto` stays off.
-        enableTorch={active && torch === 'on'}
         animateShutter={false}
         onCameraReady={() => setReady(true)}
       />

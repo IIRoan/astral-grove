@@ -18,7 +18,7 @@ export const SCANNER_ENGINES: {
     value: 'frame',
     label: 'Vision frame processor',
     detail:
-      'Apple Vision reads the camera buffer directly — no photo is taken, the preview stays continuous, exposure meters on the card, and the light comes on by itself in the dark.',
+      'Apple Vision reads the camera buffer directly — no photo is taken, the preview stays continuous, and exposure meters on the card.',
   },
   {
     value: 'photo',

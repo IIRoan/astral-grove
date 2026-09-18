@@ -16,17 +16,18 @@ import {
 } from '@/utils/scanCrop';
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
-import { nextLowLight } from '@/lib/scan-camera-support';
 
 /** Allow exposure to settle between passes; recognition runs on a separate worker. */
 const SCAN_IDLE_MS = 80;
 
 /**
  * Width the located card is straightened to. The collector code is roughly 1.5% of the
- * card's height, so at 1000px wide it lands around 20px tall — comfortably inside what
- * Vision reads reliably, without paying for a needlessly large pass.
+ * card's height, so at 1400px wide it lands around 29px tall, well inside what Vision
+ * reads reliably. A card filling the guide arrives about 1700px wide from a 4K buffer,
+ * so this is a mild downscale of real pixels, not an enlargement. Wider makes the
+ * whole-card pass slower; the dev overlay's stage timings show by how much.
  */
-const RECTIFIED_WIDTH = 1000;
+const RECTIFIED_WIDTH = 1400;
 
 /** `0.91 Δ0.12 OGN-007` — best score, its lead over the runner-up, and what it matched. */
 function describeMatches(matches: ImageMatch[]): string {
@@ -69,8 +70,6 @@ export function useCardScannerFrame(
   /** Set when a quick strip-only read settled nothing, so the next pass reads it all. */
   const wantWholeCard = useSharedValue(false);
   const [cardDetected, setCardDetected] = useState(false);
-  /** The camera's light meter says the scene is dim; latched, so the torch does not flicker. */
-  const [lowLight, setLowLight] = useState(false);
   /**
    * Live artwork scores and stage timings (locate + match + read), dev builds only:
    * what `IMAGE_MATCH_FLOOR` and the pass budget are tuned against.
@@ -84,21 +83,16 @@ export function useCardScannerFrame(
       detected: boolean,
       matches: ImageMatch[],
       wholeCard: boolean,
-      stageMs: number[],
-      brightness: number | undefined
+      stageMs: number[]
     ) => {
       if (!enabledRef.current) return;
       lastError.current = null;
       setScanError(false);
       setCardDetected(detected);
-      setLowLight((previous) => nextLowLight(previous, brightness));
       noteCard(detected);
       if (__DEV__) {
         const timing = stageMs.length > 0 ? `${stageMs.join('+')}ms` : '';
-        const meter = brightness === undefined ? '' : `Bv${brightness.toFixed(1)}`;
-        setArtDebug(
-          [describeMatches(matches), timing, meter].filter(Boolean).join(' ')
-        );
+        setArtDebug([describeMatches(matches), timing].filter(Boolean).join(' '));
       }
       const outcome = resolve(lines, matches, wholeCard);
       wantWholeCard.value = !outcome;
@@ -148,10 +142,12 @@ export function useCardScannerFrame(
   );
 
   const frameOutput = useFrameOutput({
-    // The default 720p buffer puts about 12px on the collector code; 1080p puts 18px on
-    // it, which is where Vision's small-print reading firms up. Rectangle detection and
-    // the perspective crop scale with the buffer on the GPU, so the pass stays cheap.
-    targetResolution: CommonResolutions.FHD_16_9,
+    // VisionCamera's default 720p buffer puts about 12px on the collector code; 4K puts
+    // about 36px on it, which is what separates a 1 from a 2 in that small print. The
+    // rectangle search and the perspective crop are GPU work that scales with the
+    // buffer, while text and artwork run on the rectified card, so the cost is mostly
+    // memory bandwidth. Watch the dev overlay's stage timings when changing this.
+    targetResolution: CommonResolutions.UHD_16_9,
     pixelFormat: 'yuv',
     dropFramesWhileBusy: true,
     onFrame(frame) {
@@ -174,8 +170,7 @@ export function useCardScannerFrame(
           result.cardDetected,
           result.matches,
           result.wholeCard,
-          [result.locateMs, result.matchMs, result.readMs].map(Math.round),
-          result.brightness
+          [result.locateMs, result.matchMs, result.readMs].map(Math.round)
         );
       } catch (error) {
         lastScanEnd.value = performance.now();
@@ -190,5 +185,5 @@ export function useCardScannerFrame(
     },
   });
 
-  return { frameOutput, cardDetected, lowLight, artDebug, scanError };
+  return { frameOutput, cardDetected, artDebug, scanError };
 }

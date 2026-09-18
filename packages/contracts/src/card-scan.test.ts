@@ -9,6 +9,7 @@ import {
   narrowByArt,
   normalizeScannedName,
   parseScannedCardCode,
+  parseScannedCardCodes,
   scannedNameCandidates,
 } from './card-scan.js';
 
@@ -81,6 +82,19 @@ describe('parseScannedCardCode', () => {
     expect(parseScannedCardCode(['ZZZ • 179/298'], SETS)).toBeNull();
     // One edit from both OGN and OGS — guessing either would be a wrong card.
     expect(parseScannedCardCode(['OGX • 017/298'], SETS)).toBeNull();
+  });
+
+  test('keeps every real card the readings could name, best first, once each', () => {
+    const real = new Set(['OGN-019', 'OGN-029']);
+    const isKnown = (variantNumber: string) => real.has(variantNumber);
+    expect(
+      parseScannedCardCodes(
+        [['OGN • 029/298', 'OGN • 019/298', 'OGN • 0I9/298'], 'OGN • 019/298'],
+        SETS,
+        isKnown
+      )
+    ).toEqual(['OGN-029', 'OGN-019']);
+    expect(parseScannedCardCodes(['OGN • 779/298'], SETS, isKnown)).toEqual([]);
   });
 
   test('returns null without a catalog to validate against', () => {
@@ -217,7 +231,18 @@ describe('decideScan', () => {
   const fury = card('OGN-007', 'Fury Rune');
   const furySfd = card('SFD-R01', 'Fury Rune', 'OGN-007');
   const annie = card('OGN-119', 'Annie, Fiery');
-  const catalog = buildScanCatalog([abandon, ahri, ahriAlt, fury, furySfd, annie]);
+  const nineteen = card('OGN-019', 'Nineteen');
+  const twentyNine = card('OGN-029', 'Twenty-Nine');
+  const catalog = buildScanCatalog([
+    abandon,
+    ahri,
+    ahriAlt,
+    fury,
+    furySfd,
+    annie,
+    nineteen,
+    twentyNine,
+  ]);
 
   const art = (...ranked: [string, number][]) =>
     ranked.map(([key, score]) => ({ key: `${key}.webp`, score }));
@@ -267,6 +292,36 @@ describe('decideScan', () => {
       via: 'code',
       sure: false,
     });
+  });
+
+  test('a misread digit is corrected by the lower-ranked reading the artwork backs', () => {
+    // 019 came back as 029 first; the second reading is right and the picture says so.
+    const lines = [['OGN • 029/298', 'OGN • 019/298']];
+    expect(decideScan(catalog, lines, art(['OGN-019', 0.9]))).toEqual({
+      kind: 'card',
+      card: nineteen,
+      via: 'code',
+      sure: true,
+    });
+    // Without the artwork the best reading stands, unsure.
+    expect(decideScan(catalog, lines)).toMatchObject({ card: twentyNine, sure: false });
+  });
+
+  test('confident artwork one digit away overrules a misread code, even strip-only', () => {
+    const lines = ['OGN • 029/298'];
+    const matches = art(['OGN-019', 0.9], ['OGN-029', 0.7]);
+    expect(decideScan(catalog, lines, matches, false)).toEqual({
+      kind: 'card',
+      card: nineteen,
+      via: 'art',
+      sure: false,
+    });
+    // Artwork that names a card nowhere near the read number is not a digit slip.
+    expect(decideScan(catalog, lines, art(['UNL-131', 0.9]), false)).toBeNull();
+    // A near tie between pictures is not confident enough to overrule print.
+    expect(
+      decideScan(catalog, lines, art(['OGN-019', 0.9], ['OGN-029', 0.88]), true)
+    ).toMatchObject({ card: twentyNine, via: 'code' });
   });
 
   test('a strip-only read waits for the name before crossing the artwork', () => {

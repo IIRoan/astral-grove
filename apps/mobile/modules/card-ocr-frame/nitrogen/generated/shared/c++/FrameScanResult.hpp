@@ -34,7 +34,6 @@ namespace margelo::nitro::cardocr { struct ImageMatch; }
 #include <string>
 #include <vector>
 #include "ImageMatch.hpp"
-#include <optional>
 
 namespace margelo::nitro::cardocr {
 
@@ -50,11 +49,10 @@ namespace margelo::nitro::cardocr {
     double locateMs     SWIFT_PRIVATE;
     double matchMs     SWIFT_PRIVATE;
     double readMs     SWIFT_PRIVATE;
-    std::optional<double> brightness     SWIFT_PRIVATE;
 
   public:
     FrameScanResult() = default;
-    explicit FrameScanResult(std::vector<std::vector<std::string>> lines, bool cardDetected, std::vector<ImageMatch> matches, bool wholeCard, double locateMs, double matchMs, double readMs, std::optional<double> brightness): lines(lines), cardDetected(cardDetected), matches(matches), wholeCard(wholeCard), locateMs(locateMs), matchMs(matchMs), readMs(readMs), brightness(brightness) {}
+    explicit FrameScanResult(std::vector<std::vector<std::string>> lines, bool cardDetected, std::vector<ImageMatch> matches, bool wholeCard, double locateMs, double matchMs, double readMs): lines(lines), cardDetected(cardDetected), matches(matches), wholeCard(wholeCard), locateMs(locateMs), matchMs(matchMs), readMs(readMs) {}
 
   public:
     friend bool operator==(const FrameScanResult& lhs, const FrameScanResult& rhs) = default;
@@ -76,8 +74,7 @@ namespace margelo::nitro {
         JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "wholeCard"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "locateMs"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matchMs"))),
-        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "readMs"))),
-        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "brightness")))
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "readMs")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::cardocr::FrameScanResult& arg) {
@@ -89,7 +86,6 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "locateMs"), JSIConverter<double>::toJSI(runtime, arg.locateMs));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "matchMs"), JSIConverter<double>::toJSI(runtime, arg.matchMs));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "readMs"), JSIConverter<double>::toJSI(runtime, arg.readMs));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "brightness"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.brightness));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -107,7 +103,6 @@ namespace margelo::nitro {
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "locateMs")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "matchMs")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "readMs")))) return false;
-      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "brightness")))) return false;
       return true;
     }
   };

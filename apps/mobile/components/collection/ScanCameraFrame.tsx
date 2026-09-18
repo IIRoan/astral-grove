@@ -11,8 +11,6 @@ import { PREVIEW_ASPECT, guideRect } from '@/utils/scanCrop';
 import {
   scannerLowLightProps,
   supportsNativeScanQueue,
-  torchOn,
-  type TorchSetting,
 } from '@/lib/scan-camera-support';
 import { cardOcrFrame } from '@/modules/card-ocr-frame/src';
 import { ScanCameraPhoto } from '@/components/collection/ScanCameraPhoto';
@@ -21,7 +19,6 @@ type ScanCameraFrameProps = {
   session: ScanSession;
   level: ScannerRecognitionLevel;
   active: boolean;
-  torch: TorchSetting;
 };
 
 export function ScanCameraFrame(props: ScanCameraFrameProps) {
@@ -34,16 +31,13 @@ export function ScanCameraFrame(props: ScanCameraFrameProps) {
 }
 
 /** A 30fps target gives auto-exposure more room in dim light. */
-function NativeScanCameraFrame({
-  session,
-  level,
-  active,
-  torch,
-}: ScanCameraFrameProps) {
+function NativeScanCameraFrame({ session, level, active }: ScanCameraFrameProps) {
   const device = useCameraDevice('back');
-  const { frameOutput, cardDetected, lowLight, artDebug, scanError } =
-    useCardScannerFrame(session, level, active && !session.pending);
-  const lit = torchOn(torch, lowLight);
+  const { frameOutput, cardDetected, artDebug, scanError } = useCardScannerFrame(
+    session,
+    level,
+    active && !session.pending
+  );
 
   const camera = useRef<CameraRef>(null);
   const preview = useRef({ width: 0, height: 0, started: false });
@@ -118,7 +112,6 @@ function NativeScanCameraFrame({
         outputs={[frameOutput]}
         constraints={[{ fps: 30 }]}
         {...scannerLowLightProps(device.supportsLowLightBoost)}
-        torchMode={active && lit && device.hasTorch ? 'on' : 'off'}
         isActive={active}
         resizeMode="cover"
       />
@@ -133,9 +126,7 @@ function NativeScanCameraFrame({
                 ? `Added ${session.justAdded} — next card`
                 : cardDetected
                   ? `Card found — reading it${artDebug ? ` · ${artDebug}` : ''}`
-                  : `Hold the card inside the guide${learning}${
-                      lowLight && !lit ? ' · low light, try the light' : ''
-                    }`
+                  : `Hold the card inside the guide${learning}`
         }
       />
     </View>
