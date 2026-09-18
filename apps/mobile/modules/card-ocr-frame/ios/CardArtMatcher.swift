@@ -195,7 +195,7 @@ private func lookupCandidates(of card: CIImage) -> [CIImage] {
 private let orientationMargin = 0.05
 
 /** Look the rectified card up in the index, trying each way it might be lying. */
-func recognize(_ card: CIImage, in index: ArtIndex) -> (
+func matchArt(_ card: CIImage, in index: ArtIndex) -> (
   matches: [ArtMatch], describeMs: Double, searchMs: Double
 ) {
   var best: [ArtMatch] = []

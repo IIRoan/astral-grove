@@ -92,7 +92,7 @@ struct DescriptorParityTests {
     guard let installed = currentArtIndex() else { fatalError("Index did not install") }
 
     let image = try load(base.appendingPathComponent("reference-card.png"))
-    let found = recognize(image, in: installed).matches
+    let found = matchArt(image, in: installed).matches
     guard let best = found.first else { fatalError("Search returned nothing") }
     print(String(format: "  search: %@ at %.4f, hamming %d", best.key, best.score, best.hamming))
     precondition(best.key == golden.referenceKey, "Search picked \(best.key)")

@@ -52,7 +52,7 @@ final class CardRecognitionPipeline {
       // asks the user to fill the guide, so that still recognizes a card held square
       // against a background Vision could not find a quadrilateral in.
       let subject = card ?? framed
-      let found = CardOcrFrame.recognize(subject, in: index)
+      let found = matchArt(subject, in: index)
 
       return CardRecognition(
         detected: rectangle != nil, matches: found.matches, locateMs: locateMs,
