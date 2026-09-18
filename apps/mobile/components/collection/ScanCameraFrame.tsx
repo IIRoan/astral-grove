@@ -62,9 +62,15 @@ function NativeScanCameraFrame({
         (guide.y + guide.height / 2) * height,
         guide.width * width
       );
+      // Steady goes straight to the continuous modes, so a metering that times out in
+      // the dark leaves the camera tracking rather than locked after a one-shot pass.
       controller
-        .focusTo(point, { adaptiveness: 'continuous', autoResetAfter: null })
-        .catch(() => undefined); // Metering can time out in the dark; defaults stay.
+        .focusTo(point, {
+          responsiveness: 'steady',
+          adaptiveness: 'continuous',
+          autoResetAfter: null,
+        })
+        .catch(() => undefined);
     } catch {
       // The preview is not up yet; the next start or layout tries again.
     }
