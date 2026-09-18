@@ -22,6 +22,7 @@ import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
 import { useCollectionMutations } from '@/hooks/useCollection';
 import { useScanSession } from '@/hooks/useScanSession';
 import { useScannerEngine } from '@/hooks/useScannerEngine';
+import { nextTorchSetting, type TorchSetting } from '@/lib/scan-camera-support';
 import { normalScanInput } from '@/lib/scan-confirmation';
 import { cn } from '@/lib/utils';
 import { openCard } from '@/utils/cardNavigation';
@@ -35,7 +36,7 @@ export default function CollectionScanRoute() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const focused = useIsFocused();
-  const [torch, setTorch] = useState(false);
+  const [torch, setTorch] = useState<TorchSetting>('auto');
   const queryClient = useQueryClient();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const lookup = mode === 'lookup';
@@ -117,13 +118,12 @@ export default function CollectionScanRoute() {
             <Button
               variant="outline"
               className="w-auto"
-              accessibilityLabel={
-                torch ? 'Turn camera light off' : 'Turn camera light on'
-              }
-              accessibilityState={{ selected: torch }}
-              onPress={() => setTorch((value) => !value)}
+              accessibilityLabel={`Camera light: ${torch}`}
+              accessibilityHint="Switches between automatic, on and off"
+              accessibilityState={{ selected: torch === 'on' }}
+              onPress={() => setTorch(nextTorchSetting)}
             >
-              <ButtonText>{torch ? 'Light off' : 'Light on'}</ButtonText>
+              <ButtonText>Light {torch}</ButtonText>
             </Button>
             <Button
               variant="ghost"

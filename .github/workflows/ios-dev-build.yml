@@ -40,12 +40,17 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Test native scan worker
+      - name: Test native scan worker and image processing
         run: |
           swiftc apps/mobile/modules/card-ocr-frame/ios/ScanWorker.swift \
             apps/mobile/modules/card-ocr-frame/test/ScanWorkerTests.swift \
             -o "$RUNNER_TEMP/scan-worker-tests"
           "$RUNNER_TEMP/scan-worker-tests"
+          # CoreImage and Vision ship on macOS too, so the crop maths runs on the runner.
+          swiftc apps/mobile/modules/card-ocr-frame/ios/CardImageProcessing.swift \
+            apps/mobile/modules/card-ocr-frame/test/ImageProcessingTests.swift \
+            -o "$RUNNER_TEMP/image-processing-tests"
+          "$RUNNER_TEMP/image-processing-tests"
 
       - uses: expo/expo-github-action@v8
         with:

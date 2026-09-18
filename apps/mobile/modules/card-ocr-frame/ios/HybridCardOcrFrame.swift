@@ -1,6 +1,7 @@
 import CoreImage
 import CoreMedia
 import Foundation
+import ImageIO
 import NitroModules
 import Vision
 import VisionCamera
@@ -8,6 +9,19 @@ import VisionCamera
 // Bridge camera buffers to Vision; image processing, artwork matching and OCR live separately.
 private func milliseconds(since start: CFAbsoluteTime) -> Double {
   (CFAbsoluteTimeGetCurrent() - start) * 1000
+}
+
+/**
+ The camera's own light meter. Every video buffer carries EXIF BrightnessValue in APEX
+ stops; it measures the scene rather than the boosted frame, so a dark room reads low
+ however far auto-exposure has pushed the gain. Read here, before the buffer is handed
+ on: JS disposes the sample buffer as soon as the pixel buffer has been retained.
+ */
+private func sceneBrightness(of sampleBuffer: CMSampleBuffer) -> Double? {
+  let exif =
+    CMGetAttachment(sampleBuffer, key: kCGImagePropertyExifDictionary, attachmentModeOut: nil)
+    as? [String: Any]
+  return exif?[kCGImagePropertyExifBrightnessValue as String] as? Double
 }
 
 final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
@@ -23,8 +37,11 @@ final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
       let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)
     else { return nil }
 
+    let brightness = sceneBrightness(of: sampleBuffer)
     // The closure retains the pixel buffer so JS can dispose its Frame immediately.
-    return try worker.poll { try self.recognizeFrame(pixelBuffer: pixelBuffer, options: options) }
+    return try worker.poll {
+      try self.recognizeFrame(pixelBuffer: pixelBuffer, brightness: brightness, options: options)
+    }
   }
 
   var embeddingVersion: String {
@@ -70,13 +87,16 @@ final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
     else {
       return FrameScanResult(
         lines: [], cardDetected: false, matches: [], wholeCard: true,
-        locateMs: 0, matchMs: 0, readMs: 0)
+        locateMs: 0, matchMs: 0, readMs: 0, brightness: nil)
     }
 
-    return try recognizeFrame(pixelBuffer: pixelBuffer, options: options)
+    return try recognizeFrame(
+      pixelBuffer: pixelBuffer, brightness: sceneBrightness(of: sampleBuffer), options: options)
   }
 
-  private func recognizeFrame(pixelBuffer: CVPixelBuffer, options: FrameScanOptions) throws -> FrameScanResult {
+  private func recognizeFrame(
+    pixelBuffer: CVPixelBuffer, brightness: Double?, options: FrameScanOptions
+  ) throws -> FrameScanResult {
     // Frames arrive continuously; without the pool every intermediate Vision and
     // CoreImage allocation would be held until the thread's run loop drains.
     return try autoreleasepool { () throws -> FrameScanResult in
@@ -105,13 +125,19 @@ final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
           in: oriented, region: hasRegion ? region : nil, options: options)
         return FrameScanResult(
           lines: lines, cardDetected: false, matches: [], wholeCard: options.wholeCard,
-          locateMs: locateMs, matchMs: 0, readMs: milliseconds(since: clock))
+          locateMs: locateMs, matchMs: 0, readMs: milliseconds(since: clock),
+          brightness: brightness)
       }
+
+      // Dim light leaves the crop dark and grainy. Lift it toward a lit card's brightness
+      // so the artwork compares as its reference does and the print has contrast.
+      clock = CFAbsoluteTimeGetCurrent()
+      let lift = exposureLift(forLuminance: meanLuminance(of: reading))
+      reading = liftedExposure(reading, by: lift)
 
       // Recognize before reading: the artwork is also the only thing that can say the
       // card is upside down, and text is only legible the right way up. A landscape
       // card is left as it lies — its reference art is sideways, its print is not.
-      clock = CFAbsoluteTimeGetCurrent()
       var matches: [ImageMatch] = []
       if let index = currentIndex() {
         let recognized = recognize(reading, in: index)
@@ -126,11 +152,12 @@ final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
       // artwork is recognized the code is all that is left to learn. The rest of the
       // card is only read when the strip shows no code, or the caller wants the name.
       clock = CFAbsoluteTimeGetCurrent()
-      let text = try readCardText(in: reading, options: options)
+      let text = try readCardText(in: reading, options: options, lowLight: lift > 0)
 
       return FrameScanResult(
         lines: text.lines, cardDetected: rectified != nil, matches: matches, wholeCard: text.wholeCard,
-        locateMs: locateMs, matchMs: matchMs, readMs: milliseconds(since: clock))
+        locateMs: locateMs, matchMs: matchMs, readMs: milliseconds(since: clock),
+        brightness: brightness)
     }
   }
 }

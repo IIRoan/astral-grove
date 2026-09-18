@@ -29,6 +29,45 @@ func enhancedTextImage(_ image: CIImage) -> CIImage {
     ])
 }
 
+/** Small print under lifted sensor noise: smooth the grain first, then enhance as usual. */
+func lowLightTextImage(_ image: CIImage) -> CIImage {
+  enhancedTextImage(
+    image.applyingFilter(
+      "CINoiseReduction", parameters: ["inputNoiseLevel": 0.04, "inputSharpness": 0.4]))
+}
+
+/** Mean luminance of `image`, 0 black to 1 white: one GPU reduction to a single pixel. */
+func meanLuminance(of image: CIImage) -> Float? {
+  let extent = image.extent
+  guard !extent.isInfinite, !extent.isEmpty else { return nil }
+  let averaged = image.applyingFilter(
+    "CIAreaAverage", parameters: [kCIInputExtentKey: CIVector(cgRect: extent)])
+  var pixel = [UInt8](repeating: 0, count: 4)
+  ciContext.render(
+    averaged, toBitmap: &pixel, rowBytes: 4,
+    bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8,
+    colorSpace: CGColorSpace(name: CGColorSpace.sRGB))
+  return (0.2126 * Float(pixel[0]) + 0.7152 * Float(pixel[1]) + 0.0722 * Float(pixel[2])) / 255
+}
+
+/** Where a lit card's mean luminance lands; the lift aims here. */
+private let targetLuminance: Float = 0.45
+/** Below this a crop is dark enough to be worth lifting. */
+private let darkLuminance: Float = 0.3
+/** Past two stops only the sensor noise gets brighter. */
+private let maxExposureLift: Float = 2
+// ponytail: target and cutoff are guesses from typical exposures, not this camera — tune on device.
+
+/** Stops of exposure that bring a dark crop up to a lit card's brightness; zero if it is there. */
+func exposureLift(forLuminance luminance: Float?) -> Float {
+  guard let luminance, luminance > 0, luminance < darkLuminance else { return 0 }
+  return min(maxExposureLift, log2(targetLuminance / luminance))
+}
+
+func liftedExposure(_ image: CIImage, by stops: Float) -> CIImage {
+  stops > 0 ? image.applyingFilter("CIExposureAdjust", parameters: [kCIInputEVKey: stops]) : image
+}
+
 func cropGuide(_ image: CIImage, region: CGRect, width: CGFloat) -> CIImage? {
   let extent = image.extent
   let rect = CGRect(

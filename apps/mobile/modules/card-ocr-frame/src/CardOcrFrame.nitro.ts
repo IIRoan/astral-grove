@@ -64,6 +64,13 @@ export interface FrameScanResult {
   locateMs: number;
   matchMs: number;
   readMs: number;
+  /**
+   * The camera's light meter for this frame: EXIF BrightnessValue in APEX stops,
+   * roughly 8 in daylight, 3 in a lit room, below 0 in a dim one. It reads the scene
+   * rather than the gained-up frame, so it says when the torch would help. Missing
+   * when the buffer carried no metadata.
+   */
+  brightness?: number;
 }
 
 export interface CardOcrFrame extends HybridObject<{ ios: 'swift' }> {

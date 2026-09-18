@@ -85,7 +85,7 @@ open class HybridCardOcrFrameSpec_cxx {
     }
   }
 
-
+  
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -151,7 +151,7 @@ open class HybridCardOcrFrameSpec_cxx {
       return bridge.create_Result_std__optional_FrameScanResult__(__exceptionPtr)
     }
   }
-
+  
   @inline(__always)
   public final func resetScan() -> bridge.Result_void_ {
     do {
@@ -162,7 +162,7 @@ open class HybridCardOcrFrameSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-
+  
   @inline(__always)
   public final func scan(frame: bridge.std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_, options: FrameScanOptions) -> bridge.Result_FrameScanResult_ {
     do {
@@ -178,7 +178,7 @@ open class HybridCardOcrFrameSpec_cxx {
       return bridge.create_Result_FrameScanResult_(__exceptionPtr)
     }
   }
-
+  
   @inline(__always)
   public final func embedImage(url: std.string) -> bridge.Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____ {
     do {
@@ -197,7 +197,7 @@ open class HybridCardOcrFrameSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____(__exceptionPtr)
     }
   }
-
+  
   @inline(__always)
   public final func setIndex(keys: bridge.std__vector_std__string_, vectors: ArrayBuffer) -> bridge.Result_void_ {
     do {

@@ -43,20 +43,24 @@ func readText(
   }
 }
 
-func readCardText(in image: CIImage, options: FrameScanOptions) throws -> (
+func readCardText(in image: CIImage, options: FrameScanOptions, lowLight: Bool) throws -> (
   lines: [[String]], wholeCard: Bool
 ) {
+  // A lifted low-light crop is grainy, so the smoothed image reads first and the plain
+  // one is the retry. In good light it is the other way round: enhancement can help
+  // small print but lose fine detail, so the original readings are kept either way.
+  let first = lowLight ? lowLightTextImage(image) : image
+  let retry = lowLight ? image : enhancedTextImage(image)
   var lines: [[String]] = []
   var wholeCard = options.wholeCard
   if !wholeCard {
-    lines = try readText(in: image, region: collectorStrip, options: options)
+    lines = try readText(in: first, region: collectorStrip, options: options)
     wholeCard = !lines.contains(where: looksLikeCollectorCode)
   }
   if wholeCard {
-    lines = try readText(in: image, region: nil, options: options)
+    lines = try readText(in: first, region: nil, options: options)
     if !lines.contains(where: looksLikeCollectorCode) {
-      // Retain the original readings: enhancement can help small print but lose fine detail.
-      lines += try readText(in: enhancedTextImage(image), region: nil, options: options)
+      lines += try readText(in: retry, region: nil, options: options)
     }
   }
 

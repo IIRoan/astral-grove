@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
-import { useFrameOutput } from 'react-native-vision-camera';
+import { CommonResolutions, useFrameOutput } from 'react-native-vision-camera';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { scheduleOnRN } from 'react-native-worklets';
 import {
@@ -16,6 +16,7 @@ import {
 } from '@/utils/scanCrop';
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
+import { nextLowLight } from '@/lib/scan-camera-support';
 
 /** Allow exposure to settle between passes; recognition runs on a separate worker. */
 const SCAN_IDLE_MS = 80;
@@ -68,6 +69,8 @@ export function useCardScannerFrame(
   /** Set when a quick strip-only read settled nothing, so the next pass reads it all. */
   const wantWholeCard = useSharedValue(false);
   const [cardDetected, setCardDetected] = useState(false);
+  /** The camera's light meter says the scene is dim; latched, so the torch does not flicker. */
+  const [lowLight, setLowLight] = useState(false);
   /**
    * Live artwork scores and stage timings (locate + match + read), dev builds only:
    * what `IMAGE_MATCH_FLOOR` and the pass budget are tuned against.
@@ -81,16 +84,21 @@ export function useCardScannerFrame(
       detected: boolean,
       matches: ImageMatch[],
       wholeCard: boolean,
-      stageMs: number[]
+      stageMs: number[],
+      brightness: number | undefined
     ) => {
       if (!enabledRef.current) return;
       lastError.current = null;
       setScanError(false);
       setCardDetected(detected);
+      setLowLight((previous) => nextLowLight(previous, brightness));
       noteCard(detected);
       if (__DEV__) {
         const timing = stageMs.length > 0 ? `${stageMs.join('+')}ms` : '';
-        setArtDebug([describeMatches(matches), timing].filter(Boolean).join(' '));
+        const meter = brightness === undefined ? '' : `Bv${brightness.toFixed(1)}`;
+        setArtDebug(
+          [describeMatches(matches), timing, meter].filter(Boolean).join(' ')
+        );
       }
       const outcome = resolve(lines, matches, wholeCard);
       wantWholeCard.value = !outcome;
@@ -140,6 +148,10 @@ export function useCardScannerFrame(
   );
 
   const frameOutput = useFrameOutput({
+    // The default 720p buffer puts about 12px on the collector code; 1080p puts 18px on
+    // it, which is where Vision's small-print reading firms up. Rectangle detection and
+    // the perspective crop scale with the buffer on the GPU, so the pass stays cheap.
+    targetResolution: CommonResolutions.FHD_16_9,
     pixelFormat: 'yuv',
     dropFramesWhileBusy: true,
     onFrame(frame) {
@@ -162,7 +174,8 @@ export function useCardScannerFrame(
           result.cardDetected,
           result.matches,
           result.wholeCard,
-          [result.locateMs, result.matchMs, result.readMs].map(Math.round)
+          [result.locateMs, result.matchMs, result.readMs].map(Math.round),
+          result.brightness
         );
       } catch (error) {
         lastScanEnd.value = performance.now();
@@ -177,5 +190,5 @@ export function useCardScannerFrame(
     },
   });
 
-  return { frameOutput, cardDetected, artDebug, scanError };
+  return { frameOutput, cardDetected, lowLight, artDebug, scanError };
 }
