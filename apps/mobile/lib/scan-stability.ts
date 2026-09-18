@@ -1,13 +1,7 @@
 import type { ScanCard, ScanDecision } from '@riftbound/contracts';
 
-/** Longer than this between agreeing frames and the card was probably moved away. */
-const MAX_GAP_MS = 400;
-/** Evidence older than this is stale, whatever it said. */
-const WINDOW_MS = 1500;
-/** Frames that must agree before a match is offered. */
-const REQUIRED_CARD = 2;
-/** More for a shared artwork, because answering it costs the user a choice. */
-const REQUIRED_HOLD = 3;
+const MAX_GAP_MS = 1500;
+const WINDOW_MS = 5000;
 
 /** Require repeat evidence while allowing one missed read from blur or exposure changes. */
 export function createScanStability<T extends ScanCard>() {
@@ -31,17 +25,26 @@ export function createScanStability<T extends ScanCard>() {
         return null;
       }
 
-      const nextKey =
+      // A name alone is not an identity: the available printings must agree too.
+      const nextKey = JSON.stringify(
         decision.kind === 'card'
-          ? `card:${decision.card.variantNumber}`
-          : `hold:${decision.key}`;
+          ? ['card', decision.card.variantNumber]
+          : ['hold', ...decision.options.map((card) => card.variantNumber).sort()]
+      );
       if (nextKey !== key) reset();
       key = nextKey;
       misses = 0;
       readings = readings.filter((time) => now - time <= WINDOW_MS);
       readings.push(now);
 
-      const required = decision.kind === 'card' ? REQUIRED_CARD : REQUIRED_HOLD;
+      const required =
+        decision.kind === 'card'
+          ? decision.sure
+            ? 1
+            : 2
+          : decision.options.length === 1
+            ? 3
+            : 6;
       if (readings.length < required) return null;
       reset();
       return decision;

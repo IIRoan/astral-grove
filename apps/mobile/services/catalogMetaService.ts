@@ -7,12 +7,11 @@ import {
   readPersistedCatalogIndex,
 } from '@/services/catalogIndexService';
 
-export type CatalogMeta = {
+type CatalogMeta = {
   cachedAt: string;
   catalogHash: string;
   pricesCatalogHash: string;
   variantCount: number;
-  artIndexHash: string;
 };
 
 const CATALOG_META_STALE_MS = 5 * 60_000;
@@ -23,7 +22,7 @@ function getCachedCatalogMeta(
   return queryClient.getQueryData<CatalogMeta>(catalogQueryKeys.meta);
 }
 
-export async function fetchCatalogMeta(): Promise<CatalogMeta> {
+async function fetchCatalogMeta(): Promise<CatalogMeta> {
   const res = await api.getFilters();
   return res.meta;
 }

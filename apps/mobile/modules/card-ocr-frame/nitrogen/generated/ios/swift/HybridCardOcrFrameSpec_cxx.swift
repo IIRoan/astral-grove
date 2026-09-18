@@ -85,7 +85,7 @@ open class HybridCardOcrFrameSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -122,10 +122,10 @@ open class HybridCardOcrFrameSpec_cxx {
   }
 
   // Properties
-  public final var descriptorVersion: Double {
+  public final var embeddingVersion: std.string {
     @inline(__always)
     get {
-      return self.__implementation.descriptorVersion
+      return std.string(self.__implementation.embeddingVersion)
     }
   }
 
@@ -151,7 +151,7 @@ open class HybridCardOcrFrameSpec_cxx {
       return bridge.create_Result_std__optional_FrameScanResult__(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func resetScan() -> bridge.Result_void_ {
     do {
@@ -162,7 +162,7 @@ open class HybridCardOcrFrameSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func scan(frame: bridge.std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_, options: FrameScanOptions) -> bridge.Result_FrameScanResult_ {
     do {
@@ -178,16 +178,34 @@ open class HybridCardOcrFrameSpec_cxx {
       return bridge.create_Result_FrameScanResult_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
-  public final func setArtIndex(index: ArrayBuffer) -> bridge.Result_double_ {
+  public final func embedImage(url: std.string) -> bridge.Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____ {
     do {
-      let __result = try self.__implementation.setArtIndex(index: index)
-      let __resultCpp = __result
-      return bridge.create_Result_double_(__resultCpp)
+      let __result = try self.__implementation.embedImage(url: String(url))
+      let __resultCpp = { () -> bridge.std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer___ in
+        let __promise = bridge.create_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer___()
+        let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer___(__promise)
+        __result
+          .then({ __result in __promiseHolder.resolve(__result.getArrayBuffer()) })
+          .catch({ __error in __promiseHolder.reject(__error.toCpp()) })
+        return __promise
+      }()
+      return bridge.create_Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____(__resultCpp)
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()
-      return bridge.create_Result_double_(__exceptionPtr)
+      return bridge.create_Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____(__exceptionPtr)
+    }
+  }
+
+  @inline(__always)
+  public final func setIndex(keys: bridge.std__vector_std__string_, vectors: ArrayBuffer) -> bridge.Result_void_ {
+    do {
+      try self.__implementation.setIndex(keys: keys.map({ __item in String(__item) }), vectors: vectors)
+      return bridge.create_Result_void_()
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_void_(__exceptionPtr)
     }
   }
 }

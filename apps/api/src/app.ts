@@ -23,7 +23,6 @@ import { createDecksRoutes } from './routes/decks.js';
 import { createSearchRoutes } from './routes/search.js';
 import { createSettingsRoutes } from './routes/settings.js';
 import { CardCacheService } from './services/card-cache.js';
-import { CardArtIndexService } from './services/card-art-index.js';
 import { ImageStoreService } from './services/image-store.js';
 import { CatalogMetadataService } from './services/catalog-metadata.js';
 import { CollectionService } from './services/collection-service.js';
@@ -43,7 +42,6 @@ export interface AppContext {
   auth: Auth;
   pa: PaClient;
   cardCache: CardCacheService;
-  cardArtIndex: CardArtIndexService;
   catalogMetadata: CatalogMetadataService;
   priceCache: PriceCacheService;
   syncEngine: SyncEngine;
@@ -63,9 +61,8 @@ function buildApp(env: Env): AppContext {
   const imageStore = new ImageStoreService(env);
   const embeddings = createEmbeddingService(db, env);
   const cardCache = new CardCacheService(db, pa, priceCache, imageStore, embeddings);
-  const cardArtIndex = new CardArtIndexService(db, imageStore);
-  const catalogMetadata = new CatalogMetadataService(db, pa, cardArtIndex);
-  const syncEngine = new SyncEngine(db, pa, cardCache, catalogMetadata, cardArtIndex);
+  const catalogMetadata = new CatalogMetadataService(db, pa);
+  const syncEngine = new SyncEngine(db, pa, cardCache, catalogMetadata);
   const collectionService = new CollectionService(db, cardCache, imageStore, pa);
   const collectionShareService = new CollectionShareService(db, env.PUBLIC_APP_URL);
   const wishlistService = new WishlistService(db, imageStore);
@@ -97,7 +94,7 @@ function buildApp(env: Env): AppContext {
     .use(authPlugin)
     .use(createHealthRoutes(db, syncEngine, env))
     .use(createImagesRoutes(imageStore))
-    .use(createCardsRoutes(cardCache, cardArtIndex, env))
+    .use(createCardsRoutes(cardCache, env))
     .use(createSearchRoutes(cardCache))
     .use(createPricesRoutes(priceCache, db))
     .use(createFiltersRoutes(catalogMetadata))
@@ -121,7 +118,6 @@ function buildApp(env: Env): AppContext {
     auth,
     pa,
     cardCache,
-    cardArtIndex,
     catalogMetadata,
     priceCache,
     syncEngine,

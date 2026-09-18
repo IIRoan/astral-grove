@@ -47,20 +47,16 @@ jobs:
             -o "$RUNNER_TEMP/scan-worker-tests"
           "$RUNNER_TEMP/scan-worker-tests"
 
-      - name: Test native descriptor parity
-        # The scanner only works while the Swift and TypeScript descriptors agree, and
-        # nothing else would notice them drifting apart. The fixture is generated from
-        # the API's own code first so the golden values cannot go stale.
+      - name: Test native footer recognition
         run: |
-          bun run --cwd packages/contracts build
-          bun apps/api/scripts/write-art-parity-fixture.ts "$RUNNER_TEMP/art-parity"
           swiftc -target "$(uname -m)-apple-macosx14.0" \
+            apps/mobile/modules/card-ocr-frame/ios/FooterScanPlan.swift \
             apps/mobile/modules/card-ocr-frame/ios/CardImageProcessing.swift \
-            apps/mobile/modules/card-ocr-frame/ios/CardDescriptor.swift \
-            apps/mobile/modules/card-ocr-frame/ios/CardArtMatcher.swift \
-            apps/mobile/modules/card-ocr-frame/test/DescriptorParityTests.swift \
-            -o "$RUNNER_TEMP/descriptor-parity-tests"
-          "$RUNNER_TEMP/descriptor-parity-tests" "$RUNNER_TEMP/art-parity"
+            apps/mobile/modules/card-ocr-frame/ios/CardTextRecognizer.swift \
+            apps/mobile/modules/card-ocr-frame/ios/CardCollectorPipeline.swift \
+            apps/mobile/modules/card-ocr-frame/test/FooterRecognitionTests.swift \
+            -o "$RUNNER_TEMP/footer-recognition-tests"
+          "$RUNNER_TEMP/footer-recognition-tests"
 
       - uses: expo/expo-github-action@v8
         with:

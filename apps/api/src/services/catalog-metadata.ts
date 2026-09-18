@@ -1,14 +1,9 @@
-import {
-  ART_DESCRIPTOR_VERSION,
-  FilterSnapshot,
-  type ArtIndexMeta,
-} from '@riftbound/contracts';
+import { FilterSnapshot } from '@riftbound/contracts';
 import { desc, eq, sql } from 'drizzle-orm';
 import { computeCatalogTotal, sumSetPrintCounts } from '../lib/catalog-total.js';
 import { catalogFingerprint, entityHash } from '../lib/hash.js';
 import type { Database } from '../db/client.js';
 import { filterSnapshots, sets, syncState, variants } from '../db/schema.js';
-import type { CardArtIndexService } from './card-art-index.js';
 import type { PaClient } from '../upstream/pa-client.js';
 import {
   enrichFilterSnapshotWithPrintCounts,
@@ -22,8 +17,6 @@ export type FiltersMeta = {
   catalogHash: string;
   pricesCatalogHash: string;
   variantCount: number;
-  artIndexHash: string;
-  artDescriptorVersion: number;
 };
 
 type ProbeContext = {
@@ -42,8 +35,7 @@ export class CatalogMetadataService {
 
   constructor(
     private readonly db: Database,
-    private readonly pa: PaClient,
-    private readonly artIndex: CardArtIndexService
+    private readonly pa: PaClient
   ) {}
 
   async getFiltersMeta(): Promise<FiltersMeta> {
@@ -59,7 +51,6 @@ export class CatalogMetadataService {
     const prices = await this.db.query.syncState.findFirst({
       where: eq(syncState.key, 'prices'),
     });
-    const art = await this.artIndexMeta();
 
     return {
       snapshot,
@@ -67,24 +58,7 @@ export class CatalogMetadataService {
       catalogHash: catalog?.contentHash ?? '',
       pricesCatalogHash: prices?.contentHash ?? '',
       variantCount: computeCatalogTotal(snapshot, catalog?.rowCount ?? 0),
-      artIndexHash: art.indexHash,
-      artDescriptorVersion: art.descriptorVersion,
     };
-  }
-
-  /** An unbuilt scanner index must not take the whole filters response down with it. */
-  private async artIndexMeta(): Promise<ArtIndexMeta> {
-    try {
-      return await this.artIndex.getMeta();
-    } catch (error) {
-      console.warn('[art-index] Meta unavailable:', error);
-      return {
-        descriptorVersion: ART_DESCRIPTOR_VERSION,
-        indexHash: '',
-        count: 0,
-        bytes: 0,
-      };
-    }
   }
 
   /** Overlay local per-set print totals when upstream filter metadata lags (logical vs print). */

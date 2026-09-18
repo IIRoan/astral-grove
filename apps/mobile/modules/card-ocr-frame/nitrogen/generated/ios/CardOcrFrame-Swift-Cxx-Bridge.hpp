@@ -8,14 +8,16 @@
 #pragma once
 
 // Forward declarations of C++ defined types
-// Forward declaration of `CardMatch` to properly resolve imports.
-namespace margelo::nitro::cardocr { struct CardMatch; }
+// Forward declaration of `ArrayBufferHolder` to properly resolve imports.
+namespace NitroModules { class ArrayBufferHolder; }
 // Forward declaration of `FrameScanResult` to properly resolve imports.
 namespace margelo::nitro::cardocr { struct FrameScanResult; }
 // Forward declaration of `HybridCardOcrFrameSpec` to properly resolve imports.
 namespace margelo::nitro::cardocr { class HybridCardOcrFrameSpec; }
 // Forward declaration of `HybridFrameSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridFrameSpec; }
+// Forward declaration of `ImageMatch` to properly resolve imports.
+namespace margelo::nitro::cardocr { struct ImageMatch; }
 
 // Forward declarations of Swift defined types
 // Forward declaration of `HybridCardOcrFrameSpec_cxx` to properly resolve imports.
@@ -24,12 +26,17 @@ namespace CardOcrFrame { class HybridCardOcrFrameSpec_cxx; }
 namespace VisionCamera { class HybridFrameSpec_cxx; }
 
 // Include C++ defined types
-#include "CardMatch.hpp"
 #include "FrameScanResult.hpp"
 #include "HybridCardOcrFrameSpec.hpp"
+#include "ImageMatch.hpp"
+#include <NitroModules/ArrayBuffer.hpp>
+#include <NitroModules/ArrayBufferHolder.hpp>
+#include <NitroModules/Promise.hpp>
+#include <NitroModules/PromiseHolder.hpp>
 #include <NitroModules/Result.hpp>
 #include <VisionCamera/HybridFrameSpec.hpp>
 #include <exception>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -41,17 +48,39 @@ namespace VisionCamera { class HybridFrameSpec_cxx; }
  */
 namespace margelo::nitro::cardocr::bridge::swift {
 
-  // pragma MARK: std::vector<CardMatch>
+  // pragma MARK: std::vector<std::string>
   /**
-   * Specialized version of `std::vector<CardMatch>`.
+   * Specialized version of `std::vector<std::string>`.
    */
-  using std__vector_CardMatch_ = std::vector<CardMatch>;
-  inline std::vector<CardMatch> create_std__vector_CardMatch_(size_t size) noexcept {
-    std::vector<CardMatch> vector;
+  using std__vector_std__string_ = std::vector<std::string>;
+  inline std::vector<std::string> create_std__vector_std__string_(size_t size) noexcept {
+    std::vector<std::string> vector;
     vector.reserve(size);
     return vector;
   }
-  
+
+  // pragma MARK: std::vector<std::vector<std::string>>
+  /**
+   * Specialized version of `std::vector<std::vector<std::string>>`.
+   */
+  using std__vector_std__vector_std__string__ = std::vector<std::vector<std::string>>;
+  inline std::vector<std::vector<std::string>> create_std__vector_std__vector_std__string__(size_t size) noexcept {
+    std::vector<std::vector<std::string>> vector;
+    vector.reserve(size);
+    return vector;
+  }
+
+  // pragma MARK: std::vector<ImageMatch>
+  /**
+   * Specialized version of `std::vector<ImageMatch>`.
+   */
+  using std__vector_ImageMatch_ = std::vector<ImageMatch>;
+  inline std::vector<ImageMatch> create_std__vector_ImageMatch_(size_t size) noexcept {
+    std::vector<ImageMatch> vector;
+    vector.reserve(size);
+    return vector;
+  }
+
   // pragma MARK: std::optional<FrameScanResult>
   /**
    * Specialized version of `std::optional<FrameScanResult>`.
@@ -66,7 +95,7 @@ namespace margelo::nitro::cardocr::bridge::swift {
   inline FrameScanResult get_std__optional_FrameScanResult_(const std::optional<FrameScanResult>& optional) noexcept {
     return optional.value();
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>
   /**
    * Specialized version of `std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>`.
@@ -74,11 +103,67 @@ namespace margelo::nitro::cardocr::bridge::swift {
   using std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_ = std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>;
   std::shared_ptr<margelo::nitro::camera::HybridFrameSpec> create_std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_(void* NON_NULL swiftUnsafePointer) noexcept;
   void* NON_NULL get_std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_(std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_ cppType);
-  
+
   // pragma MARK: std::weak_ptr<margelo::nitro::camera::HybridFrameSpec>
   using std__weak_ptr_margelo__nitro__camera__HybridFrameSpec_ = std::weak_ptr<margelo::nitro::camera::HybridFrameSpec>;
   inline std__weak_ptr_margelo__nitro__camera__HybridFrameSpec_ weakify_std__shared_ptr_margelo__nitro__camera__HybridFrameSpec_(const std::shared_ptr<margelo::nitro::camera::HybridFrameSpec>& strong) noexcept { return strong; }
-  
+
+  // pragma MARK: std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>>
+  /**
+   * Specialized version of `std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>>`.
+   */
+  using std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer___ = std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>>;
+  inline std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>> create_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer___() noexcept {
+    return Promise<std::shared_ptr<ArrayBuffer>>::create();
+  }
+  inline PromiseHolder<std::shared_ptr<ArrayBuffer>> wrap_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer___(std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>> promise) noexcept {
+    return PromiseHolder<std::shared_ptr<ArrayBuffer>>(std::move(promise));
+  }
+
+  // pragma MARK: std::function<void(const std::shared_ptr<ArrayBuffer>& /* result */)>
+  /**
+   * Specialized version of `std::function<void(const std::shared_ptr<ArrayBuffer>&)>`.
+   */
+  using Func_void_std__shared_ptr_ArrayBuffer_ = std::function<void(const std::shared_ptr<ArrayBuffer>& /* result */)>;
+  /**
+   * Wrapper class for a `std::function<void(const std::shared_ptr<ArrayBuffer>& / * result * /)>`, this can be used from Swift.
+   */
+  class Func_void_std__shared_ptr_ArrayBuffer__Wrapper final {
+  public:
+    explicit Func_void_std__shared_ptr_ArrayBuffer__Wrapper(std::function<void(const std::shared_ptr<ArrayBuffer>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::shared_ptr<ArrayBuffer>& /* result */)>>(std::move(func))) {}
+    inline void call(ArrayBufferHolder result) const noexcept {
+      _function->operator()(result.getArrayBuffer());
+    }
+  private:
+    std::unique_ptr<std::function<void(const std::shared_ptr<ArrayBuffer>& /* result */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_std__shared_ptr_ArrayBuffer_ create_Func_void_std__shared_ptr_ArrayBuffer_(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_std__shared_ptr_ArrayBuffer__Wrapper wrap_Func_void_std__shared_ptr_ArrayBuffer_(Func_void_std__shared_ptr_ArrayBuffer_ value) noexcept {
+    return Func_void_std__shared_ptr_ArrayBuffer__Wrapper(std::move(value));
+  }
+
+  // pragma MARK: std::function<void(const std::exception_ptr& /* error */)>
+  /**
+   * Specialized version of `std::function<void(const std::exception_ptr&)>`.
+   */
+  using Func_void_std__exception_ptr = std::function<void(const std::exception_ptr& /* error */)>;
+  /**
+   * Wrapper class for a `std::function<void(const std::exception_ptr& / * error * /)>`, this can be used from Swift.
+   */
+  class Func_void_std__exception_ptr_Wrapper final {
+  public:
+    explicit Func_void_std__exception_ptr_Wrapper(std::function<void(const std::exception_ptr& /* error */)>&& func): _function(std::make_unique<std::function<void(const std::exception_ptr& /* error */)>>(std::move(func))) {}
+    inline void call(std::exception_ptr error) const noexcept {
+      _function->operator()(error);
+    }
+  private:
+    std::unique_ptr<std::function<void(const std::exception_ptr& /* error */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_std__exception_ptr create_Func_void_std__exception_ptr(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_std__exception_ptr_Wrapper wrap_Func_void_std__exception_ptr(Func_void_std__exception_ptr value) noexcept {
+    return Func_void_std__exception_ptr_Wrapper(std::move(value));
+  }
+
   // pragma MARK: std::shared_ptr<HybridCardOcrFrameSpec>
   /**
    * Specialized version of `std::shared_ptr<HybridCardOcrFrameSpec>`.
@@ -86,11 +171,11 @@ namespace margelo::nitro::cardocr::bridge::swift {
   using std__shared_ptr_HybridCardOcrFrameSpec_ = std::shared_ptr<HybridCardOcrFrameSpec>;
   std::shared_ptr<HybridCardOcrFrameSpec> create_std__shared_ptr_HybridCardOcrFrameSpec_(void* NON_NULL swiftUnsafePointer) noexcept;
   void* NON_NULL get_std__shared_ptr_HybridCardOcrFrameSpec_(std__shared_ptr_HybridCardOcrFrameSpec_ cppType);
-  
+
   // pragma MARK: std::weak_ptr<HybridCardOcrFrameSpec>
   using std__weak_ptr_HybridCardOcrFrameSpec_ = std::weak_ptr<HybridCardOcrFrameSpec>;
   inline std__weak_ptr_HybridCardOcrFrameSpec_ weakify_std__shared_ptr_HybridCardOcrFrameSpec_(const std::shared_ptr<HybridCardOcrFrameSpec>& strong) noexcept { return strong; }
-  
+
   // pragma MARK: Result<std::optional<FrameScanResult>>
   using Result_std__optional_FrameScanResult__ = Result<std::optional<FrameScanResult>>;
   inline Result_std__optional_FrameScanResult__ create_Result_std__optional_FrameScanResult__(const std::optional<FrameScanResult>& value) noexcept {
@@ -99,7 +184,7 @@ namespace margelo::nitro::cardocr::bridge::swift {
   inline Result_std__optional_FrameScanResult__ create_Result_std__optional_FrameScanResult__(const std::exception_ptr& error) noexcept {
     return Result<std::optional<FrameScanResult>>::withError(error);
   }
-  
+
   // pragma MARK: Result<void>
   using Result_void_ = Result<void>;
   inline Result_void_ create_Result_void_() noexcept {
@@ -108,7 +193,7 @@ namespace margelo::nitro::cardocr::bridge::swift {
   inline Result_void_ create_Result_void_(const std::exception_ptr& error) noexcept {
     return Result<void>::withError(error);
   }
-  
+
   // pragma MARK: Result<FrameScanResult>
   using Result_FrameScanResult_ = Result<FrameScanResult>;
   inline Result_FrameScanResult_ create_Result_FrameScanResult_(const FrameScanResult& value) noexcept {
@@ -117,14 +202,14 @@ namespace margelo::nitro::cardocr::bridge::swift {
   inline Result_FrameScanResult_ create_Result_FrameScanResult_(const std::exception_ptr& error) noexcept {
     return Result<FrameScanResult>::withError(error);
   }
-  
-  // pragma MARK: Result<double>
-  using Result_double_ = Result<double>;
-  inline Result_double_ create_Result_double_(double value) noexcept {
-    return Result<double>::withValue(std::move(value));
+
+  // pragma MARK: Result<std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>>>
+  using Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____ = Result<std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>>>;
+  inline Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____ create_Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____(const std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>>& value) noexcept {
+    return Result<std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>>>::withValue(value);
   }
-  inline Result_double_ create_Result_double_(const std::exception_ptr& error) noexcept {
-    return Result<double>::withError(error);
+  inline Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____ create_Result_std__shared_ptr_Promise_std__shared_ptr_ArrayBuffer____(const std::exception_ptr& error) noexcept {
+    return Result<std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>>>::withError(error);
   }
 
 } // namespace margelo::nitro::cardocr::bridge::swift

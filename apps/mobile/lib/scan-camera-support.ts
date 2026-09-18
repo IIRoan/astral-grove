@@ -8,11 +8,9 @@ export function scannerLowLightProps(supported: boolean): {
 }
 
 export function supportsNativeScanQueue(
-  module: Partial<Pick<CardOcrFrame, 'pollScan' | 'resetScan' | 'setArtIndex'>>
+  module: Partial<Pick<CardOcrFrame, 'pollScan' | 'resetScan'>>
 ): boolean {
   return (
-    typeof module.pollScan === 'function' &&
-    typeof module.resetScan === 'function' &&
-    typeof module.setArtIndex === 'function'
+    typeof module.pollScan === 'function' && typeof module.resetScan === 'function'
   );
 }

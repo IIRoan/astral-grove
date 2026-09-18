@@ -15,8 +15,6 @@ export function createFiltersRoutes(catalogMetadata: CatalogMetadataService) {
           catalogHash: meta.catalogHash,
           pricesCatalogHash: meta.pricesCatalogHash,
           variantCount: meta.variantCount,
-          artIndexHash: meta.artIndexHash,
-          artDescriptorVersion: meta.artDescriptorVersion,
         },
       });
     }

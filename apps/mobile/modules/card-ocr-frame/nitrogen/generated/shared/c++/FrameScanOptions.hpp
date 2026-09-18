@@ -39,15 +39,20 @@ namespace margelo::nitro::cardocr {
    */
   struct FrameScanOptions final {
   public:
+    std::string recognitionLevel     SWIFT_PRIVATE;
+    bool usesLanguageCorrection     SWIFT_PRIVATE;
+    double maxCandidates     SWIFT_PRIVATE;
     std::string orientation     SWIFT_PRIVATE;
+    double rectifiedWidth     SWIFT_PRIVATE;
     double regionX     SWIFT_PRIVATE;
     double regionY     SWIFT_PRIVATE;
     double regionWidth     SWIFT_PRIVATE;
     double regionHeight     SWIFT_PRIVATE;
+    bool wholeCard     SWIFT_PRIVATE;
 
   public:
     FrameScanOptions() = default;
-    explicit FrameScanOptions(std::string orientation, double regionX, double regionY, double regionWidth, double regionHeight): orientation(orientation), regionX(regionX), regionY(regionY), regionWidth(regionWidth), regionHeight(regionHeight) {}
+    explicit FrameScanOptions(std::string recognitionLevel, bool usesLanguageCorrection, double maxCandidates, std::string orientation, double rectifiedWidth, double regionX, double regionY, double regionWidth, double regionHeight, bool wholeCard): recognitionLevel(recognitionLevel), usesLanguageCorrection(usesLanguageCorrection), maxCandidates(maxCandidates), orientation(orientation), rectifiedWidth(rectifiedWidth), regionX(regionX), regionY(regionY), regionWidth(regionWidth), regionHeight(regionHeight), wholeCard(wholeCard) {}
 
   public:
     friend bool operator==(const FrameScanOptions& lhs, const FrameScanOptions& rhs) = default;
@@ -63,20 +68,30 @@ namespace margelo::nitro {
     static inline margelo::nitro::cardocr::FrameScanOptions fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
       return margelo::nitro::cardocr::FrameScanOptions(
+        JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "recognitionLevel"))),
+        JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "usesLanguageCorrection"))),
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxCandidates"))),
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "orientation"))),
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rectifiedWidth"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "regionX"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "regionY"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "regionWidth"))),
-        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "regionHeight")))
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "regionHeight"))),
+        JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "wholeCard")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::cardocr::FrameScanOptions& arg) {
       jsi::Object obj(runtime);
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "recognitionLevel"), JSIConverter<std::string>::toJSI(runtime, arg.recognitionLevel));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "usesLanguageCorrection"), JSIConverter<bool>::toJSI(runtime, arg.usesLanguageCorrection));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "maxCandidates"), JSIConverter<double>::toJSI(runtime, arg.maxCandidates));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "orientation"), JSIConverter<std::string>::toJSI(runtime, arg.orientation));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "rectifiedWidth"), JSIConverter<double>::toJSI(runtime, arg.rectifiedWidth));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "regionX"), JSIConverter<double>::toJSI(runtime, arg.regionX));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "regionY"), JSIConverter<double>::toJSI(runtime, arg.regionY));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "regionWidth"), JSIConverter<double>::toJSI(runtime, arg.regionWidth));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "regionHeight"), JSIConverter<double>::toJSI(runtime, arg.regionHeight));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "wholeCard"), JSIConverter<bool>::toJSI(runtime, arg.wholeCard));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -87,11 +102,16 @@ namespace margelo::nitro {
       if (!nitro::isPlainObject(runtime, obj)) {
         return false;
       }
+      if (!JSIConverter<std::string>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "recognitionLevel")))) return false;
+      if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "usesLanguageCorrection")))) return false;
+      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxCandidates")))) return false;
       if (!JSIConverter<std::string>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "orientation")))) return false;
+      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rectifiedWidth")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "regionX")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "regionY")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "regionWidth")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "regionHeight")))) return false;
+      if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "wholeCard")))) return false;
       return true;
     }
   };

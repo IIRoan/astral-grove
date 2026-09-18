@@ -21,8 +21,6 @@ describe('filters routes', () => {
           catalogHash: 'catalog-hash',
           pricesCatalogHash: 'prices-hash',
           variantCount: 0,
-          artIndexHash: 'art-hash',
-          artDescriptorVersion: 1,
         }),
       } as never)
     );
@@ -32,8 +30,6 @@ describe('filters routes', () => {
 
     expect(response.status).toBe(200);
     expect(body.meta.variantCount).toBe(0);
-    expect(body.meta.artIndexHash).toBe('art-hash');
-    expect(body.meta.artDescriptorVersion).toBe(1);
     expect(body.data.sets).toEqual([]);
   });
 });

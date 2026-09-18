@@ -2,7 +2,7 @@
   "name": "card-ocr-frame",
   "version": "1.0.0",
   "private": true,
-  "description": "VisionCamera frame-processor plugin recognizing cards by their artwork",
+  "description": "VisionCamera frame-processor plugin running Apple Vision text recognition",
   "main": "src/index.ts",
   "scripts": {
     "codegen": "nitrogen"

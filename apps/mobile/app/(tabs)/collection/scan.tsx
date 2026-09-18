@@ -14,12 +14,14 @@ import type { CardListItem } from '@riftbound/contracts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardArtImage } from '@/components/cards/CardArtImage';
 import { ScanCameraFrame } from '@/components/collection/ScanCameraFrame';
+import { ScanCameraPhoto } from '@/components/collection/ScanCameraPhoto';
 import { CameraIcon, XIcon } from '@/components/icons';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
 import { useCollectionMutations } from '@/hooks/useCollection';
 import { useScanSession } from '@/hooks/useScanSession';
+import { useScannerEngine } from '@/hooks/useScannerEngine';
 import { normalScanInput } from '@/lib/scan-confirmation';
 import { cn } from '@/lib/utils';
 import { openCard } from '@/utils/cardNavigation';
@@ -38,6 +40,7 @@ export default function CollectionScanRoute() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const lookup = mode === 'lookup';
   const [permission, requestPermission] = useCameraPermissions();
+  const { engine, level, loaded: engineLoaded } = useScannerEngine();
   const { addCard } = useCollectionMutations();
   const saveCard = useCallback(
     async (card: CardListItem) => {
@@ -58,7 +61,7 @@ export default function CollectionScanRoute() {
   );
   const session = useScanSession({ onConfirm: saveCard });
 
-  if (!permission) return <View className="flex-1 bg-background" />;
+  if (!permission || !engineLoaded) return <View className="flex-1 bg-background" />;
 
   if (!permission.granted) {
     return (
@@ -90,6 +93,7 @@ export default function CollectionScanRoute() {
     );
   }
 
+  const CameraSurface = engine === 'frame' ? ScanCameraFrame : ScanCameraPhoto;
   const previewWidth = Math.max(
     0,
     Math.min(width, (height - insets.top - insets.bottom - 180) * PREVIEW_ASPECT)
@@ -134,7 +138,12 @@ export default function CollectionScanRoute() {
         </View>
         <View className="min-h-0 flex-1 items-center justify-center overflow-hidden">
           <View style={{ width: previewWidth }}>
-            <ScanCameraFrame session={session} active={focused} torch={torch} />
+            <CameraSurface
+              session={session}
+              level={level}
+              active={focused}
+              torch={torch}
+            />
           </View>
         </View>
         <View className="gap-2 border-t border-border px-4 pt-4">
@@ -300,8 +309,8 @@ function PrintingPicker({
       <View className="gap-1">
         <Text className="text-xl font-semibold text-foreground">{name}</Text>
         <Text className="text-sm leading-snug text-muted-foreground">
-          {options.length.toLocaleString()} printings share this artwork — which one is
-          it?
+          Could not read the number at the bottom, and {options.length.toLocaleString()}{' '}
+          printings look like this — which one is it?
         </Text>
       </View>
 

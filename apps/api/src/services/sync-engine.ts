@@ -4,7 +4,6 @@ import { syncState } from '../db/schema.js';
 import { catalogFingerprint } from '../lib/hash.js';
 import { computeCatalogTotal } from '../lib/catalog-total.js';
 import type { PaClient } from '../upstream/pa-client.js';
-import type { CardArtIndexService } from './card-art-index.js';
 import type { CardCacheService } from './card-cache.js';
 import type { CatalogMetadataService } from './catalog-metadata.js';
 import { accumulatePrintCounts } from './catalog-probe.js';
@@ -14,25 +13,8 @@ export class SyncEngine {
     private readonly db: Database,
     private readonly pa: PaClient,
     private readonly cards: CardCacheService,
-    private readonly catalogMetadata: CatalogMetadataService,
-    private readonly artIndex: CardArtIndexService
+    private readonly catalogMetadata: CatalogMetadataService
   ) {}
-
-  /**
-   * Describe catalog artwork the scanner has no fingerprint for yet. Bounded per run:
-   * a fresh catalog means downloading every card image once, and that is allowed to
-   * take several sync runs rather than hold one open.
-   */
-  private async backfillArtFingerprints(): Promise<void> {
-    try {
-      const described = await this.artIndex.backfillMissing();
-      if (described > 0) {
-        console.log(`[sync] Described ${String(described)} card images for scanning`);
-      }
-    } catch (error) {
-      console.warn('[sync] Art fingerprint backfill skipped:', error);
-    }
-  }
 
   async syncCatalog(): Promise<{
     changed: boolean;
@@ -85,7 +67,6 @@ export class SyncEngine {
         } catch (error) {
           console.warn('[sync] Embedding backfill skipped:', error);
         }
-        await this.backfillArtFingerprints();
         return {
           changed: false,
           pages: 0,
@@ -182,7 +163,6 @@ export class SyncEngine {
       } catch (error) {
         console.warn('[sync] Embedding backfill skipped:', error);
       }
-      await this.backfillArtFingerprints();
 
       console.log(
         `[sync] Catalog sync complete: ${String(syncedCardIds.size)} logical cards, ${String(pages)} pages, ${String(syncedVariantRows)} printings`

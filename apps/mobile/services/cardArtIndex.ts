@@ -1,44 +1,53 @@
 import { File, Paths } from 'expo-file-system';
+import type { CardListItem } from '@riftbound/contracts';
 import { cardOcrFrame } from '@/modules/card-ocr-frame/src';
-import { fetchWithApiWake } from '@/lib/api-fetch';
-import { getApiUrl } from '@/lib/api-url';
+import { resolveImageUrl } from '@/utils/resolveImageUrl';
 
 /**
- * The artwork index the scanner matches camera frames against: one descriptor per
- * distinct catalog image, computed by the API and served as a single packed buffer.
+ * The artwork index the scanner matches camera frames against: one embedding per
+ * distinct catalog image, built on this device.
  *
- * The descriptor is plain arithmetic rather than a learned embedding precisely so the
- * server can compute it (see `@riftbound/contracts/card-art`), which turns what used to
- * be a ~25MB download and a long on-device embedding job into a few hundred kilobytes
- * fetched once per catalog change. The scanner cannot recognize anything without it.
+ * On-device rather than served by the API because the embedding is Apple's, and its
+ * vectors are only comparable with others from the same revision. Building here means
+ * the reference side and the camera side always come out of the same model, and a new
+ * card is one more image to embed rather than a server job to re-run.
+ *
+ * The scanner works without it — text recognition alone, as before — so the build runs
+ * alongside scanning and only ever adds accuracy.
  */
+
+/** Matches the confirm screen's art, so most of these are already cached upstream. */
+const EMBED_WIDTH = 320;
+// Reference embeddings share Vision resources with the live camera pipeline.
+const CONCURRENCY = 2;
+/** Checkpoint interval, so a build interrupted halfway resumes rather than restarts. */
+const SAVE_EVERY = 150;
+/** Progress is published in steps; per-image updates would re-render the camera. */
+const PUBLISH_EVERY = 10;
+/**
+ * A partial index is worse than none: the nearest neighbour of a card that is not in it
+ * is some other card, and a sibling printing's art would win by default. A few dead
+ * images must not block the feature forever, though, hence not 100%.
+ */
+const MIN_COVERAGE = 0.95;
 
 export type CardArtIndexState = {
   /** False on builds whose native module predates artwork matching. */
   supported: boolean;
   ready: boolean;
-  /** Printable images the installed index covers. */
-  count: number;
-  error: string | null;
-};
-
-type CachedMeta = {
-  hash: string;
-  descriptorVersion: number;
+  done: number;
+  total: number;
 };
 
 const metaFile = () => new File(Paths.cache, 'card-art-index.json');
-const indexFile = () => new File(Paths.cache, 'card-art-index.bin');
+const vectorFile = () => new File(Paths.cache, 'card-art-index.bin');
 
+const vectors = new Map<string, Float32Array>();
 const listeners = new Set<() => void>();
-let state: CardArtIndexState = {
-  supported: true,
-  ready: false,
-  count: 0,
-  error: null,
-};
-let installedHash: string | null = null;
-let running: Promise<void> | null = null;
+let state: CardArtIndexState = { supported: true, ready: false, done: 0, total: 0 };
+let loaded = false;
+let running = false;
+let installedCount = -1;
 
 function publish(next: Partial<CardArtIndexState>) {
   state = { ...state, ...next };
@@ -56,108 +65,137 @@ export function getCardArtIndexState(): CardArtIndexState {
 
 /** An OTA update can land this JS on a binary that has no artwork matching yet. */
 function isSupported(): boolean {
-  return typeof cardOcrFrame.setArtIndex === 'function';
+  return (
+    typeof cardOcrFrame.embedImage === 'function' &&
+    typeof cardOcrFrame.setIndex === 'function'
+  );
 }
 
-async function readCache(
-  version: number
-): Promise<{ hash: string; bytes: Uint8Array } | null> {
+/** Row-major float32, in `keys` order — the layout the native side searches. */
+function pack(keys: readonly string[]): Float32Array {
+  const dimension = vectors.get(keys[0] ?? '')?.length ?? 0;
+  const packed = new Float32Array(keys.length * dimension);
+  keys.forEach((key, row) => packed.set(vectors.get(key)!, row * dimension));
+  return packed;
+}
+
+async function load(version: string) {
   try {
     const meta = metaFile();
-    const data = indexFile();
-    if (!meta.exists || !data.exists) return null;
-    const cached = JSON.parse(await meta.text()) as CachedMeta;
-    if (cached.descriptorVersion !== version || !cached.hash) return null;
-    return { hash: cached.hash, bytes: await data.bytes() };
+    const data = vectorFile();
+    if (!meta.exists || !data.exists) return;
+
+    const {
+      version: storedVersion,
+      dimension,
+      keys,
+    } = JSON.parse(await meta.text()) as {
+      version: string;
+      dimension: number;
+      keys: string[];
+    };
+    const bytes = await data.bytes();
+    // A different embedding revision, or a write that was cut short: start over.
+    if (storedVersion !== version || bytes.byteLength !== keys.length * dimension * 4) {
+      return;
+    }
+
+    // Copied out so the floats are aligned whatever offset the file bytes arrived at.
+    const floats = new Float32Array(keys.length * dimension);
+    new Uint8Array(floats.buffer).set(bytes);
+    keys.forEach((key, row) =>
+      vectors.set(key, floats.subarray(row * dimension, (row + 1) * dimension))
+    );
   } catch {
-    // An unreadable cache is just an absent one.
-    return null;
+    // An unreadable cache is just an empty one.
   }
 }
 
-function writeCache(meta: CachedMeta, bytes: Uint8Array) {
+function save(version: string) {
   try {
-    const data = indexFile();
-    const info = metaFile();
+    const keys = [...vectors.keys()];
+    if (keys.length === 0) return;
+    const packed = pack(keys);
+    const data = vectorFile();
+    const meta = metaFile();
     if (!data.exists) data.create();
-    if (!info.exists) info.create();
-    // Bytes first: the meta is what claims they are complete.
-    data.write(bytes);
-    info.write(JSON.stringify(meta));
+    if (!meta.exists) meta.create();
+    // Vectors first: `load` checks their size against the keys written after them.
+    data.write(new Uint8Array(packed.buffer));
+    meta.write(
+      JSON.stringify({ version, dimension: packed.length / keys.length, keys })
+    );
   } catch {
-    // Not being able to cache only costs a download next time.
+    // Not being able to cache only costs a rebuild next time.
   }
-}
-
-/** Install a packed index, and report how much of the catalog it actually covers. */
-function install(hash: string, bytes: Uint8Array): boolean {
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  const count = cardOcrFrame.setArtIndex(copy.buffer);
-  if (count <= 0) return false;
-  installedHash = hash;
-  publish({ ready: true, count, error: null });
-  return true;
-}
-
-async function download(
-  version: number
-): Promise<{ hash: string; bytes: Uint8Array } | null> {
-  const res = await fetchWithApiWake(`${getApiUrl()}/api/v1/cards/art-index`, {
-    headers: { Accept: 'application/octet-stream' },
-  });
-  if (!res.ok) throw new Error(`Card index request failed (${String(res.status)})`);
-
-  const served = Number(res.headers.get('x-art-descriptor-version'));
-  // A descriptor the binary cannot compute is not comparable with what the camera sees.
-  if (served !== version) return null;
-
-  const hash = (res.headers.get('etag') ?? '').replace(/"/g, '');
-  return { hash, bytes: new Uint8Array(await res.arrayBuffer()) };
 }
 
 /**
- * Make sure the installed index matches `hash`, fetching and caching it if not.
+ * Bring the index up to date with the catalog and install it. Cheap to call again:
+ * only images that have no vector yet are fetched, so a catalog sync costs a handful of
+ * downloads and a failed image is simply retried on the next call.
  *
- * `hash` is the `artIndexHash` from the catalog meta; pass undefined when it is not
- * known yet and the served index is taken as current. Cheap to call again: a matching
- * hash returns without touching the filesystem or the network.
+ * ponytail: runs to completion once started, even if the scanner closes (~25MB, once).
+ * Make it cancellable if that download ever shows up as a complaint.
  */
-export async function ensureCardArtIndex(hash: string | undefined): Promise<void> {
+export async function ensureCardArtIndex(
+  items: readonly CardListItem[]
+): Promise<void> {
+  if (running || items.length === 0) return;
   if (!isSupported()) {
-    publish({ supported: false, ready: false, error: null });
+    publish({ supported: false });
     return;
   }
-  if (installedHash !== null && (hash === undefined || hash === installedHash)) return;
-  if (running) return running;
 
-  running = (async () => {
-    const version = cardOcrFrame.descriptorVersion;
-    try {
-      const cached = await readCache(version);
-      if (cached && (hash === undefined || cached.hash === hash)) {
-        if (install(cached.hash, cached.bytes)) return;
-      }
-
-      const fetched = await download(version);
-      if (!fetched) {
-        publish({ error: 'This app version cannot read the current card index.' });
-        return;
-      }
-      if (!install(fetched.hash, fetched.bytes)) {
-        publish({ error: 'The card index could not be read.' });
-        return;
-      }
-      writeCache({ hash: fetched.hash, descriptorVersion: version }, fetched.bytes);
-    } catch {
-      // Keep whatever is already installed; a stale index still recognizes most cards.
-      publish({ error: state.ready ? null : 'Could not download the card index.' });
+  running = true;
+  try {
+    const version = cardOcrFrame.embeddingVersion;
+    if (!loaded) {
+      await load(version);
+      loaded = true;
     }
-    // Cleared in a callback rather than a `finally`: the body can settle before the
-    // assignment above, and a stale promise here would swallow the next hash change.
-  })().finally(() => {
-    running = null;
-  });
 
-  return running;
+    const wanted = new Set(items.flatMap((card) => card.imageUrl ?? []));
+    const missing = [...wanted].filter((key) => !vectors.has(key));
+    const alreadyDone = wanted.size - missing.length;
+    publish({ done: alreadyDone, total: wanted.size });
+
+    let dimension = vectors.values().next().value?.length ?? 0;
+    let embedded = 0;
+    const queue = [...missing];
+    const worker = async () => {
+      for (let key = queue.shift(); key !== undefined; key = queue.shift()) {
+        try {
+          const vector = new Float32Array(
+            await cardOcrFrame.embedImage(resolveImageUrl(key, { width: EMBED_WIDTH }))
+          );
+          dimension ||= vector.length;
+          if (vector.length !== dimension) continue;
+          vectors.set(key, vector);
+          embedded += 1;
+          if (embedded % SAVE_EVERY === 0) save(version);
+          if (embedded % PUBLISH_EVERY === 0) {
+            publish({ done: alreadyDone + embedded });
+          }
+        } catch {
+          // Offline or a bad image: left missing, and retried on the next call.
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+
+    // Only what the catalog still lists: a withdrawn image should stop matching.
+    for (const key of [...vectors.keys()]) if (!wanted.has(key)) vectors.delete(key);
+    if (embedded > 0) save(version);
+
+    const keys = [...vectors.keys()];
+    const covered = keys.length >= wanted.size * MIN_COVERAGE;
+    if (covered && (embedded > 0 || installedCount !== keys.length)) {
+      cardOcrFrame.setIndex(keys, pack(keys).buffer as ArrayBuffer);
+      installedCount = keys.length;
+    }
+    publish({ ready: covered, done: keys.length, total: wanted.size });
+  } finally {
+    running = false;
+  }
 }

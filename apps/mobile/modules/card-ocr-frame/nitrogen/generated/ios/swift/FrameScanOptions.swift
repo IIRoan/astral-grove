@@ -18,13 +18,33 @@ public extension FrameScanOptions {
   /**
    * Create a new instance of `FrameScanOptions`.
    */
-  init(orientation: String, regionX: Double, regionY: Double, regionWidth: Double, regionHeight: Double) {
-    self.init(std.string(orientation), regionX, regionY, regionWidth, regionHeight)
+  init(recognitionLevel: String, usesLanguageCorrection: Bool, maxCandidates: Double, orientation: String, rectifiedWidth: Double, regionX: Double, regionY: Double, regionWidth: Double, regionHeight: Double, wholeCard: Bool) {
+    self.init(std.string(recognitionLevel), usesLanguageCorrection, maxCandidates, std.string(orientation), rectifiedWidth, regionX, regionY, regionWidth, regionHeight, wholeCard)
   }
 
   @inline(__always)
+  var recognitionLevel: String {
+    return String(self.__recognitionLevel)
+  }
+  
+  @inline(__always)
+  var usesLanguageCorrection: Bool {
+    return self.__usesLanguageCorrection
+  }
+  
+  @inline(__always)
+  var maxCandidates: Double {
+    return self.__maxCandidates
+  }
+  
+  @inline(__always)
   var orientation: String {
     return String(self.__orientation)
+  }
+  
+  @inline(__always)
+  var rectifiedWidth: Double {
+    return self.__rectifiedWidth
   }
   
   @inline(__always)
@@ -45,5 +65,10 @@ public extension FrameScanOptions {
   @inline(__always)
   var regionHeight: Double {
     return self.__regionHeight
+  }
+  
+  @inline(__always)
+  var wholeCard: Bool {
+    return self.__wholeCard
   }
 }

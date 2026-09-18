@@ -14,8 +14,8 @@ namespace CardOcrFrame { class HybridCardOcrFrameSpec_cxx; }
 
 // Forward declaration of `FrameScanResult` to properly resolve imports.
 namespace margelo::nitro::cardocr { struct FrameScanResult; }
-// Forward declaration of `CardMatch` to properly resolve imports.
-namespace margelo::nitro::cardocr { struct CardMatch; }
+// Forward declaration of `ImageMatch` to properly resolve imports.
+namespace margelo::nitro::cardocr { struct ImageMatch; }
 // Forward declaration of `HybridFrameSpec` to properly resolve imports.
 namespace margelo::nitro::camera { class HybridFrameSpec; }
 // Forward declaration of `FrameScanOptions` to properly resolve imports.
@@ -23,15 +23,16 @@ namespace margelo::nitro::cardocr { struct FrameScanOptions; }
 // Forward declaration of `ArrayBufferHolder` to properly resolve imports.
 namespace NitroModules { class ArrayBufferHolder; }
 
+#include <string>
 #include "FrameScanResult.hpp"
 #include <optional>
-#include "CardMatch.hpp"
 #include <vector>
-#include <string>
+#include "ImageMatch.hpp"
 #include <memory>
 #include <VisionCamera/HybridFrameSpec.hpp>
 #include "FrameScanOptions.hpp"
 #include <NitroModules/ArrayBuffer.hpp>
+#include <NitroModules/Promise.hpp>
 #include <NitroModules/ArrayBufferHolder.hpp>
 
 #include "CardOcrFrame-Swift-Cxx-Umbrella.hpp"
@@ -80,8 +81,9 @@ namespace margelo::nitro::cardocr {
 
   public:
     // Properties
-    inline double getDescriptorVersion() noexcept override {
-      return _swiftPart.getDescriptorVersion();
+    inline std::string getEmbeddingVersion() noexcept override {
+      auto __result = _swiftPart.getEmbeddingVersion();
+      return __result;
     }
 
   public:
@@ -108,13 +110,19 @@ namespace margelo::nitro::cardocr {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline double setArtIndex(const std::shared_ptr<ArrayBuffer>& index) override {
-      auto __result = _swiftPart.setArtIndex(ArrayBufferHolder(index));
+    inline std::shared_ptr<Promise<std::shared_ptr<ArrayBuffer>>> embedImage(const std::string& url) override {
+      auto __result = _swiftPart.embedImage(url);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }
       auto __value = std::move(__result.value());
       return __value;
+    }
+    inline void setIndex(const std::vector<std::string>& keys, const std::shared_ptr<ArrayBuffer>& vectors) override {
+      auto __result = _swiftPart.setIndex(keys, ArrayBufferHolder(vectors));
+      if (__result.hasError()) [[unlikely]] {
+        std::rethrow_exception(__result.error());
+      }
     }
 
   private:
