@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { ScanGuideOverlay } from '@/components/collection/ScanGuideOverlay';
 import { Text } from '@/components/ui/text';
+import { useCardArtIndex } from '@/hooks/useCardArtIndex';
 import { useCardScannerFrame } from '@/hooks/useCardScannerFrame';
 import type { ScanSession } from '@/hooks/useScanSession';
 import type { ScannerRecognitionLevel } from '@/hooks/useScannerEngine';
@@ -37,11 +38,17 @@ function NativeScanCameraFrame({
   torch,
 }: ScanCameraFrameProps) {
   const device = useCameraDevice('back');
-  const { frameOutput, cardDetected, scanDebug, scanError } = useCardScannerFrame(
+  const { frameOutput, cardDetected, artDebug, scanError } = useCardScannerFrame(
     session,
     level,
     active && !session.pending
   );
+  const artIndex = useCardArtIndex(session.items);
+  // Scanning already works on text alone, so this is progress, not a blocker.
+  const learning =
+    artIndex.supported && !artIndex.ready && artIndex.total > 0
+      ? ` · learning card art ${artIndex.done.toLocaleString()}/${artIndex.total.toLocaleString()}`
+      : '';
 
   if (!device) {
     return (
@@ -68,7 +75,6 @@ function NativeScanCameraFrame({
         torchMode={active && torch && device.hasTorch ? 'on' : 'off'}
         isActive={active}
         resizeMode="cover"
-        enableNativeTapToFocusGesture
       />
       <ScanGuideOverlay
         locked={cardDetected}
@@ -80,8 +86,8 @@ function NativeScanCameraFrame({
               : session.justAdded
                 ? `Added ${session.justAdded} — next card`
                 : cardDetected
-                  ? `Reading bottom code${scanDebug ? ` · ${scanDebug}` : ''}`
-                  : 'Keep the bottom code inside the guide — tap to focus'
+                  ? `Card found — reading it${artDebug ? ` · ${artDebug}` : ''}`
+                  : `Hold the card inside the guide${learning}`
         }
       />
     </View>

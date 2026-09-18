@@ -47,17 +47,6 @@ jobs:
             -o "$RUNNER_TEMP/scan-worker-tests"
           "$RUNNER_TEMP/scan-worker-tests"
 
-      - name: Test native footer recognition
-        run: |
-          swiftc -target "$(uname -m)-apple-macosx14.0" \
-            apps/mobile/modules/card-ocr-frame/ios/FooterScanPlan.swift \
-            apps/mobile/modules/card-ocr-frame/ios/CardImageProcessing.swift \
-            apps/mobile/modules/card-ocr-frame/ios/CardTextRecognizer.swift \
-            apps/mobile/modules/card-ocr-frame/ios/CardCollectorPipeline.swift \
-            apps/mobile/modules/card-ocr-frame/test/FooterRecognitionTests.swift \
-            -o "$RUNNER_TEMP/footer-recognition-tests"
-          "$RUNNER_TEMP/footer-recognition-tests"
-
       - uses: expo/expo-github-action@v8
         with:
           # The upload adapter is tested against this CLI's local-build metadata API.

@@ -157,7 +157,6 @@ export function parseScannedCardCode(
     )
   );
 
-  const found = new Set<string>();
   for (const reading of [...readings, ...corrected]) {
     PRINTED_CODE.lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -173,11 +172,11 @@ export function parseScannedCardCode(
       const suffix = match[4] ? match[4].toLowerCase() : '';
 
       const variantNumber = `${setCode}-${series}${number}${suffix}`;
-      if (isKnown(variantNumber)) found.add(variantNumber);
+      if (isKnown(variantNumber)) return variantNumber;
     }
   }
 
-  return found.size === 1 ? [...found][0]! : null;
+  return null;
 }
 
 /**
@@ -445,16 +444,4 @@ export function decideScan<T extends ScanCard>(
   const sameArt = art ? (catalog.byImage.get(art) ?? []) : [];
   if (!art || sameArt.length === 0) return null;
   return { kind: 'hold', key: art, name: sameArt[0]!.name, options: sameArt };
-}
-
-/** Camera scans require a catalog collector code; names and artwork never invent one. */
-export function decideCollectorScan<T extends ScanCard>(
-  catalog: ScanCatalog<T>,
-  footerLines: readonly OcrLine[]
-): ScanDecision<T> {
-  const code = parseScannedCardCode(footerLines, catalog.setCodes, (value) =>
-    catalog.byVariantNumber.has(value.toUpperCase())
-  );
-  const card = code ? catalog.byVariantNumber.get(code.toUpperCase()) : undefined;
-  return card ? { kind: 'card', card, via: 'code', sure: false } : null;
 }

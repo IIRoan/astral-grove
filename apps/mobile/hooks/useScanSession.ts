@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   buildScanCatalog,
-  decideCollectorScan,
+  decideScan,
   type CardListItem,
+  type ImageMatch,
   type MatchKind,
   type OcrLine,
 } from '@riftbound/contracts';
@@ -59,11 +60,16 @@ export function useScanSession({
   }, []);
 
   /**
-   * Turn one frame's evidence into an outcome. `decideCollectorScan` does the judging; this adds
+   * Turn one frame's evidence into an outcome. `decideScan` does the judging; this adds
    * what needs memory between frames — patience, and not re-offering an answered card.
    */
   const resolve = useCallback(
-    (lines: readonly OcrLine[]): ScanOutcome | null => {
+    (
+      lines: readonly OcrLine[],
+      matches: readonly ImageMatch[] = [],
+      /** False when only the collector strip was read, so no name could be. */
+      wholeCard = true
+    ): ScanOutcome | null => {
       if (confirmation.getSnapshot().pending || catalog.byVariantNumber.size === 0)
         return null;
 
@@ -78,7 +84,7 @@ export function useScanSession({
       };
 
       const decision = stability.record(
-        decideCollectorScan(catalog, lines),
+        decideScan(catalog, lines, matches, wholeCard),
         Date.now()
       );
       if (!decision) return null;

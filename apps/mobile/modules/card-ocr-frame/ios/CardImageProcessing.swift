@@ -44,23 +44,13 @@ func cropGuide(_ image: CIImage, region: CGRect, width: CGFloat) -> CIImage? {
 }
 
 /** Locate the most prominent card-shaped quadrilateral, if there is one. */
-func detectCard(in image: CIImage, useDocumentSegmentation: Bool = false) -> VNRectangleObservation? {
-  if useDocumentSegmentation {
-    let document = VNDetectDocumentSegmentationRequest()
-    let handler = VNImageRequestHandler(ciImage: image, options: [.ciContext: ciContext])
-    try? handler.perform([document])
-    if let candidate = (document.results as? [VNRectangleObservation])?.first,
-      candidate.confidence >= 0.6,
-      candidate.boundingBox.width * candidate.boundingBox.height >= 0.3 {
-      return candidate
-    }
-  }
+func detectCard(in image: CIImage) -> VNRectangleObservation? {
   let request = VNDetectRectanglesRequest()
   request.minimumAspectRatio = minCardAspect
   request.maximumAspectRatio = maxCardAspect
   // A card held up to scan fills a good part of the frame; this rejects background
   // rectangles like table edges and screens.
-  request.minimumSize = 0.5
+  request.minimumSize = 0.2
   request.minimumConfidence = 0.6
   // Cards have rounded corners and are held by hand, so allow some deviation.
   request.quadratureTolerance = 30

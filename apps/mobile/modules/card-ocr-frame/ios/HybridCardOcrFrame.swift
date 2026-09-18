@@ -5,9 +5,13 @@ import NitroModules
 import Vision
 import VisionCamera
 
+// Bridge camera buffers to Vision; image processing, artwork matching and OCR live separately.
+private func milliseconds(since start: CFAbsoluteTime) -> Double {
+  (CFAbsoluteTimeGetCurrent() - start) * 1000
+}
+
 final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
   private let worker = ScanWorker<FrameScanResult>()
-  private let collector = CardCollectorPipeline()
 
   func resetScan() throws {
     worker.reset()
@@ -73,12 +77,60 @@ final class HybridCardOcrFrame: HybridCardOcrFrameSpec {
   }
 
   private func recognizeFrame(pixelBuffer: CVPixelBuffer, options: FrameScanOptions) throws -> FrameScanResult {
-    let result = try collector.read(
-      pixelBuffer: pixelBuffer, orientation: options.orientation,
-      guide: CGRect(x: options.regionX, y: options.regionY,
-                    width: options.regionWidth, height: options.regionHeight))
-    return FrameScanResult(lines: result.lines, cardDetected: result.detected,
-                           matches: [], wholeCard: false, locateMs: result.locateMs,
-                           matchMs: 0, readMs: result.readMs)
+    // Frames arrive continuously; without the pool every intermediate Vision and
+    // CoreImage allocation would be held until the thread's run loop drains.
+    return try autoreleasepool { () throws -> FrameScanResult in
+      // Bake the rotation in once, so every step below works in upright coordinates.
+      let oriented = CIImage(cvPixelBuffer: pixelBuffer)
+        .oriented(cgOrientation(from: options.orientation))
+
+      var clock = CFAbsoluteTimeGetCurrent()
+      let card = detectCard(in: oriented)
+        ?? (options.wholeCard ? detectCard(in: enhancedTextImage(oriented)) : nil)
+      let rectified = card.flatMap {
+        rectify(oriented, to: $0, width: CGFloat(options.rectifiedWidth))
+      }
+      let locateMs = milliseconds(since: clock)
+
+      let region = CGRect(
+        x: options.regionX, y: options.regionY,
+        width: options.regionWidth, height: options.regionHeight)
+      // When edges disappear into a dark table, the full guide still contains useful art.
+      let guide = options.wholeCard
+        ? cropGuide(oriented, region: region, width: CGFloat(options.rectifiedWidth)) : nil
+      guard var reading = rectified ?? guide else {
+        clock = CFAbsoluteTimeGetCurrent()
+        let hasRegion = options.regionWidth > 0 && options.regionHeight > 0
+        let lines = try readText(
+          in: oriented, region: hasRegion ? region : nil, options: options)
+        return FrameScanResult(
+          lines: lines, cardDetected: false, matches: [], wholeCard: options.wholeCard,
+          locateMs: locateMs, matchMs: 0, readMs: milliseconds(since: clock))
+      }
+
+      // Recognize before reading: the artwork is also the only thing that can say the
+      // card is upside down, and text is only legible the right way up. A landscape
+      // card is left as it lies — its reference art is sideways, its print is not.
+      clock = CFAbsoluteTimeGetCurrent()
+      var matches: [ImageMatch] = []
+      if let index = currentIndex() {
+        let recognized = recognize(reading, in: index)
+        matches = recognized.matches
+        if recognized.turned, reading.extent.width <= reading.extent.height {
+          reading = reading.oriented(.down)
+        }
+      }
+      let matchMs = milliseconds(since: clock)
+
+      // The collector strip first: it is a fraction of a whole-card pass, and once the
+      // artwork is recognized the code is all that is left to learn. The rest of the
+      // card is only read when the strip shows no code, or the caller wants the name.
+      clock = CFAbsoluteTimeGetCurrent()
+      let text = try readCardText(in: reading, options: options)
+
+      return FrameScanResult(
+        lines: text.lines, cardDetected: rectified != nil, matches: matches, wholeCard: text.wholeCard,
+        locateMs: locateMs, matchMs: matchMs, readMs: milliseconds(since: clock))
+    }
   }
 }
