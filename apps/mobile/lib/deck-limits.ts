@@ -1,5 +1,5 @@
 import { getDeckRules } from '@riftbound/contracts';
-import { getSectionCount } from '@/lib/deck-card';
+import { getSectionCount } from '@/lib/deck-counts';
 import type { DeckState } from '@/lib/deck-types';
 
 export const BATTLEFIELD_MAX = 3;

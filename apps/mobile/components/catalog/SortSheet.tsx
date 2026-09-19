@@ -90,11 +90,13 @@ export function SortTrigger({
   compact = false,
   mobile = false,
   iconOnly = false,
+  open = false,
 }: {
   activeSort: CatalogSort;
   onPress: () => void;
   compact?: boolean;
   mobile?: boolean;
+  open?: boolean;
   /** Desktop icon-only (narrow toolbar); mobile is always icon-only. */
   iconOnly?: boolean;
 }) {
@@ -112,6 +114,7 @@ export function SortTrigger({
       active={active}
       label={label}
       mobile={mobile}
+      open={open}
       className={iconOnly && !mobile ? 'size-10' : undefined}
       badge={hideLabel && active ? <CatalogToolbarBadgeDot /> : undefined}
     />

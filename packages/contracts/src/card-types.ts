@@ -22,9 +22,19 @@ export function parseCardTypeFilters(typesQuery: string): string[] {
 }
 
 /** types= match via exact token overlap (mirrors Postgres string_to_array && ARRAY). */
-export function cardTypeMatchesFilters(type: string, filters: readonly string[]): boolean {
+export function cardTypeMatchesFilters(
+  type: string,
+  filters: readonly string[]
+): boolean {
   if (filters.length === 0) return true;
   const normalized = filters.map((value) => value.trim().toLowerCase()).filter(Boolean);
   if (normalized.length === 0) return true;
   return cardHasAnyType(type, normalized);
+}
+
+/** Legends and Battlefields store energy 0 but have no cost — keep them out of cost sort/filter. */
+export const NO_COST_CARD_TYPES = ['legend', 'battlefield'] as const;
+
+export function cardHasCost(type: string): boolean {
+  return !cardHasAnyType(type, NO_COST_CARD_TYPES);
 }

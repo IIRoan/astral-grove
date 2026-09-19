@@ -13,11 +13,10 @@ mock.module('@/services/deckService', () => ({
   listDecks,
 }));
 
-const {
-  clearPersistedOwnedDecks,
-  persistOwnedDecks,
-} = await import('./deckCacheService');
-const { hydrateOwnedDecksCache, prefetchOwnedDecks } = await import('./ownedDecksCache');
+const { clearPersistedOwnedDecks, persistOwnedDecks } =
+  await import('./deckCacheService');
+const { hydrateOwnedDecksCache, prefetchOwnedDecks } =
+  await import('./ownedDecksCache');
 
 beforeEach(async () => {
   memoryStorage.clear();
@@ -62,7 +61,9 @@ describe('ownedDecksCache', () => {
 
     const list = client.getQueryData(deckQueryKeys.list('owned'));
     expect(list?.map((deck) => deck.id)).toEqual([kept.id]);
-    expect(client.getQueryData(deckQueryKeys.detail(deletedElsewhere.id))).toBeUndefined();
+    expect(
+      client.getQueryData(deckQueryKeys.detail(deletedElsewhere.id))
+    ).toBeUndefined();
   });
 
   test('prefetchOwnedDecks fetches even when an in-memory list looks fresh', async () => {
@@ -106,8 +107,8 @@ describe('ownedDecksCache', () => {
     listDecks.mockImplementation(async () => [summary]);
     await prefetchOwnedDecks(client);
 
-    expect(client.getQueryData(deckQueryKeys.detail(detailed.id))?.versions).toHaveLength(
-      2
-    );
+    expect(
+      client.getQueryData(deckQueryKeys.detail(detailed.id))?.versions
+    ).toHaveLength(2);
   });
 });

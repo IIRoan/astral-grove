@@ -20,7 +20,10 @@ export function computeTrend(
   return { changePercent, trend: 'flat' };
 }
 
-export function formatTrendLabel(changePercent: number | null, trend: PriceTrend): string {
+export function formatTrendLabel(
+  changePercent: number | null,
+  trend: PriceTrend
+): string {
   if (changePercent == null || trend === 'flat') return 'Flat';
   return changePercent > 0 ? `+${String(changePercent)}%` : `${String(changePercent)}%`;
 }

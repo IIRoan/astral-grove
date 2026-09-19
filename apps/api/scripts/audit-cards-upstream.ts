@@ -351,7 +351,7 @@ async function listAllUpstreamVariantNumbers(pa: PaClient): Promise<string[]> {
   let page = 1;
   const limit = 100;
 
-  for (; ;) {
+  for (;;) {
     const res = await pa.listCards({ limit, page });
     for (const item of res.data) {
       variantNumbers.push(item.variantNumber);
@@ -481,8 +481,8 @@ async function main() {
         (scoped
           ? card.variantNumbers[0]
           : card.variantNumbers.find((vn) =>
-            upstreamVariantSet.has(vn.toUpperCase())
-          )) ?? card.variantNumbers[0];
+              upstreamVariantSet.has(vn.toUpperCase())
+            )) ?? card.variantNumbers[0];
       if (!probeVariant) {
         console.warn(`[audit] Local card ${card.id} (${card.name}) has no variants`);
         continue;

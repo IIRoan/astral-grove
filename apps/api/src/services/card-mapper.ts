@@ -14,10 +14,7 @@ import type { PaLogicalCard, PaPriceRow, PaVariant } from '@riftbound/contracts'
 import { entityHash } from '../lib/hash.js';
 import { resolveCardmarketIdFromMap } from '../lib/variant-cardmarket.js';
 
-export {
-  getSearchGroupKey,
-  groupCardListItems,
-} from '@riftbound/contracts';
+export { getSearchGroupKey, groupCardListItems } from '@riftbound/contracts';
 
 function parseDecimal(value: string | null | undefined): number | null {
   if (value === null || value === undefined || value === '') return null;

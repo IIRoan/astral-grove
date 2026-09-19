@@ -17,19 +17,20 @@
     "db:studio": "drizzle-kit studio",
     "sync:prices": "bun scripts/sync-cardmarket-prices.ts",
     "audit:cards": "bun scripts/audit-cards-upstream.ts",
-    "test": "bun scripts/run-tests.ts",
-    "test:unit": "bun test test/unit --coverage",
-    "test:coverage": "bun test test/unit test/e2e --coverage --preload ./test/e2e/preload.ts --max-concurrency=1"
+    "test": "bun run test:unit && bun run test:e2e",
+    "test:unit": "bun test test/unit",
+    "test:coverage": "bun test test/unit test/e2e --coverage --preload ./test/e2e/preload.ts --max-concurrency=1",
+    "test:e2e": "bun test --preload ./test/e2e/preload.ts --max-concurrency=1 test/e2e"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.23",
     "@better-auth/expo": "^1.6.23",
     "@elysia/compress": "2.0.0-beta.2",
-    "@elysia/cors": "next",
+    "@elysia/cors": "2.0.0-beta.1",
     "@riftbound/contracts": "workspace:*",
     "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",
-    "elysia": "next",
+    "elysia": "2.0.0-beta.14",
     "postgres": "^3.4.7",
     "sharp": "^0.35.4",
     "zod": "^3.25.51"
@@ -38,6 +39,6 @@
     "@riftbound/typescript-config": "workspace:*",
     "@types/bun": "^1.2.15",
     "drizzle-kit": "^0.31.10",
-    "typescript": "^7.0.2"
+    "typescript": "6.0.3"
   }
 }

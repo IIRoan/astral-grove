@@ -64,7 +64,11 @@ describe('CollectionService.quantitiesForVariants', () => {
       select: () => ({
         from: () => ({
           where: async () => [
-            { variantNumber: 'OGN-001', quantity: '4' as unknown as number, isFoil: false },
+            {
+              variantNumber: 'OGN-001',
+              quantity: '4' as unknown as number,
+              isFoil: false,
+            },
             { variantNumber: 'OGN-002', quantity: -2, isFoil: false },
           ],
         }),
@@ -73,7 +77,9 @@ describe('CollectionService.quantitiesForVariants', () => {
 
     const service = new CollectionService(db, {} as never, {} as never, {} as never);
 
-    expect(await service.quantitiesForVariants('collection-1', ['OGN-001', 'OGN-002'])).toEqual([
+    expect(
+      await service.quantitiesForVariants('collection-1', ['OGN-001', 'OGN-002'])
+    ).toEqual([
       { variantNumber: 'OGN-001', isFoil: false, quantity: 4 },
       { variantNumber: 'OGN-002', isFoil: false, quantity: 0 },
     ]);

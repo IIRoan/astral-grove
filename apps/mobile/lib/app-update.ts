@@ -1,10 +1,5 @@
 export type AppUpdatePhase =
-  | 'idle'
-  | 'available'
-  | 'downloading'
-  | 'ready'
-  | 'restarting'
-  | 'error';
+  'idle' | 'available' | 'downloading' | 'ready' | 'restarting' | 'error';
 
 export type AppUpdateSnapshot = {
   enabled: boolean;

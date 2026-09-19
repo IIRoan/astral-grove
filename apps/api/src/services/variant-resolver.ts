@@ -16,7 +16,7 @@ export class VariantResolver {
     private readonly db: Database,
     private readonly cardCache: CardCacheService,
     private readonly pa: PaClient
-  ) { }
+  ) {}
 
   private addToLookup(lookup: Map<string, string>, variantNumber: string): void {
     lookup.set(variantNumber.toLowerCase(), variantNumber);

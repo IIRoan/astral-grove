@@ -9,7 +9,7 @@ import {
 import { CatalogDesktopFilterBar } from '@/components/catalog/CatalogDesktopFilterBar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppLoader, AppLoadingScreen } from '@/components/ui/app-loader';
-import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
+import { ListSpacer } from '@/components/ui/list-spacer';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
@@ -451,7 +451,7 @@ function DeckAddCatalogBrowse({
             <AppLoader size="sm" />
           </View>
         ) : null}
-        <ListBottomSpacer height={paddingBottomInline} />
+        <ListSpacer height={paddingBottomInline} />
       </>
     ),
     [catalog.isFetchingNextPage, paddingBottomInline]
@@ -491,6 +491,7 @@ function DeckAddCatalogBrowse({
               onPress={() => setFilterSheetOpen(true)}
               compact
               mobile
+              open={filterSheetOpen}
             />
           ) : null}
         </View>

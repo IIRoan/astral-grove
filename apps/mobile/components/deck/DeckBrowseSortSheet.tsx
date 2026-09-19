@@ -89,10 +89,12 @@ export function DeckBrowseSortTrigger({
   activeSort,
   onPress,
   iconOnly = false,
+  open = false,
 }: {
   activeSort: DeckBrowseSort;
   onPress: () => void;
   iconOnly?: boolean;
+  open?: boolean;
 }) {
   const label = findDeckBrowseSortOption(activeSort).label;
 
@@ -103,6 +105,7 @@ export function DeckBrowseSortTrigger({
       accessibilityLabel={iconOnly ? `Sort by ${label}` : 'Open sort options'}
       label={iconOnly ? undefined : label}
       mobile
+      open={open}
     />
   );
 }

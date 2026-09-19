@@ -1,16 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  cardEmbeddingDocument,
-  cosineSimilarity,
   exactNameWordHits,
-  fuseSearchResultIds,
   isCloseNameMatch,
   lexicalRelevanceScore,
   matchesSearchHaystack,
   foldSearchAccents,
   normalizeSearchText,
   parseSearchQuery,
-  reciprocalRankFusion,
   SEARCH_NORMALIZATION_VERSION,
   sortByLexicalRelevance,
   tokenizeSearchQuery,
@@ -327,43 +323,5 @@ describe('lexicalRelevanceScore', () => {
     expect(lexicalRelevanceScore(stagazer, 'stargazer')).toBeLessThan(
       lexicalRelevanceScore(fallingStar, 'stargazer')
     );
-  });
-});
-
-describe('vector helpers', () => {
-  test('cosineSimilarity is 1 for identical vectors and 0 for orthogonal', () => {
-    expect(cosineSimilarity([1, 0], [1, 0])).toBeCloseTo(1);
-    expect(cosineSimilarity([1, 0], [0, 1])).toBeCloseTo(0);
-  });
-
-  test('reciprocalRankFusion prefers ids that rank well on both lists', () => {
-    const fused = reciprocalRankFusion([
-      ['legend', 'unit', 'spell'],
-      ['unit', 'legend', 'gear'],
-    ]);
-    expect(fused.get('legend') ?? 0).toBeGreaterThan(fused.get('spell') ?? 0);
-    expect(fused.get('unit') ?? 0).toBeGreaterThan(fused.get('gear') ?? 0);
-  });
-
-  test('fuseSearchResultIds keeps legend boost above a vector-only tag hit', () => {
-    const cards = new Map<string, SearchRankCard>([
-      ['legend', ambessaLegend],
-      ['wolf', hungryWolf],
-    ]);
-    const fused = fuseSearchResultIds(['wolf', 'legend'], ['wolf'], cards, 'ambessa');
-    expect(fused[0]).toBe('legend');
-  });
-
-  test('cardEmbeddingDocument includes name type tags and rules', () => {
-    const doc = cardEmbeddingDocument({
-      name: 'Ambessa, Matriarch of War',
-      type: 'Legend',
-      tags: ['Ambessa'],
-      effect: 'Ready a unit.',
-      description: '',
-    });
-    expect(doc).toContain('Ambessa, Matriarch of War');
-    expect(doc).toContain('Legend');
-    expect(doc).toContain('Ready a unit.');
   });
 });

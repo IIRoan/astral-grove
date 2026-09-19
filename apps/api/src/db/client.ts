@@ -3,7 +3,6 @@ import postgres from 'postgres';
 import type { Options } from 'postgres';
 import type { Env } from '../env.js';
 import * as authSchema from './auth-schema.js';
-import { withPostgresRetry } from './postgres-retry.js';
 import * as schema from './schema.js';
 
 const fullSchema = { ...authSchema, ...schema };
@@ -39,9 +38,7 @@ export function createPostgresOptions(env: Env): Options<Record<string, never>> 
 }
 
 export function createDb(env: Env) {
-  const client = withPostgresRetry(
-    postgres(env.DATABASE_URL, createPostgresOptions(env))
-  );
+  const client = postgres(env.DATABASE_URL, createPostgresOptions(env));
   const db = drizzle(client, { schema: fullSchema });
   return { db, client };
 }

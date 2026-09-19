@@ -19,7 +19,10 @@ describe('baseVariantNumberForCardmarket', () => {
 
 describe('cardmarketIdLookupCandidates', () => {
   test('includes foil base, release base, and signed base variants', () => {
-    expect(cardmarketIdLookupCandidates('SFD-001-Foil')).toEqual(['sfd-001-foil', 'sfd-001']);
+    expect(cardmarketIdLookupCandidates('SFD-001-Foil')).toEqual([
+      'sfd-001-foil',
+      'sfd-001',
+    ]);
     expect(cardmarketIdLookupCandidates('OGN-253-Release')).toEqual([
       'ogn-253-release',
       'ogn-253',

@@ -17,6 +17,7 @@ import {
   CardsIcon as PhosphorCards,
   CardsThreeIcon as PhosphorCardsThree,
   ChartBarIcon as PhosphorChartBar,
+  CameraIcon as PhosphorCamera,
   CaretDownIcon as PhosphorCaretDown,
   CaretLeftIcon as PhosphorCaretLeft,
   CaretRightIcon as PhosphorCaretRight,
@@ -70,6 +71,7 @@ export const ArrowClockwiseIcon = createStyledSvg(PhosphorArrowClockwise);
 export const ArrowUpDownIcon = createStyledSvg(PhosphorArrowsDownUp);
 export const BookOpenIcon = createStyledSvg(PhosphorBookOpenText);
 export const BookmarkIcon = createStyledSvg(PhosphorBookmarkSimple);
+export const CameraIcon = createStyledSvg(PhosphorCamera);
 export const CalendarPlusIcon = createStyledSvg(PhosphorCalendarPlus);
 export const CardholderIcon = createStyledSvg(PhosphorCardholder);
 export const CardsIcon = createStyledSvg(PhosphorCards);

@@ -44,6 +44,11 @@ const EnvSchema = z.object({
     .string()
     .optional()
     .transform((value) => parseBooleanFlag(value, false)),
+  /** Skip the upstream print-count probe (tests). */
+  CATALOG_PROBE_DISABLED: z
+    .string()
+    .optional()
+    .transform((value) => parseBooleanFlag(value, false)),
   /** Cardmarket `idGame` for daily price guide export (Riftbound = 22). */
   CARDMARKET_GAME_ID: z.coerce.number().int().positive().default(22),
   PRICE_HISTORY_RETAIN_DAYS: z.coerce.number().int().positive().max(3650).default(90),
@@ -68,9 +73,6 @@ const EnvSchema = z.object({
   STALWART_JMAP_PASSWORD: z.string().min(1).optional(),
   EMAIL_FROM: z.string().email().optional(),
   EMAIL_FROM_NAME: z.string().min(1).optional(),
-  EMBEDDING_PROVIDER: z.enum(['local', 'openai', 'none']).default('local'),
-  EMBEDDING_API_KEY: z.string().min(1).optional(),
-  OPENAI_API_KEY: z.string().min(1).optional(),
 });
 
 export type Env = Omit<z.infer<typeof EnvSchema>, 'PUBLIC_APP_URL'> & {
@@ -85,9 +87,6 @@ export function resolvePublicAppUrl(input: {
 }): string {
   if (input.publicAppUrl) {
     return input.publicAppUrl.replace(/\/+$/, '');
-  }
-  if (input.nodeEnv === 'production') {
-    return 'https://rift.solace.onl';
   }
   if (URL.canParse(input.betterAuthUrl)) {
     const auth = new URL(input.betterAuthUrl);
@@ -106,8 +105,9 @@ export function loadEnv(): Env {
   }
 
   const env = parsed.data;
-
-  const embeddingKey = env.EMBEDDING_API_KEY ?? env.OPENAI_API_KEY;
+  if (env.NODE_ENV === 'production' && !env.PUBLIC_APP_URL) {
+    throw new Error('PUBLIC_APP_URL is required in production');
+  }
 
   return {
     ...env,
@@ -119,6 +119,5 @@ export function loadEnv(): Env {
     }),
     CATALOG_WARMUP_ON_START:
       env.CATALOG_WARMUP_ON_START || env.NODE_ENV === 'development',
-    ...(embeddingKey ? { EMBEDDING_API_KEY: embeddingKey } : {}),
   };
 }

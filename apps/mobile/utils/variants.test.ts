@@ -105,15 +105,15 @@ describe('getCollectionActivityVariantNumbers', () => {
   ];
 
   test('overnumbered printing does not inherit standard foil history', () => {
-    expect(
-      getCollectionActivityVariantNumbers(shenVariants, shenVariants[2]!)
-    ).toEqual(['VEN-193']);
+    expect(getCollectionActivityVariantNumbers(shenVariants, shenVariants[2]!)).toEqual(
+      ['VEN-193']
+    );
   });
 
   test('standard printing includes foil sibling only', () => {
-    expect(
-      getCollectionActivityVariantNumbers(shenVariants, shenVariants[0]!)
-    ).toEqual(['VEN-074', 'VEN-074-Foil']);
+    expect(getCollectionActivityVariantNumbers(shenVariants, shenVariants[0]!)).toEqual(
+      ['VEN-074', 'VEN-074-Foil']
+    );
   });
 });
 

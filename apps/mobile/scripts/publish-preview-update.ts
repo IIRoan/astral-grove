@@ -58,17 +58,12 @@ function parseMessage(argv: string[]): string {
   const flag = argv.indexOf('--message');
   const value = flag >= 0 ? argv[flag + 1] : undefined;
   if (!value?.trim()) {
-    throw new PreviewUpdateTargetError(
-      'Missing --message for the preview EAS update'
-    );
+    throw new PreviewUpdateTargetError('Missing --message for the preview EAS update');
   }
   return value;
 }
 
-function run(
-  command: string[],
-  env: Record<string, string | undefined>
-): string {
+function run(command: string[], env: Record<string, string | undefined>): string {
   const result = Bun.spawnSync(command, {
     env,
     stdout: 'pipe',

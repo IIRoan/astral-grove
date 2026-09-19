@@ -1,5 +1,4 @@
 import type { CardListItem } from '@riftbound/contracts';
-import { compactMap } from '@/lib/iteration';
 import {
   expandVariantFinishPrintings,
   formatPrintingLabel,
@@ -19,15 +18,17 @@ export function getCollectedPrintingsForListCard(
   card: CardListItem,
   byVariant: ReadonlyMap<string, { quantity: number }>
 ): CollectedPrintingRow[] {
-  return compactMap(getCardPrintings(card), (p) => {
+  return getCardPrintings(card).flatMap((p) => {
     const quantity = ownedQuantityForPrinting(byVariant, p);
-    if (quantity <= 0) return null;
-    return {
-      variantNumber: p.variantNumber,
-      label: formatPrintingLabel(p.variantLabel, p.isFoil, p.variantNumber),
-      quantity,
-      isFoil: p.isFoil,
-    };
+    if (quantity <= 0) return [];
+    return [
+      {
+        variantNumber: p.variantNumber,
+        label: formatPrintingLabel(p.variantLabel, p.isFoil, p.variantNumber),
+        quantity,
+        isFoil: p.isFoil,
+      },
+    ];
   });
 }
 
@@ -52,14 +53,16 @@ export function getCollectedPrintingsForDetailCard(
     ? getSearchGroupVariants(card.variants, anchor)
     : card.variants;
 
-  return compactMap(expandVariantFinishPrintings(variants), (p) => {
+  return expandVariantFinishPrintings(variants).flatMap((p) => {
     const quantity = ownedQuantityForPrinting(byVariant, p);
-    if (quantity <= 0) return null;
-    return {
-      variantNumber: p.variantNumber,
-      label: formatPrintingLabel(p.variantLabel, p.isFoil, p.variantNumber),
-      quantity,
-      isFoil: p.isFoil,
-    };
+    if (quantity <= 0) return [];
+    return [
+      {
+        variantNumber: p.variantNumber,
+        label: formatPrintingLabel(p.variantLabel, p.isFoil, p.variantNumber),
+        quantity,
+        isFoil: p.isFoil,
+      },
+    ];
   });
 }

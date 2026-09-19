@@ -66,11 +66,7 @@ export function CatalogActionBar({
         iconOnly={inlineDensity === 'compact'}
       />
       {showFilterTrigger ? (
-        <CatalogFilterTrigger
-          filters={filters}
-          onPress={onFilterPress}
-          compact
-        />
+        <CatalogFilterTrigger filters={filters} onPress={onFilterPress} compact />
       ) : null}
     </View>
   );

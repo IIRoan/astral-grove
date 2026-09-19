@@ -11,6 +11,7 @@ import {
   type CollectionExportRow,
   type CollectionImportItem,
   type CollectionImportMode,
+  type CollectionImportPreview,
   type CollectionImportPreviewChange,
 } from '@riftbound/contracts';
 import type {
@@ -696,25 +697,34 @@ export class CollectionService {
   async previewImportTts(
     collectionId: string,
     tts: string
-  ): Promise<{
-    totalTokens: number;
-    totalCopies: number;
-    uniquePrintings: number;
-    unresolvedCount: number;
-    newCount: number;
-    increasedCount: number;
-    decreasedCount: number;
-    unchangedCount: number;
-    changes: CollectionImportPreviewChange[];
-    unresolved: Array<{ token: string; message: string }>;
-    items: CollectionImportItem[];
-  }> {
+  ): Promise<CollectionImportPreview> {
     const parsed = parseCollectionTtsToImportItems(tts);
-    const unresolved = [...parsed.errors];
+    return this.previewImportItems(collectionId, parsed.items, {
+      totalTokens: parsed.totalTokens,
+      unresolved: parsed.errors,
+    });
+  }
 
-    if (parsed.items.length === 0) {
+  /**
+   * Shared by the TTS paste flow and by producers that already hold variant numbers
+   * (camera scan). `context` carries what only the caller knows: how many raw tokens
+   * were seen, and anything that failed before resolution.
+   */
+  async previewImportItems(
+    collectionId: string,
+    items: CollectionImportItem[],
+    context: {
+      totalTokens?: number;
+      unresolved?: Array<{ token: string; message: string }>;
+    } = {}
+  ): Promise<CollectionImportPreview> {
+    const totalTokens =
+      context.totalTokens ?? items.reduce((sum, item) => sum + item.quantity, 0);
+    const unresolved = [...(context.unresolved ?? [])];
+
+    if (items.length === 0) {
       return {
-        totalTokens: parsed.totalTokens,
+        totalTokens,
         totalCopies: 0,
         uniquePrintings: 0,
         unresolvedCount: unresolved.length,
@@ -728,7 +738,7 @@ export class CollectionService {
       };
     }
 
-    const resolved = await this.resolveImportItems(parsed.items);
+    const resolved = await this.resolveImportItems(items);
     for (const error of resolved.errors) {
       const variantNumber = error.message.replace(/^Could not resolve variant:\s*/, '');
       unresolved.push({
@@ -768,7 +778,7 @@ export class CollectionService {
     changes.sort((a, b) => a.variantNumber.localeCompare(b.variantNumber));
 
     return {
-      totalTokens: parsed.totalTokens,
+      totalTokens,
       totalCopies: changes.reduce((sum, change) => sum + change.quantityDelta, 0),
       uniquePrintings: changes.length,
       unresolvedCount: unresolved.length,

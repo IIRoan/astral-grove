@@ -22,9 +22,9 @@ function previewBuild(
 
 describe('parseEasJsonArray', () => {
   test('parses a JSON array after eas-cli chatter', () => {
-    expect(
-      parseEasJsonArray('★ eas-cli is available.\n[{"id":"1"}]\n')
-    ).toEqual([{ id: '1' }]);
+    expect(parseEasJsonArray('★ eas-cli is available.\n[{"id":"1"}]\n')).toEqual([
+      { id: '1' },
+    ]);
   });
 
   test('fails when stdout has no JSON array', () => {

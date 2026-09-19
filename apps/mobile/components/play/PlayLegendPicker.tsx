@@ -2,7 +2,7 @@ import { ThemedIcon, ImageIcon, SearchIcon } from '@/components/icons';
 import { DeckCardArt } from '@/components/deck/DeckCardArt';
 import { AppLoader } from '@/components/ui/app-loader';
 import { Button, ButtonText } from '@/components/ui/button';
-import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
+import { ListSpacer } from '@/components/ui/list-spacer';
 import { SearchInput } from '@/components/ui/search-input';
 import { Text } from '@/components/ui/text';
 import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
@@ -76,7 +76,7 @@ export function PlayLegendPicker({
             </Button>
           </View>
         ) : null}
-        <ListBottomSpacer height={8} />
+        <ListSpacer height={8} />
       </>
     ),
     [fetchNextPage, hasNextPage, loadingMore]

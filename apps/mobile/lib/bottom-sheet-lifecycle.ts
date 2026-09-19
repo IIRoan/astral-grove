@@ -99,6 +99,55 @@ export function isCatalogDrawerClosing(
   return presentation != null && !presentation.open;
 }
 
+/** Gorhom onAnimate(-1) fires mid pan-down; only settled close may dismiss. */
+export function shouldDismissOnSheetEvent(
+  source: 'animate' | 'change' | 'close',
+  toIndex: number
+): boolean {
+  if (source === 'animate') return false;
+  if (source === 'close') return true;
+  return toIndex === -1;
+}
+
+/** True when a deferred present still matches the latest select generation. */
+export function shouldApplyDeferredDrawerPresent(input: {
+  scheduledGeneration: number;
+  currentGeneration: number;
+}): boolean {
+  return input.scheduledGeneration === input.currentGeneration;
+}
+
+/**
+ * FullWindowOverlay needs two frames to leave the native hierarchy.
+ * Returns a cancel function for a newer select.
+ */
+export function runAfterDrawerHostCleared(run: () => void): () => void {
+  let alive = true;
+  const schedule =
+    typeof requestAnimationFrame === 'function'
+      ? (cb: () => void) => {
+          const id = requestAnimationFrame(cb);
+          return () => cancelAnimationFrame(id);
+        }
+      : (cb: () => void) => {
+          const id = setTimeout(cb, 0);
+          return () => clearTimeout(id);
+        };
+
+  let cancelInner: (() => void) | undefined;
+  const cancelOuter = schedule(() => {
+    cancelInner = schedule(() => {
+      if (alive) run();
+    });
+  });
+
+  return () => {
+    alive = false;
+    cancelOuter();
+    cancelInner?.();
+  };
+}
+
 /** Close-start is session-monotonic — a stale callback cannot close a replacement presentation. */
 export function beginCatalogDrawerDismiss(
   presentation: CatalogDrawerPresentation | null,
@@ -123,6 +172,17 @@ export function finishCatalogDrawerDismiss(
   }
 
   return null;
+}
+
+/** Drop the host immediately — keeping a closing FullWindowOverlay blocked the next open. */
+export function dismissCatalogDrawerSession(
+  presentation: CatalogDrawerPresentation | null,
+  dismissedSessionId: number
+): CatalogDrawerPresentation | null {
+  return finishCatalogDrawerDismiss(
+    beginCatalogDrawerDismiss(presentation, dismissedSessionId),
+    dismissedSessionId
+  );
 }
 
 export function simulateQuickReopen(

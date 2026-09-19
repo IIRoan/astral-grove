@@ -15,7 +15,9 @@ describe('apiHealthUrl', () => {
 
 describe('pingApiKeepAlive', () => {
   test('returns true when health responds ok', async () => {
-    globalThis.fetch = mock(async () => new Response('ok', { status: 200 })) as typeof fetch;
+    globalThis.fetch = mock(
+      async () => new Response('ok', { status: 200 })
+    ) as typeof fetch;
 
     await expect(pingApiKeepAlive('https://riftapi.solace.onl')).resolves.toBe(true);
   });

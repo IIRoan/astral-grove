@@ -5,6 +5,7 @@ import {
   maxUpstreamBackfillPages,
   resolveUpstreamReconcileMode,
   upstreamCheckKey,
+  upstreamTotalsBroaderThanLocal,
 } from '../../src/lib/upstream-list-params.js';
 
 const baseQuery: CardsListQuery = {
@@ -181,5 +182,36 @@ describe('maxUpstreamBackfillPages', () => {
         colorMode: 'within',
       })
     ).toBe(100);
+  });
+});
+
+describe('upstreamTotalsBroaderThanLocal', () => {
+  test('false for plain name sort', () => {
+    expect(upstreamTotalsBroaderThanLocal(baseQuery)).toBe(false);
+  });
+
+  test('true for within color mode', () => {
+    expect(
+      upstreamTotalsBroaderThanLocal({
+        ...baseQuery,
+        colors: 'Mind,Order',
+        colorMode: 'within',
+      })
+    ).toBe(true);
+  });
+
+  test('true for energy sort (local drops legend/battlefield)', () => {
+    expect(
+      upstreamTotalsBroaderThanLocal({ ...baseQuery, sortBy: 'energy' })
+    ).toBe(true);
+  });
+
+  test('true for energy min/max filters', () => {
+    expect(
+      upstreamTotalsBroaderThanLocal({ ...baseQuery, energyMin: 1 })
+    ).toBe(true);
+    expect(
+      upstreamTotalsBroaderThanLocal({ ...baseQuery, energyMax: 3 })
+    ).toBe(true);
   });
 });

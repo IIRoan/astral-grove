@@ -40,7 +40,9 @@ function StatChipRow({
             key={`${statKey}-${value}`}
             label={String(value)}
             active={selected === value}
-            onPress={() => onUpdate((current) => toggleCatalogStatFilter(current, statKey, value))}
+            onPress={() =>
+              onUpdate((current) => toggleCatalogStatFilter(current, statKey, value))
+            }
           />
         ))}
       </View>

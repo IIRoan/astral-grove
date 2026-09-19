@@ -23,12 +23,9 @@
     "apps/mobile": {
       "ignore": ["**/*.{web,native}.{ts,tsx}"],
       "ignoreDependencies": [
-        "@expo/material-symbols",
         "@expo/ngrok",
-        "@expo/ui",
         "eslint",
         "eslint-config-expo",
-        "expo-status-bar",
         "expo-system-ui",
         "sonner"
       ]

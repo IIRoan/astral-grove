@@ -48,8 +48,6 @@ module.exports = {
       ...expo.extra,
       appVariant: variant,
     },
-    ...(pinnedRuntimeVersion
-      ? { runtimeVersion: pinnedRuntimeVersion }
-      : {}),
+    ...(pinnedRuntimeVersion ? { runtimeVersion: pinnedRuntimeVersion } : {}),
   },
 };

@@ -38,7 +38,9 @@ export type CollectionShareStatus = z.infer<typeof CollectionShareStatus>;
 
 export const CollectionShareStatusResponse = dataResponse(CollectionShareStatus);
 
-export type CollectionShareStatusResponse = z.infer<typeof CollectionShareStatusResponse>;
+export type CollectionShareStatusResponse = z.infer<
+  typeof CollectionShareStatusResponse
+>;
 
 export const CollectionShareInviteCreate = z.object({
   token: z.string(),
@@ -48,7 +50,9 @@ export const CollectionShareInviteCreate = z.object({
 
 export type CollectionShareInviteCreate = z.infer<typeof CollectionShareInviteCreate>;
 
-export const CollectionShareInviteCreateResponse = dataResponse(CollectionShareInviteCreate);
+export const CollectionShareInviteCreateResponse = dataResponse(
+  CollectionShareInviteCreate
+);
 
 export type CollectionShareInviteCreateResponse = z.infer<
   typeof CollectionShareInviteCreateResponse
@@ -84,7 +88,9 @@ export type CollectionShareAcceptRequest = z.infer<typeof CollectionShareAcceptR
 
 export const CollectionShareAcceptResponse = dataResponse(CollectionShareStatus);
 
-export type CollectionShareAcceptResponse = z.infer<typeof CollectionShareAcceptResponse>;
+export type CollectionShareAcceptResponse = z.infer<
+  typeof CollectionShareAcceptResponse
+>;
 
 export const CollectionShareLeaveResponse = dataResponse(CollectionShareStatus);
 

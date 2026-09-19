@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   cardHasAnyType,
+  cardHasCost,
   cardTypeMatchesFilters,
   cardTypeTokens,
   parseCardTypeFilters,
@@ -36,5 +37,18 @@ describe('cardHasAnyType / cardTypeMatchesFilters', () => {
   test('parseCardTypeFilters normalizes comma lists', () => {
     expect(parseCardTypeFilters('Unit,Gear,Spell')).toEqual(['unit', 'gear', 'spell']);
     expect(parseCardTypeFilters(' Unit , , Gear ')).toEqual(['unit', 'gear']);
+  });
+});
+
+describe('cardHasCost', () => {
+  test('Legends and Battlefields have no cost', () => {
+    expect(cardHasCost('Legend')).toBe(false);
+    expect(cardHasCost('Battlefield')).toBe(false);
+  });
+
+  test('playable cards keep their cost, including 0-cost ones', () => {
+    expect(cardHasCost('Unit')).toBe(true);
+    expect(cardHasCost('Spell')).toBe(true);
+    expect(cardHasCost('Unit Gear')).toBe(true);
   });
 });

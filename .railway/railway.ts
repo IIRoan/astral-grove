@@ -46,6 +46,7 @@ export default defineRailway(() => {
       NODE_ENV: preserve(),
       PA_API_KEY: preserve(),
       PA_BASE_URL: preserve(),
+      PUBLIC_APP_URL: 'https://rift.solace.onl',
       RAILPACK_BUN_VERSION: '1.4.2',
       RAILPACK_CONFIG_FILE: preserve(),
       S3_ACCESS_KEY_ID: preserve(),
@@ -82,11 +83,6 @@ export default defineRailway(() => {
   const databases = group('Databases', [testdb, postgresProduction]);
 
   return project('riftbound', {
-    resources: [
-      databases,
-      appServices,
-      postgresVolumeKjO,
-      postgresVolume,
-    ],
+    resources: [databases, appServices, postgresVolumeKjO, postgresVolume],
   });
 });
