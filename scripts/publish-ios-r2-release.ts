@@ -180,7 +180,9 @@ async function main(): Promise<void> {
     .filter((key): key is string => Boolean(key?.endsWith('.ipa')))
     .sort();
   if ((remainingIpas?.length ?? 0) > 2) {
-    throw new Error(`Expected at most 2 IPAs under ${RELEASE_PREFIX}, found ${remainingIpas?.join(', ')}`);
+    throw new Error(
+      `Expected at most 2 IPAs under ${RELEASE_PREFIX}, found ${remainingIpas?.join(', ')}`
+    );
   }
 
   const result = {
@@ -203,11 +205,9 @@ async function main(): Promise<void> {
   if (githubOutput) {
     const write = (name: string, value: string) => {
       const delimiter = `EOF_${name.toUpperCase()}`;
-      writeFileSync(
-        githubOutput,
-        `${name}<<${delimiter}\n${value}\n${delimiter}\n`,
-        { flag: 'a' }
-      );
+      writeFileSync(githubOutput, `${name}<<${delimiter}\n${value}\n${delimiter}\n`, {
+        flag: 'a',
+      });
     };
     write('profile', args.profile);
     write('ipa_key', ipaKey);
