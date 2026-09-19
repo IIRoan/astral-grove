@@ -135,3 +135,65 @@ export function simulateQuickReopen(
 
   return finishCatalogDrawerDismiss(reopened, dismissedSessionId) ?? reopened;
 }
+
+/** Shared sheet host: parent intent, portal mount, and a per-open session for a fresh Gorhom instance. */
+export type SheetHostState = {
+  open: boolean;
+  mounted: boolean;
+  sessionId: number;
+};
+
+export function createSheetHostState(open: boolean): SheetHostState {
+  return open
+    ? { open: true, mounted: true, sessionId: 1 }
+    : { open: false, mounted: false, sessionId: 0 };
+}
+
+/** Opening mounts a new session; closing keeps the host so Gorhom can play the exit animation. */
+export function applySheetOpenIntent(
+  state: SheetHostState,
+  open: boolean
+): SheetHostState {
+  if (state.open === open) {
+    return state;
+  }
+  if (open) {
+    return { open: true, mounted: true, sessionId: state.sessionId + 1 };
+  }
+  return { ...state, open: false };
+}
+
+/** Close-start (swipe release, backdrop, back) only flips the parent for the live open session. */
+export function shouldCommitSheetDismiss(
+  state: SheetHostState,
+  sessionId: number
+): boolean {
+  return state.open && state.sessionId === sessionId;
+}
+
+/** Gorhom settled closed or the fallback fired: unmount only a closed, matching session. */
+export function finishSheetHostClose(
+  state: SheetHostState,
+  sessionId: number
+): SheetHostState {
+  if (state.open || !state.mounted || state.sessionId !== sessionId) {
+    return state;
+  }
+  return { ...state, mounted: false };
+}
+
+/** Swipe release fires onAnimate(-1) at once; a forced close can skip Gorhom's settle callbacks. */
+export function simulateSheetSwipeDismiss(
+  state: SheetHostState,
+  options: { gorhomSettles: boolean }
+): SheetHostState {
+  const { sessionId } = state;
+  let next = state;
+  if (shouldCommitSheetDismiss(next, sessionId)) {
+    next = applySheetOpenIntent(next, false);
+  }
+  if (options.gorhomSettles) {
+    next = finishSheetHostClose(next, sessionId);
+  }
+  return next;
+}

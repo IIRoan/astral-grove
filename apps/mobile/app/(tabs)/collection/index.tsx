@@ -17,10 +17,12 @@ import { SharedCollectionBanner } from '@/components/collection/SharedCollection
 import { ScreenLayout } from '@/components/shell/ScreenLayout';
 import { Text } from '@/components/ui/text';
 import { Button, ButtonText } from '@/components/ui/button';
+import { useMobileLayout } from '@/hooks/useBreakpoint';
 import { useCollection } from '@/hooks/useCollection';
 import { useCollectionInsights } from '@/hooks/useCollectionInsights';
 import { useFiltersData } from '@/hooks/useFiltersData';
 import { getSetCatalogEntry } from '@/constants/setCatalog';
+import { cn } from '@/lib/utils';
 import {
   catalogCardTotalFromTypes,
   computeRarityBreakdown,
@@ -39,6 +41,7 @@ export default function CollectionScreen() {
 
 function CollectionScreenBody() {
   const router = useRouter();
+  const isMobile = useMobileLayout();
 
   const { data: collection = [], isLoading } = useCollection();
   const filtersQuery = useFiltersData();
@@ -102,8 +105,10 @@ function CollectionScreenBody() {
     <View className="pb-6">
       <SharedCollectionBanner />
       <View className="mb-8 gap-2">
-        <View className="flex-row items-start justify-between gap-3">
-          <View className="min-w-0 flex-1">
+        <View
+          className={cn('gap-3', !isMobile && 'flex-row items-start justify-between')}
+        >
+          <View className={cn('min-w-0', !isMobile && 'flex-1')}>
             <Text className="text-xl font-semibold tracking-tight text-foreground">
               Collection Dashboard
             </Text>

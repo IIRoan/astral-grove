@@ -415,6 +415,7 @@ function DeckBuilderCatalogBrowse({
                   : 'Open filters'
               }
               onPress={() => setFilterSheetOpen(true)}
+              open={filterSheetOpen}
               badge={filterActive ? <CatalogToolbarBadgeDot /> : null}
             />
           ) : null}

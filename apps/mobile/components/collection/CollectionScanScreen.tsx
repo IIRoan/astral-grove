@@ -7,9 +7,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useCameraPermissions } from 'expo-camera';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
-import { useQueryClient } from '@tanstack/react-query';
 import type { CardListItem } from '@riftbound/contracts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardArtImage } from '@/components/cards/CardArtImage';
@@ -24,7 +23,6 @@ import { useScanSession } from '@/hooks/useScanSession';
 import { useScannerEngine } from '@/hooks/useScannerEngine';
 import { normalScanInput } from '@/lib/scan-confirmation';
 import { cn } from '@/lib/utils';
-import { openCard } from '@/utils/cardNavigation';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { PREVIEW_ASPECT } from '@/utils/scanCrop';
 
@@ -35,28 +33,14 @@ export function CollectionScanScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const focused = useIsFocused();
-  const queryClient = useQueryClient();
-  const { mode } = useLocalSearchParams<{ mode?: string }>();
-  const lookup = mode === 'lookup';
   const [permission, requestPermission] = useCameraPermissions();
   const { engine, level, loaded: engineLoaded } = useScannerEngine();
   const { addCard } = useCollectionMutations();
   const saveCard = useCallback(
     async (card: CardListItem) => {
-      if (lookup) {
-        openCard(
-          router,
-          card.variantNumber,
-          'modal',
-          'catalog',
-          queryClient,
-          'replace'
-        );
-        return;
-      }
       await addCard.mutateAsync(normalScanInput(card));
     },
-    [addCard.mutateAsync, lookup, queryClient]
+    [addCard.mutateAsync]
   );
   const session = useScanSession({ onConfirm: saveCard });
 
@@ -110,7 +94,7 @@ export function CollectionScanScreen() {
       >
         <View className="flex-row items-center justify-between px-4 py-2">
           <Text className="text-lg font-semibold text-foreground">
-            {lookup ? 'Find a card' : 'Scan to collection'}
+            Scan to collection
           </Text>
           <Button
             variant="ghost"
@@ -132,20 +116,16 @@ export function CollectionScanScreen() {
             accessibilityLiveRegion="polite"
             className="text-center text-base font-semibold text-foreground"
           >
-            {session.justAdded && !lookup
+            {session.justAdded
               ? `Added ${session.justAdded}`
               : 'Ready for the next card'}
           </Text>
           <Text className="text-center text-sm text-muted-foreground">
-            {lookup
-              ? 'Hold a card in view, then confirm the match.'
-              : 'Confirm each match to add one normal copy. No foil scanning yet.'}
+            Confirm each match to add one normal copy. No foil scanning yet.
           </Text>
-          {!lookup ? (
-            <Text className="text-center text-sm text-muted-foreground">
-              {session.totalCopies.toLocaleString()} added this session
-            </Text>
-          ) : null}
+          <Text className="text-center text-sm text-muted-foreground">
+            {session.totalCopies.toLocaleString()} added this session
+          </Text>
         </View>
       </View>
       {session.pending ? (
@@ -157,7 +137,6 @@ export function CollectionScanScreen() {
           {session.pending.kind === 'card' ? (
             <ConfirmCard
               card={session.pending.card}
-              lookup={lookup}
               saving={session.saving}
               error={session.error}
               onYes={() => void session.confirmPending()}
@@ -179,14 +158,12 @@ export function CollectionScanScreen() {
 
 function ConfirmCard({
   card,
-  lookup,
   saving,
   error,
   onYes,
   onNo,
 }: {
   card: CardListItem;
-  lookup: boolean;
   saving: boolean;
   error: string | null;
   onYes: () => void;
@@ -230,11 +207,9 @@ function ConfirmCard({
           <Text className="text-center font-mono text-xs text-muted-foreground">
             {card.setCode} · {card.variantNumber} · {card.rarity}
           </Text>
-          {!lookup ? (
-            <Text className="text-center text-sm text-muted-foreground">
-              Adds 1 normal copy to your collection
-            </Text>
-          ) : null}
+          <Text className="text-center text-sm text-muted-foreground">
+            Adds 1 normal copy to your collection
+          </Text>
         </View>
         {error ? (
           <Text
@@ -257,17 +232,11 @@ function ConfirmCard({
         </Button>
         <Button
           className="h-16 w-auto flex-[1.4]"
-          accessibilityLabel={
-            lookup
-              ? `Yes, view ${card.name}`
-              : `Yes, add one normal copy of ${card.name}`
-          }
+          accessibilityLabel={`Yes, add one normal copy of ${card.name}`}
           busy={saving}
           onPress={onYes}
         >
-          <ButtonText>
-            {saving ? 'Adding…' : lookup ? 'Yes, view card' : 'Yes, add card'}
-          </ButtonText>
+          <ButtonText>{saving ? 'Adding…' : 'Yes, add card'}</ButtonText>
         </Button>
       </View>
     </View>

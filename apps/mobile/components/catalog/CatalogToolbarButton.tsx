@@ -17,6 +17,8 @@ interface CatalogToolbarButtonProps {
   label?: string;
   badge?: ReactNode;
   mobile?: boolean;
+  /** Mobile: the sheet this button opens is showing — mirror the input focus border. */
+  open?: boolean;
   className?: string;
 }
 
@@ -28,8 +30,10 @@ export function CatalogToolbarButton({
   label,
   badge,
   mobile = false,
+  open = false,
   className,
 }: CatalogToolbarButtonProps) {
+  const openClass = mobile && open && 'border-ring/50';
   const tone = active ? 'active' : 'inactive';
 
   if (label) {
@@ -38,6 +42,7 @@ export function CatalogToolbarButton({
         className={cn(
           catalogToolbarButtonClasses(active, mobile, true),
           'min-w-0 shrink-0 flex-row gap-1.5',
+          openClass,
           className
         )}
         onPress={onPress}
@@ -67,6 +72,7 @@ export function CatalogToolbarButton({
       className={cn(
         catalogToolbarButtonClasses(active, mobile),
         'relative shrink-0',
+        openClass,
         className
       )}
       onPress={onPress}

@@ -491,6 +491,7 @@ function DeckAddCatalogBrowse({
               onPress={() => setFilterSheetOpen(true)}
               compact
               mobile
+              open={filterSheetOpen}
             />
           ) : null}
         </View>

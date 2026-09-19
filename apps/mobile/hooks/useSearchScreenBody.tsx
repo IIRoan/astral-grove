@@ -730,6 +730,8 @@ export function useSearchScreenBody(): React.ReactElement {
         catalogSort={catalogSort}
         onSortPress={handleSortPress}
         onFilterPress={handleFilterPress}
+        sortOpen={sortSheetOpen}
+        filterOpen={filterSheetOpen}
       />
     ),
     [
@@ -745,6 +747,8 @@ export function useSearchScreenBody(): React.ReactElement {
       catalogSort,
       handleSortPress,
       handleFilterPress,
+      sortSheetOpen,
+      filterSheetOpen,
     ]
   );
 

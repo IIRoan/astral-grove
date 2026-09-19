@@ -3,6 +3,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 const { withUniwindConfig } = require('uniwind/metro');
 
 const config = getDefaultConfig(__dirname);
+config.resolver.assetExts.push('glb');
 
 const uniwindConfig = withUniwindConfig(config, {
   cssEntryFile: './global.css',

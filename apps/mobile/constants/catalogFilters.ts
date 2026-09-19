@@ -1,4 +1,8 @@
-import type { CardListItem, CardsListQuery } from '@riftbound/contracts';
+import {
+  cardHasCost,
+  type CardListItem,
+  type CardsListQuery,
+} from '@riftbound/contracts';
 import { compactMap } from '@/lib/iteration';
 import { getCardPrintings, ownedQuantityForPrinting } from '@/utils/variants';
 
@@ -374,7 +378,12 @@ export function matchesCatalogFilters(
 
   if (!cardMatchesVariantFilter(card, filters.variants)) return false;
 
-  if (filters.energy !== undefined && card.energy !== filters.energy) return false;
+  if (
+    filters.energy !== undefined &&
+    (card.energy !== filters.energy || !cardHasCost(card.type))
+  ) {
+    return false;
+  }
   if (filters.power !== undefined && card.power !== filters.power) return false;
   if (filters.might !== undefined && card.might !== filters.might) return false;
 

@@ -590,3 +590,57 @@ describe('catalogSearch', () => {
     expect(elapsed).toBeLessThan(250);
   });
 });
+
+describe('cost sort', () => {
+  const legend = {
+    ...vi,
+    cardId: 'legend',
+    variantNumber: 'OGN-L',
+    name: 'Vi Legend',
+    type: 'Legend',
+    energy: 0,
+  };
+  const battlefield = {
+    ...vi,
+    cardId: 'bf',
+    variantNumber: 'OGN-B',
+    name: 'Vi Arena',
+    type: 'Battlefield',
+    energy: 0,
+  };
+  const freeSpell = {
+    ...vi,
+    cardId: 'spell',
+    variantNumber: 'OGN-S',
+    name: 'Vi Spark',
+    type: 'Spell',
+    energy: 0,
+  };
+  const pool = [jinx, legend, vi, battlefield, freeSpell];
+
+  test('drops Legends and Battlefields in both directions', () => {
+    expect(
+      sortCatalogItems(pool, { sortBy: 'energy', dir: 'asc' }).map((card) => card.name)
+    ).toEqual(['Vi Spark', 'Vi Destructive', 'Jinx Rebel']);
+    expect(
+      sortCatalogItems(pool, { sortBy: 'energy', dir: 'desc' }).map((card) => card.name)
+    ).toEqual(['Jinx Rebel', 'Vi Destructive', 'Vi Spark']);
+  });
+
+  test('search with cost sort drops them too', () => {
+    expect(
+      searchCatalogItems(pool, 'vi', { sortBy: 'energy', dir: 'asc' }).map(
+        (card) => card.type
+      )
+    ).not.toContain('Legend');
+    expect(
+      searchCatalogItems(pool, 'vi', { sortBy: 'energy', dir: 'asc' }).map(
+        (card) => card.type
+      )
+    ).not.toContain('Battlefield');
+  });
+
+  test('other sorts keep them', () => {
+    expect(sortCatalogItems(pool, DEFAULT_CATALOG_SORT)).toHaveLength(pool.length);
+  });
+});

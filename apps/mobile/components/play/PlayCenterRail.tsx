@@ -15,6 +15,7 @@ type PlayCenterRailProps = {
   onLeave: () => void;
   onReset: () => void;
   onOpenSettings: () => void;
+  onRollDice: () => void;
   onNextGame?: () => void;
 };
 
@@ -56,6 +57,7 @@ export function PlayCenterRail({
   onLeave,
   onReset,
   onOpenSettings,
+  onRollDice,
   onNextGame,
 }: PlayCenterRailProps) {
   const reduceMotion = useReduceMotion();
@@ -71,6 +73,9 @@ export function PlayCenterRail({
         </RailButton>
         <RailButton label="Open play settings" onPress={onOpenSettings}>
           <SettingsIcon size={18} className="text-foreground" />
+        </RailButton>
+        <RailButton label="Roll a d20" onPress={onRollDice}>
+          <Text className="font-mono text-xs font-semibold text-foreground">d20</Text>
         </RailButton>
         {showNextGame && onNextGame ? (
           <Animated.View

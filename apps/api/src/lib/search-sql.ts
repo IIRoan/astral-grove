@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
-import type { CardsListQuery } from '@riftbound/contracts';
+import { NO_COST_CARD_TYPES, type CardsListQuery } from '@riftbound/contracts';
 import type { Database } from '../db/client.js';
 import { cards, sets, variants } from '../db/schema.js';
 import {
@@ -72,6 +72,13 @@ export function buildSearchFilterConditions(query: CardsListQuery): SQL[] {
   if (query.sets) {
     const setCodes = query.sets.split(',').map((s) => s.trim());
     conditions.push(inArray(sets.code, setCodes));
+  }
+  if (
+    query.sortBy === 'energy' ||
+    query.energyMin !== undefined ||
+    query.energyMax !== undefined
+  ) {
+    conditions.push(sql`not (${buildCardTypesCondition([...NO_COST_CARD_TYPES])})`);
   }
   if (query.energyMin !== undefined) {
     conditions.push(sql`${cards.energy} >= ${query.energyMin}`);

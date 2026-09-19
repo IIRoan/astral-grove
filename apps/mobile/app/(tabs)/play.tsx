@@ -1,3 +1,4 @@
+import { DiceTray } from '@/components/play/DiceTray';
 import { PlayCenterRail } from '@/components/play/PlayCenterRail';
 import { PlayScoreboard } from '@/components/play/PlayScoreboard';
 import { PlaySetupSheet } from '@/components/play/PlaySetupSheet';
@@ -27,6 +28,7 @@ export default function PlayScreen() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [legendSeatId, setLegendSeatId] = useState<string | null>(null);
+  const [diceOpen, setDiceOpen] = useState(false);
 
   const format = useMemo(() => getPlayFormat(state.format), [state.format]);
 
@@ -75,6 +77,7 @@ export default function PlayScreen() {
             onLeave={() => router.push('/(tabs)/search')}
             onReset={() => setState((prev) => resetGame(prev))}
             onOpenSettings={() => openSettings(null)}
+            onRollDice={() => setDiceOpen(true)}
             onNextGame={() => setState((prev) => advanceMatchGame(prev))}
           />
         }
@@ -92,6 +95,8 @@ export default function PlayScreen() {
         onSetLegend={onSetLegend}
         onAdvanceMatch={() => setState((prev) => advanceMatchGame(prev))}
       />
+
+      {diceOpen ? <DiceTray onClose={() => setDiceOpen(false)} /> : null}
     </View>
   );
 }
