@@ -98,9 +98,7 @@ export function CatalogFilterSheet({
               color={filters.simpleAdd ? 'foreground' : 'muted-foreground'}
             />
           }
-          onPress={() =>
-            onFiltersChange({ ...filters, simpleAdd: !filters.simpleAdd })
-          }
+          onPress={() => onFiltersChange({ ...filters, simpleAdd: !filters.simpleAdd })}
         />
       }
     >

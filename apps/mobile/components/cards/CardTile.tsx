@@ -293,8 +293,16 @@ export const CardTile = memo(
     prev.familyContextVariantNumber === next.familyContextVariantNumber &&
     prev.hidePrice === next.hidePrice &&
     prev.collectionByVariant === next.collectionByVariant &&
-    ownedForTileMemo(prev.card, prev.familyContextVariantNumber, prev.collectionByVariant) ===
-      ownedForTileMemo(next.card, next.familyContextVariantNumber, next.collectionByVariant) &&
+    ownedForTileMemo(
+      prev.card,
+      prev.familyContextVariantNumber,
+      prev.collectionByVariant
+    ) ===
+      ownedForTileMemo(
+        next.card,
+        next.familyContextVariantNumber,
+        next.collectionByVariant
+      ) &&
     prev.onSelectVariant === next.onSelectVariant &&
     prev.onPress === next.onPress &&
     prev.mode === next.mode &&

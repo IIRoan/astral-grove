@@ -19,7 +19,12 @@ import {
   useRef,
   useState,
 } from 'react';
-import { onSheetIndexChange, runAfterDrawerHostCleared, shouldApplyDeferredDrawerPresent, shouldDismissOnSheetEvent } from '@/lib/bottom-sheet-lifecycle';
+import {
+  onSheetIndexChange,
+  runAfterDrawerHostCleared,
+  shouldApplyDeferredDrawerPresent,
+  shouldDismissOnSheetEvent,
+} from '@/lib/bottom-sheet-lifecycle';
 import { claimSheetHost, releaseSheetHost } from '@/lib/sheet-host';
 import {
   BackHandler,

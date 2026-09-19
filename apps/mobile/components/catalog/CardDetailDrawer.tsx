@@ -31,7 +31,10 @@ import { Portal, PortalOverlay } from '@/components/ui/portal';
 import { useTheme } from '@/context/ThemeContext';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { isSheetHostCapturingTaps, shouldDismissOnSheetEvent } from '@/lib/bottom-sheet-lifecycle';
+import {
+  isSheetHostCapturingTaps,
+  shouldDismissOnSheetEvent,
+} from '@/lib/bottom-sheet-lifecycle';
 import { claimSheetHost, releaseSheetHost } from '@/lib/sheet-host';
 import {
   isSheetDismissSuppressed,

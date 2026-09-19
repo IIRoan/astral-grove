@@ -351,7 +351,8 @@ function Die({
 }) {
   const group = useRef<THREE.Group>(null);
   const winner = useMemo(
-    () => (result === null ? null : D20_FACES.find((f) => f.value === result) ?? null),
+    () =>
+      result === null ? null : (D20_FACES.find((f) => f.value === result) ?? null),
     [result]
   );
   const highlightGeom = useMemo(

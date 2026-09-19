@@ -201,17 +201,13 @@ describe('upstreamTotalsBroaderThanLocal', () => {
   });
 
   test('true for energy sort (local drops legend/battlefield)', () => {
-    expect(
-      upstreamTotalsBroaderThanLocal({ ...baseQuery, sortBy: 'energy' })
-    ).toBe(true);
+    expect(upstreamTotalsBroaderThanLocal({ ...baseQuery, sortBy: 'energy' })).toBe(
+      true
+    );
   });
 
   test('true for energy min/max filters', () => {
-    expect(
-      upstreamTotalsBroaderThanLocal({ ...baseQuery, energyMin: 1 })
-    ).toBe(true);
-    expect(
-      upstreamTotalsBroaderThanLocal({ ...baseQuery, energyMax: 3 })
-    ).toBe(true);
+    expect(upstreamTotalsBroaderThanLocal({ ...baseQuery, energyMin: 1 })).toBe(true);
+    expect(upstreamTotalsBroaderThanLocal({ ...baseQuery, energyMax: 3 })).toBe(true);
   });
 });
