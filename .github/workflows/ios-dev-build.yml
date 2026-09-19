@@ -5,7 +5,7 @@ name: iOS development build
 # GitHub's macOS runner instead of Expo's infrastructure, which Expo documents as
 # always free. The repo is public, so macOS runner minutes are free too.
 # The IPA is not uploaded to Expo: registering a local build there is metered on the
-# free plan. It is attached to the run encrypted instead; see the install script.
+# free plan. It goes to a per-PR pre-release with an over-the-air install manifest.
 on:
   pull_request:
     # PRs aimed at main get the `development` profile, matching how these were built
@@ -21,8 +21,8 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
-  pull-requests: write # post install instructions back onto the PR
+  contents: write # create the release that hosts the .ipa
+  pull-requests: write # post the install QR back onto the PR
 
 jobs:
   build:
@@ -31,6 +31,10 @@ jobs:
     env:
       APP_VARIANT: development
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      # `itms-services` needs this to match the built app exactly, or iOS installs
+      # nothing and gives no reason. The dev variant appends `.dev` in app.config.js.
+      BUNDLE_ID: com.iroan.astralgrove.dev
+      TAG: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('manual-{0}', github.run_number) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -83,25 +87,65 @@ jobs:
               -e 's/^([[:space:]]*-[[:space:]]+).*\(UDID:.*/\1[redacted device]/' \
               -e 's/^([[:space:]]*Provisioned devices[[:space:]]+).*/\1[redacted]/'
 
-      # Artifacts on a public repo can be downloaded by any signed-in GitHub user, and an
-      # ad-hoc IPA embeds its provisioning profile: team name and every registered UDID.
-      # Encrypt it to a key whose private half only lives on the developer's machine.
-      - name: Encrypt IPA
+      - name: Publish build and install manifest
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          command -v gpg >/dev/null || brew install gnupg
-          gpg --batch --yes \
-            --recipient-file .github/ios-dev-build-key.asc \
-            --output "$RUNNER_TEMP/astral-grove.ipa.gpg" \
-            --encrypt "$RUNNER_TEMP/astral-grove.ipa"
+          set -euo pipefail
+          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+          IPA_URL="${BASE}/astral-grove.ipa"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ios-dev-build
-          path: ${{ runner.temp }}/astral-grove.ipa.gpg
-          retention-days: 14
-          if-no-files-found: error
+          # Over-the-air install manifest. iOS fetches this, then the .ipa it points at.
+          cat > "$RUNNER_TEMP/manifest.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+            <dict>
+              <key>items</key>
+              <array>
+                <dict>
+                  <key>assets</key>
+                  <array>
+                    <dict>
+                      <key>kind</key><string>software-package</string>
+                      <key>url</key><string>${IPA_URL}</string>
+                    </dict>
+                  </array>
+                  <key>metadata</key>
+                  <dict>
+                    <key>bundle-identifier</key><string>${BUNDLE_ID}</string>
+                    <key>bundle-version</key><string>${GITHUB_RUN_NUMBER}</string>
+                    <key>kind</key><string>software</string>
+                    <key>title</key><string>Astral Grove Dev</string>
+                  </dict>
+                </dict>
+              </array>
+            </dict>
+          </plist>
+          PLIST
 
-      - name: Post install instructions on the PR
+          INSTALL_URL="itms-services://?action=download-manifest&url=${BASE}/manifest.plist"
+          bunx qrcode -o "$RUNNER_TEMP/install-qr.png" -w 512 "$INSTALL_URL"
+
+          # Recreate the release each run so the tag always points at this commit.
+          gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
+          gh release create "$TAG" \
+            --title "Astral Grove Dev · ${TAG}" \
+            --notes "Development build of ${GITHUB_SHA}. Install from an iPhone already registered for ad-hoc builds." \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            "$RUNNER_TEMP/astral-grove.ipa" \
+            "$RUNNER_TEMP/manifest.plist" \
+            "$RUNNER_TEMP/install-qr.png"
+
+          {
+            echo "qr_url=${BASE}/install-qr.png"
+            echo "ipa_url=${IPA_URL}"
+          } >> "$GITHUB_OUTPUT"
+          echo "[Download .ipa](${IPA_URL})" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post install QR on the PR
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
@@ -109,12 +153,11 @@ jobs:
           message: |
             ### iOS development build ready
 
-            Built from `${{ github.sha }}` with the `development` profile. The IPA is attached to [this run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}), encrypted.
+            Scan with the Camera app on your registered iPhone. The QR is an over-the-air install link.
 
-            With the iPhone connected over USB, install the newest build for this branch:
+            <img src="${{ steps.publish.outputs.qr_url }}" width="240" alt="Install QR" />
 
-            ```bash
-            bash apps/mobile/scripts/install-ios-dev-build.sh
-            ```
+            [Download .ipa](${{ steps.publish.outputs.ipa_url }}) · or with the iPhone on USB: `bash apps/mobile/scripts/install-ios-dev-build.sh`
 
+            Built from `${{ github.sha }}` with the `development` profile.
             Requires this device's UDID to be registered for ad-hoc distribution.

@@ -36,13 +36,11 @@ Core ML supports image inputs and tensor outputs, which fits a replacement embed
 - Temporal evidence: uncertain card decisions require two agreeing reads, artwork alone three, and ambiguous printings six. A brief unreadable frame is tolerated. A different card or printing-option set, two consecutive misses, or a gap over 1.5 seconds resets evidence. Votes older than five seconds expire. Agreement between code and artwork can prompt immediately, but still requires Yes.
 - Resource use: reference embedding concurrency is reduced from six to two to limit competition with live recognition. Device measurements are still needed to quantify the effect.
 - Native structure: `CardImageProcessing.swift` handles cropping and perspective; `CardArtMatcher.swift` owns embeddings and the index; `CardTextRecognizer.swift` handles OCR and enhancement. `HybridCardOcrFrame.swift` coordinates the native bridge. The refactor preserves image and embedding preprocessing.
-- Distribution: the `iOS development build` workflow builds the development profile locally on GitHub's macOS runner and attaches the IPA to the run, encrypted. It does not upload to Expo, create a GitHub release, or submit to the App Store.
+- Distribution: the `iOS development build` workflow builds the development profile locally on GitHub's macOS runner and publishes the IPA to a per-PR GitHub pre-release. It does not upload to Expo or submit to the App Store.
 
 ### Installing a development build
 
-Expo meters registering locally built binaries on the free plan, so the IPA is no longer uploaded there. An ad-hoc IPA embeds its provisioning profile, which lists the team and every registered device UDID, and artifacts on this public repo are downloadable by any signed-in GitHub user. The workflow therefore encrypts the IPA to the public key in `.github/ios-dev-build-key.asc`; the private key, "Astral Grove iOS dev builds", exists only in the developer's local GPG keyring.
-
-`apps/mobile/scripts/install-ios-dev-build.sh` downloads the newest successful run's artifact for a branch, decrypts it, and installs it with `ideviceinstaller` on an iPhone connected over USB. Artifacts are kept for 14 days.
+Expo meters registering locally built binaries on the free plan, so the IPA is not uploaded there. Each run replaces the `pr-<number>` pre-release with the IPA, an over-the-air `manifest.plist`, and a QR code for the `itms-services` install link, and posts that QR on the PR. The ad-hoc signature only installs on registered devices, so the public release is acceptable. `apps/mobile/scripts/install-ios-dev-build.sh` installs the same IPA over USB with `ideviceinstaller`.
 
 ### Low-light references
 
