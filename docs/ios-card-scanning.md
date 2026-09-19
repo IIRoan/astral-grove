@@ -36,13 +36,13 @@ Core ML supports image inputs and tensor outputs, which fits a replacement embed
 - Temporal evidence: uncertain card decisions require two agreeing reads, artwork alone three, and ambiguous printings six. A brief unreadable frame is tolerated. A different card or printing-option set, two consecutive misses, or a gap over 1.5 seconds resets evidence. Votes older than five seconds expire. Agreement between code and artwork can prompt immediately, but still requires Yes.
 - Resource use: reference embedding concurrency is reduced from six to two to limit competition with live recognition. Device measurements are still needed to quantify the effect.
 - Native structure: `CardImageProcessing.swift` handles cropping and perspective; `CardArtMatcher.swift` owns embeddings and the index; `CardTextRecognizer.swift` handles OCR and enhancement. `HybridCardOcrFrame.swift` coordinates the native bridge. The refactor preserves image and embedding preprocessing.
-- Distribution: the `iOS development build` workflow builds the development profile locally on GitHub's macOS runner and uploads the IPA to Expo. It does not create a GitHub release or submit to the App Store.
+- Distribution: the `iOS development build` workflow builds the development profile locally on GitHub's macOS runner and attaches the IPA to the run, encrypted. It does not upload to Expo, create a GitHub release, or submit to the App Store.
 
-### Development upload labels
+### Installing a development build
 
-`eas upload` does not copy the profile, channel, or commit from the local build. The existing upload was a development client but lacked these labels; EAS rejected attempts to update its metadata afterward. `scripts/upload-development-build.cjs` wraps the pinned EAS CLI 24.6.0 upload command and adds development metadata to its `createLocalBuildAsync` call. It retains the CLI's authentication, artifact upload, and JSON install URL output, and checks the returned profile, channel, and commit before reporting success.
+Expo meters registering locally built binaries on the free plan, so the IPA is no longer uploaded there. An ad-hoc IPA embeds its provisioning profile, which lists the team and every registered device UDID, and artifacts on this public repo are downloadable by any signed-in GitHub user. The workflow therefore encrypts the IPA to the public key in `.github/ios-dev-build-key.asc`; the private key, "Astral Grove iOS dev builds", exists only in the developer's local GPG keyring.
 
-This adapter uses a CLI internal API. Keep the workflow's version pin and adapter version check aligned, rerun the adapter tests, and verify a real upload when upgrading it. The update channel remains `development`; the Git source stays the actual PR branch and is included in the build message. No Git branch is renamed.
+`apps/mobile/scripts/install-ios-dev-build.sh` downloads the newest successful run's artifact for a branch, decrypts it, and installs it with `ideviceinstaller` on an iPhone connected over USB. Artifacts are kept for 14 days.
 
 ### Low-light references
 

@@ -4,6 +4,8 @@ name: iOS development build
 # the work and still manages the signing credentials, but `--local` runs the build on
 # GitHub's macOS runner instead of Expo's infrastructure, which Expo documents as
 # always free. The repo is public, so macOS runner minutes are free too.
+# The IPA is not uploaded to Expo: registering a local build there is metered on the
+# free plan. It is attached to the run encrypted instead; see the install script.
 on:
   pull_request:
     # PRs aimed at main get the `development` profile, matching how these were built
@@ -20,7 +22,7 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write # post the install QR back onto the PR
+  pull-requests: write # post install instructions back onto the PR
 
 jobs:
   build:
@@ -54,7 +56,6 @@ jobs:
 
       - uses: expo/expo-github-action@v8
         with:
-          # The upload adapter is tested against this CLI's local-build metadata API.
           eas-version: 24.6.0
           token: ${{ secrets.EXPO_TOKEN }}
 
@@ -82,29 +83,25 @@ jobs:
               -e 's/^([[:space:]]*-[[:space:]]+).*\(UDID:.*/\1[redacted device]/' \
               -e 's/^([[:space:]]*Provisioned devices[[:space:]]+).*/\1[redacted]/'
 
-      - name: Upload build to Expo
-        id: publish
-        working-directory: apps/mobile
-        env:
-          EAS_BUILD_SOURCE_REF: ${{ github.head_ref || github.ref_name }}
+      # Artifacts on a public repo can be downloaded by any signed-in GitHub user, and an
+      # ad-hoc IPA embeds its provisioning profile: team name and every registered UDID.
+      # Encrypt it to a key whose private half only lives on the developer's machine.
+      - name: Encrypt IPA
         run: |
-          set -euo pipefail
-          node scripts/upload-development-build.cjs "$(command -v eas)" \
-            --platform ios \
-            --build-path "$RUNNER_TEMP/astral-grove.ipa" \
-            --non-interactive \
-            --json > "$RUNNER_TEMP/ios-upload.json"
+          command -v gpg >/dev/null || brew install gnupg
+          gpg --batch --yes \
+            --recipient-file .github/ios-dev-build-key.asc \
+            --output "$RUNNER_TEMP/astral-grove.ipa.gpg" \
+            --encrypt "$RUNNER_TEMP/astral-grove.ipa"
 
-          INSTALL_URL=$(jq -er '.url | select(type == "string" and startswith("https://expo.dev/"))' "$RUNNER_TEMP/ios-upload.json")
-          ENCODED_URL=$(printf '%s' "$INSTALL_URL" | jq -sRr @uri)
-          {
-            echo "install_url=${INSTALL_URL}"
-            # A hosted QR image can render inline in GitHub comments without a release.
-            echo "qr_url=https://quickchart.io/qr?size=512&text=${ENCODED_URL}"
-          } >> "$GITHUB_OUTPUT"
-          echo "[Install iOS development build](${INSTALL_URL})" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-dev-build
+          path: ${{ runner.temp }}/astral-grove.ipa.gpg
+          retention-days: 14
+          if-no-files-found: error
 
-      - name: Post install QR on the PR
+      - name: Post install instructions on the PR
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
@@ -112,11 +109,12 @@ jobs:
           message: |
             ### iOS development build ready
 
-            Scan from your registered iPhone to open the Expo build page and install the app.
+            Built from `${{ github.sha }}` with the `development` profile. The IPA is attached to [this run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}), encrypted.
 
-            <img src="${{ steps.publish.outputs.qr_url }}" width="240" alt="Install QR" />
+            With the iPhone connected over USB, install the newest build for this branch:
 
-            [Download and install](${{ steps.publish.outputs.install_url }})
+            ```bash
+            bash apps/mobile/scripts/install-ios-dev-build.sh
+            ```
 
-            Built from `${{ github.sha }}` with the `development` profile.
             Requires this device's UDID to be registered for ad-hoc distribution.
