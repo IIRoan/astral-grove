@@ -2,14 +2,12 @@ import { createApp, startCatalogMetadataWarmup, startSyncCrons } from './app.js'
 import { runStartupMigrations } from './db/migrate.js';
 import { loadEnv } from './env.js';
 import { apiListenOptions } from './lib/http-listen.js';
-import { logSearchIndexStatus } from './services/embeddings.js';
 
 async function main() {
   const env = loadEnv();
   await runStartupMigrations(env);
 
   const ctx = createApp(env);
-  await logSearchIndexStatus(ctx.client);
   const app = ctx.app;
   const port = env.PORT;
   const host = env.HOST;

@@ -774,10 +774,7 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().default(3000),
   DATABASE_URL: z.string().url(),
   PA_API_KEY: z.string().startsWith('ak_'),
-  PA_BASE_URL: z
-    .string()
-    .url()
-    .default('https://piltoverarchive.com/api/external'),
+  PA_BASE_URL: z.string().url().default('https://piltoverarchive.com/api/external'),
   SYNC_CRON_ENABLED: z.coerce.boolean().default(true),
   ADMIN_SYNC_TOKEN: z.string().min(32), // protects POST /v1/sync/*
 });

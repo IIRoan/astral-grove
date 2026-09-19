@@ -152,6 +152,21 @@ describe('matchesCatalogFilters', () => {
     ).toBe(false);
   });
 
+  test('energy filter skips Legends and Battlefields (they have no cost)', () => {
+    const zeroCostSpell = { ...sampleCard, type: 'Spell', energy: 0 };
+    const legend = { ...sampleCard, type: 'Legend', energy: 0 };
+    const battlefield = { ...sampleCard, type: 'Battlefield', energy: 0 };
+    const energyZero = { ...DEFAULT_CATALOG_FILTERS, energy: 0 };
+
+    expect(matchesCatalogFilters(zeroCostSpell, energyZero, new Map())).toBe(true);
+    expect(matchesCatalogFilters(legend, energyZero, new Map())).toBe(false);
+    expect(matchesCatalogFilters(battlefield, energyZero, new Map())).toBe(false);
+    // Without an energy filter they still show up.
+    expect(matchesCatalogFilters(legend, DEFAULT_CATALOG_FILTERS, new Map())).toBe(
+      true
+    );
+  });
+
   test('owned filter sums quantities across printings', () => {
     const collection = new Map([
       ['OGN-001', { quantity: 0 }],

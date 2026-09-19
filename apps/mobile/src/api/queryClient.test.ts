@@ -3,7 +3,7 @@ import { QueryClient } from '@tanstack/react-query';
 
 mock.module('react-native', () => ({
   AppState: {
-    addEventListener: () => ({ remove: () => { } }),
+    addEventListener: () => ({ remove: () => {} }),
   },
   Platform: { OS: 'ios' },
 }));

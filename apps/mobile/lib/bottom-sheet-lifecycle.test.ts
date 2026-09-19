@@ -4,6 +4,7 @@ import {
   applyOpenToMountState,
   beginCatalogDrawerDismiss,
   createCatalogDrawerPresentation,
+  dismissCatalogDrawerSession,
   finishCatalogDrawerDismiss,
   isBottomSheetStuck,
   isCatalogDrawerBlockingTaps,
@@ -13,6 +14,9 @@ import {
   simulateBuggyDismissBeforeParentUpdates,
   simulateDismissCycle,
   simulateQuickReopen,
+  shouldApplyDeferredDrawerPresent,
+  shouldDismissOnSheetEvent,
+  runAfterDrawerHostCleared,
   type BottomSheetMountState,
 } from '@/lib/bottom-sheet-lifecycle';
 
@@ -139,5 +143,47 @@ describe('catalog drawer dismiss', () => {
     expect(beginCatalogDrawerDismiss(closing, 7)).toEqual(closing);
     expect(isCatalogDrawerClosing(closing)).toBe(true);
     expect(finishCatalogDrawerDismiss(closing, 7)).toBeNull();
+  });
+
+  test('dismiss session unmounts immediately so a drag-close cannot block the next open', () => {
+    const open = createCatalogDrawerPresentation(1, 'OGN-001');
+    expect(dismissCatalogDrawerSession(open, 1)).toBeNull();
+
+    const reopened = createCatalogDrawerPresentation(2, 'OGN-002');
+    expect(dismissCatalogDrawerSession(reopened, 1)).toEqual(reopened);
+    expect(dismissCatalogDrawerSession(reopened, 2)).toBeNull();
+  });
+
+  test('pan-down animate must not dismiss; settled change/close may', () => {
+    expect(shouldDismissOnSheetEvent('animate', -1)).toBe(false);
+    expect(shouldDismissOnSheetEvent('animate', 0)).toBe(false);
+    expect(shouldDismissOnSheetEvent('change', -1)).toBe(true);
+    expect(shouldDismissOnSheetEvent('change', 0)).toBe(false);
+    expect(shouldDismissOnSheetEvent('close', -1)).toBe(true);
+  });
+
+  test('deferred present only applies for the latest select generation', () => {
+    expect(
+      shouldApplyDeferredDrawerPresent({
+        scheduledGeneration: 3,
+        currentGeneration: 3,
+      })
+    ).toBe(true);
+    expect(
+      shouldApplyDeferredDrawerPresent({
+        scheduledGeneration: 3,
+        currentGeneration: 4,
+      })
+    ).toBe(false);
+  });
+
+  test('runAfterDrawerHostCleared can be cancelled before it fires', async () => {
+    let ran = false;
+    const cancel = runAfterDrawerHostCleared(() => {
+      ran = true;
+    });
+    cancel();
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    expect(ran).toBe(false);
   });
 });

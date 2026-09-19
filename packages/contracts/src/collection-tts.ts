@@ -1,9 +1,6 @@
 import { z } from 'zod';
 import { CardCondition } from './collection.js';
-import {
-  aggregateImportItems,
-  type CollectionImportItem,
-} from './collection-csv.js';
+import { aggregateImportItems, type CollectionImportItem } from './collection-csv.js';
 
 /** PA TTS tokens are `SET-NUMBER-ART` with 1 = base, 2 = a, 3 = b. */
 const TTS_TOKEN = /^([A-Za-z]+)-((?:R|SP)?\d+)-([123])$/i;
@@ -112,9 +109,15 @@ export const CollectionImportPreviewItem = z.object({
 
 export type CollectionImportPreviewItem = z.infer<typeof CollectionImportPreviewItem>;
 
-export const CollectionImportPreviewRequest = z.object({
-  tts: z.string().min(1).max(512_000),
-});
+/**
+ * Preview takes either a raw TTS paste or items a producer already resolved to variant
+ * numbers (the camera scanner). Variant numbers are not always expressible as TTS
+ * tokens (`VEN-189*`, `-Foil`), so scanning cannot round-trip through `tts`.
+ */
+export const CollectionImportPreviewRequest = z.union([
+  z.object({ tts: z.string().min(1).max(512_000) }),
+  z.object({ items: z.array(CollectionImportPreviewItem).min(1).max(2000) }),
+]);
 
 export type CollectionImportPreviewRequest = z.infer<
   typeof CollectionImportPreviewRequest
@@ -154,3 +157,9 @@ export function collectionImportPreviewStatus(
   if (quantityAfter < quantityBefore) return 'decrease';
   return 'unchanged';
 }
+
+/** What the service returns before the response schema narrows `items`. */
+export type CollectionImportPreview = Omit<
+  CollectionImportPreviewResponse['data'],
+  'items'
+> & { items: CollectionImportItem[] };

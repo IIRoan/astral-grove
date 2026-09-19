@@ -10,7 +10,6 @@ export default tseslint.config(
       '**/.expo/**',
       '**/drizzle/**',
       '**/test/**',
-      'manganess/**',
     ],
   },
   {

@@ -243,7 +243,9 @@ export function copyLimitForCardName(
   options: { isRune: boolean; rules: RiftboundDeckRules }
 ): number | null {
   if (UNLIMITED_COPY_CARD_NAMES.has(name)) return null;
-  return options.isRune ? options.rules.copyLimits.rune : options.rules.copyLimits.default;
+  return options.isRune
+    ? options.rules.copyLimits.rune
+    : options.rules.copyLimits.default;
 }
 
 export type RiftboundDeckSectionKey = keyof typeof RIFTBOUND_DECK_RULES.sections;

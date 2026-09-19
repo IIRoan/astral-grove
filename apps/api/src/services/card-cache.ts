@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNotNull, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import type {
   CardsListQuery,
   CardDetail,
@@ -8,7 +8,6 @@ import type {
 } from '@riftbound/contracts';
 import {
   PaCardsListResponse,
-  fuseSearchResultIds,
   type PaLogicalCard,
   type PaPriceRow,
   type PaVariant,
@@ -29,34 +28,17 @@ import {
 } from './card-mapper.js';
 import type { PriceCacheService } from './price-cache.js';
 import type { ImageStoreService } from './image-store.js';
-import { rankEmbeddings, type EmbeddingService } from './embeddings.js';
-import {
-  logSearchCacheHit,
-  logSearchComplete,
-  logSearchGlobal,
-  logSearchPipeline,
-  logSearchPostgresQuery,
-  logSearchReconcile,
-  summarizeCardsListQuery,
-  summarizeGlobalSearchQuery,
-  summarizeHydrationTimings,
-} from '../lib/search-metrics.js';
 import { TtlCache } from '../lib/ttl-cache.js';
 import {
   buildSearchCandidateByIdsQuery,
   buildSearchCandidateQuery,
   buildSearchSlimCandidateQueryUnsorted,
-  buildSearchFilterWhere,
-  buildSearchTypeIntentWhere,
   buildSearchWhere,
   canSqlPageCandidates,
-  isPureSqlCandidateOrder,
-  shouldMaterializeThenPage,
 } from '../lib/search-sql.js';
 import {
   groupSearchCandidateRows,
   searchGroupKeyForRow,
-  searchRankCardFromGroup,
   sortCandidateGroupsByEnergy,
   sortCandidateGroupsByName,
   sortCandidateGroupsByVariantNumber,
@@ -70,6 +52,7 @@ import {
   maxUpstreamBackfillPages,
   resolveUpstreamReconcileMode,
   upstreamCheckKey,
+  upstreamTotalsBroaderThanLocal,
 } from '../lib/upstream-list-params.js';
 
 const SEARCH_RESULT_TTL_MS = 5 * 60 * 1000;
@@ -149,8 +132,7 @@ export class CardCacheService {
     private readonly db: Database,
     private readonly pa: PaClient,
     private readonly prices: PriceCacheService,
-    private readonly images: ImageStoreService,
-    private readonly embeddings: EmbeddingService | null = null
+    private readonly images: ImageStoreService
   ) {}
 
   private async priceRowsForLogicalCard(card: PaLogicalCard) {
@@ -365,14 +347,6 @@ export class CardCacheService {
         await this.upsertVariant(tx, card.id, variant, now);
       }
     });
-
-    if (this.embeddings) {
-      try {
-        await this.embeddings.upsertCardEmbedding(card);
-      } catch (error) {
-        console.warn(`Embedding skipped for ${card.name}:`, error);
-      }
-    }
 
     return true;
   }
@@ -845,13 +819,10 @@ export class CardCacheService {
   }
 
   async search(query: CardsListQuery): Promise<SearchResult> {
-    const pipelineStart = performance.now();
-    const hashStart = performance.now();
     const [catalogHash, pricesCatalogHash] = await Promise.all([
       this.getCatalogHash(),
       this.getPricesCatalogHash(),
     ]);
-    const hashMs = performance.now() - hashStart;
     const cacheKey = searchCacheKey(query, catalogHash, pricesCatalogHash);
     const hasSearchQuery = Boolean(query.q?.trim() && query.q.trim().length >= 2);
 
@@ -859,22 +830,12 @@ export class CardCacheService {
       const cached = this.searchCache.get(cacheKey);
       // Never serve a cached miss — newly added upstream cards must be discoverable on next search.
       if (cached && cached.total > 0 && !hasSearchQuery) {
-        logSearchCacheHit({
-          path: 'cards_list',
-          ...summarizeCardsListQuery(query),
-          itemsReturned: cached.items.length,
-          total: cached.total,
-          source: cached.source,
-          totalMs: Math.round((performance.now() - pipelineStart) * 100) / 100,
-        });
         return cached;
       }
     }
 
     let source: 'cache' | 'upstream' | 'mixed' = 'cache';
-    const localStart = performance.now();
     let result = await this.searchLocal(query, catalogHash);
-    const localMs = performance.now() - localStart;
 
     const reconcileMode = resolveUpstreamReconcileMode(
       query,
@@ -882,16 +843,13 @@ export class CardCacheService {
       this.upstreamCheckCache.has(upstreamCheckKey(query)) && !query.refresh
     );
 
-    let reconcileMs = 0;
     if (reconcileMode === 'sync') {
-      const reconcileStart = performance.now();
       const localTimings = result.timings;
       const reconciled = await this.reconcileSearchWithUpstream(query, result);
       result = localTimings
         ? { ...reconciled.result, timings: localTimings }
         : reconciled.result;
       source = reconciled.source;
-      reconcileMs = performance.now() - reconcileStart;
     }
 
     const response: SearchResult = { ...result, source };
@@ -900,21 +858,6 @@ export class CardCacheService {
     } else {
       this.searchCache.delete(cacheKey);
     }
-
-    logSearchPipeline({
-      path: 'cards_list',
-      ...summarizeCardsListQuery(query),
-      engine: 'postgres',
-      cacheHit: false,
-      hashMs: Math.round(hashMs * 100) / 100,
-      localMs: Math.round(localMs * 100) / 100,
-      reconcileMs: Math.round(reconcileMs * 100) / 100,
-      reconciled: reconcileMode === 'sync',
-      source: response.source,
-      itemsReturned: response.items.length,
-      total: response.total,
-      totalMs: Math.round((performance.now() - pipelineStart) * 100) / 100,
-    });
 
     return response;
   }
@@ -965,7 +908,6 @@ export class CardCacheService {
     }
 
     try {
-      const reconcileStart = performance.now();
       let upserted = 0;
       let page = query.page;
       let upstreamTotal = 0;
@@ -973,8 +915,7 @@ export class CardCacheService {
       let consecutiveCleanPages = 0;
       // Walk until local catches upstream (or hard cap); deck-builder identity used to stop at 5 pages and miss cards.
       const maxBackfillPages = maxUpstreamBackfillPages(query);
-      const colorsOmittedForWithin =
-        query.colorMode === 'within' && Boolean(query.colors);
+      const totalsIncomparable = upstreamTotalsBroaderThanLocal(query);
 
       while (pagesScanned < maxBackfillPages) {
         const upstream = await this.pa.listCards(
@@ -1011,22 +952,11 @@ export class CardCacheService {
           localResult &&
           upserted === 0 &&
           missing.length === 0 &&
-          !colorsOmittedForWithin &&
+          !totalsIncomparable &&
           localTotal >= upstreamTotal
         ) {
           this.upstreamCheckCache.set(checkKey, true);
           const catalogHash = localResult.catalogHash ?? (await this.getCatalogHash());
-          const tookMs = Math.round((performance.now() - reconcileStart) * 100) / 100;
-          logSearchReconcile({
-            ...summarizeCardsListQuery(query),
-            pagesScanned,
-            upserted,
-            upstreamTotal,
-            localTotal,
-            tookMs,
-            source: 'cache',
-            sufficient: true,
-          });
           return {
             result: { items: localResult.items, total: localResult.total, catalogHash },
             source: 'cache',
@@ -1038,8 +968,8 @@ export class CardCacheService {
           Boolean(upstream.pagination?.hasNext) &&
           page < (upstream.pagination?.totalPages ?? page);
 
-        // Within-mode without colors: upstream totals are broader — use clean-page streaks instead.
-        const caughtUp = colorsOmittedForWithin
+        // Broader upstream totals (within colors, energy no-cost filter): use clean-page streaks.
+        const caughtUp = totalsIncomparable
           ? consecutiveCleanPages >= 5
           : !stillBehind;
 
@@ -1052,36 +982,21 @@ export class CardCacheService {
       }
 
       const result = await this.resolveReconcileResult(query, localResult, upserted);
-      const reconcileFields = {
-        ...summarizeCardsListQuery(query),
-        pagesScanned,
-        upserted,
-        upstreamTotal,
-        localTotal: result.total,
-        tookMs: Math.round((performance.now() - reconcileStart) * 100) / 100,
-      };
-
       if (upserted > 0) {
         this.upstreamCheckCache.set(checkKey, true);
-        logSearchReconcile({ ...reconcileFields, source: 'mixed' });
         return { result, source: 'mixed' };
       }
 
       if (localEmpty && upstreamTotal === 0) {
         this.upstreamCheckCache.set(checkKey, true);
-        logSearchReconcile({ ...reconcileFields, source: 'upstream' });
         return { result, source: 'upstream' };
       }
 
-      // Upstream reports more matches — keep probing next request; skip when within-mode omitted colors.
-      if (!colorsOmittedForWithin && upstreamTotal > result.total) {
+      // Upstream reports more matches — keep probing next request; skip when totals are incomparable.
+      if (!totalsIncomparable && upstreamTotal > result.total) {
         this.upstreamCheckCache.delete(checkKey);
       } else {
         this.upstreamCheckCache.set(checkKey, true);
-      }
-
-      if (pagesScanned > 0) {
-        logSearchReconcile({ ...reconcileFields, source: 'cache' });
       }
 
       return { result, source: 'cache' };
@@ -1122,12 +1037,8 @@ export class CardCacheService {
     const includeDecks = requestedTypes.includes('decks');
 
     const data: GlobalSearchResponse['data'] = {};
-    let cardHits = 0;
-    let cardTotal = 0;
-    let searchMs = 0;
 
     if (includeCards) {
-      const searchStart = performance.now();
       const result = await this.search({
         q: query.q,
         page: query.page,
@@ -1136,9 +1047,6 @@ export class CardCacheService {
         dir: 'asc',
         colorMode: 'all',
       });
-      searchMs = performance.now() - searchStart;
-      cardHits = result.items.length;
-      cardTotal = result.total;
       data.cards = {
         hits: result.items.map((item) => ({
           kind: 'card' as const,
@@ -1158,16 +1066,6 @@ export class CardCacheService {
     }
 
     const tookMs = Math.round(performance.now() - start);
-    logSearchGlobal({
-      path: 'global_search',
-      ...summarizeGlobalSearchQuery(query),
-      includeCards,
-      includeDecks,
-      hitsReturned: cardHits,
-      total: cardTotal,
-      searchMs: Math.round(searchMs * 100) / 100,
-      tookMs,
-    });
 
     return {
       data,
@@ -1331,7 +1229,6 @@ export class CardCacheService {
     const totalStart = performance.now();
     const where = buildSearchWhere(query);
     const offset = (query.page - 1) * query.limit;
-    const materializeThenPage = shouldMaterializeThenPage(query);
     const resolvedCatalogHash = catalogHash ?? (await this.getCatalogHash());
 
     const dbStart = performance.now();
@@ -1342,25 +1239,12 @@ export class CardCacheService {
         .offset(offset);
       const dbMs = performance.now() - dbStart;
 
-      logSearchPostgresQuery({
-        path: 'cards_list',
-        ...summarizeCardsListQuery(query),
-        engine: 'postgres',
-        materializeThenPage,
-        sqlPaged,
-        pureSqlOrder: isPureSqlCandidateOrder(query),
-        fetchCap: null,
-        variantsSelected: rows.length,
-        dbMs: Math.round(dbMs * 100) / 100,
-      });
-
       const {
         items: rawItems,
         colorsMs,
         pricesMs,
         mapMs,
       } = await this.hydrateSlimRows(rows);
-      const hydration = summarizeHydrationTimings({ colorsMs, pricesMs, mapMs });
       const groupStart = performance.now();
       const grouped = groupCardListItems(rawItems);
       const groupMs = performance.now() - groupStart;
@@ -1383,40 +1267,11 @@ export class CardCacheService {
         rankMs: 0,
         totalMs: performance.now() - totalStart,
       };
-      logSearchComplete({
-        path: 'cards_list',
-        engine: 'postgres',
-        ...summarizeCardsListQuery(query),
-        materializeThenPage,
-        fetchCap: null,
-        variantsSelected: rows.length,
-        variantsHydrated: rawItems.length,
-        groupedCount: grouped.length,
-        itemsReturned: grouped.length,
-        total,
-        dbMs: Math.round(dbMs * 100) / 100,
-        ...hydration,
-        groupMs: Math.round(groupMs * 100) / 100,
-        countMs: Math.round(countMs * 100) / 100,
-        totalMs: Math.round(timings.totalMs * 100) / 100,
-      });
       return { items: grouped, total, catalogHash: resolvedCatalogHash, timings };
     }
 
     const rows = await buildSearchSlimCandidateQueryUnsorted(this.db, where);
     const dbMs = performance.now() - dbStart;
-
-    logSearchPostgresQuery({
-      path: 'cards_list',
-      ...summarizeCardsListQuery(query),
-      engine: 'postgres',
-      materializeThenPage,
-      sqlPaged,
-      pureSqlOrder: isPureSqlCandidateOrder(query),
-      fetchCap: null,
-      variantsSelected: rows.length,
-      dbMs: Math.round(dbMs * 100) / 100,
-    });
 
     const groupStart = performance.now();
     let groups = groupSearchCandidateRows(rows);
@@ -1450,12 +1305,7 @@ export class CardCacheService {
       });
     } else if (query.q?.trim()) {
       const rankStart = performance.now();
-      groups = await this.rerankSearchGroups(
-        query.q,
-        groups,
-        resolvedCatalogHash,
-        and(buildSearchFilterWhere(query), buildSearchTypeIntentWhere(query))
-      );
+      groups = sortCandidateGroupsLexically(groups, query.q);
       rankMs = performance.now() - rankStart;
     } else if (query.sortBy === 'energy') {
       groups = sortCandidateGroupsByEnergy(groups, query.dir);
@@ -1468,7 +1318,6 @@ export class CardCacheService {
 
     const total = groups.length;
     const pageGroups = groups.slice(offset, offset + query.limit);
-    const hydrateStart = performance.now();
     const hydratedGroups = await this.hydrateCandidatePage(pageGroups);
     const pageRows = hydratedGroups.flatMap((group) => group.rows);
     const {
@@ -1478,7 +1327,6 @@ export class CardCacheService {
       mapMs,
     } = await this.hydrateSlimRows(pageRows, sortPriceRows);
     if (sortPriceRows === undefined) pricesMs = pagePricesMs;
-    const hydrateMs = performance.now() - hydrateStart;
 
     const grouped = groupCardListItems(rawItems);
     const byKey = new Map(
@@ -1499,26 +1347,6 @@ export class CardCacheService {
       rankMs,
       totalMs: performance.now() - totalStart,
     };
-    const hydration = summarizeHydrationTimings({ colorsMs, pricesMs, mapMs });
-    logSearchComplete({
-      path: 'cards_list',
-      engine: 'postgres',
-      ...summarizeCardsListQuery(query),
-      materializeThenPage,
-      fetchCap: null,
-      variantsSelected: rows.length,
-      variantsHydrated: pageRows.length,
-      groupedCount: groups.length,
-      itemsReturned: items.length,
-      total,
-      dbMs: Math.round(dbMs * 100) / 100,
-      ...hydration,
-      groupMs: Math.round(groupMs * 100) / 100,
-      rankMs: Math.round(rankMs * 100) / 100,
-      countMs: 0,
-      hydratePageMs: Math.round(hydrateMs * 100) / 100,
-      totalMs: Math.round(timings.totalMs * 100) / 100,
-    });
 
     return { items, total, catalogHash: resolvedCatalogHash, timings };
   }
@@ -1573,11 +1401,6 @@ export class CardCacheService {
     };
   }
 
-  async backfillEmbeddings(): Promise<number> {
-    if (!this.embeddings) return 0;
-    return this.embeddings.embedMissing();
-  }
-
   private async hydrateCandidatePage(
     pageGroups: SearchCandidateGroup<SearchCandidateSortRow>[]
   ): Promise<SearchCandidateGroup<ListItemDbRow>[]> {
@@ -1596,64 +1419,5 @@ export class CardCacheService {
       if (rows.length === 0) return [];
       return [{ key: group.key, cardId: group.cardId, rows }];
     });
-  }
-
-  private async rerankSearchGroups(
-    query: string,
-    groups: SearchCandidateGroup[],
-    catalogHash: string,
-    filterWhere: SQL | undefined
-  ): Promise<SearchCandidateGroup[]> {
-    const lexical = sortCandidateGroupsLexically(groups, query);
-    if (!this.embeddings?.isEnabled()) return lexical;
-
-    try {
-      const queryVector = await this.embeddings.embedQuery(query);
-      if (!queryVector) return lexical;
-
-      const stored = await this.embeddings.embeddingsForCatalog(catalogHash);
-      if (stored.length === 0) return lexical;
-
-      const vectorCardIds = rankEmbeddings(queryVector, stored).map((row) => row.id);
-      if (vectorCardIds.length === 0) return lexical;
-
-      const present = new Set(lexical.map((group) => group.cardId));
-      const extraIds = vectorCardIds.filter((id) => !present.has(id)).slice(0, 16);
-      let merged = lexical;
-      if (extraIds.length > 0) {
-        const extraWhere = filterWhere
-          ? and(filterWhere, inArray(cards.id, extraIds))
-          : inArray(cards.id, extraIds);
-        const extraRows = await buildSearchSlimCandidateQueryUnsorted(
-          this.db,
-          extraWhere
-        );
-        const extraGroups = groupSearchCandidateRows(extraRows);
-        const seen = new Set(lexical.map((group) => group.key));
-        merged = [...lexical, ...extraGroups.filter((group) => !seen.has(group.key))];
-      }
-
-      const cardsById = new Map(
-        merged.map((group) => [group.key, searchRankCardFromGroup(group)])
-      );
-      const lexicalIds = lexical.map((group) => group.key);
-      const vectorRank = new Map(vectorCardIds.map((id, index) => [id, index]));
-      const vectorIds = [...merged]
-        .filter((group) => vectorRank.has(group.cardId))
-        .sort(
-          (left, right) =>
-            (vectorRank.get(left.cardId) ?? 999) - (vectorRank.get(right.cardId) ?? 999)
-        )
-        .map((group) => group.key);
-
-      const fused = fuseSearchResultIds(lexicalIds, vectorIds, cardsById, query);
-      const byKey = new Map(merged.map((group) => [group.key, group]));
-      return fused.flatMap((id) => {
-        const group = byKey.get(id);
-        return group ? [group] : [];
-      });
-    } catch {
-      return lexical;
-    }
   }
 }

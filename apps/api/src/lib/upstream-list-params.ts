@@ -60,6 +60,18 @@ export function maxUpstreamBackfillPages(query: CardsListQuery): number {
   return UPSTREAM_BACKFILL_PAGE_CAP;
 }
 
+/** Local filters out cards PA still counts — totals cannot be compared directly. */
+export function upstreamTotalsBroaderThanLocal(query: CardsListQuery): boolean {
+  // PA has no colorMode=within; we omit colors so identity pools are not under-backfilled.
+  if (query.colorMode === 'within' && Boolean(query.colors)) return true;
+  // Local energy sort/filters drop Legend/Battlefield; PA does not.
+  return (
+    query.sortBy === 'energy' ||
+    query.energyMin !== undefined ||
+    query.energyMax !== undefined
+  );
+}
+
 export function resolveUpstreamReconcileMode(
   query: CardsListQuery,
   localResult: { items: unknown[]; total: number },

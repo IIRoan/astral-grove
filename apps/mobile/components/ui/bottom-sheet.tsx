@@ -19,7 +19,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { onSheetIndexChange } from '@/lib/bottom-sheet-lifecycle';
+import { onSheetIndexChange, runAfterDrawerHostCleared, shouldApplyDeferredDrawerPresent, shouldDismissOnSheetEvent } from '@/lib/bottom-sheet-lifecycle';
+import { claimSheetHost, releaseSheetHost } from '@/lib/sheet-host';
 import {
   BackHandler,
   Keyboard,
@@ -41,6 +42,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Uniwind } from 'uniwind';
+import { useLatestRef } from '@/hooks/useLatestRef';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { centeredSheetMargins } from '@/lib/responsive-layout';
 import { SHEET_REDUCED, SHEET_SPRING } from '@/lib/motion';
@@ -96,6 +98,7 @@ const SheetScrollView =
 type BottomSheetContextValue = {
   open: boolean;
   mounted: boolean;
+  sessionId: number;
   setMounted: (mounted: boolean) => void;
   onOpenChange: (open: boolean) => void;
   bottomSheetRef: React.RefObject<GorhomBottomSheet | null>;
@@ -417,13 +420,17 @@ export const BottomSheet = ({
   children,
 }: BottomSheetRootProps) => {
   const [internalOpen, setInternalOpen] = useState(openProp ?? false);
-  const [mounted, setMounted] = useState(openProp ?? false);
+  const [mounted, setMounted] = useState(false);
+  const [sessionId, setSessionId] = useState(0);
   const [contentConfig, setContentConfig] = useState<BottomSheetContentConfig>({});
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const bottomSheetRef = useRef<GorhomBottomSheet>(null);
   const animatedIndex = useSharedValue(-1);
+  const hostTokenRef = useRef<number | null>(null);
+  const presentGenerationRef = useRef(0);
+  const cancelPresentRef = useRef<(() => void) | null>(null);
 
   const isControlled = openProp !== undefined;
   const open = isControlled ? openProp : internalOpen;
@@ -437,17 +444,58 @@ export const BottomSheet = ({
     },
     [isControlled, onOpenChangeProp]
   );
+  const onOpenChangeRef = useLatestRef(onOpenChange);
 
   useLayoutEffect(() => {
-    if (open) {
-      setMounted(true);
+    cancelPresentRef.current?.();
+    cancelPresentRef.current = null;
+
+    if (!open) {
+      if (hostTokenRef.current != null) {
+        releaseSheetHost(hostTokenRef.current);
+        hostTokenRef.current = null;
+      }
+      bottomSheetRef.current?.close();
+      setMounted(false);
       return;
     }
 
-    // Unmount immediately when closed — delayed portal ate catalog taps (selected-but-no-drawer).
-    bottomSheetRef.current?.close();
+    hostTokenRef.current = claimSheetHost(() => {
+      onOpenChangeRef.current(false);
+    });
+
+    // Failsafe: tear down any prior Gorhom/FWO host, then remount after two frames.
     setMounted(false);
-  }, [open]);
+    const generation = presentGenerationRef.current + 1;
+    presentGenerationRef.current = generation;
+    cancelPresentRef.current = runAfterDrawerHostCleared(() => {
+      if (
+        !shouldApplyDeferredDrawerPresent({
+          scheduledGeneration: generation,
+          currentGeneration: presentGenerationRef.current,
+        })
+      ) {
+        return;
+      }
+      setSessionId((current) => current + 1);
+      setMounted(true);
+    });
+
+    return () => {
+      cancelPresentRef.current?.();
+      cancelPresentRef.current = null;
+    };
+  }, [open, onOpenChangeRef]);
+
+  useEffect(() => {
+    return () => {
+      cancelPresentRef.current?.();
+      if (hostTokenRef.current != null) {
+        releaseSheetHost(hostTokenRef.current);
+        hostTokenRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener(KEYBOARD_SHOW_EVENT, () => {
@@ -467,6 +515,7 @@ export const BottomSheet = ({
     (): BottomSheetContextValue => ({
       open,
       mounted,
+      sessionId,
       setMounted,
       onOpenChange,
       bottomSheetRef,
@@ -480,6 +529,7 @@ export const BottomSheet = ({
     [
       open,
       mounted,
+      sessionId,
       onOpenChange,
       animatedIndex,
       contentConfig,
@@ -504,12 +554,13 @@ export const BottomSheetPortal = ({
     return null;
   }
 
-  // Stop hit-testing when open clears at dismiss-start so catalog taps aren’t blocked.
+  // Hit-testing follows `open`; each session remounts a fresh Gorhom/FWO subtree.
   return (
     <Portal name={name} {...portalProps}>
       <BottomSheetContext.Provider value={ctx}>
         <PortalOverlay>
           <View
+            key={ctx.sessionId}
             pointerEvents={ctx.open ? 'box-none' : 'none'}
             style={StyleSheet.absoluteFill}
             // Web: absolute overlay can still capture clicks after open=false.
@@ -669,10 +720,16 @@ export const BottomSheetContent = ({
   const handleSheetChange = useCallback(
     (index: number) => {
       setCurrentSnapIndex(index);
+      if (!shouldDismissOnSheetEvent('change', index)) return;
       onSheetIndexChange(index, () => onOpenChange(false));
     },
     [onOpenChange, setCurrentSnapIndex]
   );
+
+  const handleSheetClose = useCallback(() => {
+    if (!shouldDismissOnSheetEvent('close', -1)) return;
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   useEffect(() => {
     // BackHandler is Android-only; react-native-web logs an error when it is used.
@@ -681,13 +738,12 @@ export const BottomSheetContent = ({
     }
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      bottomSheetRef.current?.close();
       onOpenChange(false);
       return true;
     });
 
     return () => subscription.remove();
-  }, [open, enablePanDownToClose, onOpenChange, bottomSheetRef]);
+  }, [open, enablePanDownToClose, onOpenChange]);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -777,6 +833,7 @@ export const BottomSheetContent = ({
       maxDynamicContentSize={maxDynamicContentSize}
       onAnimate={onAnimate}
       onChange={handleSheetChange}
+      onClose={handleSheetClose}
       overDragResistanceFactor={overDragResistanceFactor}
       activeOffsetY={activeOffsetY}
       ref={bottomSheetRef}

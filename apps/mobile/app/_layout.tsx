@@ -31,6 +31,31 @@ import {
 import { hydrateSecureStorage } from '@/src/lib/secure-storage';
 
 initSentry();
+// TEMP diagnostic: which native binary is running and whether it registered ExpoGL.
+{
+  const mods = (globalThis as { expo?: { modules?: Record<string, unknown> } }).expo?.modules ?? {};
+  let direct = 'n/a';
+  try {
+    const m = mods['ExpoGL'];
+    direct = m == null ? String(m) : typeof m + ':' + Object.keys(m as object).slice(0, 6).join('/');
+  } catch (e) {
+    direct = 'threw ' + String(e);
+  }
+  let viaCore = 'n/a';
+  try {
+    const core = require('expo-modules-core') as { requireOptionalNativeModule: (n: string) => unknown };
+    viaCore = String(core.requireOptionalNativeModule('ExpoGL') != null);
+  } catch (e) {
+    viaCore = 'threw ' + String(e);
+  }
+  let viaGl = 'ok';
+  try {
+    require('expo-gl');
+  } catch (e) {
+    viaGl = String((e as Error).stack ?? e).split('\n').slice(0, 4).join(' | ');
+  }
+  console.log('[native]', 'runtime=' + String(require('expo-updates').runtimeVersion), 'direct=' + direct, 'viaCore=' + viaCore, 'viaGl=' + viaGl);
+}
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 const queryClient = createQueryClient();

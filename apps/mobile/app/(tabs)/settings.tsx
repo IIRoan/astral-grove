@@ -5,6 +5,7 @@ import { AuthPanel } from '@/components/auth/AuthPanel';
 import { AppearanceSpecimens } from '@/components/settings/AppearanceSpecimens';
 import { CredentialsSection } from '@/components/settings/CredentialsSection';
 import { EmailVerificationSection } from '@/components/settings/EmailVerificationSection';
+import { ScannerEngineSection } from '@/components/settings/ScannerEngineSection';
 import { SharedCollectionSection } from '@/components/settings/SharedCollectionSection';
 import { UpdateChannelSection } from '@/components/settings/UpdateChannelSection';
 import { ScreenLayout } from '@/components/shell/ScreenLayout';
@@ -125,6 +126,10 @@ export default function SettingsScreen() {
 
         <SettingsSection label="Display">
           <AppearanceSpecimens />
+        </SettingsSection>
+
+        <SettingsSection label="Card scanner">
+          <ScannerEngineSection />
         </SettingsSection>
 
         <SettingsSection label="App version">

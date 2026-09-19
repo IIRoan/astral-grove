@@ -2,7 +2,7 @@ import { ThemedIcon, ChevronLeftIcon, ImageIcon, SearchIcon } from '@/components
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, View, type ListRenderItem } from 'react-native';
-import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
+import { ListSpacer } from '@/components/ui/list-spacer';
 import { AppLoader } from '@/components/ui/app-loader';
 import { SearchInput } from '@/components/ui/search-input';
 import { Text } from '@/components/ui/text';
@@ -206,7 +206,7 @@ export function LegendPicker({
               </Text>
             </View>
           }
-          ListFooterComponent={<ListBottomSpacer height={paddingBottom} />}
+          ListFooterComponent={<ListSpacer height={paddingBottom} />}
           renderItem={renderLegendItem}
         />
       )}

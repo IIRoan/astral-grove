@@ -8,8 +8,7 @@ import {
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
-import { ListTopSpacer } from '@/components/ui/list-top-spacer';
+import { ListSpacer } from '@/components/ui/list-spacer';
 import { Layout } from '@/constants/Layout';
 import { screenGutterFor } from '@/lib/responsive-layout';
 import {
@@ -152,7 +151,7 @@ export function ScreenLayout({
   if (mode === 'flex') {
     return (
       <View className={cn('flex-1 bg-background', className)} style={gutters}>
-        <ListTopSpacer height={paddingTop} />
+        <ListSpacer height={paddingTop} />
         <View className="min-h-0 w-full flex-1">{inner}</View>
       </View>
     );
@@ -168,9 +167,9 @@ export function ScreenLayout({
       showsVerticalScrollIndicator={false}
       {...scrollProps}
     >
-      <ListTopSpacer height={paddingTop} />
+      <ListSpacer height={paddingTop} />
       {inner}
-      <ListBottomSpacer height={paddingBottom} />
+      <ListSpacer height={paddingBottom} />
     </KeyboardAwareScrollView>
   );
 }

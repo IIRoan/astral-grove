@@ -1,4 +1,5 @@
 import {
+  cardHasCost,
   lexicalRelevanceScore,
   matchesSearchHaystack,
   tokenizeSearchQuery,
@@ -48,13 +49,25 @@ function compareBySort(a: CardListItem, b: CardListItem, sort: CatalogSort): num
   }
 }
 
+/** Cost sort mirrors the API: Legends/Battlefields have no cost to order by. */
+function withoutNoCostForSort(
+  items: readonly CardListItem[],
+  sort: CatalogSort
+): readonly CardListItem[] {
+  return sort.sortBy === 'energy'
+    ? items.filter((card) => cardHasCost(card.type))
+    : items;
+}
+
 /** Sort the full catalog (or any card list) by the active browse/search sort. */
 export function sortCatalogItems(
   items: readonly CardListItem[],
   sort: CatalogSort,
   limit?: number
 ): CardListItem[] {
-  const sorted = [...items].sort((left, right) => compareBySort(left, right, sort));
+  const sorted = [...withoutNoCostForSort(items, sort)].sort((left, right) =>
+    compareBySort(left, right, sort)
+  );
   return limit === undefined ? sorted : sorted.slice(0, limit);
 }
 
@@ -67,7 +80,7 @@ export function searchCatalogItems(
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const matches = items.filter((card) =>
+  const matches = withoutNoCostForSort(items, sort).filter((card) =>
     matchesSearchHaystack(buildSearchBlob(card), trimmed)
   );
 

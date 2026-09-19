@@ -34,10 +34,12 @@ describe('toggleCatalogStatFilter', () => {
 
   test('clears power and might the same way', () => {
     expect(
-      toggleCatalogStatFilter({ ...DEFAULT_CATALOG_FILTERS, power: 2 }, 'power', 2).power
+      toggleCatalogStatFilter({ ...DEFAULT_CATALOG_FILTERS, power: 2 }, 'power', 2)
+        .power
     ).toBeUndefined();
     expect(
-      toggleCatalogStatFilter({ ...DEFAULT_CATALOG_FILTERS, might: 7 }, 'might', 7).might
+      toggleCatalogStatFilter({ ...DEFAULT_CATALOG_FILTERS, might: 7 }, 'might', 7)
+        .might
     ).toBeUndefined();
   });
 });

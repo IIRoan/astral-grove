@@ -26,8 +26,7 @@ export function toggleCatalogStatFilter(
 }
 
 export type CatalogFilterUpdate =
-  | Partial<CatalogFilters>
-  | ((current: CatalogFilters) => CatalogFilters);
+  Partial<CatalogFilters> | ((current: CatalogFilters) => CatalogFilters);
 
 export interface CatalogFilterSegmentCommonProps {
   filters: CatalogFilters;

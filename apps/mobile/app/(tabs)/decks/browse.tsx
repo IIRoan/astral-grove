@@ -72,12 +72,14 @@ export default function BrowseDecksScreen() {
               activeSort={sort}
               onPress={() => setSortOpen(true)}
               iconOnly={isMobile}
+              open={isMobile && sortOpen}
             />
             {isMobile ? (
               <DeckBrowseFilterTrigger
                 filters={filters}
                 onPress={() => setFilterOpen(true)}
                 iconOnly
+                open={filterOpen}
               />
             ) : null}
           </View>

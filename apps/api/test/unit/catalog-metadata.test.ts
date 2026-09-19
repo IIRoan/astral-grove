@@ -82,14 +82,11 @@ function createService(options?: ServiceOptions) {
     }),
   };
 
-  const previousProbeDisabled = process.env.CATALOG_PROBE_DISABLED;
-  if (options?.probeDisabled) {
-    process.env.CATALOG_PROBE_DISABLED = 'true';
-  } else {
-    delete process.env.CATALOG_PROBE_DISABLED;
-  }
-
-  const service = new CatalogMetadataService(db as never, pa as never);
+  const service = new CatalogMetadataService(
+    db as never,
+    pa as never,
+    options?.probeDisabled ?? false
+  );
 
   (
     service as unknown as {
@@ -108,19 +105,8 @@ function createService(options?: ServiceOptions) {
     service,
     getProbeCalls: () => probeCalls,
     getLocalAggregateCalls: () => localAggregateCalls,
-    restoreEnv: () => {
-      if (previousProbeDisabled === undefined) {
-        delete process.env.CATALOG_PROBE_DISABLED;
-      } else {
-        process.env.CATALOG_PROBE_DISABLED = previousProbeDisabled;
-      }
-    },
   };
 }
-
-afterEach(() => {
-  delete process.env.CATALOG_PROBE_DISABLED;
-});
 
 describe('CatalogMetadataService', () => {
   test('getFiltersSnapshot returns upstream filters immediately while probe runs', async () => {
@@ -236,19 +222,15 @@ describe('CatalogMetadataService', () => {
   });
 
   test('getFiltersSnapshot uses latest DB snapshot when probe is disabled', async () => {
-    const { service, getProbeCalls, restoreEnv } = createService({
+    const { service, getProbeCalls } = createService({
       latestSnapshot: enrichedFilters,
       syncStateRows: [{ key: 'catalog', contentHash: 'outdated-hash', rowCount: 1396 }],
       probeDisabled: true,
     });
 
-    try {
-      const snapshot = await service.getFiltersSnapshot();
-      expect(snapshot.sets[0]?.printCount).toBe(200);
-      expect(getProbeCalls()).toBe(0);
-    } finally {
-      restoreEnv();
-    }
+    const snapshot = await service.getFiltersSnapshot();
+    expect(snapshot.sets[0]?.printCount).toBe(200);
+    expect(getProbeCalls()).toBe(0);
   });
 
   test('getFiltersMeta overlays local print counts when upstream set totals lag', async () => {

@@ -1,9 +1,6 @@
 import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
-import {
-  API_KEEP_ALIVE_INTERVAL_MS,
-  pingApiKeepAlive,
-} from '@/lib/api-keep-alive';
+import { API_KEEP_ALIVE_INTERVAL_MS, pingApiKeepAlive } from '@/lib/api-keep-alive';
 
 /** Ping the API on an interval while signed in and foregrounded so Railway serverless stays warm. */
 export function useApiKeepAlive(enabled: boolean): void {

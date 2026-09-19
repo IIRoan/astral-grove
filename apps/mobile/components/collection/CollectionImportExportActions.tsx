@@ -1,18 +1,28 @@
 import {
+  CameraIcon,
   CloudUploadIcon,
   DownloadIcon,
   HashIcon,
   type LucideIcon,
 } from '@/components/icons';
 import { CollectionTtsImportSheet } from '@/components/collection/CollectionTtsImportSheet';
-import { ActivityIndicator, Pressable, View, type DimensionValue } from 'react-native';
+import { router } from 'expo-router';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  View,
+  type DimensionValue,
+} from 'react-native';
 import { useCSSVariable } from 'uniwind';
 import { HoverTooltip, ToolbarIconSlot } from '@/components/ui/hover-tooltip';
-import {
-  toolbarButtonSize,
-  toolbarIconSize,
-} from '@/components/ui/hover-tooltip.constants';
+import { toolbarIconSize } from '@/components/ui/hover-tooltip.constants';
 import { Text } from '@/components/ui/text';
+import {
+  catalogToolbarGroupClass,
+  catalogToolbarSegmentClasses,
+} from '@/constants/catalogToolbar';
+import { useMobileLayout } from '@/hooks/useBreakpoint';
 import { useCollectionImportExport } from '@/hooks/useCollectionImportExport';
 import { cn } from '@/lib/utils';
 
@@ -22,12 +32,14 @@ function ToolbarIconButton({
   disabled,
   busy,
   onPress,
+  mobile,
 }: {
   icon: LucideIcon;
   label: string;
   disabled?: boolean;
   busy?: boolean;
   onPress: () => void;
+  mobile: boolean;
 }) {
   const iconColor = useCSSVariable('--color-muted-foreground') as string;
   const Icon = icon;
@@ -42,10 +54,11 @@ function ToolbarIconButton({
         hitSlop={2}
         onPress={onPress}
         className={cn(
-          'items-center justify-center rounded-[3px] active:bg-background/70',
+          mobile
+            ? catalogToolbarSegmentClasses(false, true)
+            : 'size-8 items-center justify-center rounded-[3px] active:bg-background/70',
           (disabled || busy) && 'opacity-45'
         )}
-        style={{ width: toolbarButtonSize, height: toolbarButtonSize }}
       >
         <ToolbarIconSlot>
           {busy ? (
@@ -68,14 +81,9 @@ export function CollectionImportExportToolbar({
 }: {
   disabled?: boolean;
 }) {
-  const {
-    importCsv,
-    exportCsv,
-    ttsSheetOpen,
-    setTtsSheetOpen,
-    previewTts,
-    acceptTts,
-  } = useCollectionImportExport();
+  const { importCsv, exportCsv, ttsSheetOpen, setTtsSheetOpen, previewTts, acceptTts } =
+    useCollectionImportExport();
+  const mobile = useMobileLayout();
 
   const busy =
     importCsv.isPending ||
@@ -86,12 +94,28 @@ export function CollectionImportExportToolbar({
 
   return (
     <>
-      <View className="shrink-0 flex-row items-center rounded-[3px] bg-card-panel p-0.5">
+      <View
+        className={
+          mobile
+            ? cn(catalogToolbarGroupClass(true), 'self-start')
+            : 'shrink-0 flex-row items-center rounded-[3px] bg-card-panel p-0.5'
+        }
+      >
+        {Platform.OS === 'ios' ? (
+          <ToolbarIconButton
+            icon={CameraIcon}
+            label="Scan cards"
+            disabled={controlsDisabled}
+            onPress={() => router.push('/collection/scan')}
+            mobile={mobile}
+          />
+        ) : null}
         <ToolbarIconButton
           icon={HashIcon}
           label="Import TTS list"
           disabled={controlsDisabled}
           onPress={() => setTtsSheetOpen(true)}
+          mobile={mobile}
         />
         <ToolbarIconButton
           icon={CloudUploadIcon}
@@ -101,6 +125,7 @@ export function CollectionImportExportToolbar({
           onPress={() => {
             void importCsv.mutateAsync().catch(() => undefined);
           }}
+          mobile={mobile}
         />
         <ToolbarIconButton
           icon={DownloadIcon}
@@ -110,6 +135,7 @@ export function CollectionImportExportToolbar({
           onPress={() => {
             void exportCsv.mutateAsync().catch(() => undefined);
           }}
+          mobile={mobile}
         />
       </View>
 

@@ -16,7 +16,7 @@ import {
   useScreenLayout,
 } from '@/components/shell/ScreenLayout';
 import { Button, ButtonText } from '@/components/ui/button';
-import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
+import { ListSpacer } from '@/components/ui/list-spacer';
 import { SearchInput } from '@/components/ui/search-input';
 import { Skeleton, SkeletonGroup } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
@@ -460,7 +460,7 @@ function WishlistScreenBody() {
               {CARDMARKET_PRICE_DETAIL_NOTE}
             </Text>
           ) : null}
-          <ListBottomSpacer height={paddingBottomInline} />
+          <ListSpacer height={paddingBottomInline} />
         </>
       }
       contentContainerStyle={{

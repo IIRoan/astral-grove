@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
-import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
+import { ListSpacer } from '@/components/ui/list-spacer';
 import { DeckBattlefieldPanel } from '@/components/deck/DeckBattlefieldPanel';
 import { DeckDescriptionView } from '@/components/deck/DeckDescription';
 import { DeckIdentityHeader } from '@/components/deck/DeckIdentityHeader';
@@ -134,7 +134,7 @@ export function DeckShowcasePanel({
           <DeckLegalityBadge isLegal={false} />
         </View>
       ) : null}
-      <ListBottomSpacer height={paddingBottom} />
+      <ListSpacer height={paddingBottom} />
     </ScrollView>
   );
 }

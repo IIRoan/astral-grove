@@ -8,7 +8,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import * as authSchema from '../src/db/auth-schema.js';
 import type { Database } from '../src/db/client.js';
 import * as schema from '../src/db/schema.js';
-import { SEARCH_BENCHMARK_CASES } from '../src/lib/search-benchmark-cases.js';
+import { SEARCH_BENCHMARK_CASES } from './search-benchmark-cases.js';
 import {
   buildSearchCandidateQuery,
   buildSearchSlimCandidateQueryUnsorted,
@@ -20,7 +20,6 @@ import {
   CardCacheService,
   type LocalSearchTimings,
 } from '../src/services/card-cache.js';
-import { EmbeddingService } from '../src/services/embeddings.js';
 import type { ImageStoreService } from '../src/services/image-store.js';
 import { PriceCacheService } from '../src/services/price-cache.js';
 import type { PaClient } from '../src/upstream/pa-client.js';
@@ -286,9 +285,7 @@ async function captureLocalService(
   db: Database,
   repeat: number
 ): Promise<Record<string, unknown>[]> {
-  process.env.SEARCH_METRICS_LOG = 'false';
   const prices = new PriceCacheService(db);
-  const embeddings = new EmbeddingService(db, 'none', undefined);
   const cardCache = new CardCacheService(
     db,
     {
@@ -300,8 +297,7 @@ async function captureLocalService(
     {
       rewriteCard: (card: unknown) => card,
       rewriteImageUrl: (url: string) => url,
-    } as unknown as ImageStoreService,
-    embeddings
+    } as unknown as ImageStoreService
   );
 
   const cases: Record<string, unknown>[] = [];

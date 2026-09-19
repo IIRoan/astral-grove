@@ -124,6 +124,8 @@ export const SearchBar = memo(function SearchBar({
 
   // Keep end-addon slots mounted — toggling Pressable children remounts the field on web.
   const showClear = draft.length > 0 || value.length > 0;
+  // The spinner floats over the field, so it has to clear the X button when it is up.
+  const spinnerInset = showClear ? 'right-11' : 'right-3';
 
   return (
     <View className="relative w-full">
@@ -164,10 +166,7 @@ export const SearchBar = memo(function SearchBar({
       {isLoading ? (
         <View
           accessibilityElementsHidden
-          className={cn(
-            'absolute bottom-0 top-0 justify-center',
-            showClear ? 'right-11' : 'right-3'
-          )}
+          className={cn('absolute bottom-0 top-0 justify-center', spinnerInset)}
           importantForAccessibility="no-hide-descendants"
           pointerEvents="none"
         >

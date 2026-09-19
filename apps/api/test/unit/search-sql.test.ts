@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'bun:test';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import type { CardsListQuery } from '@riftbound/contracts';
 import {
   SEARCH_CANDIDATE_COLUMNS,
   SEARCH_SLIM_CANDIDATE_COLUMNS,
+  buildSearchWhere,
   canSqlPageCandidates,
   isPureSqlCandidateOrder,
   shouldMaterializeThenPage,
@@ -51,5 +53,35 @@ describe('search candidate materialization', () => {
     expect(shouldMaterializeThenPage(query)).toBe(true);
     expect(canSqlPageCandidates(query)).toBe(false);
     expect(isPureSqlCandidateOrder(query)).toBe(true);
+  });
+});
+
+describe('cost sort and energy filter', () => {
+  const dialect = new PgDialect();
+  const compile = (query: CardsListQuery) => {
+    const where = buildSearchWhere(query);
+    return where ? dialect.sqlToQuery(where) : undefined;
+  };
+  const excludesNoCost = (query: CardsListQuery) => {
+    const compiled = compile(query);
+    return Boolean(
+      compiled?.sql.includes('not (') &&
+      compiled.params.includes('legend') &&
+      compiled.params.includes('battlefield')
+    );
+  };
+
+  test('cost sort drops Legends and Battlefields', () => {
+    expect(excludesNoCost(baseQuery({ sortBy: 'energy', dir: 'asc' }))).toBe(true);
+    expect(excludesNoCost(baseQuery({ sortBy: 'energy', dir: 'desc' }))).toBe(true);
+  });
+
+  test('energy filter drops Legends and Battlefields', () => {
+    expect(excludesNoCost(baseQuery({ energyMin: 0, energyMax: 0 }))).toBe(true);
+  });
+
+  test('other sorts keep Legends and Battlefields', () => {
+    expect(compile(baseQuery())).toBeUndefined();
+    expect(excludesNoCost(baseQuery({ sortBy: 'price', dir: 'desc' }))).toBe(false);
   });
 });

@@ -15,6 +15,8 @@ import type {
   SerializedDeckEntry,
 } from '@/lib/deck-types';
 import { canAddBattlefield } from '@/lib/deck-limits';
+import { getSectionCount } from '@/lib/deck-counts';
+export { getSectionCount } from '@/lib/deck-counts';
 
 const PILTOVER_CDN_HOST = 'cdn.piltoverarchive.com';
 
@@ -200,17 +202,6 @@ export function cloneDeck(
     bannedCardNames: undefined,
   });
   return cloned;
-}
-
-export function getSectionCount(deck: DeckState, section: DeckSectionKey): number {
-  if (section === 'legend' || section === 'champion') {
-    return deck[section] ? 1 : 0;
-  }
-  let total = 0;
-  for (const [, entry] of deck[section]) {
-    total += entry.count;
-  }
-  return total;
 }
 
 export function addCardToDeck(

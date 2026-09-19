@@ -35,7 +35,8 @@ export class CatalogMetadataService {
 
   constructor(
     private readonly db: Database,
-    private readonly pa: PaClient
+    private readonly pa: PaClient,
+    private readonly probeDisabled = false
   ) {}
 
   async getFiltersMeta(): Promise<FiltersMeta> {
@@ -168,7 +169,7 @@ export class CatalogMetadataService {
 
   /** Best-effort snapshot for HTTP — never blocks on an in-flight catalog probe. */
   async getFiltersSnapshot(): Promise<FilterSnapshot> {
-    if (process.env.CATALOG_PROBE_DISABLED === 'true') {
+    if (this.probeDisabled) {
       return this.loadLatestSnapshot();
     }
 
@@ -183,7 +184,7 @@ export class CatalogMetadataService {
 
   /** Blocks until expanded print counts are ready — used by catalog sync. */
   async ensureExpandedPrintCounts(force = false): Promise<FilterSnapshot> {
-    if (process.env.CATALOG_PROBE_DISABLED === 'true') {
+    if (this.probeDisabled) {
       return this.loadLatestSnapshot();
     }
 

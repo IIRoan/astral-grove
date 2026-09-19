@@ -24,7 +24,10 @@ export const PaVariant = z.object({
   variantTypes: z.array(z.string()),
   showInLibrary: z.boolean(),
   isCollectible: z.boolean(),
-  variantLabel: z.string().nullish().transform((v) => v ?? 'Standard'),
+  variantLabel: z
+    .string()
+    .nullish()
+    .transform((v) => v ?? 'Standard'),
   flavorText: z.string().nullable().optional(),
   artist: z.string().nullable().optional(),
   releaseDate: z.string().nullable().optional(),

@@ -16,6 +16,7 @@ export default function CollectionLayout() {
     >
       <Stack.Screen name="index" options={{ animation: 'none' }} />
       <Stack.Screen name="[setCode]" />
+      <Stack.Screen name="scan" />
     </Stack>
   );
 }

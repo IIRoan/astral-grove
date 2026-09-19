@@ -123,10 +123,10 @@ bun run --cwd apps/mobile test
 bun run --cwd packages/contracts typecheck
 
 # API: unit only (fast, no DB server)
-bun run --cwd apps/api test test/unit
+bun run --cwd apps/api test:unit
 
 # API: e2e only (Postgres + test server on port 3099)
-bun run --cwd apps/api test test/e2e
+bun run --cwd apps/api test:e2e
 
 # Mobile: one file
 bun test apps/mobile/lib/deck-validation.test.ts
@@ -285,10 +285,7 @@ packages/contracts/src/
 | **E2E**            | `apps/api/test/e2e/`      | Postgres (`riftbound_test` DB), API server | `decks-db.test.ts`, `auth.test.ts`, `collection-db.test.ts` |
 | **Upstream probe** | `apps/api/test/upstream/` | Network + `PA_API_KEY`                     | PA catalog probe                                            |
 
-E2E flow (`apps/api/scripts/run-tests.ts`):
-
-1. Run all unit tests — **fail fast** if any fail
-2. Run e2e with `--preload ./test/e2e/preload.ts --max-concurrency=1`
+`bun run --cwd apps/api test` runs `test:unit` then `test:e2e` (`--preload ./test/e2e/preload.ts --max-concurrency=1`).
 
 E2E preload syncs catalog/prices fixtures unless `E2E_SKIP_CATALOG_SYNC=true`.
 

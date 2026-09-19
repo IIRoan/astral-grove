@@ -99,10 +99,12 @@ export function DeckBrowseFilterTrigger({
   filters,
   onPress,
   iconOnly = false,
+  open = false,
 }: {
   filters: DeckBrowseFilters;
   onPress: () => void;
   iconOnly?: boolean;
+  open?: boolean;
 }) {
   const activeCount = countDeckBrowseFilters(filters);
   const active = activeCount > 0;
@@ -116,6 +118,7 @@ export function DeckBrowseFilterTrigger({
       }
       active={active}
       mobile
+      open={open}
       label={iconOnly ? undefined : 'Filters'}
       badge={
         active ? (

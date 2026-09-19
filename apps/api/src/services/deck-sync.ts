@@ -179,14 +179,14 @@ function legendCardFromUpstreamListEntry(
   const setCode = legend.variantNumber.split('-')[0] ?? '';
   const upstreamColors = Array.isArray(legend.colors)
     ? legend.colors
-      .map((color) => {
-        if (typeof color === 'object' && color !== null && 'name' in color) {
-          const name = (color as { name?: unknown }).name;
-          return typeof name === 'string' ? name : null;
-        }
-        return null;
-      })
-      .filter((name): name is string => Boolean(name))
+        .map((color) => {
+          if (typeof color === 'object' && color !== null && 'name' in color) {
+            const name = (color as { name?: unknown }).name;
+            return typeof name === 'string' ? name : null;
+          }
+          return null;
+        })
+        .filter((name): name is string => Boolean(name))
     : [];
 
   return DeckCardInputSchema.parse({
@@ -372,7 +372,7 @@ export class DeckSyncService {
     private readonly pa: PaClient,
     private readonly cardCache: CardCacheService,
     private readonly deckWriteAuthorizationHeader?: { name: string; value: string }
-  ) { }
+  ) {}
 
   async listUpstreamDeckIds(limit = 20): Promise<string[]> {
     const res = await this.pa.listDecks({ limit });
@@ -483,13 +483,13 @@ export class DeckSyncService {
     const upstreamPagination = parsed.pagination;
     const pagination = upstreamPagination
       ? {
-        total: upstreamPagination.total,
-        page: upstreamPagination.page,
-        limit: upstreamPagination.pageSize,
-        totalPages: upstreamPagination.totalPages,
-        hasNext: upstreamPagination.page < upstreamPagination.totalPages,
-        hasPrevious: upstreamPagination.page > 1,
-      }
+          total: upstreamPagination.total,
+          page: upstreamPagination.page,
+          limit: upstreamPagination.pageSize,
+          totalPages: upstreamPagination.totalPages,
+          hasNext: upstreamPagination.page < upstreamPagination.totalPages,
+          hasPrevious: upstreamPagination.page > 1,
+        }
       : undefined;
 
     return {
@@ -539,9 +539,9 @@ export class DeckSyncService {
     const uniqVariantIds = [...new Set(variantIds)];
     const rows = uniqVariantIds.length
       ? await this.db
-        .select({ id: variants.id, variantNumber: variants.variantNumber })
-        .from(variants)
-        .where(inArray(variants.id, uniqVariantIds))
+          .select({ id: variants.id, variantNumber: variants.variantNumber })
+          .from(variants)
+          .where(inArray(variants.id, uniqVariantIds))
       : [];
 
     const resolved = new Map<string, string>();
@@ -584,12 +584,12 @@ export class DeckSyncService {
     const championEntry = upstream.champions?.[0] ?? null;
     const championCard = championEntry
       ? await resolveDeckCardForUpstreamEntry(
-        championEntry,
-        resolved,
-        getCard,
-        this.cardCache,
-        unresolvedVariantIds
-      )
+          championEntry,
+          resolved,
+          getCard,
+          this.cardCache,
+          unresolvedVariantIds
+        )
       : null;
 
     const mapEntryWithQuantity = async (
@@ -723,9 +723,9 @@ export class DeckSyncService {
     const uniqVariantNumbers = [...new Set(variantNumbers)];
     const rows = uniqVariantNumbers.length
       ? await this.db
-        .select({ variantNumber: variants.variantNumber, id: variants.id })
-        .from(variants)
-        .where(inArray(variants.variantNumber, uniqVariantNumbers))
+          .select({ variantNumber: variants.variantNumber, id: variants.id })
+          .from(variants)
+          .where(inArray(variants.variantNumber, uniqVariantNumbers))
       : [];
 
     const variantIdByVariantNumber = new Map<string, string>();
@@ -748,18 +748,18 @@ export class DeckSyncService {
       description: deck.description ?? '',
       legend: deck.legend
         ? {
-          cardId: deck.legend.cardId,
-          variantId: variantIdByVariantNumber.get(deck.legend.variantNumber)!,
-        }
+            cardId: deck.legend.cardId,
+            variantId: variantIdByVariantNumber.get(deck.legend.variantNumber)!,
+          }
         : null,
       champions: deck.champion
         ? [
-          {
-            cardId: deck.champion.cardId,
-            variantId: variantIdByVariantNumber.get(deck.champion.variantNumber)!,
-            quantity: 1,
-          },
-        ]
+            {
+              cardId: deck.champion.cardId,
+              variantId: variantIdByVariantNumber.get(deck.champion.variantNumber)!,
+              quantity: 1,
+            },
+          ]
         : [],
       maindeck: deck.mainDeck.map((e) => ({
         cardId: e.card.cardId,
@@ -784,9 +784,9 @@ export class DeckSyncService {
 
     const extraHeaders = this.deckWriteAuthorizationHeader
       ? {
-        [this.deckWriteAuthorizationHeader.name]:
-          this.deckWriteAuthorizationHeader.value,
-      }
+          [this.deckWriteAuthorizationHeader.name]:
+            this.deckWriteAuthorizationHeader.value,
+        }
       : undefined;
 
     const res = await this.pa.createOrUpsertDeck(payload, extraHeaders);
@@ -803,9 +803,9 @@ export class DeckSyncService {
   async deleteUpstreamDeck(deckId: string): Promise<void> {
     const extraHeaders = this.deckWriteAuthorizationHeader
       ? {
-        [this.deckWriteAuthorizationHeader.name]:
-          this.deckWriteAuthorizationHeader.value,
-      }
+          [this.deckWriteAuthorizationHeader.name]:
+            this.deckWriteAuthorizationHeader.value,
+        }
       : undefined;
     await this.pa.deleteDeck(deckId, extraHeaders);
   }

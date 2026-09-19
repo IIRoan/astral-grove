@@ -131,11 +131,13 @@ export function CatalogFilterTrigger({
   onPress,
   compact = false,
   mobile = false,
+  open = false,
 }: {
   filters: CatalogFilters;
   onPress: () => void;
   compact?: boolean;
   mobile?: boolean;
+  open?: boolean;
 }) {
   const activeCount = countCatalogFilters(filters);
   const filterActive = activeCount > 0;
@@ -147,6 +149,7 @@ export function CatalogFilterTrigger({
       accessibilityLabel="Open filters"
       active={filterActive}
       mobile={mobile}
+      open={open}
       label={compact ? undefined : 'Filters'}
       badge={
         filterActive ? (

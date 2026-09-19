@@ -1,7 +1,4 @@
-import type {
-  SettingsDeviceProfile,
-  UserSettingsPayload,
-} from '@riftbound/contracts';
+import type { SettingsDeviceProfile, UserSettingsPayload } from '@riftbound/contracts';
 import {
   DEFAULT_USER_SETTINGS,
   mergeUserSettings,
@@ -29,9 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export function settingsStorageKey(userId: string | null): string {
-  return userId
-    ? `riftbound_settings:v1:user:${userId}`
-    : 'riftbound_settings:v1:anon';
+  return userId ? `riftbound_settings:v1:user:${userId}` : 'riftbound_settings:v1:anon';
 }
 
 export function parseSettings(raw: unknown): Settings {
@@ -47,7 +42,10 @@ export function parseSettings(raw: unknown): Settings {
   };
 }
 
-function parseDeviceEntry(raw: unknown, fallbackUpdatedAt: string): DeviceSettingsEntry | null {
+function parseDeviceEntry(
+  raw: unknown,
+  fallbackUpdatedAt: string
+): DeviceSettingsEntry | null {
   if (!raw || typeof raw !== 'object') return null;
   const record = raw as Record<string, unknown>;
 

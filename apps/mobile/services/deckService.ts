@@ -195,7 +195,7 @@ async function flushSaveKey(key: string): Promise<DeckState | null> {
 
   const savePromise = (async (): Promise<DeckState | null> => {
     let current = pending;
-    for (; ;) {
+    for (;;) {
       const saved = await saveDeckToAccount(current);
       const newer = pendingRemoteDecks.get(key);
       if (!newer || newer.updatedAt <= saved.updatedAt) {

@@ -2,7 +2,7 @@ import { ThemedIcon, LibraryIcon, SlidersHorizontalIcon } from '@/components/ico
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { AppLoader } from '@/components/ui/app-loader';
-import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
+import { ListSpacer } from '@/components/ui/list-spacer';
 import { View, type LayoutChangeEvent } from 'react-native';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import {
@@ -415,6 +415,7 @@ function DeckBuilderCatalogBrowse({
                   : 'Open filters'
               }
               onPress={() => setFilterSheetOpen(true)}
+              open={filterSheetOpen}
               badge={filterActive ? <CatalogToolbarBadgeDot /> : null}
             />
           ) : null}
@@ -464,7 +465,7 @@ function DeckBuilderCatalogBrowse({
                   <AppLoader size="sm" />
                 </View>
               ) : null}
-              <ListBottomSpacer height={paddingBottom} />
+              <ListSpacer height={paddingBottom} />
             </>
           }
           onViewableItemsChanged={handleViewableItemsChanged}

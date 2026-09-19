@@ -133,7 +133,10 @@ export class CardmarketIdBackfillService {
       reservedIdsByCardId.set(row.cardId, reserved);
 
       const siblings = mappedVariantsByCardId.get(row.cardId) ?? [];
-      siblings.push({ variantNumber: row.variantNumber, cardmarketId: row.cardmarketId });
+      siblings.push({
+        variantNumber: row.variantNumber,
+        cardmarketId: row.cardmarketId,
+      });
       mappedVariantsByCardId.set(row.cardId, siblings);
     }
 

@@ -13,7 +13,6 @@ import { type DeckBrowseFilters } from '@/constants/deckBrowse';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useDeckBrowseFilterOptions } from '@/hooks/useDeckBrowseFilters';
 import { type DeckBrowseFilterSegment } from '@/lib/deck-browse';
-import { mapFilter, toMembershipSet } from '@/lib/iteration';
 import { api } from '@/src/api/client';
 import { cardQueryKeys } from '@/src/api/queryKeys';
 
@@ -63,15 +62,13 @@ export function DeckBrowseFilterSegmentPanel({
 
   const legendOptions = useMemo(
     () =>
-      mapFilter(
-        legendsQuery.data?.data ?? [],
-        (item) => item.type.toLowerCase() === 'legend',
-        (item) => item.name
-      ),
+      (legendsQuery.data?.data ?? [])
+        .filter((item) => item.type.toLowerCase() === 'legend')
+        .map((item) => item.name),
     [legendsQuery.data?.data]
   );
 
-  const selectedSets = useMemo(() => toMembershipSet(filters.sets), [filters.sets]);
+  const selectedSets = useMemo(() => new Set(filters.sets), [filters.sets]);
 
   const update = (patch: Partial<DeckBrowseFilters>) => {
     onFiltersChange({ ...filters, ...patch });

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import { ChevronLeftIcon, LightningIcon, ThemedIcon } from '@/components/icons';
-import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
+import { ListSpacer } from '@/components/ui/list-spacer';
 import { DeckStatsHistogram } from '@/components/deck/DeckStatsHistogram';
 import { DeckStatsMixList } from '@/components/deck/DeckStatsMixList';
 import { Text } from '@/components/ui/text';
@@ -235,7 +235,7 @@ export function DeckStatsPanel({
           </StatSection>
         </StatPair>
 
-        <ListBottomSpacer height={paddingBottom} />
+        <ListSpacer height={paddingBottom} />
       </ScrollView>
     </View>
   );

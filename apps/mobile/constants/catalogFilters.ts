@@ -1,5 +1,8 @@
-import type { CardListItem, CardsListQuery } from '@riftbound/contracts';
-import { compactMap } from '@/lib/iteration';
+import {
+  cardHasCost,
+  type CardListItem,
+  type CardsListQuery,
+} from '@riftbound/contracts';
 import { getCardPrintings, ownedQuantityForPrinting } from '@/utils/variants';
 
 /** Matches Piltover Archive card library stat chips. */
@@ -225,10 +228,7 @@ export function catalogFilterSegmentSummary(
 }
 
 function joinFilterValues(values: string[]): string | undefined {
-  const normalized = compactMap(values, (value) => {
-    const trimmed = value.trim();
-    return trimmed || null;
-  });
+  const normalized = values.map((value) => value.trim()).filter(Boolean);
   return normalized.length > 0 ? normalized.join(',') : undefined;
 }
 
@@ -374,7 +374,12 @@ export function matchesCatalogFilters(
 
   if (!cardMatchesVariantFilter(card, filters.variants)) return false;
 
-  if (filters.energy !== undefined && card.energy !== filters.energy) return false;
+  if (
+    filters.energy !== undefined &&
+    (card.energy !== filters.energy || !cardHasCost(card.type))
+  ) {
+    return false;
+  }
   if (filters.power !== undefined && card.power !== filters.power) return false;
   if (filters.might !== undefined && card.might !== filters.might) return false;
 
