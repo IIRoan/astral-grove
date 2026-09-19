@@ -24,7 +24,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   build:
@@ -38,6 +37,7 @@ jobs:
       S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
       S3_REGION: ${{ secrets.S3_REGION }}
       S3_PUBLIC_BASE_URL: ${{ secrets.S3_PUBLIC_BASE_URL }}
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       PROFILE: ${{ inputs.profile || 'development' }}
 
     steps:
@@ -134,28 +134,48 @@ jobs:
             echo
             echo "- Slot: \`releases/${PROFILE}.ipa\` (max two IPAs: development + preview)"
             echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Install QR sent to Discord"
             if [ "$PUBLIC" = "true" ]; then
-              IPA_URL=$(bun -e "console.log(JSON.parse(await Bun.file(process.argv[2]).text()).ipaUrl)" "$PUBLISH_JSON")
-              echo "- Public latest: [Download .ipa](${IPA_URL})"
+              echo "- Public latest URLs via \`S3_PUBLIC_BASE_URL\`"
             else
-              echo "- Presigned install links (7d) are on the PR comment / step outputs — set \`S3_PUBLIC_BASE_URL\` for stable public latest URLs"
+              echo "- Install links are 7-day presigned (set \`S3_PUBLIC_BASE_URL\` for stable latest URLs)"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Post install QR on the PR
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: ios-dev-build
-          message: |
-            ### iOS ${{ env.PROFILE }} build ready
+      - name: Send install QR to Discord
+        env:
+          TITLE: ${{ steps.meta.outputs.title }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
+            echo "DISCORD_WEBHOOK secret is not set" >&2
+            exit 1
+          fi
 
-            Latest `${{ env.PROFILE }}` slot on R2 (`releases/${{ env.PROFILE }}.ipa`).
-            Scan with Camera on a registered ad-hoc device.
+          QR_PATH="$RUNNER_TEMP/r2-publish/${PROFILE}-qr.png"
+          test -f "$QR_PATH"
 
-            <img src="${{ steps.publish.outputs.qr_url }}" width="240" alt="Install QR" />
+          REF_LINE="${GITHUB_SHA}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            REF_LINE="PR #${{ github.event.pull_request.number }} · ${GITHUB_SHA}"
+          fi
 
-            [Download .ipa](${{ steps.publish.outputs.ipa_url }})
-
-            Built from `${{ github.sha }}`.
-            Without `S3_PUBLIC_BASE_URL`, install links are 7-day presigned URLs — re-run for a fresh QR.
+          PAYLOAD=$(bun -e '
+            const profile = process.env.PROFILE ?? "development";
+            const title = process.env.TITLE ?? "Astral Grove";
+            const ref = process.env.REF_LINE ?? "";
+            console.log(JSON.stringify({
+              content: [
+                `**${title}** iOS build ready (\`${profile}\`)`,
+                "Scan with Camera on a registered ad-hoc device.",
+                ref,
+              ].join("\n"),
+            }));
+          ')
+          REF_LINE="$REF_LINE" TITLE="$TITLE" PROFILE="$PROFILE" \
+          PAYLOAD="$PAYLOAD" \
+          QR_PATH="$QR_PATH" \
+          bash -c 'curl -fsS -X POST \
+            -F "payload_json=${PAYLOAD}" \
+            -F "files[0]=@${QR_PATH};type=image/png;filename=${PROFILE}-qr.png" \
+            "$DISCORD_WEBHOOK"'
