@@ -969,9 +969,7 @@ export class CardCacheService {
           page < (upstream.pagination?.totalPages ?? page);
 
         // Broader upstream totals (within colors, energy no-cost filter): use clean-page streaks.
-        const caughtUp = totalsIncomparable
-          ? consecutiveCleanPages >= 5
-          : !stillBehind;
+        const caughtUp = totalsIncomparable ? consecutiveCleanPages >= 5 : !stillBehind;
 
         if (caughtUp || !hasNext) break;
         page += 1;

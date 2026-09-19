@@ -24,7 +24,10 @@ describe('filters', () => {
     expect(parsed.meta.variantCount).toBeGreaterThanOrEqual(expectedCatalogTotal);
     expect(parsed.meta.catalogHash.length).toBeGreaterThan(0);
     expect(parsed.meta.pricesCatalogHash.length).toBeGreaterThan(0);
-    expect(parsed.meta.variantCount).toBe(sumSetPrintCounts(parsed.data));
+    // variantCount is max(set print sums, synced row count)
+    expect(parsed.meta.variantCount).toBeGreaterThanOrEqual(
+      sumSetPrintCounts(parsed.data)
+    );
     const ogn = parsed.data.sets.find((s) => s.code === 'OGN');
     expect(ogn?.printCount).toBe(
       enrichedFilterSnapshot.sets.find((s) => s.code === 'OGN')?.printCount

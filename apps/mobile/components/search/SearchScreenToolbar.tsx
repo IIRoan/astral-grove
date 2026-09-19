@@ -57,12 +57,7 @@ export function SearchScreenToolbar({
               onSubmitEditing={onSubmitSearch}
             />
           </View>
-          <SortTrigger
-            activeSort={catalogSort}
-            onPress={onSortPress}
-            mobile
-            iconOnly
-          />
+          <SortTrigger activeSort={catalogSort} onPress={onSortPress} mobile iconOnly />
           <CatalogFilterTrigger
             filters={catalogFilters}
             onPress={onFilterPress}

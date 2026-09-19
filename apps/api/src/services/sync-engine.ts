@@ -132,9 +132,10 @@ export class SyncEngine {
         syncedVariantRows
       );
       // Never lock an incomplete catalog behind the full upstream fingerprint.
+      // Keep char(64): prefixing the fingerprint overflows sync_state.content_hash.
       const contentHash =
         truncatedByMaxPages && syncedVariantRows < finalPrintTotal
-          ? `partial:${fingerprint}:pages=${String(pages)}`
+          ? catalogFingerprint(pages, { partial: true, fingerprint })
           : fingerprint;
 
       if (contentHash !== fingerprint) {
