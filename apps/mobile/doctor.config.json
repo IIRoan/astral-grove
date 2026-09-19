@@ -1,0 +1,15 @@
+{
+  "$schema": "https://www.react.doctor/schema/config.json",
+  "ignore": {
+    "overrides": [
+      {
+        "files": ["components/ui/bottom-sheet.tsx"],
+        "rules": ["react-doctor/no-many-boolean-props"]
+      },
+      {
+        "files": ["components/ui/toaster.tsx"],
+        "rules": ["deslop/unused-export"]
+      }
+    ]
+  }
+}
