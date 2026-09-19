@@ -27,6 +27,7 @@ jobs:
   api-e2e:
     name: API e2e
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16-alpine
