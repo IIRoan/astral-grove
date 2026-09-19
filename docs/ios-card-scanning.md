@@ -40,7 +40,7 @@ Core ML supports image inputs and tensor outputs, which fits a replacement embed
 
 ### Installing a development build
 
-Expo meters registering locally built binaries on the free plan, so the IPA is not uploaded there. Each run replaces the `pr-<number>` pre-release with the IPA, an over-the-air `manifest.plist`, and a QR code for the `itms-services` install link, and posts that QR on the PR. The ad-hoc signature only installs on registered devices, so the public release is acceptable. `apps/mobile/scripts/install-ios-dev-build.sh` installs the same IPA over USB with `ideviceinstaller`.
+Expo meters registering locally built binaries on the free plan, so the IPA is not uploaded there. Each run replaces the `pr-<number>` pre-release with the IPA, an over-the-air `manifest.plist`, and a QR code for the `itms-services` install link, and posts that QR on the PR. The ad-hoc signature only installs on registered devices, so the public release is acceptable.
 
 ### Low-light references
 

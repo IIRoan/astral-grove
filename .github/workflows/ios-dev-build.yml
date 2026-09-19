@@ -157,7 +157,7 @@ jobs:
 
             <img src="${{ steps.publish.outputs.qr_url }}" width="240" alt="Install QR" />
 
-            [Download .ipa](${{ steps.publish.outputs.ipa_url }}) · or with the iPhone on USB: `bash apps/mobile/scripts/install-ios-dev-build.sh`
+            [Download .ipa](${{ steps.publish.outputs.ipa_url }})
 
             Built from `${{ github.sha }}` with the `development` profile.
             Requires this device's UDID to be registered for ad-hoc distribution.
