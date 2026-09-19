@@ -24,8 +24,6 @@ interface SearchScreenToolbarProps {
   catalogSort: CatalogSort;
   onSortPress: () => void;
   onFilterPress: () => void;
-  sortOpen: boolean;
-  filterOpen: boolean;
 }
 
 export function SearchScreenToolbar({
@@ -43,8 +41,6 @@ export function SearchScreenToolbar({
   catalogSort,
   onSortPress,
   onFilterPress,
-  sortOpen,
-  filterOpen,
 }: SearchScreenToolbarProps) {
   if (isMobile) {
     return (
@@ -61,13 +57,17 @@ export function SearchScreenToolbar({
               onSubmitEditing={onSubmitSearch}
             />
           </View>
-          <SortTrigger activeSort={catalogSort} onPress={onSortPress} mobile iconOnly open={sortOpen} />
+          <SortTrigger
+            activeSort={catalogSort}
+            onPress={onSortPress}
+            mobile
+            iconOnly
+          />
           <CatalogFilterTrigger
             filters={catalogFilters}
             onPress={onFilterPress}
             compact
             mobile
-            open={filterOpen}
           />
         </View>
 

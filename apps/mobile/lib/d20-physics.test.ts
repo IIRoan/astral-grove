@@ -25,18 +25,37 @@ describe('d20 physics', () => {
       const sim = createSim(390, 600);
       throwDie(sim.die, 90 * (Math.random() - 0.5), 90 * (Math.random() - 0.5));
       let t = 0;
-      while (!stepSim(sim, 1 / 60) && t < 15) {
+      while (!stepSim(sim, 1 / 60) && t < 20) {
         t += 1 / 60;
         const { x, y, z } = sim.die.position;
         expect(Math.abs(x)).toBeLessThan(sim.halfW);
         expect(Math.abs(y)).toBeLessThan(sim.halfH);
         expect(z).toBeGreaterThan(0);
       }
-      expect(t).toBeLessThan(15);
+      expect(t).toBeLessThan(20);
       expect(sim.die.position.z).toBeCloseTo(INRADIUS, 1);
-      expect(t).toBeGreaterThan(0.3);
+      expect(t).toBeGreaterThan(0.4);
       expect(topFaceValue(sim.die.quaternion)).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  test('a wall hit keeps most of the throw speed', () => {
+    const sim = createSim(390, 600);
+    const { die } = sim;
+    die.wakeUp();
+    die.position.set(sim.halfW - 1.6, 0, 3.2);
+    die.velocity.set(55, 0, 4);
+    die.angularVelocity.set(0, 20, 0);
+    let bounced = false;
+    for (let i = 0; i < 180; i++) {
+      stepSim(sim, 1 / 60);
+      if (die.velocity.x < 0) {
+        bounced = true;
+        expect(Math.abs(die.velocity.x)).toBeGreaterThan(18);
+        break;
+      }
+    }
+    expect(bounced).toBe(true);
   });
 
   test('every face comes up over many throws', () => {
@@ -45,7 +64,7 @@ describe('d20 physics', () => {
       const sim = createSim(390, 600);
       throwDie(sim.die, 80 * (Math.random() - 0.5), 80 * (Math.random() - 0.5));
       let t = 0;
-      while (!stepSim(sim, 1 / 60) && t < 15) t += 1 / 60;
+      while (!stepSim(sim, 1 / 60) && t < 20) t += 1 / 60;
       seen.add(topFaceValue(sim.die.quaternion));
     }
     expect([...seen].sort((a, b) => a - b)).toEqual(
@@ -57,7 +76,7 @@ describe('d20 physics', () => {
     const sim = createSim(390, 600);
     throwDie(sim.die, 30, -20);
     let t = 0;
-    while (!stepSim(sim, 1 / 60) && t < 15) t += 1 / 60;
+    while (!stepSim(sim, 1 / 60) && t < 20) t += 1 / 60;
     const shown = topFaceValue(sim.die.quaternion);
     const rotated = createSim(600, 390, sim);
     expect(topFaceValue(rotated.die.quaternion)).toBe(shown);

@@ -29,7 +29,6 @@ import { CollectionService } from './services/collection-service.js';
 import { CollectionShareService } from './services/collection-share-service.js';
 import { PriceCacheService } from './services/price-cache.js';
 import { SyncEngine } from './services/sync-engine.js';
-import { createEmbeddingService } from './services/embeddings.js';
 import { WishlistService } from './services/wishlist-service.js';
 import { DeckService } from './services/deck-service.js';
 import { UserSettingsService } from './services/user-settings-service.js';
@@ -59,9 +58,12 @@ function buildApp(env: Env): AppContext {
   const pa = new PaClient(env);
   const priceCache = new PriceCacheService(db);
   const imageStore = new ImageStoreService(env);
-  const embeddings = createEmbeddingService(db, env);
-  const cardCache = new CardCacheService(db, pa, priceCache, imageStore, embeddings);
-  const catalogMetadata = new CatalogMetadataService(db, pa);
+  const cardCache = new CardCacheService(db, pa, priceCache, imageStore);
+  const catalogMetadata = new CatalogMetadataService(
+    db,
+    pa,
+    env.CATALOG_PROBE_DISABLED
+  );
   const syncEngine = new SyncEngine(db, pa, cardCache, catalogMetadata);
   const collectionService = new CollectionService(db, cardCache, imageStore, pa);
   const collectionShareService = new CollectionShareService(db, env.PUBLIC_APP_URL);
@@ -134,7 +136,7 @@ export function createApp(env: Env): AppContext {
 }
 
 export function startCatalogMetadataWarmup(ctx: AppContext, env: Env): void {
-  if (!env.CATALOG_WARMUP_ON_START || process.env.CATALOG_PROBE_DISABLED === 'true') {
+  if (!env.CATALOG_WARMUP_ON_START || env.CATALOG_PROBE_DISABLED) {
     return;
   }
 

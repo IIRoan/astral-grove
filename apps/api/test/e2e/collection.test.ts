@@ -261,7 +261,8 @@ describe('collection import/export', () => {
       await (await authFetch('/api/v1/collection', { cookie: cookieHeader })).json()
     );
     expect(
-      listAfterPreview.data.find((item) => item.variantNumber === 'OGN-001')?.quantity ?? 0
+      listAfterPreview.data.find((item) => item.variantNumber === 'OGN-001')
+        ?.quantity ?? 0
     ).toBe(beforeQty);
 
     const acceptRes = await authFetch('/api/v1/collection/import', {
@@ -302,7 +303,10 @@ describe('collection import/export', () => {
   });
 
   test('POST /api/v1/collection/quantities accepts more than 200 variants', async () => {
-    const variantNumbers = Array.from({ length: 205 }, (_, index) => `OGN-${String(index + 1).padStart(3, '0')}`);
+    const variantNumbers = Array.from(
+      { length: 205 },
+      (_, index) => `OGN-${String(index + 1).padStart(3, '0')}`
+    );
     const res = await authFetch('/api/v1/collection/quantities', {
       method: 'POST',
       cookie: cookieHeader,

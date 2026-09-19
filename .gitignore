@@ -23,8 +23,6 @@ apps/mobile/.env
 # Dev tunnel (ephemeral quick-tunnel URL)
 .dev/
 
-# Impeccable local question heartbeats (pid/port/lastBeat — machine runtime)
-.impeccable/questions/
 
 # Cloudflare Tunnel credentials (never commit)
 cloudflared/credentials.json
@@ -44,5 +42,10 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Legacy sibling app (separate project)
-manganess/node_modules
+
+# Local agent tooling caches
+.impeccable/
+
+# Playwright
+apps/mobile/test-results/
+.muxel/

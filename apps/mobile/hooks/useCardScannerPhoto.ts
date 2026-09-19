@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import type { CameraView } from 'expo-camera';
 import { ImageManipulator } from 'expo-image-manipulator';
-import type { OcrLine } from '@riftbound/contracts';
+import type { OcrLine } from '@/lib/card-scan';
 import { recognizeCardText, type RecognizeOptions } from '@/modules/card-ocr';
 import { cardRect, codeBandRect, previewRectToPhotoCrop } from '@/utils/scanCrop';
 import type { ScanSession } from '@/hooks/useScanSession';

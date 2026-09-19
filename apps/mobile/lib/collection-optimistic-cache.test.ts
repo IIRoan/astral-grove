@@ -73,7 +73,8 @@ describe('applyCollectionQuantity', () => {
 
     applyCollectionQuantity(client, 'OGN-001', 2, undefined, false);
 
-    const entries = client.getQueryData<CollectionEntry[]>(collectionQueryKeys.all) ?? [];
+    const entries =
+      client.getQueryData<CollectionEntry[]>(collectionQueryKeys.all) ?? [];
     const fromCollection = ownershipMapFromCollection(entries);
     const fetched = ownershipMapFromRecord(getOwnershipRecord(client));
     const merged = preferCollectionOwnership(fetched, fromCollection);

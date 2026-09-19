@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, lint, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run --cwd packages/contracts test
+      - run: bun run --cwd apps/api test:unit
+      - run: bun run --cwd apps/mobile test
+
+  api-e2e:
+    name: API e2e
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: riftbound
+          POSTGRES_PASSWORD: riftbound
+          POSTGRES_DB: riftbound_test
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U riftbound -d riftbound_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      TEST_DB_URL: postgres://riftbound:riftbound@localhost:5433/riftbound_test
+      # The catalog fixture sync reads from Piltover Archive; add PA_API_KEY as a repo secret.
+      PA_API_KEY: ${{ secrets.PA_API_KEY }}
+      ADMIN_SYNC_TOKEN: ci-admin-sync-token-not-secret
+      BETTER_AUTH_SECRET: ci-better-auth-secret-not-secret-32chars
+      BETTER_AUTH_URL: http://localhost:3099
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bun run --cwd packages/contracts build
+      - run: bun run --cwd apps/api test:e2e

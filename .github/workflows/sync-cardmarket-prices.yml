@@ -4,7 +4,7 @@ name: Sync Cardmarket Prices
 # POST /api/v1/sync/prices (same path as `bun run sync:prices` against a running API).
 on:
   schedule:
-    # Daily 03:00 UTC — matches SPEC.md syncPrices schedule
+    # Daily 03:00 UTC
     - cron: '0 3 * * *'
   workflow_dispatch:
 

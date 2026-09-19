@@ -804,29 +804,4 @@ describe('search indexing fixtures', () => {
     expect(bravo).toBeLessThan(alpha);
     expect(priced.timings.pricesMs).toBeGreaterThan(0);
   });
-
-  test('incompatible stored embeddings fall back to lexical matches and keep filters', async () => {
-    const { db, cardCache } = getContext();
-    await db
-      .update(cards)
-      .set({ embeddingModel: 'local-hash-v1', embeddedHash: 'c'.repeat(64) })
-      .where(eq(cards.id, ACCENT_CARD_ID));
-    cardCache.invalidateSearchCache();
-
-    const result = await searchLocal({
-      q: 'ambessa legend',
-      types: 'Legend',
-      limit: 20,
-    });
-    expect(result.items.some((row) => row.cardId === ACCENT_CARD_ID)).toBe(true);
-    expect(result.items.every((row) => row.type.toLowerCase().includes('legend'))).toBe(
-      true
-    );
-
-    await db
-      .update(cards)
-      .set({ embeddingModel: null, embedding: null, embeddedHash: null })
-      .where(eq(cards.id, ACCENT_CARD_ID));
-    cardCache.invalidateSearchCache();
-  });
 });

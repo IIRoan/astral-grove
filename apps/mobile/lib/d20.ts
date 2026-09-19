@@ -96,13 +96,13 @@ export function rotate(
   ];
 }
 
-/** The value on the face pointing most toward +z (up). */
-export function topFaceValue(q: {
+/** The face pointing most toward +z (up). */
+export function topFace(q: {
   x: number;
   y: number;
   z: number;
   w: number;
-}): number {
+}): D20Face {
   let best = D20_FACES[0]!;
   let bestZ = -Infinity;
   for (const face of D20_FACES) {
@@ -112,5 +112,15 @@ export function topFaceValue(q: {
       best = face;
     }
   }
-  return best.value;
+  return best;
+}
+
+/** The value on the face pointing most toward +z (up). */
+export function topFaceValue(q: {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}): number {
+  return topFace(q).value;
 }

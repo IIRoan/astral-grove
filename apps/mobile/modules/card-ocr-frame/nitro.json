@@ -1,8 +1,6 @@
 {
   "$schema": "https://nitro.margelo.com/nitro.schema.json",
-  "cxxNamespace": [
-    "cardocr"
-  ],
+  "cxxNamespace": ["cardocr"],
   "ios": {
     "iosModuleName": "CardOcrFrame"
   },
@@ -14,13 +12,9 @@
       }
     }
   },
-  "ignorePaths": [
-    "**/node_modules"
-  ],
+  "ignorePaths": ["**/node_modules"],
   "android": {
-    "androidNamespace": [
-      "cardocr"
-    ],
+    "androidNamespace": ["cardocr"],
     "androidCxxLibName": "CardOcrFrame"
   }
 }

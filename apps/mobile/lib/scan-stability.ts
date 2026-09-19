@@ -1,4 +1,4 @@
-import type { ScanCard, ScanDecision } from '@riftbound/contracts';
+import type { ScanCard, ScanDecision } from '@/lib/card-scan';
 
 const MAX_GAP_MS = 1500;
 const WINDOW_MS = 5000;

@@ -15,6 +15,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test src",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix"
   },
@@ -23,6 +24,6 @@
   },
   "devDependencies": {
     "@riftbound/typescript-config": "workspace:*",
-    "typescript": "^7.0.2"
+    "typescript": "6.0.3"
   }
 }

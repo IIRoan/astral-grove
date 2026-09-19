@@ -68,10 +68,10 @@ function toOwnedItem(
     readOnly: false,
     ...(version
       ? {
-        versionId: version.versionId,
-        versionName: version.versionName,
-        ...(version.versions ? { versions: version.versions } : {}),
-      }
+          versionId: version.versionId,
+          versionName: version.versionName,
+          ...(version.versions ? { versions: version.versions } : {}),
+        }
       : {}),
   };
 }
@@ -383,30 +383,30 @@ export class DeckService {
       source === 'imported'
         ? []
         : ownedRows
-          .filter((row) => matchesDeckQuery(row.payload, q))
-          .map((row) =>
-            toOwnedItem(
-              row.payload,
-              row.activeVersionId && row.versionName
-                ? {
-                  versionId: row.activeVersionId,
-                  versionName: row.versionName,
-                }
-                : undefined
-            )
-          );
+            .filter((row) => matchesDeckQuery(row.payload, q))
+            .map((row) =>
+              toOwnedItem(
+                row.payload,
+                row.activeVersionId && row.versionName
+                  ? {
+                      versionId: row.activeVersionId,
+                      versionName: row.versionName,
+                    }
+                  : undefined
+              )
+            );
 
     const skipUpstreamIds = this.ownedUpstreamIds(ownedRows.map((row) => row.payload));
     const importedItems: DeckListItem[] = [];
     let pagination:
       | {
-        total: number;
-        page: number;
-        limit: number;
-        totalPages: number;
-        hasNext: boolean;
-        hasPrevious: boolean;
-      }
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+          hasNext: boolean;
+          hasPrevious: boolean;
+        }
       | undefined;
 
     if (this.deckSync && source !== 'owned') {

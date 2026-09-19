@@ -29,22 +29,16 @@ const FINISHED_STATUS = 'finished';
 export function parseEasJsonArray(stdout: string): unknown[] {
   const start = stdout.indexOf('[');
   if (start < 0) {
-    throw new PreviewUpdateTargetError(
-      'eas build:list did not return a JSON array'
-    );
+    throw new PreviewUpdateTargetError('eas build:list did not return a JSON array');
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(stdout.slice(start));
   } catch {
-    throw new PreviewUpdateTargetError(
-      'eas build:list returned invalid JSON'
-    );
+    throw new PreviewUpdateTargetError('eas build:list returned invalid JSON');
   }
   if (!Array.isArray(parsed)) {
-    throw new PreviewUpdateTargetError(
-      'eas build:list JSON was not an array'
-    );
+    throw new PreviewUpdateTargetError('eas build:list JSON was not an array');
   }
   return parsed;
 }

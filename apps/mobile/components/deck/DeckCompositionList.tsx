@@ -2,7 +2,7 @@ import { ThemedIcon, ImageIcon, MinusIcon, PlusIcon } from '@/components/icons';
 import { useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
-import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
+import { ListSpacer } from '@/components/ui/list-spacer';
 import { CardArtHoverPreview } from '@/components/deck/CardArtHoverPreview';
 import { DeckCardArt } from '@/components/deck/DeckCardArt';
 import { DeckBuilderStatusStrip } from '@/components/deck/DeckBuilderStatusStrip';
@@ -468,7 +468,9 @@ export function DeckCompositionList({
       {mainRows.length > 0 ? (
         renderRows(mainRows)
       ) : (
-        <Text className="mb-1 text-[11px] text-muted-foreground">No main deck cards</Text>
+        <Text className="mb-1 text-[11px] text-muted-foreground">
+          No main deck cards
+        </Text>
       )}
 
       <SectionHeader
@@ -490,7 +492,7 @@ export function DeckCompositionList({
     <>
       {headerInScroll ? header : null}
       {sections}
-      {scrollEnabled ? <ListBottomSpacer height={paddingBottom} /> : null}
+      {scrollEnabled ? <ListSpacer height={paddingBottom} /> : null}
     </>
   );
 

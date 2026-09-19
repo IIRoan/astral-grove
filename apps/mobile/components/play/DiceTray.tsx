@@ -2,8 +2,15 @@ import { XIcon } from '@/components/icons';
 import { Button, ButtonText } from '@/components/ui/button';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Text } from '@/components/ui/text';
-import { D20_MODEL_RADIUS, topFaceValue } from '@/lib/d20';
+import {
+  D20_FACES,
+  D20_MODEL_RADIUS,
+  D20_VERTICES,
+  topFaceValue,
+  type D20Face,
+} from '@/lib/d20';
 import { CAMERA_Z, createSim, stepSim, throwDie, type Sim } from '@/lib/d20-physics';
+import { patchExpoGlPixelStore, silenceThreeExpoNoise } from '@/lib/three-expo-noise';
 import { hapticPress } from '@/utils/haptics';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as CANNON from 'cannon-es';
@@ -18,9 +25,43 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useCSSVariable } from 'uniwind';
 
+silenceThreeExpoNoise();
+
 const HOLD_Z = 2.4;
+const HIGHLIGHT = '#0b3d2e';
+const HIGHLIGHT_EDGE = '#1fa97a';
 
 type DieAssets = { geometry: THREE.BufferGeometry; texture: THREE.Texture };
+
+function faceHighlightGeometry(face: D20Face): THREE.BufferGeometry {
+  const push = 0.04;
+  const n = face.normal;
+  const pos = new Float32Array(9);
+  face.indices.forEach((vi, i) => {
+    const v = D20_VERTICES[vi]!;
+    const o = i * 3;
+    pos[o] = v[0] + n[0] * push;
+    pos[o + 1] = v[1] + n[1] * push;
+    pos[o + 2] = v[2] + n[2] * push;
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+function faceEdgeGeometry(face: D20Face): THREE.BufferGeometry {
+  const push = 0.045;
+  const n = face.normal;
+  const pts: number[] = [];
+  for (const vi of [...face.indices, face.indices[0]!]) {
+    const v = D20_VERTICES[vi]!;
+    pts.push(v[0] + n[0] * push, v[1] + n[1] * push, v[2] + n[2] * push);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  return g;
+}
 
 // Mesh and number texture: see assets/models/README.md for provenance and license.
 async function loadDieAssets(): Promise<DieAssets> {
@@ -59,8 +100,24 @@ export function DiceTray({ onClose }: DiceTrayProps) {
   const [result, setResult] = useState<number | null>(null);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const thrown = useRef(false);
+  const holdBuzz = useRef<ReturnType<typeof setInterval> | null>(null);
   const panelRaw = useCSSVariable('--color-card-panel');
   const panel = String(panelRaw ?? '#1c1c1c');
+
+  const stopHoldBuzz = () => {
+    if (!holdBuzz.current) return;
+    clearInterval(holdBuzz.current);
+    holdBuzz.current = null;
+  };
+
+  const startHoldBuzz = () => {
+    if (Platform.OS === 'web') return;
+    stopHoldBuzz();
+    void Haptics.selectionAsync().catch(() => {});
+    holdBuzz.current = setInterval(() => {
+      void Haptics.selectionAsync().catch(() => {});
+    }, 55);
+  };
 
   useEffect(() => {
     let live = true;
@@ -70,6 +127,7 @@ export function DiceTray({ onClose }: DiceTrayProps) {
     );
     return () => {
       live = false;
+      stopHoldBuzz();
     };
   }, []);
 
@@ -122,6 +180,7 @@ export function DiceTray({ onClose }: DiceTrayProps) {
       sim.die.wakeUp();
       sim.restTime = 0;
       setResult(null);
+      startHoldBuzz();
     })
     .onUpdate((e) => {
       if (drag.current) drag.current = toTray(e.x, e.y);
@@ -129,6 +188,7 @@ export function DiceTray({ onClose }: DiceTrayProps) {
     .onFinalize((e) => {
       if (!sim || !drag.current) return;
       drag.current = null;
+      stopHoldBuzz();
       thrown.current = true;
       throwDie(sim.die, e.velocityX / sim.px, -e.velocityY / sim.px);
     });
@@ -187,8 +247,11 @@ export function DiceTray({ onClose }: DiceTrayProps) {
             {sim && size && assets ? (
               <Canvas
                 style={{ flex: 1 }}
-                shadows
+                shadows="percentage"
                 camera={{ position: [0, 0, CAMERA_Z], near: 1, far: 40 }}
+                onCreated={({ gl }) => {
+                  patchExpoGlPixelStore(gl.getContext() as WebGLRenderingContext);
+                }}
               >
                 <TrayView px={sim.px} height={size.height} background={panel} />
                 <hemisphereLight
@@ -211,7 +274,13 @@ export function DiceTray({ onClose }: DiceTrayProps) {
                   <planeGeometry args={[60, 60]} />
                   <shadowMaterial opacity={0.4} />
                 </mesh>
-                <Die sim={sim} assets={assets} drag={drag} onSettled={onSettled} />
+                <Die
+                  sim={sim}
+                  assets={assets}
+                  drag={drag}
+                  result={result}
+                  onSettled={onSettled}
+                />
               </Canvas>
             ) : loadFailed ? (
               <Text className="p-4 text-sm text-muted-foreground">
@@ -271,14 +340,25 @@ function Die({
   sim,
   assets,
   drag,
+  result,
   onSettled,
 }: {
   sim: Sim;
   assets: DieAssets;
   drag: RefObject<{ x: number; y: number } | null>;
+  result: number | null;
   onSettled: (value: number) => void;
 }) {
-  const ref = useRef<THREE.Mesh>(null);
+  const group = useRef<THREE.Group>(null);
+  const winner = useMemo(
+    () => (result === null ? null : D20_FACES.find((f) => f.value === result) ?? null),
+    [result]
+  );
+  const highlightGeom = useMemo(
+    () => (winner ? faceHighlightGeometry(winner) : null),
+    [winner]
+  );
+  const edgeGeom = useMemo(() => (winner ? faceEdgeGeometry(winner) : null), [winner]);
   // Glossy resin with the numbers inked into the diffuse map.
   const material = useMemo(
     () =>
@@ -310,21 +390,40 @@ function Die({
       const settled = stepSim(sim, dt);
       if (settled && !drag.current) onSettled(topFaceValue(die.quaternion));
     }
-    const mesh = ref.current;
-    if (!mesh) return;
+    const g = group.current;
+    if (!g) return;
     const p = die.interpolatedPosition;
     const q = die.interpolatedQuaternion;
-    mesh.position.set(p.x, p.y, p.z);
-    mesh.quaternion.set(q.x, q.y, q.z, q.w);
+    g.position.set(p.x, p.y, p.z);
+    g.quaternion.set(q.x, q.y, q.z, q.w);
   });
 
   return (
-    <mesh
-      ref={ref}
-      geometry={assets.geometry}
-      material={material}
-      castShadow
-      scale={1 / D20_MODEL_RADIUS}
-    />
+    <group ref={group}>
+      <mesh
+        geometry={assets.geometry}
+        material={material}
+        castShadow
+        scale={1 / D20_MODEL_RADIUS}
+      />
+      {highlightGeom ? (
+        <mesh geometry={highlightGeom}>
+          <meshBasicMaterial
+            color={HIGHLIGHT}
+            transparent
+            opacity={0.72}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+            polygonOffset
+            polygonOffsetFactor={-2}
+          />
+        </mesh>
+      ) : null}
+      {edgeGeom ? (
+        <lineLoop geometry={edgeGeom}>
+          <lineBasicMaterial color={HIGHLIGHT_EDGE} transparent opacity={1} />
+        </lineLoop>
+      ) : null}
+    </group>
   );
 }

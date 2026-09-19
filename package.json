@@ -5,10 +5,8 @@
   "packageManager": "bun@1.4.2",
   "scripts": {
     "dev": "turbo dev",
-    "dev:backend": "bun run --cwd apps/api dev",
-    "dev:api": "bun run dev:backend",
+    "dev:api": "bun run --cwd apps/api dev",
     "dev:mobile": "bun run --cwd apps/mobile dev",
-    "deploy:prisma:api": "bunx @prisma/cli@3.0.0-beta.30 app deploy --framework bun --entry apps/api/src/index.ts",
     "cloudflared": "bun scripts/dev-tunnel.mjs",
     "build": "turbo build",
     "lint": "eslint \"apps/**/*.{ts,tsx,js,mjs}\" \"packages/**/*.{ts,tsx,js,mjs}\" \"design/**/*.{ts,tsx,js,mjs}\" --ignore-pattern \"**/dist/**\" --ignore-pattern \"**/.next/**\"",
@@ -31,8 +29,7 @@
     "db:studio": "bun run --filter @riftbound/api db:studio",
     "sync:catalog": "curl -s -X POST http://localhost:7000/api/v1/sync/catalog -H \"Authorization: Bearer ${ADMIN_SYNC_TOKEN:-dev-sync-token-change-me}\"",
     "sync:prices": "curl -s -X POST http://localhost:7000/api/v1/sync/prices -H \"Authorization: Bearer ${ADMIN_SYNC_TOKEN:-dev-sync-token-change-me}\"",
-    "audit:cards": "bun run --cwd apps/api audit:cards",
-    "db:setup": "bun run db:migrate"
+    "audit:cards": "bun run --cwd apps/api audit:cards"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",

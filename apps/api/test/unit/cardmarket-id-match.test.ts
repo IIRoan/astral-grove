@@ -141,7 +141,10 @@ describe('matchUnmappedVariantsToProducts', () => {
   test('assigns promo SKUs the leftover product after the standard printing id is reserved', () => {
     const matches = matchUnmappedVariantsToProducts(
       [variant('OGN-034-Skirmish', 'Summoner Skirmish', 'Promo')],
-      [product(847151, 'Tryndamere, Barbarian'), product(861138, 'Tryndamere, Barbarian')],
+      [
+        product(847151, 'Tryndamere, Barbarian'),
+        product(861138, 'Tryndamere, Barbarian'),
+      ],
       new Set([847151])
     );
 
@@ -161,10 +164,7 @@ describe('matchUnmappedVariantsToProducts', () => {
   test('prefers the base printing id when another sibling shares the same card', () => {
     const matches = matchUnmappedVariantsToProducts(
       [variant('SFD-099-Foil', 'Foil')],
-      [
-        product(866834, 'Veteran Poro'),
-        product(884215, 'Veteran Poro'),
-      ],
+      [product(866834, 'Veteran Poro'), product(884215, 'Veteran Poro')],
       new Set([866834, 884215]),
       undefined,
       866834

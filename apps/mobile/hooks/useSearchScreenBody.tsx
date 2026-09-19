@@ -78,9 +78,9 @@ import {
   resolveCatalogDisplayItems,
 } from '@/lib/catalog-loading';
 import {
-  beginCatalogDrawerDismiss,
   createCatalogDrawerPresentation,
-  finishCatalogDrawerDismiss,
+  runAfterDrawerHostCleared,
+  shouldApplyDeferredDrawerPresent,
   type CatalogDrawerPresentation,
 } from '@/lib/bottom-sheet-lifecycle';
 import { logDrawer, snapshotPresentation, watchDrawerOpen } from '@/lib/drawer-debug';
@@ -118,7 +118,27 @@ export function useSearchScreenBody(): React.ReactElement {
   const [drawerPresentation, setDrawerPresentation] =
     useState<CatalogDrawerPresentation | null>(null);
   const nextDrawerSessionIdRef = useRef(0);
+  const drawerPresentGenerationRef = useRef(0);
+  const cancelDeferredPresentRef = useRef<(() => void) | null>(null);
   const drawerPresentationRef = useLatestRef(drawerPresentation);
+
+  useEffect(() => {
+    return () => {
+      cancelDeferredPresentRef.current?.();
+      cancelDeferredPresentRef.current = null;
+    };
+  }, []);
+
+  const killDrawerHost = useCallback((sessionId?: number) => {
+    cancelDeferredPresentRef.current?.();
+    cancelDeferredPresentRef.current = null;
+    drawerPresentGenerationRef.current += 1;
+    setDrawerPresentation((current) => {
+      if (current == null) return null;
+      if (sessionId != null && current.sessionId !== sessionId) return current;
+      return null;
+    });
+  }, []);
   const queryClient = useQueryClient();
   const catalogListRef = useRef<FlashListRef<CardListItem>>(null);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 20 }).current;
@@ -422,16 +442,35 @@ export function useSearchScreenBody(): React.ReactElement {
       ensureCardDetail(queryClient, variantNumber);
       if (!splitLayout) {
         nextDrawerSessionIdRef.current += 1;
-        const next = createCatalogDrawerPresentation(
-          nextDrawerSessionIdRef.current,
-          variantNumber
-        );
-        logDrawer('host.present', {
+        const sessionId = nextDrawerSessionIdRef.current;
+        const generation = drawerPresentGenerationRef.current + 1;
+        drawerPresentGenerationRef.current = generation;
+        cancelDeferredPresentRef.current?.();
+        // Failsafe: tear down any prior host (open, closing, or stuck) before remount.
+        setDrawerPresentation(null);
+        logDrawer('host.clear', {
           platform: Platform.OS,
+          generation,
+          sessionId,
           replacingSessionId: previous?.sessionId ?? null,
-          ...snapshotPresentation(next),
         });
-        setDrawerPresentation(next);
+        cancelDeferredPresentRef.current = runAfterDrawerHostCleared(() => {
+          if (
+            !shouldApplyDeferredDrawerPresent({
+              scheduledGeneration: generation,
+              currentGeneration: drawerPresentGenerationRef.current,
+            })
+          ) {
+            return;
+          }
+          const next = createCatalogDrawerPresentation(sessionId, variantNumber);
+          logDrawer('host.present', {
+            platform: Platform.OS,
+            generation,
+            ...snapshotPresentation(next),
+          });
+          setDrawerPresentation(next);
+        });
       } else {
         logDrawer('host.skip-drawer', {
           platform: Platform.OS,
@@ -730,8 +769,6 @@ export function useSearchScreenBody(): React.ReactElement {
         catalogSort={catalogSort}
         onSortPress={handleSortPress}
         onFilterPress={handleFilterPress}
-        sortOpen={sortSheetOpen}
-        filterOpen={filterSheetOpen}
       />
     ),
     [
@@ -747,8 +784,6 @@ export function useSearchScreenBody(): React.ReactElement {
       catalogSort,
       handleSortPress,
       handleFilterPress,
-      sortSheetOpen,
-      filterSheetOpen,
     ]
   );
 
@@ -881,10 +916,11 @@ export function useSearchScreenBody(): React.ReactElement {
         onSortChange={applyCatalogSort}
       />
 
-      {/* Selection clears at dismiss-start; visual host stays until Gorhom finishes close. */}
+      {/* Failsafe: selecting a card clears any prior host before remount (see handleSelectCard). */}
       {!splitLayout && drawerPresentation && drawerVariant ? (
         <CardDetailDrawer
           key={drawerPresentation.sessionId}
+          hostKey={drawerPresentation.sessionId}
           open={drawerPresentation.open}
           onClose={() => {
             const dismissedSessionId = drawerPresentation.sessionId;
@@ -893,9 +929,7 @@ export function useSearchScreenBody(): React.ReactElement {
               dismissedSessionId,
               ...snapshotPresentation(drawerPresentation),
             });
-            setDrawerPresentation((current) =>
-              beginCatalogDrawerDismiss(current, dismissedSessionId)
-            );
+            killDrawerHost(dismissedSessionId);
           }}
           onDismissed={() => {
             const dismissedSessionId = drawerPresentation.sessionId;
@@ -904,9 +938,7 @@ export function useSearchScreenBody(): React.ReactElement {
               dismissedSessionId,
               ...snapshotPresentation(drawerPresentation),
             });
-            setDrawerPresentation((current) =>
-              finishCatalogDrawerDismiss(current, dismissedSessionId)
-            );
+            killDrawerHost(dismissedSessionId);
           }}
         >
           <CatalogDetailPanel

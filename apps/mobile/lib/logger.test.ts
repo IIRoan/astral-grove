@@ -51,7 +51,7 @@ describe('logActionFailure', () => {
   });
 
   test('marks the error so callers can skip a duplicate log', () => {
-    console.error = (() => { }) as typeof console.error;
+    console.error = (() => {}) as typeof console.error;
     const error = new Error('already logged');
     logActionFailure('api.fetch', error);
     expect(wasActionFailureLogged(error)).toBe(true);

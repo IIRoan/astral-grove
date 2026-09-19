@@ -5,7 +5,6 @@ import {
   catalogFilterSegmentActive,
 } from '@/constants/catalogFilters';
 import { CatalogFilterSegmentPanel } from '@/components/catalog/CatalogFilterPanels';
-import { mapFilter } from '@/lib/iteration';
 
 export function useCatalogDesktopFilterSegments(
   filters: CatalogFilters,
@@ -13,9 +12,7 @@ export function useCatalogDesktopFilterSegments(
 ) {
   return useMemo(
     () =>
-      mapFilter(
-        CATALOG_FILTER_SEGMENTS,
-        (segment) => segment.id !== 'collection',
+      CATALOG_FILTER_SEGMENTS.filter((segment) => segment.id !== 'collection').map(
         (segment) => ({
           id: segment.id,
           label: segment.label,

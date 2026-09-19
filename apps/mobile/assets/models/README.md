@@ -2,7 +2,7 @@
 
 ## d20.glb and d20-diffuse.png
 
-The d20 mesh and its number texture come from the "default" theme of [3d-dice/dice-themes](https://github.com/3d-dice/dice-themes) by Frank Ali. The Babylon JSON mesh was converted to glTF (z negated to make it right-handed, no textures embedded), and the diffuse map is the theme's `diffuse-dark.png` composited over ivory resin at 512px. `lib/d20.ts` bakes the theme's collider hull and `colliderFaceMap`, so physics and value reading match the mesh exactly.
+The d20 mesh and its number texture come from the "default" theme of [3d-dice/dice-themes](https://github.com/3d-dice/dice-themes) by Frank Ali. The Babylon JSON mesh was converted to glTF (z negated to make it right-handed, no textures embedded), and the diffuse map is the theme's `diffuse-dark.png` composited over ivory resin at 512px. Underscores were added under every 6 and 9 so orientation stays readable. `lib/d20.ts` bakes the theme's collider hull and `colliderFaceMap`, so physics and value reading match the mesh exactly.
 
 MIT License
 

@@ -99,6 +99,55 @@ export function isCatalogDrawerClosing(
   return presentation != null && !presentation.open;
 }
 
+/** Gorhom onAnimate(-1) fires mid pan-down; only settled close may dismiss. */
+export function shouldDismissOnSheetEvent(
+  source: 'animate' | 'change' | 'close',
+  toIndex: number
+): boolean {
+  if (source === 'animate') return false;
+  if (source === 'close') return true;
+  return toIndex === -1;
+}
+
+/** True when a deferred present still matches the latest select generation. */
+export function shouldApplyDeferredDrawerPresent(input: {
+  scheduledGeneration: number;
+  currentGeneration: number;
+}): boolean {
+  return input.scheduledGeneration === input.currentGeneration;
+}
+
+/**
+ * FullWindowOverlay needs two frames to leave the native hierarchy.
+ * Returns a cancel function for a newer select.
+ */
+export function runAfterDrawerHostCleared(run: () => void): () => void {
+  let alive = true;
+  const schedule =
+    typeof requestAnimationFrame === 'function'
+      ? (cb: () => void) => {
+          const id = requestAnimationFrame(cb);
+          return () => cancelAnimationFrame(id);
+        }
+      : (cb: () => void) => {
+          const id = setTimeout(cb, 0);
+          return () => clearTimeout(id);
+        };
+
+  let cancelInner: (() => void) | undefined;
+  const cancelOuter = schedule(() => {
+    cancelInner = schedule(() => {
+      if (alive) run();
+    });
+  });
+
+  return () => {
+    alive = false;
+    cancelOuter();
+    cancelInner?.();
+  };
+}
+
 /** Close-start is session-monotonic — a stale callback cannot close a replacement presentation. */
 export function beginCatalogDrawerDismiss(
   presentation: CatalogDrawerPresentation | null,
@@ -125,6 +174,17 @@ export function finishCatalogDrawerDismiss(
   return null;
 }
 
+/** Drop the host immediately — keeping a closing FullWindowOverlay blocked the next open. */
+export function dismissCatalogDrawerSession(
+  presentation: CatalogDrawerPresentation | null,
+  dismissedSessionId: number
+): CatalogDrawerPresentation | null {
+  return finishCatalogDrawerDismiss(
+    beginCatalogDrawerDismiss(presentation, dismissedSessionId),
+    dismissedSessionId
+  );
+}
+
 export function simulateQuickReopen(
   presentation: CatalogDrawerPresentation,
   nextSessionId: number,
@@ -134,66 +194,4 @@ export function simulateQuickReopen(
   const reopened = createCatalogDrawerPresentation(nextSessionId, nextVariantNumber);
 
   return finishCatalogDrawerDismiss(reopened, dismissedSessionId) ?? reopened;
-}
-
-/** Shared sheet host: parent intent, portal mount, and a per-open session for a fresh Gorhom instance. */
-export type SheetHostState = {
-  open: boolean;
-  mounted: boolean;
-  sessionId: number;
-};
-
-export function createSheetHostState(open: boolean): SheetHostState {
-  return open
-    ? { open: true, mounted: true, sessionId: 1 }
-    : { open: false, mounted: false, sessionId: 0 };
-}
-
-/** Opening mounts a new session; closing keeps the host so Gorhom can play the exit animation. */
-export function applySheetOpenIntent(
-  state: SheetHostState,
-  open: boolean
-): SheetHostState {
-  if (state.open === open) {
-    return state;
-  }
-  if (open) {
-    return { open: true, mounted: true, sessionId: state.sessionId + 1 };
-  }
-  return { ...state, open: false };
-}
-
-/** Close-start (swipe release, backdrop, back) only flips the parent for the live open session. */
-export function shouldCommitSheetDismiss(
-  state: SheetHostState,
-  sessionId: number
-): boolean {
-  return state.open && state.sessionId === sessionId;
-}
-
-/** Gorhom settled closed or the fallback fired: unmount only a closed, matching session. */
-export function finishSheetHostClose(
-  state: SheetHostState,
-  sessionId: number
-): SheetHostState {
-  if (state.open || !state.mounted || state.sessionId !== sessionId) {
-    return state;
-  }
-  return { ...state, mounted: false };
-}
-
-/** Swipe release fires onAnimate(-1) at once; a forced close can skip Gorhom's settle callbacks. */
-export function simulateSheetSwipeDismiss(
-  state: SheetHostState,
-  options: { gorhomSettles: boolean }
-): SheetHostState {
-  const { sessionId } = state;
-  let next = state;
-  if (shouldCommitSheetDismiss(next, sessionId)) {
-    next = applySheetOpenIntent(next, false);
-  }
-  if (options.gorhomSettles) {
-    next = finishSheetHostClose(next, sessionId);
-  }
-  return next;
 }

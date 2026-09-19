@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { ScanDecision } from '@riftbound/contracts';
+import type { ScanDecision } from '@/lib/card-scan';
 import { createScanStability } from './scan-stability';
 
 const lux = { name: 'Lux, Crownguard', variantNumber: 'OGS-014', imageUrl: 'lux' };

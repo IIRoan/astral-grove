@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { resolvePublicAppUrl } from '../../src/env.js';
+import { loadEnv, resolvePublicAppUrl } from '../../src/env.js';
 
 describe('resolvePublicAppUrl', () => {
   test('prefers an explicit PUBLIC_APP_URL', () => {
@@ -12,13 +12,22 @@ describe('resolvePublicAppUrl', () => {
     ).toBe('https://riftbounddev.roan.dev');
   });
 
-  test('uses production default when unset', () => {
-    expect(
-      resolvePublicAppUrl({
-        betterAuthUrl: 'https://riftapi.solace.onl',
-        nodeEnv: 'production',
-      })
-    ).toBe('https://rift.solace.onl');
+  test('production refuses to boot without PUBLIC_APP_URL', () => {
+    const saved = { ...process.env };
+    Object.assign(process.env, {
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
+      PA_API_KEY: 'ak_test',
+      ADMIN_SYNC_TOKEN: 'x'.repeat(16),
+      BETTER_AUTH_SECRET: 'x'.repeat(32),
+    });
+    delete process.env.PUBLIC_APP_URL;
+    try {
+      expect(() => loadEnv()).toThrow('PUBLIC_APP_URL is required in production');
+    } finally {
+      for (const key of Object.keys(process.env)) delete process.env[key];
+      Object.assign(process.env, saved);
+    }
   });
 
   test('follows a non-loopback BETTER_AUTH_URL in development', () => {

@@ -1,4 +1,5 @@
-import type { CardListItem, MatchKind } from '@riftbound/contracts';
+import type { CardListItem } from '@riftbound/contracts';
+import type { MatchKind } from '@/lib/card-scan';
 import { getCardPrintings, variantNumbersMatch } from '@/utils/variants';
 
 export type ScanOutcome =

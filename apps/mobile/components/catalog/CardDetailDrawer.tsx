@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -30,7 +31,8 @@ import { Portal, PortalOverlay } from '@/components/ui/portal';
 import { useTheme } from '@/context/ThemeContext';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { isSheetHostCapturingTaps } from '@/lib/bottom-sheet-lifecycle';
+import { isSheetHostCapturingTaps, shouldDismissOnSheetEvent } from '@/lib/bottom-sheet-lifecycle';
+import { claimSheetHost, releaseSheetHost } from '@/lib/sheet-host';
 import {
   isSheetDismissSuppressed,
   SHEET_CLOSE_FALLBACK_MS,
@@ -43,6 +45,8 @@ import { cn } from '@/lib/utils';
 
 interface CardDetailDrawerProps {
   open?: boolean;
+  /** Stable portal id — session id so a replace drops the prior native overlay. */
+  hostKey?: string | number;
   onClose: () => void;
   onDismissed?: () => void;
   children: React.ReactNode;
@@ -61,6 +65,7 @@ const BottomSheetScrollView = GorhomBottomSheetScrollView as ComponentType<
 /** Two-phase dismiss: clear selection at close-start for hit-testing; keep host for Gorhom close animation. */
 export function CardDetailDrawer({
   open,
+  hostKey,
   onClose,
   onDismissed,
   children,
@@ -76,7 +81,9 @@ export function CardDetailDrawer({
   const sheetRef = useRef<GorhomBottomSheet>(null);
   const onCloseRef = useLatestRef(onClose);
   const onDismissedRef = useLatestRef(onDismissed);
-  const portalId = useId();
+  const hostTokenRef = useRef<number | null>(null);
+  const reactId = useId();
+  const portalId = hostKey != null ? String(hostKey) : reactId;
   const animatedIndex = useSharedValue(-1);
   const [sheetIndex, setSheetIndex] = useState(isOpen ? 0 : -1);
   const sheetIndexRef = useLatestRef(sheetIndex);
@@ -163,6 +170,27 @@ export function CardDetailDrawer({
     };
   }, [isControlled, portalId, source]);
 
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      if (hostTokenRef.current != null) {
+        releaseSheetHost(hostTokenRef.current);
+        hostTokenRef.current = null;
+      }
+      return;
+    }
+
+    hostTokenRef.current = claimSheetHost(() => {
+      onCloseRef.current();
+    });
+
+    return () => {
+      if (hostTokenRef.current != null) {
+        releaseSheetHost(hostTokenRef.current);
+        hostTokenRef.current = null;
+      }
+    };
+  }, [isOpen, onCloseRef]);
+
   useEffect(() => {
     logDrawer('sheet.interactive', {
       pointerEvents: capturingTaps ? 'box-none' : 'none',
@@ -187,6 +215,11 @@ export function CardDetailDrawer({
       platform: Platform.OS,
       dismissing: dismissingRef.current,
     });
+    // Drag-to-close often lands at -1 before onClose; still must release the host.
+    if (sheetIndexRef.current < 0) {
+      onDismissedRef.current?.();
+      return;
+    }
     logDrawer('sheet.force-close', {
       portalId,
       platform: Platform.OS,
@@ -198,7 +231,6 @@ export function CardDetailDrawer({
         platform: Platform.OS,
         sheetIndex: sheetIndexRef.current,
       });
-      if (sheetIndexRef.current < 0) return;
       onDismissedRef.current?.();
     }, SHEET_CLOSE_FALLBACK_MS);
     return () => clearTimeout(timeout);
@@ -238,6 +270,19 @@ export function CardDetailDrawer({
     onDismissedRef,
     restoreAfterSpuriousClose,
   ]);
+
+  // Settled -1 only — onAnimate(-1) fires mid-drag and must not tear the host down.
+  const handleSheetIndexChange = useCallback(
+    (index: number) => {
+      logDrawer('sheet.change', { index, ...liveDebug() });
+      setSheetIndex(index);
+      if (!shouldDismissOnSheetEvent('change', index)) return;
+      if (restoreAfterSpuriousClose('gorhom-onChange')) return;
+      commitDismiss('gorhom-onChange');
+      onDismissedRef.current?.();
+    },
+    [commitDismiss, liveDebug, onDismissedRef, restoreAfterSpuriousClose]
+  );
 
   const renderBackground = useCallback(
     (props: BottomSheetBackgroundProps) => (
@@ -315,21 +360,7 @@ export function CardDetailDrawer({
         activeOffsetY={PAN_ACTIVE_OFFSET_Y}
         backgroundComponent={renderBackground}
         handleComponent={renderHandle}
-        onAnimate={(fromIndex, toIndex) => {
-          logDrawer('sheet.animate', {
-            fromIndex,
-            toIndex,
-            closingToHidden: toIndex === -1,
-            ...liveDebug(),
-          });
-          if (toIndex !== -1) return;
-          if (restoreAfterSpuriousClose('gorhom-onAnimate')) return;
-          commitDismiss('gorhom-onAnimate');
-        }}
-        onChange={(index) => {
-          logDrawer('sheet.change', { index, ...liveDebug() });
-          setSheetIndex(index);
-        }}
+        onChange={handleSheetIndexChange}
         onClose={handleSheetClosed}
       >
         <BottomSheetScrollView

@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import type { CardListItem } from '@riftbound/contracts';
 import {
   buildScanCatalog,
   decideScan,
-  type CardListItem,
   type ImageMatch,
   type MatchKind,
   type OcrLine,
-} from '@riftbound/contracts';
+} from '@/lib/card-scan';
 import { getCatalogIndexItems, useCatalogIndex } from '@/hooks/useCatalogIndex';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { hapticPress } from '@/utils/haptics';

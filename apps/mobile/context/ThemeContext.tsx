@@ -116,11 +116,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       try {
         await migrateLegacySettingsIfNeeded();
         // Keep device appearance after sign-out without attaching it to the next account.
-        if (
-          previousUserId &&
-          !userId &&
-          Object.keys(profilesRef.current).length > 0
-        ) {
+        if (previousUserId && !userId && Object.keys(profilesRef.current).length > 0) {
           await AsyncStorage.setItem(
             settingsStorageKey(null),
             serializeProfiles(profilesRef.current)

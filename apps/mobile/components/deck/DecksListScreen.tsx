@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { View, type ListRenderItem } from 'react-native';
 import { CatalogResultsTransition } from '@/components/catalog/CatalogResultsTransition';
-import { ListBottomSpacer } from '@/components/ui/list-bottom-spacer';
+import { ListSpacer } from '@/components/ui/list-spacer';
 import { DeckBrowseCard } from '@/components/deck/DeckBrowseCard';
 import { DeckImportExportSheet } from '@/components/deck/DeckImportExportSheet';
 import { DeckImportLoadingOverlay } from '@/components/deck/DeckImportLoadingOverlay';
@@ -153,7 +153,7 @@ export function DecksListScreen({
           isFetchingNextPage={Boolean(infiniteScroll?.isFetchingNextPage)}
           showRefreshing={showRefreshing}
         />
-        <ListBottomSpacer height={8} />
+        <ListSpacer height={8} />
       </>
     ),
     [infiniteScroll?.isFetchingNextPage, showRefreshing]

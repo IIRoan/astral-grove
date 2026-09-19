@@ -11,7 +11,7 @@ import {
   parseScannedCardCode,
   parseScannedCardCodes,
   scannedNameCandidates,
-} from './card-scan.js';
+} from './card-scan';
 
 const SETS = ['OGN', 'UNL', 'VEN', 'ARC', 'SFD', 'OGS'];
 

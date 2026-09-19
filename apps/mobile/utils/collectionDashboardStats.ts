@@ -1,5 +1,4 @@
 import type { CollectionEntry } from '@/services/collectionService';
-import { mapFilter } from '@/lib/iteration';
 
 export function computeTypeStats(
   collection: CollectionEntry[],
@@ -13,13 +12,11 @@ export function computeTypeStats(
     namesByType.set(entry.type, names);
   }
 
-  return mapFilter(
-    apiTypes,
-    (t) => t.name !== 'Card',
-    (t) => ({
+  return apiTypes
+    .filter((t) => t.name !== 'Card')
+    .map((t) => ({
       name: t.name,
       owned: namesByType.get(t.name)?.size ?? 0,
       total: t.count,
-    })
-  );
+    }));
 }

@@ -40,7 +40,10 @@ describe('response helpers', () => {
   });
 
   test('builds data and meta responses', () => {
-    const schema = dataMetaResponse(z.array(z.string()), z.object({ total: z.number().int() }));
+    const schema = dataMetaResponse(
+      z.array(z.string()),
+      z.object({ total: z.number().int() })
+    );
     expect(schema.parse({ data: ['a', 'b'], meta: { total: 2 } })).toEqual({
       data: ['a', 'b'],
       meta: { total: 2 },

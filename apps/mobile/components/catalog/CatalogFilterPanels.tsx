@@ -33,7 +33,6 @@ import {
   prefetchCatalogFilters,
   useFiltersData,
 } from '@/hooks/useFiltersData';
-import { mapFilter, toMembershipSet } from '@/lib/iteration';
 
 export function useCatalogFilterOptions() {
   const queryClient = useQueryClient();
@@ -59,15 +58,13 @@ export function useCatalogFilterOptions() {
 
   const setOptions = useMemo(
     () =>
-      mapFilter(
-        snapshot?.sets ?? [],
-        (entry) => (entry.printCount ?? entry.count) > 0,
-        (entry) => ({
+      (snapshot?.sets ?? [])
+        .filter((entry) => (entry.printCount ?? entry.count) > 0)
+        .map((entry) => ({
           code: entry.code ?? entry.id.toUpperCase(),
           name: entry.name,
           count: entry.printCount ?? entry.count,
-        })
-      ),
+        })),
     [snapshot?.sets]
   );
 
@@ -116,27 +113,19 @@ export function CatalogFilterSegmentPanel({
     rarityOptions,
   } = useCatalogFilterOptions();
 
-  const selectedColors = useMemo(
-    () => toMembershipSet(filters.colors),
-    [filters.colors]
-  );
-  const selectedSets = useMemo(() => toMembershipSet(filters.sets), [filters.sets]);
-  const selectedTypes = useMemo(() => toMembershipSet(filters.types), [filters.types]);
+  const selectedColors = useMemo(() => new Set(filters.colors), [filters.colors]);
+  const selectedSets = useMemo(() => new Set(filters.sets), [filters.sets]);
+  const selectedTypes = useMemo(() => new Set(filters.types), [filters.types]);
   const selectedSupertypes = useMemo(
-    () => toMembershipSet(filters.supertypes),
+    () => new Set(filters.supertypes),
     [filters.supertypes]
   );
-  const selectedVariants = useMemo(
-    () => toMembershipSet(filters.variants),
-    [filters.variants]
-  );
-  const selectedRarities = useMemo(
-    () => toMembershipSet(filters.rarities),
-    [filters.rarities]
-  );
+  const selectedVariants = useMemo(() => new Set(filters.variants), [filters.variants]);
+  const selectedRarities = useMemo(() => new Set(filters.rarities), [filters.rarities]);
 
   const update = (patch: CatalogFilterUpdate) => {
-    const next = typeof patch === 'function' ? patch(filters) : { ...filters, ...patch };
+    const next =
+      typeof patch === 'function' ? patch(filters) : { ...filters, ...patch };
     onFiltersChange(sanitizeCatalogFilters(next));
   };
 

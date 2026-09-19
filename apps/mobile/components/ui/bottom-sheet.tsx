@@ -19,13 +19,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import {
-  applySheetOpenIntent,
-  createSheetHostState,
-  finishSheetHostClose,
-  onSheetIndexChange,
-  shouldCommitSheetDismiss,
-} from '@/lib/bottom-sheet-lifecycle';
+import { onSheetIndexChange, runAfterDrawerHostCleared, shouldApplyDeferredDrawerPresent, shouldDismissOnSheetEvent } from '@/lib/bottom-sheet-lifecycle';
+import { claimSheetHost, releaseSheetHost } from '@/lib/sheet-host';
 import {
   BackHandler,
   Keyboard,
@@ -49,9 +44,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Uniwind } from 'uniwind';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { logDrawer } from '@/lib/drawer-debug';
 import { centeredSheetMargins } from '@/lib/responsive-layout';
-import { SHEET_CLOSE_FALLBACK_MS } from '@/lib/sheet-dismiss-guard';
 import { SHEET_REDUCED, SHEET_SPRING } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { Portal, PortalOverlay } from './portal';
@@ -105,13 +98,9 @@ const SheetScrollView =
 type BottomSheetContextValue = {
   open: boolean;
   mounted: boolean;
-  /** Bumps per open so each presentation gets a fresh Gorhom instance. */
   sessionId: number;
+  setMounted: (mounted: boolean) => void;
   onOpenChange: (open: boolean) => void;
-  /** Close-start from Gorhom (swipe release, backdrop, back) for the given session. */
-  requestDismiss: (sessionId: number) => void;
-  /** Gorhom settled closed for the given session; the host may unmount. */
-  notifyClosed: (sessionId: number) => void;
   bottomSheetRef: React.RefObject<GorhomBottomSheet | null>;
   animatedIndex: SharedValue<number>;
   contentConfig: BottomSheetContentConfig;
@@ -431,22 +420,20 @@ export const BottomSheet = ({
   children,
 }: BottomSheetRootProps) => {
   const [internalOpen, setInternalOpen] = useState(openProp ?? false);
+  const [mounted, setMounted] = useState(false);
+  const [sessionId, setSessionId] = useState(0);
   const [contentConfig, setContentConfig] = useState<BottomSheetContentConfig>({});
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const bottomSheetRef = useRef<GorhomBottomSheet>(null);
   const animatedIndex = useSharedValue(-1);
+  const hostTokenRef = useRef<number | null>(null);
+  const presentGenerationRef = useRef(0);
+  const cancelPresentRef = useRef<(() => void) | null>(null);
 
   const isControlled = openProp !== undefined;
   const open = isControlled ? openProp : internalOpen;
-
-  // Adjust-state-while-rendering: opening mounts a fresh session; closing keeps the host for the exit animation.
-  const [host, setHost] = useState(() => createSheetHostState(open));
-  if (host.open !== open) {
-    setHost(applySheetOpenIntent(host, open));
-  }
-  const hostRef = useLatestRef(host);
 
   const onOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -457,43 +444,58 @@ export const BottomSheet = ({
     },
     [isControlled, onOpenChangeProp]
   );
+  const onOpenChangeRef = useLatestRef(onOpenChange);
 
-  // Gorhom skips onChange/onClose when a layout change forces the close, so parent `open` follows close-start.
-  const requestDismiss = useCallback(
-    (sessionId: number) => {
-      if (!shouldCommitSheetDismiss(hostRef.current, sessionId)) {
+  useLayoutEffect(() => {
+    cancelPresentRef.current?.();
+    cancelPresentRef.current = null;
+
+    if (!open) {
+      if (hostTokenRef.current != null) {
+        releaseSheetHost(hostTokenRef.current);
+        hostTokenRef.current = null;
+      }
+      bottomSheetRef.current?.close();
+      setMounted(false);
+      return;
+    }
+
+    hostTokenRef.current = claimSheetHost(() => {
+      onOpenChangeRef.current(false);
+    });
+
+    // Failsafe: tear down any prior Gorhom/FWO host, then remount after two frames.
+    setMounted(false);
+    const generation = presentGenerationRef.current + 1;
+    presentGenerationRef.current = generation;
+    cancelPresentRef.current = runAfterDrawerHostCleared(() => {
+      if (
+        !shouldApplyDeferredDrawerPresent({
+          scheduledGeneration: generation,
+          currentGeneration: presentGenerationRef.current,
+        })
+      ) {
         return;
       }
-      logDrawer('sheet.dismiss.commit', { source: 'shared-sheet', sessionId });
-      onOpenChange(false);
-    },
-    [hostRef, onOpenChange]
-  );
+      setSessionId((current) => current + 1);
+      setMounted(true);
+    });
 
-  const notifyClosed = useCallback((sessionId: number) => {
-    setHost((current) => finishSheetHostClose(current, sessionId));
+    return () => {
+      cancelPresentRef.current?.();
+      cancelPresentRef.current = null;
+    };
+  }, [open, onOpenChangeRef]);
+
+  useEffect(() => {
+    return () => {
+      cancelPresentRef.current?.();
+      if (hostTokenRef.current != null) {
+        releaseSheetHost(hostTokenRef.current);
+        hostTokenRef.current = null;
+      }
+    };
   }, []);
-
-  // Hit-testing already follows `open`; keep the host until Gorhom settles or the fallback fires.
-  useLayoutEffect(() => {
-    if (host.open || !host.mounted) {
-      return;
-    }
-
-    const { sessionId } = host;
-    if (animatedIndex.value === -1) {
-      notifyClosed(sessionId);
-      return;
-    }
-
-    bottomSheetRef.current?.close();
-    const timeout = setTimeout(() => {
-      logDrawer('sheet.close.timeout', { source: 'shared-sheet', sessionId });
-      notifyClosed(sessionId);
-    }, SHEET_CLOSE_FALLBACK_MS);
-
-    return () => clearTimeout(timeout);
-  }, [animatedIndex, host, notifyClosed]);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener(KEYBOARD_SHOW_EVENT, () => {
@@ -512,11 +514,10 @@ export const BottomSheet = ({
   const ctx = useMemo(
     (): BottomSheetContextValue => ({
       open,
-      mounted: host.mounted,
-      sessionId: host.sessionId,
+      mounted,
+      sessionId,
+      setMounted,
       onOpenChange,
-      requestDismiss,
-      notifyClosed,
       bottomSheetRef,
       animatedIndex,
       contentConfig,
@@ -527,11 +528,9 @@ export const BottomSheet = ({
     }),
     [
       open,
-      host.mounted,
-      host.sessionId,
+      mounted,
+      sessionId,
       onOpenChange,
-      requestDismiss,
-      notifyClosed,
       animatedIndex,
       contentConfig,
       currentSnapIndex,
@@ -555,7 +554,7 @@ export const BottomSheetPortal = ({
     return null;
   }
 
-  // Hit-testing follows `open` (clears at dismiss-start); each session mounts a fresh Gorhom subtree.
+  // Hit-testing follows `open`; each session remounts a fresh Gorhom/FWO subtree.
   return (
     <Portal name={name} {...portalProps}>
       <BottomSheetContext.Provider value={ctx}>
@@ -605,7 +604,7 @@ export const BottomSheetOverlay = ({
       return;
     }
 
-    // Parent `open=false` animates Gorhom out; the host unmounts once it settles.
+    // Parent `open=false` unmounts the portal immediately — don't wait on close().
     onOpenChange(false);
   }, [keyboardVisible, onOpenChange]);
 
@@ -642,9 +641,7 @@ export const BottomSheetContent = ({
 }: BottomSheetContentProps) => {
   const {
     open,
-    sessionId,
-    requestDismiss,
-    notifyClosed,
+    onOpenChange,
     bottomSheetRef,
     animatedIndex,
     setContentConfig,
@@ -723,26 +720,16 @@ export const BottomSheetContent = ({
   const handleSheetChange = useCallback(
     (index: number) => {
       setCurrentSnapIndex(index);
-      onSheetIndexChange(index, () => requestDismiss(sessionId));
+      if (!shouldDismissOnSheetEvent('change', index)) return;
+      onSheetIndexChange(index, () => onOpenChange(false));
     },
-    [requestDismiss, sessionId, setCurrentSnapIndex]
-  );
-
-  // Close-start fires on swipe release even when Gorhom later skips the settle callbacks.
-  const handleSheetAnimate = useCallback<NonNullable<BottomSheetProps['onAnimate']>>(
-    (fromIndex, toIndex, fromPosition, toPosition) => {
-      onAnimate?.(fromIndex, toIndex, fromPosition, toPosition);
-      if (toIndex === -1) {
-        requestDismiss(sessionId);
-      }
-    },
-    [onAnimate, requestDismiss, sessionId]
+    [onOpenChange, setCurrentSnapIndex]
   );
 
   const handleSheetClose = useCallback(() => {
-    requestDismiss(sessionId);
-    notifyClosed(sessionId);
-  }, [notifyClosed, requestDismiss, sessionId]);
+    if (!shouldDismissOnSheetEvent('close', -1)) return;
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   useEffect(() => {
     // BackHandler is Android-only; react-native-web logs an error when it is used.
@@ -751,12 +738,12 @@ export const BottomSheetContent = ({
     }
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      requestDismiss(sessionId);
+      onOpenChange(false);
       return true;
     });
 
     return () => subscription.remove();
-  }, [open, enablePanDownToClose, requestDismiss, sessionId]);
+  }, [open, enablePanDownToClose, onOpenChange]);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -844,7 +831,7 @@ export const BottomSheetContent = ({
       keyboardBehavior={keyboardBehavior}
       keyboardBlurBehavior="restore"
       maxDynamicContentSize={maxDynamicContentSize}
-      onAnimate={handleSheetAnimate}
+      onAnimate={onAnimate}
       onChange={handleSheetChange}
       onClose={handleSheetClose}
       overDragResistanceFactor={overDragResistanceFactor}
