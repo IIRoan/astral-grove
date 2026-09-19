@@ -135,7 +135,6 @@ export async function setupE2E(): Promise<void> {
 
   process.env.NODE_ENV ??= 'test';
   process.env.SYNC_CRON_ENABLED = 'false';
-  // CI needs a full catalog; local empty DBs stay capped for speed.
   if (process.env.CI !== 'true') {
     process.env.SYNC_MAX_PAGES ??= '2';
   }

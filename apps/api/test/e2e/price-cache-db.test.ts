@@ -211,7 +211,6 @@ describe('price cache writes', () => {
       .set({ rowCount: priceCount?.value ?? 0 })
       .where(eq(syncState.key, 'prices'));
 
-    // persistPriceRows replaces the full price table; restore the Cardmarket cache for later e2e.
     await syncPricesForE2E();
   });
 });

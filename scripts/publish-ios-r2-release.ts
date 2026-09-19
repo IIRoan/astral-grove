@@ -143,7 +143,6 @@ async function main(): Promise<void> {
   const plistPath = join(args.outDir, `${args.profile}.plist`);
   writeFileSync(plistPath, plistBody, 'utf8');
 
-  // text/xml so iOS accepts the install manifest (octet-stream breaks OTA).
   await client.write(plistKey, plistBody, { type: 'text/xml' });
 
   const plistUrl = publicBase

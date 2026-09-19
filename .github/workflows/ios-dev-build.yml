@@ -1,9 +1,5 @@
 name: iOS development build
 
-# Local EAS build on GitHub's macOS runner (no Expo cloud build credits).
-# Publishes at most two IPAs to R2 under releases/: development.ipa and preview.ipa.
-# Optional secret S3_PUBLIC_BASE_URL (R2 custom domain) gives stable latest URLs;
-# without it, the workflow emits 7-day presigned install links.
 on:
   pull_request:
     branches: [main]
@@ -155,27 +151,14 @@ jobs:
           QR_PATH="$RUNNER_TEMP/r2-publish/${PROFILE}-qr.png"
           test -f "$QR_PATH"
 
-          REF_LINE="${GITHUB_SHA}"
+          REF_LINE="$GITHUB_SHA"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            REF_LINE="PR #${{ github.event.pull_request.number }} · ${GITHUB_SHA}"
+            REF_LINE="PR #${{ github.event.pull_request.number }} · $GITHUB_SHA"
           fi
 
-          PAYLOAD=$(bun -e '
-            const profile = process.env.PROFILE ?? "development";
-            const title = process.env.TITLE ?? "Astral Grove";
-            const ref = process.env.REF_LINE ?? "";
-            console.log(JSON.stringify({
-              content: [
-                `**${title}** iOS build ready (\`${profile}\`)`,
-                "Scan with Camera on a registered ad-hoc device.",
-                ref,
-              ].join("\n"),
-            }));
-          ')
-          REF_LINE="$REF_LINE" TITLE="$TITLE" PROFILE="$PROFILE" \
-          PAYLOAD="$PAYLOAD" \
-          QR_PATH="$QR_PATH" \
-          bash -c 'curl -fsS -X POST \
-            -F "payload_json=${PAYLOAD}" \
-            -F "files[0]=@${QR_PATH};type=image/png;filename=${PROFILE}-qr.png" \
-            "$DISCORD_WEBHOOK"'
+          bun scripts/notify-ios-discord.ts \
+            --webhook "$DISCORD_WEBHOOK" \
+            --qr "$QR_PATH" \
+            --profile "$PROFILE" \
+            --title "$TITLE" \
+            --ref "$REF_LINE"
