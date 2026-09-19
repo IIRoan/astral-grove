@@ -95,6 +95,17 @@ jobs:
           set -euo pipefail
           BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
           IPA_URL="${BASE}/astral-grove.ipa"
+          IPA_PATH="$RUNNER_TEMP/astral-grove.ipa"
+
+          # itms-services requires bundle-version to match CFBundleVersion inside the IPA.
+          # EAS remote versioning owns that number — do not use GITHUB_RUN_NUMBER.
+          EXTRACT_DIR="$RUNNER_TEMP/ipa-extract"
+          rm -rf "$EXTRACT_DIR"
+          mkdir -p "$EXTRACT_DIR"
+          unzip -q -o "$IPA_PATH" -d "$EXTRACT_DIR" 'Payload/*.app/Info.plist'
+          INFO_PLIST=$(echo "$EXTRACT_DIR"/Payload/*.app/Info.plist)
+          BUNDLE_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")
+          test -n "$BUNDLE_VERSION"
 
           # Over-the-air install manifest. iOS fetches this, then the .ipa it points at.
           cat > "$RUNNER_TEMP/manifest.plist" <<PLIST
@@ -115,7 +126,7 @@ jobs:
                   <key>metadata</key>
                   <dict>
                     <key>bundle-identifier</key><string>${BUNDLE_ID}</string>
-                    <key>bundle-version</key><string>${GITHUB_RUN_NUMBER}</string>
+                    <key>bundle-version</key><string>${BUNDLE_VERSION}</string>
                     <key>kind</key><string>software</string>
                     <key>title</key><string>Astral Grove Dev</string>
                   </dict>

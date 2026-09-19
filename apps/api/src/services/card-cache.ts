@@ -52,6 +52,7 @@ import {
   maxUpstreamBackfillPages,
   resolveUpstreamReconcileMode,
   upstreamCheckKey,
+  upstreamTotalsBroaderThanLocal,
 } from '../lib/upstream-list-params.js';
 
 const SEARCH_RESULT_TTL_MS = 5 * 60 * 1000;
@@ -914,8 +915,7 @@ export class CardCacheService {
       let consecutiveCleanPages = 0;
       // Walk until local catches upstream (or hard cap); deck-builder identity used to stop at 5 pages and miss cards.
       const maxBackfillPages = maxUpstreamBackfillPages(query);
-      const colorsOmittedForWithin =
-        query.colorMode === 'within' && Boolean(query.colors);
+      const totalsIncomparable = upstreamTotalsBroaderThanLocal(query);
 
       while (pagesScanned < maxBackfillPages) {
         const upstream = await this.pa.listCards(
@@ -952,7 +952,7 @@ export class CardCacheService {
           localResult &&
           upserted === 0 &&
           missing.length === 0 &&
-          !colorsOmittedForWithin &&
+          !totalsIncomparable &&
           localTotal >= upstreamTotal
         ) {
           this.upstreamCheckCache.set(checkKey, true);
@@ -968,8 +968,8 @@ export class CardCacheService {
           Boolean(upstream.pagination?.hasNext) &&
           page < (upstream.pagination?.totalPages ?? page);
 
-        // Within-mode without colors: upstream totals are broader — use clean-page streaks instead.
-        const caughtUp = colorsOmittedForWithin
+        // Broader upstream totals (within colors, energy no-cost filter): use clean-page streaks.
+        const caughtUp = totalsIncomparable
           ? consecutiveCleanPages >= 5
           : !stillBehind;
 
@@ -992,8 +992,8 @@ export class CardCacheService {
         return { result, source: 'upstream' };
       }
 
-      // Upstream reports more matches — keep probing next request; skip when within-mode omitted colors.
-      if (!colorsOmittedForWithin && upstreamTotal > result.total) {
+      // Upstream reports more matches — keep probing next request; skip when totals are incomparable.
+      if (!totalsIncomparable && upstreamTotal > result.total) {
         this.upstreamCheckCache.delete(checkKey);
       } else {
         this.upstreamCheckCache.set(checkKey, true);
