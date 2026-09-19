@@ -12,7 +12,7 @@ import {
   stablePriceRowId,
 } from '../../src/lib/cardmarket-price-rows.js';
 import { CardmarketPriceGuideExportSchema } from '../../src/upstream/cardmarket-export.js';
-import { apiJson, getContext } from './support.js';
+import { apiJson, getContext, syncPricesForE2E } from './support.js';
 import { priceDaily, prices, syncState } from '../../src/db/schema.js';
 
 setDefaultTimeout(180_000);
@@ -210,5 +210,8 @@ describe('price cache writes', () => {
       .update(syncState)
       .set({ rowCount: priceCount?.value ?? 0 })
       .where(eq(syncState.key, 'prices'));
+
+    // persistPriceRows replaces the full price table; restore the Cardmarket cache for later e2e.
+    await syncPricesForE2E();
   });
 });
