@@ -29,8 +29,8 @@ form.append(
   'payload_json',
   JSON.stringify({
     content: [
-      `**${title}** iOS build ready (\`${profile}\`)`,
-      'Scan → open the page in Safari → tap Install (registered ad-hoc device).',
+      `**${title}** internal build ready (\`${profile}\`)`,
+      'Scan → open the page → iPhone taps Install (registered ad-hoc), Android downloads the APK.',
       ref,
     ].join('\n'),
   })

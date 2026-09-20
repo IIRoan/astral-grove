@@ -1,4 +1,4 @@
-name: iOS internal build
+name: Mobile internal build
 
 on:
   pull_request:
@@ -17,41 +17,41 @@ on:
         default: development
 
 concurrency:
-  group: ios-internal-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'push' && 'preview' || inputs.profile || 'development' }}
+  group: mobile-internal-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'push' && 'preview' || inputs.profile || 'development' }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    runs-on: macos-latest
-    timeout-minutes: 60
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      # PRs → development client; main pushes → preview (EAS channel/branch preview for OTA).
-      PROFILE: ${{ github.event_name == 'push' && 'preview' || inputs.profile || 'development' }}
-
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      profile: ${{ steps.meta.outputs.profile }}
+      app_variant: ${{ steps.meta.outputs.app_variant }}
+      ios_bundle_id: ${{ steps.meta.outputs.ios_bundle_id }}
+      android_package: ${{ steps.meta.outputs.android_package }}
+      title: ${{ steps.meta.outputs.title }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-
       - name: Resolve profile metadata
         id: meta
+        env:
+          # PRs → development client; main pushes → preview (EAS channel/branch preview for OTA).
+          PROFILE: ${{ github.event_name == 'push' && 'preview' || inputs.profile || 'development' }}
         run: |
           set -euo pipefail
+          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
           case "$PROFILE" in
             development)
               echo "app_variant=development" >> "$GITHUB_OUTPUT"
-              echo "bundle_id=com.iroan.astralgrove.dev" >> "$GITHUB_OUTPUT"
+              echo "ios_bundle_id=com.iroan.astralgrove.dev" >> "$GITHUB_OUTPUT"
+              echo "android_package=com.iroan.astralgrove.dev" >> "$GITHUB_OUTPUT"
               echo "title=Astral Grove Dev" >> "$GITHUB_OUTPUT"
               ;;
             preview)
               echo "app_variant=preview" >> "$GITHUB_OUTPUT"
-              echo "bundle_id=com.iroan.astralgrove" >> "$GITHUB_OUTPUT"
+              echo "ios_bundle_id=com.iroan.astralgrove" >> "$GITHUB_OUTPUT"
+              echo "android_package=com.iroan.astralgrove" >> "$GITHUB_OUTPUT"
               echo "title=Astral Grove Preview" >> "$GITHUB_OUTPUT"
               ;;
             *)
@@ -59,6 +59,20 @@ jobs:
               exit 1
               ;;
           esac
+
+  ios:
+    needs: meta
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      PROFILE: ${{ needs.meta.outputs.profile }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -82,7 +96,7 @@ jobs:
       - name: Build .ipa
         working-directory: apps/mobile
         env:
-          APP_VARIANT: ${{ steps.meta.outputs.app_variant }}
+          APP_VARIANT: ${{ needs.meta.outputs.app_variant }}
         run: |
           set -o pipefail
           eas build \
@@ -98,8 +112,7 @@ jobs:
               -e 's/^([[:space:]]*-[[:space:]]+).*\(UDID:.*/\1[redacted device]/' \
               -e 's/^([[:space:]]*Provisioned devices[[:space:]]+).*/\1[redacted]/'
 
-      - name: Publish latest slot to R2
-        id: publish
+      - name: Publish iOS artifact to R2
         env:
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
@@ -122,20 +135,107 @@ jobs:
           bun scripts/publish-ios-r2-release.ts \
             --profile "$PROFILE" \
             --ipa "$IPA_PATH" \
-            --bundle-id "${{ steps.meta.outputs.bundle_id }}" \
+            --bundle-id "${{ needs.meta.outputs.ios_bundle_id }}" \
             --bundle-version "$BUNDLE_VERSION" \
-            --title "${{ steps.meta.outputs.title }}" \
+            --title "${{ needs.meta.outputs.title }}" \
+            --out-dir "$RUNNER_TEMP/r2-publish"
+
+  android:
+    needs: meta
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      PROFILE: ${{ needs.meta.outputs.profile }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: 24.6.0
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build .apk
+        working-directory: apps/mobile
+        env:
+          APP_VARIANT: ${{ needs.meta.outputs.app_variant }}
+        run: |
+          set -o pipefail
+          eas build \
+            --platform android \
+            --profile "$PROFILE" \
+            --local \
+            --non-interactive \
+            --output "$RUNNER_TEMP/astral-grove.apk"
+
+      - name: Publish Android artifact to R2
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_PUBLIC_BASE_URL: ${{ secrets.S3_PUBLIC_BASE_URL }}
+        run: |
+          set -euo pipefail
+          bun scripts/publish-android-r2-release.ts \
+            --profile "$PROFILE" \
+            --apk "$RUNNER_TEMP/astral-grove.apk" \
+            --out-dir "$RUNNER_TEMP/r2-publish"
+
+  publish:
+    needs: [meta, ios, android]
+    runs-on: ubuntu-latest
+    env:
+      PROFILE: ${{ needs.meta.outputs.profile }}
+      TITLE: ${{ needs.meta.outputs.title }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build combined install page + QR
+        id: page
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_PUBLIC_BASE_URL: ${{ secrets.S3_PUBLIC_BASE_URL }}
+        run: |
+          set -euo pipefail
+          bun scripts/publish-internal-install-page.ts \
+            --profile "$PROFILE" \
+            --title "$TITLE" \
             --out-dir "$RUNNER_TEMP/r2-publish"
 
           {
-            echo "### iOS ${PROFILE} → \`releases/${PROFILE}.ipa\`"
+            echo "### Mobile ${PROFILE} internal build"
             echo
-            echo "Commit \`${GITHUB_SHA}\`. Install QR sent to Discord."
+            echo "iOS → \`releases/${PROFILE}.ipa\`, Android → \`releases/${PROFILE}.apk\`."
+            echo "Combined install QR (iOS + Android) sent to Discord."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Send install QR to Discord
         env:
-          TITLE: ${{ steps.meta.outputs.title }}
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           set -euo pipefail
@@ -154,7 +254,7 @@ jobs:
             REF_LINE="main · $GITHUB_SHA"
           fi
 
-          bun scripts/notify-ios-discord.ts \
+          bun scripts/notify-install-discord.ts \
             --qr "$QR_PATH" \
             --profile "$PROFILE" \
             --title "$TITLE" \
