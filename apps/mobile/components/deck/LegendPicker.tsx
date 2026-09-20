@@ -75,15 +75,8 @@ export function LegendPicker({
     }),
     [colors, selectedSet]
   );
-  const {
-    query,
-    setQuery,
-    legends,
-    loading,
-    loadingMore,
-    hasNextPage,
-    fetchNextPage,
-  } = useLegendCatalog(catalogFilters);
+  const { query, setQuery, legends, loading, loadingMore, hasNextPage, fetchNextPage } =
+    useLegendCatalog(catalogFilters);
   const { colorOptions, setOptions } = useCatalogFilterOptions();
   const setLabel =
     setOptions.find((set) => set.code === selectedSet)?.code ?? 'All sets';
@@ -203,9 +196,7 @@ export function LegendPicker({
                       active={colors.includes(color.name)}
                       onPress={() => {
                         hapticPress();
-                        setColors((prev) =>
-                          toggleCatalogFilterValue(prev, color.name)
-                        );
+                        setColors((prev) => toggleCatalogFilterValue(prev, color.name));
                       }}
                       leading={
                         <DomainIcon
@@ -255,9 +246,7 @@ export function LegendPicker({
                         icon={setMenuOpen ? ChevronUpIcon : ChevronDownIcon}
                         size={12}
                         color={
-                          setMenuOpen || selectedSet
-                            ? 'foreground'
-                            : 'muted-foreground'
+                          setMenuOpen || selectedSet ? 'foreground' : 'muted-foreground'
                         }
                       />
                     </Pressable>
@@ -291,11 +280,7 @@ export function LegendPicker({
                             All sets
                           </Text>
                           {selectedSet === null ? (
-                            <ThemedIcon
-                              icon={CheckIcon}
-                              size={18}
-                              color="foreground"
-                            />
+                            <ThemedIcon icon={CheckIcon} size={18} color="foreground" />
                           ) : null}
                         </Pressable>
                         {setOptions.map((set) => {

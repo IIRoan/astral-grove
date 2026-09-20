@@ -75,9 +75,9 @@ describe('legend catalog cache policy', () => {
     expect(playLegendListQueryKey('', 60, { colors: ['Fury'] })).not.toEqual(
       playLegendListQueryKey('')
     );
-    expect(
+    expect(playLegendListQueryKey('', 60, { colors: ['Chaos', 'Fury'] })).toEqual(
       playLegendListQueryKey('', 60, { colors: ['Chaos', 'Fury'] })
-    ).toEqual(playLegendListQueryKey('', 60, { colors: ['Chaos', 'Fury'] }));
+    );
     expect(playLegendListQueryKey('', 60, { sets: ['OGN'] })).not.toEqual(
       playLegendListQueryKey('')
     );
