@@ -123,19 +123,10 @@ jobs:
             --title "${{ steps.meta.outputs.title }}" \
             --out-dir "$RUNNER_TEMP/r2-publish"
 
-          PUBLISH_JSON="$RUNNER_TEMP/r2-publish/publish.json"
-          PUBLIC=$(bun -e "console.log(JSON.parse(await Bun.file(process.argv[2]).text()).public ? 'true' : 'false')" "$PUBLISH_JSON")
           {
-            echo "### iOS ${PROFILE} build published to R2"
+            echo "### iOS ${PROFILE} → \`releases/${PROFILE}.ipa\`"
             echo
-            echo "- Slot: \`releases/${PROFILE}.ipa\` (max two IPAs: development + preview)"
-            echo "- Commit: \`${GITHUB_SHA}\`"
-            echo "- Install QR sent to Discord"
-            if [ "$PUBLIC" = "true" ]; then
-              echo "- Public latest URLs via \`S3_PUBLIC_BASE_URL\`"
-            else
-              echo "- Install links are 7-day presigned (set \`S3_PUBLIC_BASE_URL\` for stable latest URLs)"
-            fi
+            echo "Commit \`${GITHUB_SHA}\`. Install QR sent to Discord."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Send install QR to Discord
