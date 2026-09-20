@@ -22,7 +22,7 @@ function ShortcutHint({ label }: { label: string }) {
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      className="mr-1.5 h-5 min-w-5 items-center justify-center rounded-[3px] border border-border bg-card-panel px-1.5"
+      className="h-5 min-w-5 items-center justify-center rounded-[3px] border border-border bg-card-panel px-1.5"
     >
       <Text className="font-mono text-[11px] font-normal uppercase leading-none tracking-[-0.24px] text-muted-foreground">
         {label}
@@ -54,11 +54,17 @@ export const SearchInput = forwardRef<RNTextInput, SearchInputProps>(
     const hasValue = typeof value === 'string' ? value.length > 0 : value != null;
     const showShortcutHint =
       Platform.OS === 'web' && Boolean(shortcutHint) && !isFocused && !hasValue;
+    const hasEndSlot = Boolean(shortcutHint) || endAddons.length > 0;
 
     return (
       <InputPressable
         bordered
-        className={cn(pressableClassName, INPUT_SEARCH_SHELL_CLASS, className)}
+        className={cn(
+          'relative',
+          pressableClassName,
+          INPUT_SEARCH_SHELL_CLASS,
+          className
+        )}
         disabled={disabled}
         focused={isFocused}
         onPress={handlePress}
@@ -80,25 +86,31 @@ export const SearchInput = forwardRef<RNTextInput, SearchInputProps>(
               ? `Press ${shortcutHint} to focus search`
               : undefined
           }
-          className={cn('shrink')}
+          className={cn('min-w-0 flex-1 shrink', hasEndSlot && 'pr-9')}
           disabled={disabled}
           onBlur={handleBlur}
           onFocus={handleFocus}
           ref={mergedRef}
         />
 
-        {shortcutHint ? (
-          <InputAddon
-            align="inline-end"
-            className={cn(!showShortcutHint && 'w-0 min-w-0 overflow-hidden opacity-0')}
+        {hasEndSlot ? (
+          <View
+            pointerEvents="box-none"
+            className="absolute inset-y-0 right-3 z-10 flex-row items-center justify-end"
           >
-            <View pointerEvents="none">
-              <ShortcutHint label={shortcutHint} />
-            </View>
-          </InputAddon>
+            {shortcutHint ? (
+              <View
+                className={cn(
+                  !showShortcutHint && 'w-0 min-w-0 overflow-hidden p-0 opacity-0'
+                )}
+                pointerEvents="none"
+              >
+                <ShortcutHint label={shortcutHint} />
+              </View>
+            ) : null}
+            {endAddons}
+          </View>
         ) : null}
-
-        {endAddons}
       </InputPressable>
     );
   }

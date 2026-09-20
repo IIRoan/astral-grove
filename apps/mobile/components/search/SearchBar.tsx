@@ -146,7 +146,10 @@ export const SearchBar = memo(function SearchBar({
       >
         <InputAddon
           align="inline-end"
-          className={cn(!showClear && 'w-0 min-w-0 overflow-hidden opacity-0')}
+          className={cn(
+            'pr-0',
+            !showClear && 'w-0 min-w-0 overflow-hidden p-0 opacity-0'
+          )}
         >
           <InputAddonButton
             accessibilityElementsHidden={!showClear}
