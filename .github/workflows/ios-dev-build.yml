@@ -1,9 +1,11 @@
-name: iOS development build
+name: iOS internal build
 
 on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       profile:
@@ -15,7 +17,7 @@ on:
         default: development
 
 concurrency:
-  group: ios-dev-${{ github.event.pull_request.number || github.ref }}-${{ inputs.profile || 'development' }}
+  group: ios-internal-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'push' && 'preview' || inputs.profile || 'development' }}
   cancel-in-progress: true
 
 permissions:
@@ -34,7 +36,8 @@ jobs:
       S3_REGION: ${{ secrets.S3_REGION }}
       S3_PUBLIC_BASE_URL: ${{ secrets.S3_PUBLIC_BASE_URL }}
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-      PROFILE: ${{ inputs.profile || 'development' }}
+      # PRs → development client; main pushes → preview (EAS channel/branch preview for OTA).
+      PROFILE: ${{ github.event_name == 'push' && 'preview' || inputs.profile || 'development' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -145,6 +148,8 @@ jobs:
           REF_LINE="$GITHUB_SHA"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             REF_LINE="PR #${{ github.event.pull_request.number }} · $GITHUB_SHA"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            REF_LINE="main · $GITHUB_SHA"
           fi
 
           bun scripts/notify-ios-discord.ts \
