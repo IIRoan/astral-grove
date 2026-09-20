@@ -18,10 +18,23 @@ export const PLAY_LEGEND_DETAIL_DEFER_MS = 180;
 export const PLAY_LEGEND_CATALOG_ROOT = 'play-legend-catalog' as const;
 export const PLAY_LEGEND_DETAILS_ROOT = 'play-legend-details' as const;
 
+export type LegendCatalogListFilters = {
+  colors?: readonly string[];
+  sets?: readonly string[];
+};
+
+function joinLegendFilterValues(values: readonly string[] | undefined): string {
+  return (values ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(',');
+}
+
 /** Stable React Query key for a legend list page set. */
 export function playLegendListQueryKey(
   search: string,
-  pageSize = PLAY_LEGEND_PAGE_SIZE
+  pageSize = PLAY_LEGEND_PAGE_SIZE,
+  filters: LegendCatalogListFilters = {}
 ): readonly unknown[] {
   const q = search.trim().toLowerCase();
   return [
@@ -32,6 +45,8 @@ export function playLegendListQueryKey(
     pageSize,
     'name',
     'asc',
+    joinLegendFilterValues(filters.colors),
+    joinLegendFilterValues(filters.sets),
   ] as const;
 }
 

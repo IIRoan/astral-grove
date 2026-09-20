@@ -10,6 +10,7 @@ import {
   playLegendListQueryKey,
   resolveDisplayedLegends,
   shouldShowLegendCatalogLoading,
+  type LegendCatalogListFilters,
 } from '@/lib/legend-catalog';
 import { api } from '@/src/api/client';
 import {
@@ -20,23 +21,32 @@ import {
 } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-const legendListQueryOptions = (search: string) => ({
-  queryKey: playLegendListQueryKey(search),
-  initialPageParam: 1 as const,
-  queryFn: ({ pageParam }: { pageParam: number }) =>
-    api.listCards({
-      q: search || undefined,
-      types: 'Legend',
-      limit: PLAY_LEGEND_PAGE_SIZE,
-      page: pageParam,
-      sortBy: 'name',
-      dir: 'asc',
-    }),
-  getNextPageParam: (last: Awaited<ReturnType<typeof api.listCards>>) =>
-    last.meta.pagination.hasNext ? last.meta.pagination.page + 1 : undefined,
-  staleTime: PLAY_LEGEND_STALE_MS,
-  gcTime: PLAY_LEGEND_STALE_MS,
-});
+const legendListQueryOptions = (
+  search: string,
+  filters: LegendCatalogListFilters = {}
+) => {
+  const colors = filters.colors?.filter(Boolean).join(',') || undefined;
+  const sets = filters.sets?.filter(Boolean).join(',') || undefined;
+  return {
+    queryKey: playLegendListQueryKey(search, PLAY_LEGEND_PAGE_SIZE, filters),
+    initialPageParam: 1 as const,
+    queryFn: ({ pageParam }: { pageParam: number }) =>
+      api.listCards({
+        q: search || undefined,
+        types: 'Legend',
+        limit: PLAY_LEGEND_PAGE_SIZE,
+        page: pageParam,
+        sortBy: 'name',
+        dir: 'asc',
+        ...(colors ? { colors, colorMode: 'all' as const } : {}),
+        ...(sets ? { sets } : {}),
+      }),
+    getNextPageParam: (last: Awaited<ReturnType<typeof api.listCards>>) =>
+      last.meta.pagination.hasNext ? last.meta.pagination.page + 1 : undefined,
+    staleTime: PLAY_LEGEND_STALE_MS,
+    gcTime: PLAY_LEGEND_STALE_MS,
+  };
+};
 
 /** Warm the default legend page so the picker opens from cache. */
 export function prefetchPlayLegendCatalog(queryClient: QueryClient): Promise<void> {
@@ -46,12 +56,14 @@ export function prefetchPlayLegendCatalog(queryClient: QueryClient): Promise<voi
 }
 
 /** Legend catalog search: browse grouping, list art first, deferred hydrate, previous-result placeholders. */
-export function useLegendCatalog() {
+export function useLegendCatalog(filters: LegendCatalogListFilters = {}) {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const debounced = useDebounce(query.trim(), PLAY_LEGEND_SEARCH_DEBOUNCE_MS);
   const [detailsReady, setDetailsReady] = useState(false);
   const previousLegendsRef = useRef<ReturnType<typeof buildPlayLegendRows>>([]);
+  const colorsKey = (filters.colors ?? []).join(',');
+  const setsKey = (filters.sets ?? []).join(',');
 
   useEffect(() => {
     void prefetchPlayLegendCatalog(queryClient);
@@ -61,10 +73,10 @@ export function useLegendCatalog() {
     setDetailsReady(false);
     const id = setTimeout(() => setDetailsReady(true), PLAY_LEGEND_DETAIL_DEFER_MS);
     return () => clearTimeout(id);
-  }, [debounced]);
+  }, [debounced, colorsKey, setsKey]);
 
   const listQuery = useInfiniteQuery({
-    ...legendListQueryOptions(debounced),
+    ...legendListQueryOptions(debounced, filters),
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     placeholderData: (previous) => previous,

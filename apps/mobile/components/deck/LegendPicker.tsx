@@ -1,19 +1,48 @@
-import { ThemedIcon, ChevronLeftIcon, ImageIcon, SearchIcon } from '@/components/icons';
-import { useQuery } from '@tanstack/react-query';
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronUpIcon,
+  ImageIcon,
+  SearchIcon,
+  ThemedIcon,
+} from '@/components/icons';
+import { useCatalogFilterOptions } from '@/components/catalog/CatalogFilterPanels';
+import { toggleCatalogFilterValue } from '@/components/catalog/catalogFilterPanels.shared';
+import {
+  FilterChipGrid,
+  FilterOptionChip,
+} from '@/components/filters/MobileFilterSheet';
+import { DomainIcon } from '@/components/riftbound/CardIcons';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, View, type ListRenderItem } from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  ScrollView,
+  useWindowDimensions,
+  View,
+  type ListRenderItem,
+} from 'react-native';
 import { ListSpacer } from '@/components/ui/list-spacer';
 import { AppLoader } from '@/components/ui/app-loader';
 import { SearchInput } from '@/components/ui/search-input';
 import { Text } from '@/components/ui/text';
+import {
+  Popover,
+  PopoverContent,
+  PopoverOverlay,
+  PopoverPortal,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
+import {
+  CATALOG_TOOLBAR_CONTROL_ACTIVE_CLASS,
+  CATALOG_TOOLBAR_LABELED_CONTROL_CLASS,
+} from '@/constants/catalogToolbar';
 import { useScreenLayout } from '@/components/shell/ScreenLayout';
+import { useLegendCatalog } from '@/hooks/useLegendCatalog';
 import { useResponsiveColumns } from '@/hooks/useResponsiveColumns';
-import { deckCardFromDetail, isLegendCard } from '@/lib/deck-card';
 import type { DeckCard } from '@/lib/deck-types';
-import { api } from '@/src/api/client';
-import { cardQueryKeys } from '@/src/api/queryKeys';
-import { useDebounce } from '@/hooks/useDebounce';
 import { hapticPress } from '@/utils/haptics';
 import { DeckCardArt } from '@/components/deck/DeckCardArt';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
@@ -35,72 +64,51 @@ export function LegendPicker({
     measuredWidth: contentWidth,
   });
 
-  const [query, setQuery] = useState('');
-  const debounced = useDebounce(query.trim(), 300);
-
-  const cardsQuery = useQuery({
-    queryKey: cardQueryKeys.search(debounced || 'type:legend', 60, 'name', 'asc'),
-    queryFn: () =>
-      api.listCards({
-        q: debounced || undefined,
-        types: 'Legend',
-        limit: 60,
-        page: 1,
-        sortBy: 'name',
-        dir: 'asc',
-      }),
-    staleTime: 60_000,
-  });
-
-  const listItems = useMemo(
-    () =>
-      (cardsQuery.data?.data ?? []).filter(
-        (item) => item.type.toLowerCase() === 'legend'
-      ),
-    [cardsQuery.data?.data]
+  const [colors, setColors] = useState<string[]>([]);
+  const [selectedSet, setSelectedSet] = useState<string | null>(null);
+  const [setMenuOpen, setSetMenuOpen] = useState(false);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const catalogFilters = useMemo(
+    () => ({
+      colors,
+      ...(selectedSet ? { sets: [selectedSet] } : {}),
+    }),
+    [colors, selectedSet]
   );
-  const variantNumbers = useMemo(
-    () => listItems.map((item) => item.variantNumber),
-    [listItems]
-  );
-
-  const detailsQuery = useQuery({
-    queryKey: ['legend-picker-details', [...variantNumbers].sort().join(',')],
-    queryFn: () => api.batchCards(variantNumbers),
-    enabled: variantNumbers.length > 0,
-    staleTime: 60_000,
-  });
-
-  const legends = useMemo(() => {
-    const details = detailsQuery.data?.data ?? [];
-    if (!details.length) return [];
-
-    const detailByVariant = new Map<string, (typeof details)[number]>();
-    for (const card of details) {
-      for (const variant of card.variants) {
-        detailByVariant.set(variant.variantNumber, card);
-      }
-    }
-
-    const results: DeckCard[] = [];
-    for (const item of listItems) {
-      const detail = detailByVariant.get(item.variantNumber);
-      if (!detail) continue;
-      const card = deckCardFromDetail(detail, item.variantNumber);
-      if (!isLegendCard(card)) continue;
-      results.push(card);
-    }
-    return results;
-  }, [detailsQuery.data, listItems]);
-
-  const loading =
-    cardsQuery.isLoading || (variantNumbers.length > 0 && detailsQuery.isLoading);
+  const {
+    query,
+    setQuery,
+    legends,
+    loading,
+    loadingMore,
+    hasNextPage,
+    fetchNextPage,
+  } = useLegendCatalog(catalogFilters);
+  const { colorOptions, setOptions } = useCatalogFilterOptions();
+  const setLabel =
+    setOptions.find((set) => set.code === selectedSet)?.code ?? 'All sets';
+  const setMenuWidth = Math.min(288, Math.max(200, windowWidth - 32));
+  const setMenuMaxHeight = Math.min(320, Math.max(180, windowHeight * 0.45));
 
   const columnWrapperStyle = useMemo(() => ({ gap, marginBottom: gap }), [gap]);
 
   const listContentStyle = useMemo(
     () => ({ flexGrow: legends.length === 0 ? 1 : undefined }),
     [legends.length]
+  );
+
+  const listFooter = useMemo(
+    () => (
+      <>
+        {loadingMore ? (
+          <View className="items-center py-4">
+            <AppLoader size="sm" />
+          </View>
+        ) : null}
+        <ListSpacer height={paddingBottom} />
+      </>
+    ),
+    [loadingMore, paddingBottom]
   );
 
   const renderLegendItem = useCallback<ListRenderItem<DeckCard>>(
@@ -180,6 +188,160 @@ export function LegendPicker({
           placeholder="Search legends"
           autoFocus
         />
+        {colorOptions.length > 0 || setOptions.length > 0 ? (
+          <View className="flex-row items-start gap-2">
+            {colorOptions.length > 0 ? (
+              <View className="min-w-0 flex-1 gap-1.5">
+                <Text className="text-[11px] font-medium text-muted-foreground">
+                  Domains
+                </Text>
+                <FilterChipGrid>
+                  {colorOptions.map((color) => (
+                    <FilterOptionChip
+                      key={color.id}
+                      label={color.name}
+                      active={colors.includes(color.name)}
+                      onPress={() => {
+                        hapticPress();
+                        setColors((prev) =>
+                          toggleCatalogFilterValue(prev, color.name)
+                        );
+                      }}
+                      leading={
+                        <DomainIcon
+                          name={color.name}
+                          imageUrl={color.imageUrl}
+                          size={18}
+                        />
+                      }
+                    />
+                  ))}
+                </FilterChipGrid>
+              </View>
+            ) : null}
+            {setOptions.length > 0 ? (
+              <View className="shrink-0 gap-1.5">
+                <Text className="text-[11px] font-medium text-muted-foreground">
+                  Set
+                </Text>
+                <Popover open={setMenuOpen} onOpenChange={setSetMenuOpen}>
+                  <PopoverTrigger asChild>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Filter by set, ${setLabel}`}
+                      accessibilityState={{ expanded: setMenuOpen }}
+                      className={cn(
+                        CATALOG_TOOLBAR_LABELED_CONTROL_CLASS,
+                        'min-h-11 min-w-[7.5rem] max-w-[9.5rem] justify-between gap-2 px-3',
+                        (setMenuOpen || selectedSet) &&
+                          CATALOG_TOOLBAR_CONTROL_ACTIVE_CLASS
+                      )}
+                      onPress={() => {
+                        hapticPress();
+                      }}
+                    >
+                      <Text
+                        className={cn(
+                          'min-w-0 flex-1 text-[13px] font-normal leading-none',
+                          setMenuOpen || selectedSet
+                            ? 'text-foreground'
+                            : 'text-muted-foreground'
+                        )}
+                        numberOfLines={1}
+                      >
+                        {setLabel}
+                      </Text>
+                      <ThemedIcon
+                        icon={setMenuOpen ? ChevronUpIcon : ChevronDownIcon}
+                        size={12}
+                        color={
+                          setMenuOpen || selectedSet
+                            ? 'foreground'
+                            : 'muted-foreground'
+                        }
+                      />
+                    </Pressable>
+                  </PopoverTrigger>
+                  <PopoverPortal>
+                    <PopoverOverlay className="bg-transparent" closeOnPress />
+                    <PopoverContent
+                      side="bottom"
+                      align="end"
+                      sideOffset={4}
+                      width={setMenuWidth}
+                      className="z-50 overflow-hidden rounded-[3px] border border-border bg-popover p-1 shadow-none"
+                      style={{ maxHeight: setMenuMaxHeight }}
+                    >
+                      <ScrollView
+                        style={{ maxHeight: setMenuMaxHeight }}
+                        keyboardShouldPersistTaps="handled"
+                        nestedScrollEnabled
+                      >
+                        <Pressable
+                          accessibilityRole="menuitem"
+                          accessibilityState={{ selected: selectedSet === null }}
+                          className="min-h-11 flex-row items-center justify-between rounded-[3px] px-3 py-2.5 active:bg-card-panel"
+                          onPress={() => {
+                            hapticPress();
+                            setSelectedSet(null);
+                            setSetMenuOpen(false);
+                          }}
+                        >
+                          <Text className="text-sm text-popover-foreground">
+                            All sets
+                          </Text>
+                          {selectedSet === null ? (
+                            <ThemedIcon
+                              icon={CheckIcon}
+                              size={18}
+                              color="foreground"
+                            />
+                          ) : null}
+                        </Pressable>
+                        {setOptions.map((set) => {
+                          const active = selectedSet === set.code;
+                          return (
+                            <Pressable
+                              key={set.code}
+                              accessibilityRole="menuitem"
+                              accessibilityLabel={`${set.name} (${set.code})`}
+                              accessibilityState={{ selected: active }}
+                              className="min-h-11 flex-row items-center justify-between gap-3 rounded-[3px] px-3 py-2.5 active:bg-card-panel"
+                              onPress={() => {
+                                hapticPress();
+                                setSelectedSet(set.code);
+                                setSetMenuOpen(false);
+                              }}
+                            >
+                              <View className="min-w-0 flex-1">
+                                <Text
+                                  className="text-sm text-popover-foreground"
+                                  numberOfLines={1}
+                                >
+                                  {set.name}
+                                </Text>
+                                <Text className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                                  {set.code}
+                                </Text>
+                              </View>
+                              {active ? (
+                                <ThemedIcon
+                                  icon={CheckIcon}
+                                  size={18}
+                                  color="foreground"
+                                />
+                              ) : null}
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </PopoverContent>
+                  </PopoverPortal>
+                </Popover>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       {loading && legends.length === 0 ? (
@@ -188,7 +350,6 @@ export function LegendPicker({
         </View>
       ) : (
         <FlatList
-          // RN FlatList cannot change numColumns on the fly (rotation / Split View resize).
           key={`legend-grid-${numColumns}`}
           data={legends}
           keyExtractor={(item) => item.variantNumber}
@@ -198,15 +359,19 @@ export function LegendPicker({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           style={{ flex: 1, minHeight: 0 }}
+          onEndReached={() => {
+            if (hasNextPage) fetchNextPage();
+          }}
+          onEndReachedThreshold={0.4}
           ListEmptyComponent={
             <View className="items-center gap-2 py-16">
               <ThemedIcon icon={SearchIcon} size={28} color="muted-foreground" />
               <Text className="text-sm text-muted-foreground">
-                No legends match your search
+                No legends match your filters
               </Text>
             </View>
           }
-          ListFooterComponent={<ListSpacer height={paddingBottom} />}
+          ListFooterComponent={listFooter}
           renderItem={renderLegendItem}
         />
       )}

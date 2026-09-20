@@ -70,6 +70,18 @@ describe('legend catalog cache policy', () => {
       playLegendDetailsQueryKey(['OGN-280', 'OGN-280a'])
     );
   });
+
+  test('includes color and set filters in the list query key', () => {
+    expect(playLegendListQueryKey('', 60, { colors: ['Fury'] })).not.toEqual(
+      playLegendListQueryKey('')
+    );
+    expect(
+      playLegendListQueryKey('', 60, { colors: ['Chaos', 'Fury'] })
+    ).toEqual(playLegendListQueryKey('', 60, { colors: ['Chaos', 'Fury'] }));
+    expect(playLegendListQueryKey('', 60, { sets: ['OGN'] })).not.toEqual(
+      playLegendListQueryKey('')
+    );
+  });
 });
 
 describe('groupLegendListItems', () => {
