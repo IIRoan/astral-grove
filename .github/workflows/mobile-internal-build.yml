@@ -247,6 +247,8 @@ jobs:
           QR_PATH="$RUNNER_TEMP/r2-publish/${PROFILE}-qr.png"
           test -f "$QR_PATH"
 
+          PAGE_URL=$(jq -r '.pageUrl // empty' "$RUNNER_TEMP/r2-publish/publish-page.json")
+
           REF_LINE="$GITHUB_SHA"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             REF_LINE="PR #${{ github.event.pull_request.number }} · $GITHUB_SHA"
@@ -258,4 +260,5 @@ jobs:
             --qr "$QR_PATH" \
             --profile "$PROFILE" \
             --title "$TITLE" \
+            --url "$PAGE_URL" \
             --ref "$REF_LINE"

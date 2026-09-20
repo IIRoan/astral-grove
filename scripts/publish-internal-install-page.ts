@@ -82,6 +82,7 @@ async function main(): Promise<void> {
   const result = {
     profile: args.profile,
     pageKey: keys.page,
+    pageUrl,
     qrKey: keys.qr,
     qrPath,
     ios: Boolean(iosInstallUrl),
