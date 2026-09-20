@@ -15,7 +15,7 @@ beforeAll(async () => {
     await ensureCatalogSynced();
   }
   await ensurePricesSynced();
-}, 300_000);
+}, 1_200_000);
 
 afterAll(async () => {
   await teardownE2E();

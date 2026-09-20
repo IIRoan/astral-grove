@@ -135,7 +135,9 @@ export async function setupE2E(): Promise<void> {
 
   process.env.NODE_ENV ??= 'test';
   process.env.SYNC_CRON_ENABLED = 'false';
-  process.env.SYNC_MAX_PAGES ??= '2';
+  if (process.env.CI !== 'true') {
+    process.env.SYNC_MAX_PAGES ??= '2';
+  }
   applyTestDatabaseUrl();
 
   const externalUrl = process.env.E2E_API_URL;

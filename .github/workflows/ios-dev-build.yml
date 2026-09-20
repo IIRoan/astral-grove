@@ -1,40 +1,36 @@
-name: iOS development build
+name: iOS internal build
 
-# A stand-in for `eas build` that does not spend cloud build credits. EAS still does
-# the work and still manages the signing credentials, but `--local` runs the build on
-# GitHub's macOS runner instead of Expo's infrastructure, which Expo documents as
-# always free. The repo is public, so macOS runner minutes are free too.
-# The IPA is not uploaded to Expo: registering a local build there is metered on the
-# free plan. It goes to a per-PR pre-release with an over-the-air install manifest.
 on:
   pull_request:
-    # PRs aimed at main get the `development` profile, matching how these were built
-    # on EAS before.
     branches: [main]
     types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile to publish as the latest slot
+        type: choice
+        options:
+          - development
+          - preview
+        default: development
 
-# A PR update supersedes whatever was already building — iOS builds are slow and
-# there is no point finishing one for a commit that has been replaced.
 concurrency:
-  group: ios-dev-${{ github.event.pull_request.number || github.ref }}
+  group: ios-internal-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'push' && 'preview' || inputs.profile || 'development' }}
   cancel-in-progress: true
 
 permissions:
-  contents: write # create the release that hosts the .ipa
-  pull-requests: write # post the install QR back onto the PR
+  contents: read
 
 jobs:
   build:
     runs-on: macos-latest
     timeout-minutes: 60
     env:
-      APP_VARIANT: development
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      # `itms-services` needs this to match the built app exactly, or iOS installs
-      # nothing and gives no reason. The dev variant appends `.dev` in app.config.js.
-      BUNDLE_ID: com.iroan.astralgrove.dev
-      TAG: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('manual-{0}', github.run_number) }}
+      # PRs → development client; main pushes → preview (EAS channel/branch preview for OTA).
+      PROFILE: ${{ github.event_name == 'push' && 'preview' || inputs.profile || 'development' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -42,6 +38,27 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
+
+      - name: Resolve profile metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          case "$PROFILE" in
+            development)
+              echo "app_variant=development" >> "$GITHUB_OUTPUT"
+              echo "bundle_id=com.iroan.astralgrove.dev" >> "$GITHUB_OUTPUT"
+              echo "title=Astral Grove Dev" >> "$GITHUB_OUTPUT"
+              ;;
+            preview)
+              echo "app_variant=preview" >> "$GITHUB_OUTPUT"
+              echo "bundle_id=com.iroan.astralgrove" >> "$GITHUB_OUTPUT"
+              echo "title=Astral Grove Preview" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unknown PROFILE=$PROFILE" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -52,7 +69,6 @@ jobs:
             apps/mobile/modules/card-ocr-frame/test/ScanWorkerTests.swift \
             -o "$RUNNER_TEMP/scan-worker-tests"
           "$RUNNER_TEMP/scan-worker-tests"
-          # CoreImage and Vision ship on macOS too, so the crop maths runs on the runner.
           swiftc apps/mobile/modules/card-ocr-frame/ios/CardImageProcessing.swift \
             apps/mobile/modules/card-ocr-frame/test/ImageProcessingTests.swift \
             -o "$RUNNER_TEMP/image-processing-tests"
@@ -65,40 +81,36 @@ jobs:
 
       - name: Build .ipa
         working-directory: apps/mobile
-        # --local keeps it off Expo's builders; credentials are still fetched from EAS,
-        # so this signs with the same ad-hoc profile (and registered devices) as before.
+        env:
+          APP_VARIANT: ${{ steps.meta.outputs.app_variant }}
         run: |
           set -o pipefail
-
-          # EAS prints the whole credential configuration before it builds: the Apple
-          # Team and account holder's name, certificate serial, provisioning profile
-          # id, and every provisioned device by name and UDID. Workflow logs on a
-          # public repo are world-readable, so that block is scrubbed on its way to
-          # the console. pipefail keeps the build's own exit code.
           eas build \
             --platform ios \
-            --profile development \
+            --profile "$PROFILE" \
             --local \
             --non-interactive \
             --output "$RUNNER_TEMP/astral-grove.ipa" 2>&1 | sed -E \
               -e 's/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}/[redacted udid]/g' \
               -e 's/\b[0-9A-Fa-f]{40}\b/[redacted udid]/g' \
-              -e 's/^([[:space:]]*(Apple Team|Serial Number|Developer Portal ID)[[:space:]]+).*/\1[redacted]/' \
+              -e 's/(Apple Team( ID)?[[:space:]]*[:=]?[[:space:]]*)[^[:space:])]+/\1[redacted]/g' \
+              -e 's/^([[:space:]]*(Serial Number|Developer Portal ID)[[:space:]]+).*/\1[redacted]/' \
               -e 's/^([[:space:]]*-[[:space:]]+).*\(UDID:.*/\1[redacted device]/' \
               -e 's/^([[:space:]]*Provisioned devices[[:space:]]+).*/\1[redacted]/'
 
-      - name: Publish build and install manifest
+      - name: Publish latest slot to R2
         id: publish
         env:
-          GH_TOKEN: ${{ github.token }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_PUBLIC_BASE_URL: ${{ secrets.S3_PUBLIC_BASE_URL }}
         run: |
           set -euo pipefail
-          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
-          IPA_URL="${BASE}/astral-grove.ipa"
           IPA_PATH="$RUNNER_TEMP/astral-grove.ipa"
 
-          # itms-services requires bundle-version to match CFBundleVersion inside the IPA.
-          # EAS remote versioning owns that number — do not use GITHUB_RUN_NUMBER.
           EXTRACT_DIR="$RUNNER_TEMP/ipa-extract"
           rm -rf "$EXTRACT_DIR"
           mkdir -p "$EXTRACT_DIR"
@@ -107,68 +119,43 @@ jobs:
           BUNDLE_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")
           test -n "$BUNDLE_VERSION"
 
-          # Over-the-air install manifest. iOS fetches this, then the .ipa it points at.
-          cat > "$RUNNER_TEMP/manifest.plist" <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-            <dict>
-              <key>items</key>
-              <array>
-                <dict>
-                  <key>assets</key>
-                  <array>
-                    <dict>
-                      <key>kind</key><string>software-package</string>
-                      <key>url</key><string>${IPA_URL}</string>
-                    </dict>
-                  </array>
-                  <key>metadata</key>
-                  <dict>
-                    <key>bundle-identifier</key><string>${BUNDLE_ID}</string>
-                    <key>bundle-version</key><string>${BUNDLE_VERSION}</string>
-                    <key>kind</key><string>software</string>
-                    <key>title</key><string>Astral Grove Dev</string>
-                  </dict>
-                </dict>
-              </array>
-            </dict>
-          </plist>
-          PLIST
-
-          INSTALL_URL="itms-services://?action=download-manifest&url=${BASE}/manifest.plist"
-          bunx qrcode -o "$RUNNER_TEMP/install-qr.png" -w 512 "$INSTALL_URL"
-
-          # Recreate the release each run so the tag always points at this commit.
-          gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
-          gh release create "$TAG" \
-            --title "Astral Grove Dev · ${TAG}" \
-            --notes "Development build of ${GITHUB_SHA}. Install from an iPhone already registered for ad-hoc builds." \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            "$RUNNER_TEMP/astral-grove.ipa" \
-            "$RUNNER_TEMP/manifest.plist" \
-            "$RUNNER_TEMP/install-qr.png"
+          bun scripts/publish-ios-r2-release.ts \
+            --profile "$PROFILE" \
+            --ipa "$IPA_PATH" \
+            --bundle-id "${{ steps.meta.outputs.bundle_id }}" \
+            --bundle-version "$BUNDLE_VERSION" \
+            --title "${{ steps.meta.outputs.title }}" \
+            --out-dir "$RUNNER_TEMP/r2-publish"
 
           {
-            echo "qr_url=${BASE}/install-qr.png"
-            echo "ipa_url=${IPA_URL}"
-          } >> "$GITHUB_OUTPUT"
-          echo "[Download .ipa](${IPA_URL})" >> "$GITHUB_STEP_SUMMARY"
+            echo "### iOS ${PROFILE} → \`releases/${PROFILE}.ipa\`"
+            echo
+            echo "Commit \`${GITHUB_SHA}\`. Install QR sent to Discord."
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Post install QR on the PR
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: ios-dev-build
-          message: |
-            ### iOS development build ready
+      - name: Send install QR to Discord
+        env:
+          TITLE: ${{ steps.meta.outputs.title }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
+            echo "DISCORD_WEBHOOK secret is not set" >&2
+            exit 1
+          fi
 
-            Scan with the Camera app on your registered iPhone. The QR is an over-the-air install link.
+          QR_PATH="$RUNNER_TEMP/r2-publish/${PROFILE}-qr.png"
+          test -f "$QR_PATH"
 
-            <img src="${{ steps.publish.outputs.qr_url }}" width="240" alt="Install QR" />
+          REF_LINE="$GITHUB_SHA"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            REF_LINE="PR #${{ github.event.pull_request.number }} · $GITHUB_SHA"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            REF_LINE="main · $GITHUB_SHA"
+          fi
 
-            [Download .ipa](${{ steps.publish.outputs.ipa_url }})
-
-            Built from `${{ github.sha }}` with the `development` profile.
-            Requires this device's UDID to be registered for ad-hoc distribution.
+          bun scripts/notify-ios-discord.ts \
+            --qr "$QR_PATH" \
+            --profile "$PROFILE" \
+            --title "$TITLE" \
+            --ref "$REF_LINE"

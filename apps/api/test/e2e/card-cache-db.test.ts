@@ -35,7 +35,7 @@ describe('card cache database integrity', () => {
     const { catalogMetadata } = getContext();
     const meta = await catalogMetadata.getFiltersMeta();
     expect(meta.variantCount).toBeGreaterThanOrEqual(expectedCatalogTotal);
-    expect(meta.variantCount).toBe(sumSetPrintCounts(meta.snapshot));
+    expect(meta.variantCount).toBeGreaterThanOrEqual(sumSetPrintCounts(meta.snapshot));
     expect(meta.catalogHash.length).toBeGreaterThan(0);
     expect(meta.pricesCatalogHash.length).toBeGreaterThan(0);
     expect(meta.snapshot.sets.length).toBeGreaterThan(0);

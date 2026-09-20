@@ -27,6 +27,7 @@ jobs:
   api-e2e:
     name: API e2e
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16-alpine
@@ -41,7 +42,6 @@ jobs:
     env:
       NODE_ENV: test
       TEST_DB_URL: postgres://riftbound:riftbound@localhost:5433/riftbound_test
-      # The catalog fixture sync reads from Piltover Archive; add PA_API_KEY as a repo secret.
       PA_API_KEY: ${{ secrets.PA_API_KEY }}
       ADMIN_SYNC_TOKEN: ci-admin-sync-token-not-secret
       BETTER_AUTH_SECRET: ci-better-auth-secret-not-secret-32chars

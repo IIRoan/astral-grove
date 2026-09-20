@@ -23,6 +23,13 @@ describe('catalogFingerprint', () => {
     expect(hash).toHaveLength(64);
     expect(catalogFingerprint(1396, { sets: [{ code: 'OGN' }] })).toBe(hash);
   });
+
+  test('truncated-sync markers stay within char(64)', () => {
+    const fingerprint = catalogFingerprint(1396, { sets: [{ code: 'OGN' }] });
+    const partial = catalogFingerprint(2, { partial: true, fingerprint });
+    expect(partial).toHaveLength(64);
+    expect(partial).not.toBe(fingerprint);
+  });
 });
 
 describe('pricesFingerprint', () => {
