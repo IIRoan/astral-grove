@@ -39,6 +39,18 @@ export function toDeckCodeCardCode(variantNumber: string): string {
   return trimmed;
 }
 
+/**
+ * Base `SET-NUMBER` for a deck-code card, dropping the variant letter (a/b/s/*).
+ * Deck codes can name a printing our catalog lacks (e.g. signature `OGN-305s`);
+ * the base code resolves to the same card so importers can fall back to it.
+ */
+export function deckCodeCardBase(variantNumber: string): string {
+  const normalized = toDeckCodeCardCode(variantNumber);
+  const match = normalized.match(DECK_CODE_CARD);
+  if (!match) return normalized;
+  return `${match[1]}-${match[2]}`;
+}
+
 function mergeCount(
   counts: Map<string, number>,
   cardCode: string,

@@ -6,6 +6,7 @@ import {
 import { addCardToDeck, createEmptyDeck } from '@/lib/deck-card';
 import {
   decodeDeckCode,
+  deckCodeCardBase,
   deckStateToCodePayload,
   exportDeckCode,
   importDeckCode,
@@ -52,6 +53,24 @@ describe('toDeckCodeCardCode', () => {
     expect(toDeckCodeCardCode('OGN-128-Nexus')).toBe('OGN-128');
     expect(toDeckCodeCardCode('OGN-128-Nexus-Foil')).toBe('OGN-128');
     expect(toDeckCodeCardCode('OGN-001-Foil')).toBe('OGN-001');
+  });
+});
+
+describe('deckCodeCardBase', () => {
+  test('drops the variant letter to the base SET-NUMBER', () => {
+    expect(deckCodeCardBase('OGN-305s')).toBe('OGN-305');
+    expect(deckCodeCardBase('OGN-197b')).toBe('OGN-197');
+    expect(deckCodeCardBase('OGN-001*')).toBe('OGN-001');
+    expect(deckCodeCardBase('UNL-R02a')).toBe('UNL-R02');
+  });
+
+  test('keeps codes that have no variant letter', () => {
+    expect(deckCodeCardBase('OGN-305')).toBe('OGN-305');
+    expect(deckCodeCardBase('SFD-R02')).toBe('SFD-R02');
+  });
+
+  test('normalizes printing SKUs before dropping the variant', () => {
+    expect(deckCodeCardBase('OGN-197b-Nexus')).toBe('OGN-197');
   });
 });
 
