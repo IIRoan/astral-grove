@@ -212,7 +212,6 @@ async function main(): Promise<void> {
   }
 
   await client.write(qrKey, Bun.file(qrPath), { type: 'image/png' });
-  const qrUrl = resolveUrl(qrKey);
 
   const listed = await client.list({ prefix: RELEASE_PREFIX });
   const contents = listed.contents ?? [];
@@ -238,52 +237,15 @@ async function main(): Promise<void> {
     profile: args.profile,
     ipa: basename(args.ipaPath),
     ipaKey,
-    ipaUrl,
     plistKey,
-    plistUrl,
     pageKey,
-    pageUrl,
     qrKey,
-    qrUrl,
-    installUrl,
     remainingIpas,
     public: Boolean(publicBase),
   };
 
   writeFileSync(join(args.outDir, 'publish.json'), JSON.stringify(result, null, 2));
-
-  const githubOutput = process.env.GITHUB_OUTPUT;
-  if (githubOutput) {
-    const write = (name: string, value: string) => {
-      const delimiter = `EOF_${name.toUpperCase()}`;
-      writeFileSync(githubOutput, `${name}<<${delimiter}\n${value}\n${delimiter}\n`, {
-        flag: 'a',
-      });
-    };
-    write('profile', args.profile);
-    write('ipa_key', ipaKey);
-    write('ipa_url', ipaUrl);
-    write('plist_url', plistUrl);
-    write('page_url', pageUrl);
-    write('qr_url', qrUrl);
-    write('install_url', installUrl);
-    write('public', publicBase ? 'true' : 'false');
-  }
-
-  console.log(
-    JSON.stringify(
-      {
-        ...result,
-        ipaUrl: publicBase ? ipaUrl : '[presigned]',
-        plistUrl: publicBase ? plistUrl : '[presigned]',
-        pageUrl: publicBase ? pageUrl : '[presigned]',
-        qrUrl: publicBase ? qrUrl : '[presigned]',
-        installUrl: '[redacted]',
-      },
-      null,
-      2
-    )
-  );
+  console.log(JSON.stringify(result, null, 2));
 }
 
 if (import.meta.main) {

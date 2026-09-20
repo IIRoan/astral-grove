@@ -9,7 +9,11 @@ function arg(flag: string): string {
   return value;
 }
 
-const webhook = arg('--webhook');
+const webhook = process.env.DISCORD_WEBHOOK?.trim();
+if (!webhook) {
+  throw new Error('Missing DISCORD_WEBHOOK env');
+}
+
 const qrPath = arg('--qr');
 const profile = arg('--profile');
 const title = arg('--title');
@@ -35,8 +39,7 @@ form.append('files[0]', qr, `${profile}-qr.png`);
 
 const response = await fetch(webhook, { method: 'POST', body: form });
 if (!response.ok) {
-  const body = await response.text();
-  throw new Error(`Discord webhook failed (${String(response.status)}): ${body}`);
+  throw new Error(`Discord webhook failed (${String(response.status)})`);
 }
 
 console.log('Discord webhook delivered');

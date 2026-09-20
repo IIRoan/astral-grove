@@ -29,13 +29,6 @@ jobs:
     timeout-minutes: 60
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
-      S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
-      S3_BUCKET: ${{ secrets.S3_BUCKET }}
-      S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-      S3_REGION: ${{ secrets.S3_REGION }}
-      S3_PUBLIC_BASE_URL: ${{ secrets.S3_PUBLIC_BASE_URL }}
-      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       # PRs → development client; main pushes → preview (EAS channel/branch preview for OTA).
       PROFILE: ${{ github.event_name == 'push' && 'preview' || inputs.profile || 'development' }}
 
@@ -100,12 +93,20 @@ jobs:
             --output "$RUNNER_TEMP/astral-grove.ipa" 2>&1 | sed -E \
               -e 's/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}/[redacted udid]/g' \
               -e 's/\b[0-9A-Fa-f]{40}\b/[redacted udid]/g' \
-              -e 's/^([[:space:]]*(Apple Team|Serial Number|Developer Portal ID)[[:space:]]+).*/\1[redacted]/' \
+              -e 's/(Apple Team( ID)?[[:space:]]*[:=]?[[:space:]]*)[^[:space:])]+/\1[redacted]/g' \
+              -e 's/^([[:space:]]*(Serial Number|Developer Portal ID)[[:space:]]+).*/\1[redacted]/' \
               -e 's/^([[:space:]]*-[[:space:]]+).*\(UDID:.*/\1[redacted device]/' \
               -e 's/^([[:space:]]*Provisioned devices[[:space:]]+).*/\1[redacted]/'
 
       - name: Publish latest slot to R2
         id: publish
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_PUBLIC_BASE_URL: ${{ secrets.S3_PUBLIC_BASE_URL }}
         run: |
           set -euo pipefail
           IPA_PATH="$RUNNER_TEMP/astral-grove.ipa"
@@ -135,6 +136,7 @@ jobs:
       - name: Send install QR to Discord
         env:
           TITLE: ${{ steps.meta.outputs.title }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           set -euo pipefail
           if [ -z "${DISCORD_WEBHOOK:-}" ]; then
@@ -153,7 +155,6 @@ jobs:
           fi
 
           bun scripts/notify-ios-discord.ts \
-            --webhook "$DISCORD_WEBHOOK" \
             --qr "$QR_PATH" \
             --profile "$PROFILE" \
             --title "$TITLE" \
