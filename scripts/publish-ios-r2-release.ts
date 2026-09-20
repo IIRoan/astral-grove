@@ -13,6 +13,82 @@ const IPA_KEYS = {
 } as const;
 const ALLOWED_IPA_KEYS = new Set<string>(Object.values(IPA_KEYS));
 
+export function escapeXml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
+}
+
+export function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+export function buildManifestPlist(input: {
+  ipaUrl: string;
+  bundleId: string;
+  bundleVersion: string;
+  title: string;
+}): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>items</key>
+    <array>
+      <dict>
+        <key>assets</key>
+        <array>
+          <dict>
+            <key>kind</key><string>software-package</string>
+            <key>url</key><string>${escapeXml(input.ipaUrl)}</string>
+          </dict>
+        </array>
+        <key>metadata</key>
+        <dict>
+          <key>bundle-identifier</key><string>${escapeXml(input.bundleId)}</string>
+          <key>bundle-version</key><string>${escapeXml(input.bundleVersion)}</string>
+          <key>kind</key><string>software</string>
+          <key>title</key><string>${escapeXml(input.title)}</string>
+        </dict>
+      </dict>
+    </array>
+  </dict>
+</plist>
+`;
+}
+
+export function buildInstallPage(input: {
+  title: string;
+  profile: string;
+  installUrl: string;
+}): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${escapeHtml(input.title)}</title>
+</head>
+<body>
+<h1>${escapeHtml(input.title)}</h1>
+<p>${escapeHtml(input.profile)} · open on your iPhone, then tap Install.</p>
+<p><a href="${escapeHtml(input.installUrl)}">Install</a></p>
+</body>
+</html>
+`;
+}
+
+export function buildItmsInstallUrl(plistUrl: string): string {
+  return `itms-services://?action=download-manifest&url=${encodeURIComponent(plistUrl)}`;
+}
+
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {
@@ -72,44 +148,11 @@ function objectUrl(base: string, key: string): string {
   return `${base}/${key.replace(/^\//, '')}`;
 }
 
-function buildManifestPlist(input: {
-  ipaUrl: string;
-  bundleId: string;
-  bundleVersion: string;
-  title: string;
-}): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>items</key>
-    <array>
-      <dict>
-        <key>assets</key>
-        <array>
-          <dict>
-            <key>kind</key><string>software-package</string>
-            <key>url</key><string>${input.ipaUrl}</string>
-          </dict>
-        </array>
-        <key>metadata</key>
-        <dict>
-          <key>bundle-identifier</key><string>${input.bundleId}</string>
-          <key>bundle-version</key><string>${input.bundleVersion}</string>
-          <key>kind</key><string>software</string>
-          <key>title</key><string>${input.title}</string>
-        </dict>
-      </dict>
-    </array>
-  </dict>
-</plist>
-`;
-}
-
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const ipaKey = IPA_KEYS[args.profile];
   const plistKey = `${RELEASE_PREFIX}${args.profile}.plist`;
+  const pageKey = `${RELEASE_PREFIX}${args.profile}.html`;
   const qrKey = `${RELEASE_PREFIX}${args.profile}-qr.png`;
 
   const client = new S3Client({
@@ -128,9 +171,12 @@ async function main(): Promise<void> {
   await client.write(ipaKey, ipaFile, { type: 'application/octet-stream' });
 
   const publicBase = publicBaseUrl();
-  const ipaUrl = publicBase
-    ? objectUrl(publicBase, ipaKey)
-    : client.presign(ipaKey, { expiresIn: 60 * 60 * 24 * 7, method: 'GET' });
+  const resolveUrl = (key: string) =>
+    publicBase
+      ? objectUrl(publicBase, key)
+      : client.presign(key, { expiresIn: 60 * 60 * 24 * 7, method: 'GET' });
+
+  const ipaUrl = resolveUrl(ipaKey);
 
   const plistBody = buildManifestPlist({
     ipaUrl,
@@ -140,18 +186,23 @@ async function main(): Promise<void> {
   });
 
   mkdirSync(args.outDir, { recursive: true });
-  const plistPath = join(args.outDir, `${args.profile}.plist`);
-  writeFileSync(plistPath, plistBody, 'utf8');
+  writeFileSync(join(args.outDir, `${args.profile}.plist`), plistBody, 'utf8');
+  await client.write(plistKey, plistBody, { type: 'application/xml' });
 
-  await client.write(plistKey, plistBody, { type: 'text/xml' });
+  const plistUrl = resolveUrl(plistKey);
+  const installUrl = buildItmsInstallUrl(plistUrl);
 
-  const plistUrl = publicBase
-    ? objectUrl(publicBase, plistKey)
-    : client.presign(plistKey, { expiresIn: 60 * 60 * 24 * 7, method: 'GET' });
+  const pageBody = buildInstallPage({
+    title: args.title,
+    profile: args.profile,
+    installUrl,
+  });
+  writeFileSync(join(args.outDir, `${args.profile}.html`), pageBody, 'utf8');
+  await client.write(pageKey, pageBody, { type: 'text/html; charset=utf-8' });
 
-  const installUrl = `itms-services://?action=download-manifest&url=${encodeURIComponent(plistUrl)}`;
+  const pageUrl = resolveUrl(pageKey);
   const qrPath = join(args.outDir, `${args.profile}-qr.png`);
-  const qrProc = Bun.spawn(['bunx', 'qrcode', '-o', qrPath, '-w', '512', installUrl], {
+  const qrProc = Bun.spawn(['bunx', 'qrcode', '-o', qrPath, '-w', '512', pageUrl], {
     stdout: 'inherit',
     stderr: 'inherit',
   });
@@ -161,9 +212,7 @@ async function main(): Promise<void> {
   }
 
   await client.write(qrKey, Bun.file(qrPath), { type: 'image/png' });
-  const qrUrl = publicBase
-    ? objectUrl(publicBase, qrKey)
-    : client.presign(qrKey, { expiresIn: 60 * 60 * 24 * 7, method: 'GET' });
+  const qrUrl = resolveUrl(qrKey);
 
   const listed = await client.list({ prefix: RELEASE_PREFIX });
   const contents = listed.contents ?? [];
@@ -192,6 +241,8 @@ async function main(): Promise<void> {
     ipaUrl,
     plistKey,
     plistUrl,
+    pageKey,
+    pageUrl,
     qrKey,
     qrUrl,
     installUrl,
@@ -213,6 +264,7 @@ async function main(): Promise<void> {
     write('ipa_key', ipaKey);
     write('ipa_url', ipaUrl);
     write('plist_url', plistUrl);
+    write('page_url', pageUrl);
     write('qr_url', qrUrl);
     write('install_url', installUrl);
     write('public', publicBase ? 'true' : 'false');
@@ -224,6 +276,7 @@ async function main(): Promise<void> {
         ...result,
         ipaUrl: publicBase ? ipaUrl : '[presigned]',
         plistUrl: publicBase ? plistUrl : '[presigned]',
+        pageUrl: publicBase ? pageUrl : '[presigned]',
         qrUrl: publicBase ? qrUrl : '[presigned]',
         installUrl: '[redacted]',
       },
@@ -233,4 +286,6 @@ async function main(): Promise<void> {
   );
 }
 
-await main();
+if (import.meta.main) {
+  await main();
+}

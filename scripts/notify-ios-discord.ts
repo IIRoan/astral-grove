@@ -26,7 +26,7 @@ form.append(
   JSON.stringify({
     content: [
       `**${title}** iOS build ready (\`${profile}\`)`,
-      'Scan with Camera on a registered ad-hoc device.',
+      'Scan → open the page in Safari → tap Install (registered ad-hoc device).',
       ref,
     ].join('\n'),
   })
