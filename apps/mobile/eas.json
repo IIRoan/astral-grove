@@ -3,46 +3,46 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "bun": "1.4.2",
+      "android": {
+        "buildType": "apk",
+        "env": {
+          "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8\" -Dorg.gradle.parallel=true -Dorg.gradle.daemon=false"
+        }
+      }
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
       "environment": "development",
-      "bun": "1.4.2",
       "env": {
         "APP_VARIANT": "development",
         "EXPO_PUBLIC_API_URL": "https://riftapi.solace.onl",
         "EXPO_PUBLIC_SENTRY_DSN": "https://2f67445264104af4b151e3400f3062bb@errors.solace.onl/astral-grove"
-      },
-      "android": {
-        "buildType": "apk"
       }
     },
     "preview": {
+      "extends": "base",
       "channel": "preview",
       "distribution": "internal",
       "environment": "preview",
-      "bun": "1.4.2",
       "env": {
         "APP_VARIANT": "preview",
         "EXPO_PUBLIC_API_URL": "https://riftapi.solace.onl",
         "EXPO_PUBLIC_SENTRY_DSN": "https://2f67445264104af4b151e3400f3062bb@errors.solace.onl/astral-grove"
-      },
-      "android": {
-        "buildType": "apk"
       }
     },
     "main": {
+      "extends": "base",
       "channel": "main",
       "environment": "production",
-      "bun": "1.4.2",
       "env": {
         "APP_VARIANT": "production",
         "EXPO_PUBLIC_API_URL": "https://riftapi.solace.onl",
         "EXPO_PUBLIC_SENTRY_DSN": "https://2f67445264104af4b151e3400f3062bb@errors.solace.onl/astral-grove"
-      },
-      "android": {
-        "buildType": "apk"
       }
     }
   }
