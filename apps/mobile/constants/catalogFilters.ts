@@ -308,9 +308,11 @@ function cardMatchesVariantFilter(card: CardListItem, variants: string[]): boole
   if (variants.length === 0) return true;
   const allowed = new Set(variants.map((value) => value.toLowerCase()));
   if (card.variantType && allowed.has(card.variantType.toLowerCase())) return true;
-  return card.printings.some((printing) =>
-    allowed.has(printing.variantLabel.trim().toLowerCase())
-  );
+  // Labels like "Overnumbered Signed" should match both the Overnumbered and Signed options.
+  return card.printings.some((printing) => {
+    const label = printing.variantLabel.trim().toLowerCase();
+    return allowed.has(label) || label.split(/\s+/).some((word) => allowed.has(word));
+  });
 }
 
 export function cardOwnedQuantity(

@@ -380,4 +380,15 @@ describe('variant filter', () => {
       }).variants
     ).toEqual(['Standard']);
   });
+
+  test('Signed matches an Overnumbered Signed printing', () => {
+    const signedCard = {
+      ...sampleCard,
+      variantType: 'Overnumbered',
+      printings: [{ ...sampleCard.printings[0]!, variantLabel: 'Overnumbered Signed' }],
+    };
+    const filters = { ...DEFAULT_CATALOG_FILTERS, variants: ['Signed'] };
+    expect(matchesCatalogFilters(signedCard, filters, new Map())).toBe(true);
+    expect(matchesCatalogFilters(sampleCard, filters, new Map())).toBe(false);
+  });
 });

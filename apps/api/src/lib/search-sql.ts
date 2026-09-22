@@ -113,11 +113,13 @@ export function buildSearchFilterConditions(query: CardsListQuery): SQL[] {
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean);
     if (variantFilters.length > 0) {
+      const allowed = sql.join(
+        variantFilters.map((value) => sql`${value}`),
+        sql`, `
+      );
+      // Signed printings are variantType Overnumbered with "Signed" only in variant_types.
       conditions.push(
-        sql`lower(${variants.variantType}) in (${sql.join(
-          variantFilters.map((value) => sql`${value}`),
-          sql`, `
-        )})`
+        sql`(lower(${variants.variantType}) in (${allowed}) or exists (select 1 from jsonb_array_elements_text(${variants.variantTypes}) as vt(value) where lower(vt.value) in (${allowed})))`
       );
     }
   }

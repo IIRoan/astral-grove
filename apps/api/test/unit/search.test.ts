@@ -8,6 +8,7 @@ import {
   tokenizeSearchQuery,
   wholeWordPattern,
 } from '../../src/lib/search.js';
+import { buildSearchFilterConditions } from '../../src/lib/search-sql.js';
 
 const dialect = new PgDialect();
 
@@ -179,5 +180,22 @@ describe('buildSearchRelevanceOrder', () => {
     expect(compiled.params).toContain('vi');
     expect(compiled.params).toContain('destructive');
     expect(compiled.sql).toContain(' THEN 3');
+  });
+});
+
+describe('buildSearchFilterConditions variants', () => {
+  test('matches variant_types so Signed finds Overnumbered Signed printings', () => {
+    const [condition] = buildSearchFilterConditions({
+      page: 1,
+      limit: 20,
+      sortBy: 'name',
+      dir: 'asc',
+      variants: 'Signed',
+    });
+    const compiled = compile(condition!);
+    expect(compiled.sql).toContain(
+      'jsonb_array_elements_text("variants"."variant_types")'
+    );
+    expect(compiled.params).toContain('signed');
   });
 });
