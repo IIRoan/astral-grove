@@ -107,4 +107,18 @@ describe('exportDeckTts', () => {
 
     expect(exportDeckTts(deck)).toBe('OGN-004-1 OGN-009-1 OGN-009-1');
   });
+
+  test('exports alt-art runes as base rune art', () => {
+    let deck = createEmptyDeck('TTS runes');
+    deck = addCardToDeck(deck, card('UNL-R02a', { type: 'Rune', name: 'Rune A' }), {
+      section: 'runes',
+      count: 2,
+    });
+    deck = addCardToDeck(deck, card('UNL-R05', { type: 'Rune', name: 'Rune B' }), {
+      section: 'runes',
+      count: 1,
+    });
+
+    expect(exportDeckTts(deck)).toBe('UNL-R02-1 UNL-R02-1 UNL-R05-1');
+  });
 });

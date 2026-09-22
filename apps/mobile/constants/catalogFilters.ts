@@ -72,7 +72,6 @@ export function sanitizeCatalogFilters(filters: CatalogFilters): CatalogFilters 
     collection,
     simpleAdd: Boolean(filters.simpleAdd),
     types: filters.types.filter((type) => isCatalogBrowsableType(type)),
-    variants: [],
     excludeTokens: filters.tokensOnly ? false : filters.excludeTokens,
     tokensOnly: filters.excludeTokens ? false : filters.tokensOnly,
   };
@@ -94,6 +93,7 @@ export const CATALOG_FILTER_SEGMENTS: { id: CatalogFilterSegment; label: string 
   { id: 'sets', label: 'Sets' },
   { id: 'types', label: 'Type' },
   { id: 'supertypes', label: 'Supertype' },
+  { id: 'variants', label: 'Variant' },
   { id: 'rarities', label: 'Rarity' },
   { id: 'stats', label: 'Stats' },
 ];

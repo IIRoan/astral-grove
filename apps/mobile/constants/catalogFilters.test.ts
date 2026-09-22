@@ -368,18 +368,16 @@ describe('catalogFiltersHaveClearableExtras', () => {
 });
 
 describe('variant filter', () => {
-  test('is not a catalog filter segment', () => {
-    expect(CATALOG_FILTER_SEGMENTS.map((segment) => segment.id)).not.toContain(
-      'variants'
-    );
+  test('is a catalog filter segment', () => {
+    expect(CATALOG_FILTER_SEGMENTS.map((segment) => segment.id)).toContain('variants');
   });
 
-  test('sanitize drops leftover variant selections', () => {
+  test('sanitize keeps variant selections', () => {
     expect(
       sanitizeCatalogFilters({
         ...DEFAULT_CATALOG_FILTERS,
         variants: ['Standard'],
       }).variants
-    ).toEqual([]);
+    ).toEqual(['Standard']);
   });
 });

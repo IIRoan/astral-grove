@@ -20,8 +20,15 @@ export function toTtsCardToken(variantNumber: string): string {
   return `${set}-${number}-${ttsArtIndex(match[3])}`;
 }
 
-function pushCopies(tokens: string[], variantNumber: string, count: number): void {
-  const token = toTtsCardToken(variantNumber);
+function pushCopies(
+  tokens: string[],
+  variantNumber: string,
+  count: number,
+  baseArt = false
+): void {
+  const token = baseArt
+    ? toTtsCardToken(variantNumber).replace(/-\d$/, '-1')
+    : toTtsCardToken(variantNumber);
   for (let i = 0; i < count; i++) tokens.push(token);
 }
 
@@ -57,8 +64,9 @@ export function exportDeckTts(deck: DeckState): string {
   for (const [, entry] of deck.battlefields) {
     pushCopies(tokens, entry.card.variantNumber, entry.count);
   }
+  // TTS only has base rune art; alt-art rune tokens fail to load.
   for (const [, entry] of deck.runes) {
-    pushCopies(tokens, entry.card.variantNumber, entry.count);
+    pushCopies(tokens, entry.card.variantNumber, entry.count, true);
   }
   for (const [, entry] of deck.sideboard) {
     pushCopies(tokens, entry.card.variantNumber, entry.count);
