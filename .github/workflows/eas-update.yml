@@ -37,7 +37,8 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          # Same Bun as the build workflow so installs, and therefore fingerprints, match the builds.
+          bun-version: 1.4.2
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
@@ -63,4 +64,4 @@ jobs:
         env:
           EXPO_PUBLIC_API_URL: https://riftapi.solace.onl
         run: |
-          bun run scripts/publish-preview-update.ts --message "preview ${{ github.sha }}"
+          APP_VARIANT=preview eas update --branch preview --environment preview --message "preview ${{ github.sha }}" --non-interactive

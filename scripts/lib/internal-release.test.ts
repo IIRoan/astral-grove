@@ -5,8 +5,10 @@ import {
   buildManifestPlist,
   escapeHtml,
   escapeXml,
+  fingerprintKey,
   isProfile,
   releaseKeys,
+  resolveBuildPlan,
 } from './internal-release.ts';
 
 describe('internal-release manifest', () => {
@@ -85,5 +87,50 @@ describe('combined install page', () => {
     expect(page).toContain('Install on iPhone');
     expect(page).toContain('Android build unavailable');
     expect(page).not.toContain('Download for Android');
+  });
+});
+
+describe('native build plan', () => {
+  test('stores fingerprints per profile and platform next to the release artifacts', () => {
+    expect(fingerprintKey('preview', 'ios')).toBe('releases/preview-ios.fingerprint');
+    expect(fingerprintKey('development', 'android')).toBe(
+      'releases/development-android.fingerprint'
+    );
+  });
+
+  test('skips platforms whose fingerprint matches the last build', () => {
+    const plan = resolveBuildPlan(
+      {
+        ios: { current: 'a', previous: 'a' },
+        android: { current: 'b', previous: 'x' },
+      },
+      false
+    );
+    expect(plan).toEqual([
+      { platform: 'ios', fingerprint: 'a', build: false },
+      { platform: 'android', fingerprint: 'b', build: true },
+    ]);
+  });
+
+  test('builds when no previous fingerprint was recorded', () => {
+    const plan = resolveBuildPlan(
+      {
+        ios: { current: 'a', previous: null },
+        android: { current: 'b', previous: null },
+      },
+      false
+    );
+    expect(plan.every((d) => d.build)).toBe(true);
+  });
+
+  test('force rebuilds even when fingerprints are unchanged', () => {
+    const plan = resolveBuildPlan(
+      {
+        ios: { current: 'a', previous: 'a' },
+        android: { current: 'b', previous: 'b' },
+      },
+      true
+    );
+    expect(plan.every((d) => d.build)).toBe(true);
   });
 });

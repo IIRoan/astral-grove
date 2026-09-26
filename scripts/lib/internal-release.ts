@@ -13,6 +13,25 @@ export const releaseKeys = (profile: Profile) => ({
   qr: `${RELEASE_PREFIX}${profile}-qr.png`,
 });
 
+export const PLATFORMS = ['ios', 'android'] as const;
+export type Platform = (typeof PLATFORMS)[number];
+
+export const fingerprintKey = (profile: Profile, platform: Platform) =>
+  `${RELEASE_PREFIX}${profile}-${platform}.fingerprint`;
+
+export type BuildDecision = { platform: Platform; fingerprint: string; build: boolean };
+
+// A platform rebuilds only when its native fingerprint differs from the last published build.
+export function resolveBuildPlan(
+  fingerprints: Record<Platform, { current: string; previous: string | null }>,
+  force: boolean
+): BuildDecision[] {
+  return PLATFORMS.map((platform) => {
+    const { current, previous } = fingerprints[platform];
+    return { platform, fingerprint: current, build: force || current !== previous };
+  });
+}
+
 export function isProfile(value: string | undefined): value is Profile {
   return value !== undefined && (PROFILES as readonly string[]).includes(value);
 }

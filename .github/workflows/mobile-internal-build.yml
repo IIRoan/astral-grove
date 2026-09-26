@@ -32,6 +32,10 @@ jobs:
       ios_bundle_id: ${{ steps.meta.outputs.ios_bundle_id }}
       android_package: ${{ steps.meta.outputs.android_package }}
       title: ${{ steps.meta.outputs.title }}
+      ios_fingerprint: ${{ steps.fingerprint.outputs.ios_fingerprint }}
+      android_fingerprint: ${{ steps.fingerprint.outputs.android_fingerprint }}
+      build_ios: ${{ steps.fingerprint.outputs.build_ios }}
+      build_android: ${{ steps.fingerprint.outputs.build_android }}
     steps:
       - name: Resolve profile metadata
         id: meta
@@ -60,8 +64,32 @@ jobs:
               ;;
           esac
 
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Preview JS ships via EAS Update, so main pushes only rebuild when the native fingerprint moves.
+      # Nothing publishes to the development channel, so PR dev clients always rebuild to carry the PR's JS.
+      - name: Compare native fingerprints with the last build
+        id: fingerprint
+        env:
+          PROFILE: ${{ steps.meta.outputs.profile }}
+          FORCE: ${{ github.event_name != 'push' && '--force' || '' }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+        run: bun scripts/internal-build-fingerprint.ts check --profile "$PROFILE" $FORCE
+
   ios:
     needs: meta
+    if: needs.meta.outputs.build_ios == 'true'
     runs-on: macos-latest
     timeout-minutes: 60
     env:
@@ -114,6 +142,7 @@ jobs:
 
       - name: Publish iOS artifact to R2
         env:
+          FINGERPRINT: ${{ needs.meta.outputs.ios_fingerprint }}
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
           S3_BUCKET: ${{ secrets.S3_BUCKET }}
@@ -140,8 +169,16 @@ jobs:
             --title "${{ needs.meta.outputs.title }}" \
             --out-dir "$RUNNER_TEMP/r2-publish"
 
+          # EAS Update publishes from Linux; if macOS embeds a different runtime, OTA updates would miss this build.
+          unzip -q -o "$IPA_PATH" -d "$EXTRACT_DIR" 'Payload/*.app/Expo.plist'
+          EMBEDDED_RUNTIME=$(/usr/libexec/PlistBuddy -c 'Print :EXUpdatesRuntimeVersion' "$(echo "$EXTRACT_DIR"/Payload/*.app/Expo.plist)")
+          if [ "$EMBEDDED_RUNTIME" != "$FINGERPRINT" ]; then
+            echo "::warning::iOS build embeds runtime $EMBEDDED_RUNTIME but Linux resolves $FINGERPRINT; EAS updates will not reach this build"
+          fi
+
   android:
     needs: meta
+    if: needs.meta.outputs.build_android == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -197,6 +234,12 @@ jobs:
 
   publish:
     needs: [meta, ios, android]
+    # Runs when at least one platform was rebuilt and none failed; a skipped platform keeps its last artifact.
+    if: >-
+      !cancelled() &&
+      needs.meta.result == 'success' &&
+      !contains(needs.*.result, 'failure') &&
+      (needs.ios.result == 'success' || needs.android.result == 'success')
     runs-on: ubuntu-latest
     env:
       PROFILE: ${{ needs.meta.outputs.profile }}
@@ -262,3 +305,24 @@ jobs:
             --title "$TITLE" \
             --url "$PAGE_URL" \
             --ref "$REF_LINE"
+
+      # Recorded last so a failed publish leaves the old fingerprint and the next run rebuilds and republishes.
+      - name: Record published native fingerprints
+        env:
+          BUILT_IOS: ${{ needs.ios.result == 'success' }}
+          BUILT_ANDROID: ${{ needs.android.result == 'success' }}
+          IOS_FINGERPRINT: ${{ needs.meta.outputs.ios_fingerprint }}
+          ANDROID_FINGERPRINT: ${{ needs.meta.outputs.android_fingerprint }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+        run: |
+          set -euo pipefail
+          if [ "$BUILT_IOS" = "true" ]; then
+            bun scripts/internal-build-fingerprint.ts record --profile "$PROFILE" --platform ios --fingerprint "$IOS_FINGERPRINT"
+          fi
+          if [ "$BUILT_ANDROID" = "true" ]; then
+            bun scripts/internal-build-fingerprint.ts record --profile "$PROFILE" --platform android --fingerprint "$ANDROID_FINGERPRINT"
+          fi
