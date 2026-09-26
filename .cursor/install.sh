@@ -98,7 +98,6 @@ TEST_DB_URL=postgres://riftbound:riftbound@localhost:5433/riftbound_test
 PA_API_KEY=ak_dev_placeholder_no_upstream_sync
 PA_BASE_URL=https://piltoverarchive.com/api/external
 ADMIN_SYNC_TOKEN=dev-sync-token-change-me
-SYNC_CRON_ENABLED=false
 CATALOG_WARMUP_ON_START=false
 CATALOG_PROBE_DISABLED=true
 CARDMARKET_GAME_ID=22

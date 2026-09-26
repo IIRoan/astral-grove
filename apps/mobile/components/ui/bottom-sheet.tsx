@@ -53,6 +53,7 @@ import { centeredSheetMargins } from '@/lib/responsive-layout';
 import { SHEET_REDUCED, SHEET_SPRING } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { Portal, PortalOverlay } from './portal';
+import { SheetViewport } from './sheet-viewport';
 
 const BOTTOM_SHEET_PORTAL_NAME = 'bottom-sheet-portal';
 const BOTTOM_SHEET_KEYBOARD_BEHAVIOR = 'extend' as const;
@@ -168,7 +169,7 @@ const BottomSheetStickyScrollContent = ({
     : 0;
 
   return (
-    <View className={cn('absolute inset-0 flex flex-col bg-card-panel', className)}>
+    <View className={cn('min-h-0 flex-1 flex flex-col bg-card-panel', className)}>
       {header ? (
         <View
           className="absolute inset-x-0 top-0 z-10 border-border border-b bg-card-panel"
@@ -795,7 +796,6 @@ export const BottomSheetContent = ({
     [backgroundClassName]
   );
 
-  // Sticky absolute wrapper only for overlay headers; bare scroll stays a direct Gorhom child.
   const sheetContent = hasScrollView ? (
     header ? (
       <BottomSheetStickyScrollContent
@@ -847,7 +847,11 @@ export const BottomSheetContent = ({
       topInset={topInset}
     >
       <SheetScrollSafeBottomContext.Provider value={footer ? 0 : bottom}>
-        {sheetContent}
+        {Platform.OS === 'ios' && hasScrollView && !enableDynamicSizing ? (
+          <SheetViewport>{sheetContent}</SheetViewport>
+        ) : (
+          sheetContent
+        )}
       </SheetScrollSafeBottomContext.Provider>
     </GorhomBottomSheet>
   );

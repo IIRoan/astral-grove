@@ -1,4 +1,4 @@
-import { createApp, startCatalogMetadataWarmup, startSyncCrons } from './app.js';
+import { createApp, startCatalogMetadataWarmup } from './app.js';
 import { runStartupMigrations } from './db/migrate.js';
 import { loadEnv } from './env.js';
 import { apiListenOptions } from './lib/http-listen.js';
@@ -16,7 +16,6 @@ async function main() {
   console.log(`Riftbound API running at http://${host}:${String(port)}`);
 
   startCatalogMetadataWarmup(ctx, env);
-  startSyncCrons(ctx, env);
 
   const shutdown = () => {
     // Avoid client.end() on bun --watch: closing pool rejects in-flight queries and can crash hot reload.

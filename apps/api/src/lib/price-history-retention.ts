@@ -1,6 +1,5 @@
 export const DEFAULT_PRICE_HISTORY_RETAIN_DAYS = 90;
 export const DEFAULT_PRICE_HISTORY_RETAIN_SNAPSHOTS = 30;
-export const DEFAULT_PRICE_HISTORY_PRUNE_ON_CRON = true;
 
 export type PriceHistoryRetention = {
   retainDays: number;

@@ -45,6 +45,7 @@ import { logDrawer, watchDrawerOpen } from '@/lib/drawer-debug';
 import { centeredSheetMargins } from '@/lib/responsive-layout';
 import { OVERLAY, SHEET_REDUCED, SHEET_SPRING } from '@/lib/motion';
 import { cn } from '@/lib/utils';
+import { SheetViewport } from '@/components/ui/sheet-viewport';
 
 interface CardDetailDrawerProps {
   open?: boolean;
@@ -366,18 +367,20 @@ export function CardDetailDrawer({
         onChange={handleSheetIndexChange}
         onClose={handleSheetClosed}
       >
-        <BottomSheetScrollView
-          className={cn('min-h-0 flex-1', sheetSurface)}
-          contentContainerStyle={{
-            paddingHorizontal: 0,
-            paddingBottom,
-          }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          bounces={!reduceMotion}
-        >
-          {children}
-        </BottomSheetScrollView>
+        <SheetViewport>
+          <BottomSheetScrollView
+            className={cn('min-h-0 flex-1', sheetSurface)}
+            contentContainerStyle={{
+              paddingHorizontal: 0,
+              paddingBottom,
+            }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={!reduceMotion}
+          >
+            {children}
+          </BottomSheetScrollView>
+        </SheetViewport>
       </GorhomBottomSheet>
     </View>
   );

@@ -15,7 +15,6 @@ const s3Env: Env = {
   PA_API_KEY: 'ak_test',
   PA_BASE_URL: 'https://piltoverarchive.com/api/external',
   ADMIN_SYNC_TOKEN: 'dev-sync-token-change-me',
-  SYNC_CRON_ENABLED: false,
   BETTER_AUTH_SECRET: 'x'.repeat(32),
   BETTER_AUTH_URL: 'http://localhost:7000',
   TRUSTED_ORIGINS: [],

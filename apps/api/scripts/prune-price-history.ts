@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/** Manual price_history retention. Charts use price_daily. Cron prune is on by default. */
+/** Manual price_history retention. Charts use price_daily. POST /api/v1/sync/prices also prunes after every sync. */
 
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';

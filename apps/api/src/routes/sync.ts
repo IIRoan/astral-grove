@@ -53,6 +53,17 @@ export function createSyncRoutes(
       } else {
         console.log('[prices] Prices unchanged; search cache left intact');
       }
+      try {
+        const pruned = await prices.pruneHistory({
+          retainDays: env.PRICE_HISTORY_RETAIN_DAYS,
+          retainSnapshotsPerSlot: env.PRICE_HISTORY_RETAIN_SNAPSHOTS,
+        });
+        console.log(
+          `[prices] History prune: deleted=${String(pruned.deleted)} retainDays=${String(pruned.retainDays)} retainSnapshots=${String(pruned.retainSnapshotsPerSlot)}`
+        );
+      } catch (err) {
+        console.error('[prices] History prune failed:', err);
+      }
       return SyncPricesResponse.parse({ data: result });
     });
 }

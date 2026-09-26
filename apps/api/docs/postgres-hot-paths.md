@@ -61,8 +61,8 @@ raw `price_history`. `price_history` is the sync audit/snapshot log.
 
 Default policy: delete a snapshot if it is older than 90 days
 **or** not among the newest 30 rows per `(cardmarket_id, is_foil)`.
-The daily price cron runs that prune after Cardmarket sync unless
-`PRICE_HISTORY_PRUNE_ON_CRON=false`.
+`POST /api/v1/sync/prices` (called by the daily GitHub workflow) runs that
+prune after every Cardmarket sync.
 
 ```bash
 cd apps/api
@@ -70,8 +70,7 @@ bun scripts/prune-price-history.ts --target=test --use-env=TEST_DB_URL --dry-run
 bun scripts/prune-price-history.ts --target=staging --database-url=... --apply
 ```
 
-`--target=production` is refused. Set `PRICE_HISTORY_PRUNE_ON_CRON=false`
-to skip prune on the in-process daily price cron.
+`--target=production` is refused.
 
 ## Local measurements (2026-09-15, `riftbound_test`)
 
@@ -91,8 +90,7 @@ History prune dry-run: `wouldDelete: 0` (snapshots younger than 90 days).
 
 ## Env
 
-| Variable                         | Default | Notes                        |
-| -------------------------------- | ------- | ---------------------------- |
-| `PRICE_HISTORY_RETAIN_DAYS`      | 90      | Age cutoff                   |
-| `PRICE_HISTORY_RETAIN_SNAPSHOTS` | 30      | Per cardmarket/foil cap      |
-| `PRICE_HISTORY_PRUNE_ON_CRON`    | true    | Tail of the daily price cron |
+| Variable                         | Default | Notes                   |
+| -------------------------------- | ------- | ----------------------- |
+| `PRICE_HISTORY_RETAIN_DAYS`      | 90      | Age cutoff              |
+| `PRICE_HISTORY_RETAIN_SNAPSHOTS` | 30      | Per cardmarket/foil cap |

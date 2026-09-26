@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  DEFAULT_PRICE_HISTORY_PRUNE_ON_CRON,
   resolvePriceHistoryRetention,
   shouldPrunePriceHistoryRow,
 } from '../../src/lib/price-history-retention.js';
@@ -11,10 +10,6 @@ describe('price history retention', () => {
       retainDays: 90,
       retainSnapshotsPerSlot: 30,
     });
-  });
-
-  test('cron prune is on by default', () => {
-    expect(DEFAULT_PRICE_HISTORY_PRUNE_ON_CRON).toBe(true);
   });
 
   test('deletes rows older than the window even if they are recent ranks', () => {

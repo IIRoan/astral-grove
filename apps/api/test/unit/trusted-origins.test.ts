@@ -13,7 +13,6 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     PA_API_KEY: 'ak_test_key_1234567890',
     PA_BASE_URL: 'https://piltoverarchive.com/api/external',
     ADMIN_SYNC_TOKEN: 'sync-token-12345678',
-    SYNC_CRON_ENABLED: true,
     BETTER_AUTH_SECRET: 'x'.repeat(32),
     BETTER_AUTH_URL: 'https://api.astral-grove.com',
     TRUSTED_ORIGINS: ['https://astral-grove.com'],

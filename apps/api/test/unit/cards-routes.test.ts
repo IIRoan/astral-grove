@@ -13,7 +13,6 @@ function env(): Env {
     PA_API_KEY: 'ak_test_key_1234567890',
     PA_BASE_URL: 'https://piltoverarchive.com/api/external',
     ADMIN_SYNC_TOKEN: 'sync-token-12345678',
-    SYNC_CRON_ENABLED: false,
     BETTER_AUTH_SECRET: 'x'.repeat(32),
     BETTER_AUTH_URL: 'http://localhost:7000',
     TRUSTED_ORIGINS: ['http://localhost:7001'],

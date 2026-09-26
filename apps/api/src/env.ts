@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { DEFAULT_PRICE_HISTORY_PRUNE_ON_CRON } from './lib/price-history-retention.js';
 
 function parseCsv(value: string | undefined): string[] {
   if (!value?.trim()) return [];
@@ -23,10 +22,6 @@ const EnvSchema = z.object({
   PA_API_KEY: z.string().startsWith('ak_'),
   PA_BASE_URL: z.string().url().default('https://piltoverarchive.com/api/external'),
   ADMIN_SYNC_TOKEN: z.string().min(16),
-  SYNC_CRON_ENABLED: z
-    .enum(['true', 'false'])
-    .default('true')
-    .transform((v) => v === 'true'),
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.string().url().default('http://localhost:7000'),
 
@@ -58,10 +53,6 @@ const EnvSchema = z.object({
     .positive()
     .max(1000)
     .default(30),
-  PRICE_HISTORY_PRUNE_ON_CRON: z
-    .enum(['true', 'false'])
-    .default(DEFAULT_PRICE_HISTORY_PRUNE_ON_CRON ? 'true' : 'false')
-    .transform((v) => v === 'true'),
   S3_ACCESS_KEY_ID: z.string().min(1).optional(),
   S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   S3_BUCKET: z.string().min(1).optional(),

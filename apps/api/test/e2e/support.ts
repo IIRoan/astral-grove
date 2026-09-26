@@ -134,7 +134,6 @@ export async function setupE2E(): Promise<void> {
   if (baseUrl) return;
 
   process.env.NODE_ENV ??= 'test';
-  process.env.SYNC_CRON_ENABLED = 'false';
   if (process.env.CI !== 'true') {
     process.env.SYNC_MAX_PAGES ??= '2';
   }

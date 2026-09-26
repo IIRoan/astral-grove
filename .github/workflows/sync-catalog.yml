@@ -1,0 +1,108 @@
+name: Sync Card Catalog
+
+# Pulls new cards and variants into the production DB via
+# POST /api/v1/sync/catalog (same path as `bun run sync:catalog` against a running API).
+# Runs before the Cardmarket price sync so new variants exist when prices are mapped.
+on:
+  schedule:
+    # Daily 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-catalog
+  cancel-in-progress: false
+
+jobs:
+  sync-catalog:
+    name: Import card catalog
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check for ADMIN_SYNC_TOKEN
+        run: |
+          if [ -z "${{ secrets.ADMIN_SYNC_TOKEN }}" ]; then
+            echo "Set repository secret ADMIN_SYNC_TOKEN to the same value as the API ADMIN_SYNC_TOKEN."
+            exit 1
+          fi
+
+      - name: Sync card catalog
+        env:
+          ADMIN_SYNC_TOKEN: ${{ secrets.ADMIN_SYNC_TOKEN }}
+          # Optional repo variable; defaults to production API.
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          set -euo pipefail
+
+          API_BASE_URL="${API_BASE_URL:-https://riftapi.solace.onl}"
+          # One minute of slack: the API stamps lastRun at sync start, possibly within the same second.
+          started_at="$(date -u -d '-1 minute' +%Y-%m-%dT%H:%M:%SZ)"
+          tmp="$(mktemp)"
+
+          set +e
+          http_code="$(
+            curl -sS -o "$tmp" -w '%{http_code}' \
+              --connect-timeout 30 \
+              --max-time 900 \
+              -X POST "${API_BASE_URL}/api/v1/sync/catalog" \
+              -H "Authorization: Bearer ${ADMIN_SYNC_TOKEN}" \
+              -H "Accept: application/json"
+          )"
+          curl_exit=$?
+          set -e
+
+          echo "HTTP ${http_code} (curl exit ${curl_exit})"
+          cat "$tmp"
+          echo
+
+          if [ "$curl_exit" -eq 0 ] && [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            if ! jq -e '.data' "$tmp" > /dev/null; then
+              echo "::error::Unexpected response body (missing data)"
+              exit 1
+            fi
+            echo "Catalog sync succeeded (changed=$(jq -r '.data.changed' "$tmp"), variants=$(jq -r '.data.variantCount' "$tmp"))."
+            exit 0
+          fi
+
+          # A full upsert can outlive the HTTP proxy timeout while the API keeps
+          # syncing, so fall back to polling sync status on timeouts and gateway errors.
+          case "$http_code" in
+            502|503|504|524|000) ;;
+            *)
+              echo "::error::Catalog sync failed with HTTP ${http_code}"
+              exit 1
+              ;;
+          esac
+
+          echo "Request did not complete; polling ${API_BASE_URL}/api/v1/sync/status"
+          for _ in $(seq 1 80); do
+            sleep 30
+            status_json="$(
+              curl -sS --connect-timeout 30 --max-time 60 \
+                "${API_BASE_URL}/api/v1/sync/status" \
+                -H "Authorization: Bearer ${ADMIN_SYNC_TOKEN}" \
+                -H "Accept: application/json" || true
+            )"
+            status="$(echo "$status_json" | jq -r '.data.catalog.status // empty' 2>/dev/null || true)"
+            last_run="$(echo "$status_json" | jq -r '.data.catalog.lastRun // empty' 2>/dev/null || true)"
+            echo "catalog status=${status:-unknown} lastRun=${last_run:-none}"
+
+            case "$status" in
+              running|'') continue ;;
+              failed)
+                echo "::error::Catalog sync reported failed status"
+                exit 1
+                ;;
+              idle)
+                if [ -n "$last_run" ] && [[ "$last_run" > "$started_at" ]]; then
+                  echo "Catalog sync succeeded."
+                  exit 0
+                fi
+                echo "::error::Catalog sync is idle but did not record a new successful run"
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "::error::Timed out waiting for catalog sync to finish"
+          exit 1
