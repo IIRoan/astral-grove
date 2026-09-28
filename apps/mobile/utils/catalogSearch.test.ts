@@ -147,6 +147,23 @@ describe('catalogSearch', () => {
     expect(tokenizeSearchQuery('   ')).toEqual([]);
   });
 
+  test('searchCatalogItems includes a set when the query matches the set name', () => {
+    const ahri = {
+      ...vi,
+      cardId: '00000000-0000-0000-0000-000000000038',
+      variantNumber: 'RAD-038',
+      name: 'Ahri, Confident',
+      setCode: 'RAD',
+    } satisfies CardListItem;
+    const results = searchCatalogItems(
+      [vi, ahri],
+      'radiance',
+      DEFAULT_CATALOG_SORT,
+      10
+    );
+    expect(results.map((card) => card.variantNumber)).toEqual(['RAD-038']);
+  });
+
   test('searchCatalogItems ranks Stagazer first for the query stargazer', () => {
     const fallingStar = {
       ...vi,

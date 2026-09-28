@@ -6,6 +6,7 @@ import {
   type CardListItem,
 } from '@riftbound/contracts';
 import type { CatalogSort } from '@/constants/catalogSort';
+import { SET_DIRECTORY } from '@/constants/setDirectory';
 import { getCardMaxMarketPrice, getCardPrintings } from '@/utils/variants';
 
 export { tokenizeSearchQuery };
@@ -26,6 +27,19 @@ function buildSearchBlob(card: CardListItem): string {
     parts.push(printing.variantNumber, printing.variantLabel);
   }
   return parts.join(' ');
+}
+
+/** Set codes whose name/code match the query — list items only carry setCode, not set name. */
+export function setCodesMatchingSearchQuery(query: string): string[] {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const codes: string[] = [];
+  for (const set of SET_DIRECTORY) {
+    if (matchesSearchHaystack(`${set.name} ${set.code}`, trimmed)) {
+      codes.push(set.code.toUpperCase());
+    }
+  }
+  return codes;
 }
 
 function compareBySort(a: CardListItem, b: CardListItem, sort: CatalogSort): number {
@@ -80,9 +94,11 @@ export function searchCatalogItems(
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const matches = withoutNoCostForSort(items, sort).filter((card) =>
-    matchesSearchHaystack(buildSearchBlob(card), trimmed)
-  );
+  const setCodes = new Set(setCodesMatchingSearchQuery(trimmed));
+  const matches = withoutNoCostForSort(items, sort).filter((card) => {
+    if (setCodes.has(card.setCode.trim().toUpperCase())) return true;
+    return matchesSearchHaystack(buildSearchBlob(card), trimmed);
+  });
 
   const sorted = matches.slice().sort((a, b) => {
     if (sort.sortBy === 'price') {

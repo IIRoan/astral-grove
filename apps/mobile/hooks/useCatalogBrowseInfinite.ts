@@ -52,6 +52,9 @@ export function useCatalogBrowseInfinite(
   const ownershipForFilter = catalogFilterNeedsOwnership(filters.collection)
     ? collectionByVariant
     : EMPTY_OWNERSHIP;
+  // Set filters must hit the API — a stale local index can omit whole sets (e.g. Radiance).
+  const preferNetworkBrowse =
+    filters.sets.length > 0 && filters.collection === 'all';
   const resetSignature = browseResetSignature(indexReady, pageSize, filters, sort);
   const resetChanged = useValueChangeFlag(resetSignature);
   const [visibleCount, setVisibleCount] = useState(pageSize);
@@ -65,7 +68,7 @@ export function useCatalogBrowseInfinite(
   }
 
   const allBrowseItems = useMemo(() => {
-    if (!indexReady) return null;
+    if (!indexReady || preferNetworkBrowse) return null;
 
     const sourceItems = ownedOnly
       ? catalogItems.filter((card) => cardOwnedQuantity(card, ownershipForFilter) > 0)
@@ -82,6 +85,7 @@ export function useCatalogBrowseInfinite(
     return sortCatalogItems(filtered, sort);
   }, [
     indexReady,
+    preferNetworkBrowse,
     catalogItems,
     filters,
     ownedOnly,
@@ -115,7 +119,7 @@ export function useCatalogBrowseInfinite(
       const pagination = lastPage.meta.pagination;
       return pagination.hasNext ? pagination.page + 1 : undefined;
     },
-    enabled: enabled && !indexReady,
+    enabled: enabled && (!indexReady || preferNetworkBrowse),
     staleTime: STALE_MS,
     gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
@@ -150,7 +154,7 @@ export function useCatalogBrowseInfinite(
     [allBrowseItems, visibleCount]
   );
 
-  const useLocalBrowse = indexReady;
+  const useLocalBrowse = indexReady && !preferNetworkBrowse;
   const items = useLocalBrowse
     ? localItems
     : sortCatalogItems(apiItems, sort).slice(0, Math.max(visibleCount, pageSize));
