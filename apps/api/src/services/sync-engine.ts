@@ -2,10 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { syncState } from '../db/schema.js';
 import { catalogFingerprint } from '../lib/hash.js';
-import {
-  computeCatalogTotal,
-  findSetPrintShortfalls,
-} from '../lib/catalog-total.js';
+import { computeCatalogTotal, findSetPrintShortfalls } from '../lib/catalog-total.js';
 import type { PaClient } from '../upstream/pa-client.js';
 import type { CardCacheService } from './card-cache.js';
 import type { CatalogMetadataService } from './catalog-metadata.js';
@@ -156,10 +153,7 @@ export class SyncEngine {
         syncedVariantRows
       );
       const finalBySet = await this.cards.countCollectibleVariantsBySetCode();
-      const remainingShortfalls = findSetPrintShortfalls(
-        enrichedFilters,
-        finalBySet
-      );
+      const remainingShortfalls = findSetPrintShortfalls(enrichedFilters, finalBySet);
       // Never lock an incomplete catalog behind the full upstream fingerprint.
       const incomplete =
         upsertFailures > 0 ||

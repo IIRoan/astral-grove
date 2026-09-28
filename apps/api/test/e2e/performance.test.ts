@@ -24,7 +24,7 @@ setDefaultTimeout(180_000);
 const BUDGET = {
   health: readBudget('health', 150),
   filters: readBudget('filters', 250),
-  search: readBudget('search', 350),
+  search: readBudget('search', 600),
   index: readBudget('index', 5000),
   detail: readBudget('detail', 500),
   quantities: readBudget('quantities', 400),

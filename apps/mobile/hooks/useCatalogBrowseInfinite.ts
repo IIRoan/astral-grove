@@ -53,8 +53,7 @@ export function useCatalogBrowseInfinite(
     ? collectionByVariant
     : EMPTY_OWNERSHIP;
   // Set filters must hit the API — a stale local index can omit whole sets (e.g. Radiance).
-  const preferNetworkBrowse =
-    filters.sets.length > 0 && filters.collection === 'all';
+  const preferNetworkBrowse = filters.sets.length > 0 && filters.collection === 'all';
   const resetSignature = browseResetSignature(indexReady, pageSize, filters, sort);
   const resetChanged = useValueChangeFlag(resetSignature);
   const [visibleCount, setVisibleCount] = useState(pageSize);
