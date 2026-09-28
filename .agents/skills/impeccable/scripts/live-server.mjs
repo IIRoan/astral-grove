@@ -45,6 +45,7 @@ import {
   writeLiveServerInfo,
 } from './lib/impeccable-paths.mjs';
 import { countByPage as countPendingByPage } from './live/manual-edits-buffer.mjs';
+import { tokenEquals } from './lib/token-equals.mjs';
 import {
   createManualApplyController,
   summarizeManualApplyFailures,
@@ -668,7 +669,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
       // token-guarded route. Serving it unauthenticated let any local page read
       // the token and drive the session. The injected <script src> carries
       // `?token=...` (see live-inject.mjs). A missing/wrong token → 401.
-      if (url.searchParams.get('token') !== state.token) {
+      if (!tokenEquals(url.searchParams.get('token'), state.token)) {
         res.writeHead(401, { 'Content-Type': 'text/plain' });
         res.end('Unauthorized');
         return;
@@ -730,7 +731,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     // bridge and preserves the "one shot from the user's POV" UX.
     if (p === '/annotation' && req.method === 'POST') {
       const token = url.searchParams.get('token');
-      if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      if (!tokenEquals(token, state.token)) { res.writeHead(401); res.end('Unauthorized'); return; }
       const eventId = url.searchParams.get('eventId');
       if (!eventId || !/^[A-Za-z0-9_-]{1,64}$/.test(eventId)) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -787,7 +788,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     // --- Health ---
     if (p === '/status') {
       const token = url.searchParams.get('token');
-      if (token !== state.token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+      if (!tokenEquals(token, state.token)) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
       const sessions = activeSessionSummaries();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
@@ -825,7 +826,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     //   /design-system/raw     returns DESIGN.md markdown verbatim
     if (p === '/design-system.json' || p === '/design-system/raw') {
       const token = url.searchParams.get('token');
-      if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      if (!tokenEquals(token, state.token)) { res.writeHead(401); res.end('Unauthorized'); return; }
 
       const mdPath = DESIGN_MD_PATH;
       const jsonPath = resolveDesignSidecarPath(process.cwd(), PROJECT_CONTEXT.designContextDir || CONTEXT_DIR) || getDesignSidecarPath(process.cwd());
@@ -876,7 +877,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     // --- Source file (no-HMR fallback) ---
     if (p === '/source') {
       const token = url.searchParams.get('token');
-      if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      if (!tokenEquals(token, state.token)) { res.writeHead(401); res.end('Unauthorized'); return; }
       const filePath = url.searchParams.get('path');
       if (!filePath || filePath.includes('..')) { res.writeHead(400); res.end('Bad path'); return; }
       const absPath = path.resolve(process.cwd(), filePath);
@@ -898,7 +899,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     // --- SSE: server→browser push (replaces WebSocket) ---
     if (p === '/events' && req.method === 'GET') {
       const token = url.searchParams.get('token');
-      if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      if (!tokenEquals(token, state.token)) { res.writeHead(401); res.end('Unauthorized'); return; }
       clearTimeout(state.exitTimer);
       state.exitTimer = null;
       cancelQueuedAnonymousExitEvents();
@@ -947,7 +948,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
           res.end(JSON.stringify({ error: 'Invalid JSON' }));
           return;
         }
-        if (msg.token !== state.token) {
+        if (!tokenEquals(msg.token, state.token)) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Unauthorized' }));
           return;
@@ -1009,7 +1010,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     // --- Stop ---
     if (p === '/stop') {
       const token = url.searchParams.get('token');
-      if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      if (!tokenEquals(token, state.token)) { res.writeHead(401); res.end('Unauthorized'); return; }
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('stopping');
       shutdown();
@@ -1042,7 +1043,7 @@ function parsePollTypes(value) {
 
 function handlePollGet(req, res, url) {
   const token = url.searchParams.get('token');
-  if (token !== state.token) {
+  if (!tokenEquals(token, state.token)) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Unauthorized' }));
     return;
@@ -1165,7 +1166,7 @@ function handlePollPost(req, res) {
       res.end(JSON.stringify({ error: 'Invalid JSON' }));
       return;
     }
-    if (msg.token !== state.token) {
+    if (!tokenEquals(msg.token, state.token)) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return;

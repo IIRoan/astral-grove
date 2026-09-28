@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { tokenEquals } from '../lib/token-equals.mjs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { getLiveDir, isLiveServerPidReachable } from '../lib/impeccable-paths.mjs';
@@ -75,7 +76,7 @@ function readLock(lockPath) {
  */
 function releaseOwnLock(lockPath, token) {
   const held = readLock(lockPath);
-  if (held && held.token !== token) return;
+  if (held && !tokenEquals(held.token, token)) return;
   try { fs.unlinkSync(lockPath); } catch {}
 }
 

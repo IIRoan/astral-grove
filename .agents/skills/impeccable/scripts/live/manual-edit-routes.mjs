@@ -13,6 +13,7 @@ import {
 } from './manual-apply.mjs';
 import { buildManualEditEvidence } from '../live-manual-edit-evidence.mjs';
 import { commitManualEdits } from '../live-commit-manual-edits.mjs';
+import { tokenEquals } from '../lib/token-equals.mjs';
 
 export function createManualEditRoutes({
   getToken,
@@ -40,7 +41,7 @@ export function createManualEditRoutes({
           sendJson(res, 400, { error: 'Invalid JSON' });
           return;
         }
-        if (msg.token !== getToken()) {
+        if (!tokenEquals(msg.token, getToken())) {
           sendJson(res, 401, { error: 'Unauthorized' });
           return;
         }
@@ -77,7 +78,7 @@ export function createManualEditRoutes({
 
     if (p === '/manual-edit-stash' && req.method === 'GET') {
       const token = url.searchParams.get('token');
-      if (token !== getToken()) { res.writeHead(401); res.end('Unauthorized'); return true; }
+      if (!tokenEquals(token, getToken())) { res.writeHead(401); res.end('Unauthorized'); return true; }
       const pageUrl = url.searchParams.get('pageUrl') || '';
       const { totalCount, perPage } = countPendingByPage(projectCwd());
       const buffer = readManualEditsBuffer(projectCwd());
@@ -93,7 +94,7 @@ export function createManualEditRoutes({
 
     if (p === '/manual-edit-commit' && req.method === 'POST') {
       const token = url.searchParams.get('token');
-      if (token !== getToken()) { res.writeHead(401); res.end('Unauthorized'); return true; }
+      if (!tokenEquals(token, getToken())) { res.writeHead(401); res.end('Unauthorized'); return true; }
       const pageUrl = url.searchParams.get('pageUrl');
       const asyncMode = /^(1|true|yes)$/i.test(url.searchParams.get('async') || '');
       const repairOnly = /^(1|true|yes)$/i.test(url.searchParams.get('repair') || '');
@@ -259,7 +260,7 @@ export function createManualEditRoutes({
           return;
         }
         const token = payload.token || url.searchParams.get('token');
-        if (token !== getToken()) { res.writeHead(401); res.end('Unauthorized'); return; }
+        if (!tokenEquals(token, getToken())) { res.writeHead(401); res.end('Unauthorized'); return; }
         const pageUrl = payload.pageUrl || url.searchParams.get('pageUrl') || null;
         const action = String(payload.action || url.searchParams.get('action') || '').trim().toLowerCase();
         if (action !== 'rollback') {
@@ -287,7 +288,7 @@ export function createManualEditRoutes({
 
     if (p === '/manual-edit-discard' && req.method === 'POST') {
       const token = url.searchParams.get('token');
-      if (token !== getToken()) { res.writeHead(401); res.end('Unauthorized'); return true; }
+      if (!tokenEquals(token, getToken())) { res.writeHead(401); res.end('Unauthorized'); return true; }
       const pageUrl = url.searchParams.get('pageUrl');
       let discarded;
       let discardedEntries = [];
