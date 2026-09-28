@@ -66,8 +66,9 @@
     "postcss": "8.5.28",
     "baseline-browser-mapping": "2.11.23",
     "decode-uri-component": "0.5.0",
+    "compression": "1.8.2",
     "@expo/plist": {
-      "@xmldom/xmldom": "0.8.13"
+      "@xmldom/xmldom": "0.8.15"
     }
   },
   "patchedDependencies": {
