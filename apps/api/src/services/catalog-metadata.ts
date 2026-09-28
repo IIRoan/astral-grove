@@ -26,6 +26,9 @@ type ProbeContext = {
   needsProbe: boolean;
 };
 
+/** Probe bookkeeping must not touch the `catalog` row, or catalog sync thinks cards were already upserted. */
+export const CATALOG_PROBE_SYNC_KEY = 'catalog_probe';
+
 function normalizeSetCode(code: string): string {
   return code.toUpperCase();
 }
@@ -214,7 +217,7 @@ export class CatalogMetadataService {
     );
 
     const existing = await this.db.query.syncState.findFirst({
-      where: eq(syncState.key, 'catalog'),
+      where: eq(syncState.key, CATALOG_PROBE_SYNC_KEY),
     });
     const latest = await this.loadLatestSnapshotRecord();
     const latestParsed = latest?.snapshot ?? null;
@@ -261,7 +264,7 @@ export class CatalogMetadataService {
     await this.db
       .insert(syncState)
       .values({
-        key: 'catalog',
+        key: CATALOG_PROBE_SYNC_KEY,
         status: 'idle',
         contentHash: fingerprint,
         rowCount: expanded.catalogPrintTotal,

@@ -8,6 +8,10 @@ import type { CardCacheService } from './card-cache.js';
 import type { CatalogMetadataService } from './catalog-metadata.js';
 import { accumulatePrintCounts } from './catalog-probe.js';
 
+const CATALOG_KEY = 'catalog';
+/** Upstream fingerprint of the last completed upsert; `catalog` holds the client-facing local hash. */
+export const CATALOG_UPSTREAM_KEY = 'catalog_upstream';
+
 export class SyncEngine {
   constructor(
     private readonly db: Database,
@@ -23,7 +27,7 @@ export class SyncEngine {
     hash: string;
   }> {
     const now = new Date();
-    await this.setSyncStatus('catalog', 'running');
+    await this.setSyncStatus(CATALOG_KEY, 'running');
 
     try {
       const probe = await this.pa.listCards({ limit: 1, page: 1 });
@@ -32,12 +36,11 @@ export class SyncEngine {
         probe.meta?.filters ?? {}
       );
 
-      const existing = await this.db.query.syncState.findFirst({
-        where: eq(syncState.key, 'catalog'),
-      });
+      const existing = await this.readSyncState(CATALOG_KEY);
+      const upstreamState = await this.readSyncState(CATALOG_UPSTREAM_KEY);
 
       const enrichedFilters = await this.catalogMetadata.ensureExpandedPrintCounts(
-        existing?.contentHash !== fingerprint
+        upstreamState?.contentHash !== fingerprint
       );
       const catalogPrintTotal = computeCatalogTotal(
         enrichedFilters,
@@ -49,32 +52,25 @@ export class SyncEngine {
         localVariantCount > 0 &&
         (catalogPrintTotal <= 0 || localVariantCount >= catalogPrintTotal);
 
-      if (existing?.contentHash === fingerprint && catalogLooksComplete) {
+      if (upstreamState?.contentHash === fingerprint && catalogLooksComplete) {
         console.log(
           `[sync] Catalog unchanged (hash=${fingerprint}, variants=${String(localVariantCount)}), skipping card upsert — image mirroring will not run`
         );
-        await this.setSyncStatus('catalog', 'idle', {
-          contentHash: fingerprint,
-          rowCount: Math.max(
-            existing.rowCount ?? 0,
-            catalogPrintTotal,
-            localVariantCount
-          ),
-          lastSuccessAt: existing.lastSuccessAt ?? now,
-        });
-        return {
-          changed: false,
-          pages: 0,
-          variantCount: Math.max(
-            existing.rowCount ?? 0,
-            catalogPrintTotal,
-            localVariantCount
-          ),
-          hash: fingerprint,
-        };
+        const variantCount = Math.max(
+          existing?.rowCount ?? 0,
+          catalogPrintTotal,
+          localVariantCount
+        );
+        // Search backfills may have added cards since the last run; publish them to clients.
+        const hash = await this.publishLocalCatalog(
+          existing?.contentHash,
+          variantCount,
+          now
+        );
+        return { changed: false, pages: 0, variantCount, hash };
       }
 
-      if (existing?.contentHash === fingerprint && !catalogLooksComplete) {
+      if (upstreamState?.contentHash === fingerprint && !catalogLooksComplete) {
         console.warn(
           `[sync] Catalog hash matches but local variants (${String(localVariantCount)}) are below expected printings (${String(catalogPrintTotal)}) — forcing full upsert`
         );
@@ -87,6 +83,7 @@ export class SyncEngine {
       const maxPages = Number(process.env.SYNC_MAX_PAGES ?? 0) || Infinity;
       const truncatedByMaxPages = Number.isFinite(maxPages);
       const syncedCardIds = new Set<string>();
+      const syncedVariantNumbers = new Set<string>();
       const setPrintTotals = new Map<string, number>();
 
       console.log(
@@ -107,8 +104,13 @@ export class SyncEngine {
         );
 
         for (const item of res.data) {
+          // List rows are printings; one detail fetch already covers every sibling printing.
+          if (syncedVariantNumbers.has(item.variantNumber.toLowerCase())) continue;
           try {
             const logical = await this.pa.getCard(item.variantNumber);
+            for (const variant of logical.variants) {
+              syncedVariantNumbers.add(variant.variantNumber.toLowerCase());
+            }
             if (syncedCardIds.has(logical.id)) continue;
             await this.cards.upsertFromUpstream(logical);
             accumulatePrintCounts(logical, setPrintTotals);
@@ -132,23 +134,27 @@ export class SyncEngine {
         syncedVariantRows
       );
       // Never lock an incomplete catalog behind the full upstream fingerprint.
-      const contentHash =
+      const upstreamHash =
         truncatedByMaxPages && syncedVariantRows < finalPrintTotal
           ? catalogFingerprint(pages, { partial: true, fingerprint })
           : fingerprint;
 
-      if (contentHash !== fingerprint) {
+      if (upstreamHash !== fingerprint) {
         console.warn(
           `[sync] Truncated sync (pages=${String(pages)}, variants=${String(syncedVariantRows)}/${String(finalPrintTotal)}) — storing partial hash so the next run continues`
         );
       }
 
-      await this.setSyncStatus('catalog', 'idle', {
-        contentHash,
+      await this.setSyncStatus(CATALOG_UPSTREAM_KEY, 'idle', {
+        contentHash: upstreamHash,
         rowCount: syncedVariantRows,
         lastSuccessAt: now,
       });
-
+      const hash = await this.publishLocalCatalog(
+        existing?.contentHash,
+        syncedVariantRows,
+        now
+      );
       this.cards.invalidateSearchCache();
 
       console.log(
@@ -159,22 +165,43 @@ export class SyncEngine {
         changed: true,
         pages,
         variantCount: syncedVariantRows,
-        hash: contentHash,
+        hash,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await this.setSyncStatus('catalog', 'failed', { lastError: message });
+      await this.setSyncStatus(CATALOG_KEY, 'failed', { lastError: message });
       throw err;
     }
   }
 
+  /** Store a hash of local card content so clients refetch their index when cards change. */
+  private async publishLocalCatalog(
+    previousHash: string | undefined,
+    rowCount: number,
+    now: Date
+  ): Promise<string> {
+    const hash = await this.cards.computeLocalCatalogHash();
+    await this.setSyncStatus(CATALOG_KEY, 'idle', {
+      contentHash: hash,
+      rowCount,
+      lastSuccessAt: now,
+      lastError: null,
+    });
+    if (hash !== previousHash) {
+      this.cards.invalidateSearchCache();
+    }
+    return hash;
+  }
+
+  private readSyncState(key: string) {
+    return this.db.query.syncState.findFirst({
+      where: eq(syncState.key, key),
+    });
+  }
+
   async getStatus() {
-    const catalog = await this.db.query.syncState.findFirst({
-      where: eq(syncState.key, 'catalog'),
-    });
-    const prices = await this.db.query.syncState.findFirst({
-      where: eq(syncState.key, 'prices'),
-    });
+    const catalog = await this.readSyncState(CATALOG_KEY);
+    const prices = await this.readSyncState('prices');
 
     return {
       catalog: {

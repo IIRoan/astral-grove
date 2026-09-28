@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import type { FilterSnapshot } from '@riftbound/contracts';
 import { catalogFingerprint } from '../../src/lib/hash.js';
-import { CatalogMetadataService } from '../../src/services/catalog-metadata.js';
+import {
+  CATALOG_PROBE_SYNC_KEY,
+  CatalogMetadataService,
+} from '../../src/services/catalog-metadata.js';
 
 const baseFilters: FilterSnapshot = {
   colors: [{ id: 'fury', name: 'Fury', count: 10 }],
@@ -300,6 +303,37 @@ describe('CatalogMetadataService', () => {
 
     expect(vendettaSets).toHaveLength(1);
     expect(vendettaSets[0]?.printCount).toBe(228);
+  });
+
+  test('probe records its fingerprint without touching the catalog sync row', async () => {
+    const writes: Array<Record<string, unknown>> = [];
+    const pa = {
+      listCards: async () => ({
+        pagination: { total: catalogTotal, page: 1, limit: 1, hasNext: false },
+        meta: { filters: baseFilters },
+        data: [],
+      }),
+    };
+    const db = {
+      query: {
+        filterSnapshots: { findFirst: async () => null },
+        syncState: { findFirst: async () => null },
+      },
+      insert: () => ({
+        values: (values: Record<string, unknown>) => {
+          writes.push(values);
+          return Object.assign(Promise.resolve(), {
+            onConflictDoUpdate: async () => undefined,
+          });
+        },
+      }),
+    };
+    const service = new CatalogMetadataService(db as never, pa as never);
+
+    await service.ensureExpandedPrintCounts();
+
+    const syncKeys = writes.map((row) => row.key).filter((key) => key !== undefined);
+    expect(syncKeys).toEqual([CATALOG_PROBE_SYNC_KEY]);
   });
 
   test('getFiltersMeta skips local aggregate when snapshot totals match sync row count', async () => {

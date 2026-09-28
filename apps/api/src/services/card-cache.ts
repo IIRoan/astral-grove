@@ -13,6 +13,7 @@ import {
   type PaVariant,
 } from '@riftbound/contracts';
 import type { Database } from '../db/client.js';
+import { entityHash } from '../lib/hash.js';
 import { resolveCardmarketIdFromMap } from '../lib/variant-cardmarket.js';
 import { cardColors, cards, colors, sets, syncState, variants } from '../db/schema.js';
 import { PaApiError, type PaClient } from '../upstream/pa-client.js';
@@ -1347,6 +1348,20 @@ export class CardCacheService {
     };
 
     return { items, total, catalogHash: resolvedCatalogHash, timings };
+  }
+
+  /** Digest of local cards + printings; clients key their cached catalog index on it. */
+  async computeLocalCatalogHash(): Promise<string> {
+    const [row] = await this.db
+      .select({
+        digest: sql<string | null>`encode(sha256(convert_to(string_agg(
+          ${variants.id} || ':' || ${variants.cardId} || ':' || ${variants.contentHash} || ':' || ${cards.contentHash},
+          ',' order by ${variants.id}
+        ), 'UTF8')), 'hex')`,
+      })
+      .from(variants)
+      .innerJoin(cards, eq(variants.cardId, cards.id));
+    return entityHash({ localCatalog: row?.digest ?? '' });
   }
 
   async countVariants(): Promise<number> {
