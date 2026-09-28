@@ -68,6 +68,46 @@ describe('sync admin routes', () => {
     );
     expect(response.status).toBe(401);
   });
+
+  test('POST /api/v1/sync/catalog?force=1 forwards force to the sync engine', async () => {
+    const calls: Array<{ force?: boolean }> = [];
+    const token = 'force-sync-token';
+    const routes = createSyncRoutes(
+      {
+        syncCatalog: (options?: { force?: boolean }) => {
+          calls.push(options ?? {});
+          return Promise.resolve({
+            changed: true,
+            pages: 1,
+            variantCount: 10,
+            hash: 'forced-hash',
+          });
+        },
+      } as unknown as SyncEngine,
+      {} as PriceCacheService,
+      {} as CardCacheService,
+      env({ ADMIN_SYNC_TOKEN: token })
+    );
+
+    const response = await routes.handle(
+      new Request('http://localhost/api/v1/sync/catalog?force=1', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls).toEqual([{ force: true }]);
+    const body = (await response.json()) as {
+      data: { changed: boolean; hash: string };
+    };
+    expect(body.data).toEqual({
+      changed: true,
+      pages: 1,
+      variantCount: 10,
+      hash: 'forced-hash',
+    });
+  });
 });
 
 describe('POST /api/v1/sync/prices history prune', () => {

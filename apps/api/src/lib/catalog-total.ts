@@ -1,5 +1,11 @@
 import type { FilterSnapshot } from '@riftbound/contracts';
 
+export type SetPrintShortfall = {
+  code: string;
+  expected: number;
+  actual: number;
+};
+
 export function sumVariantTypeCounts(
   snapshot: Pick<FilterSnapshot, 'variants'>
 ): number {
@@ -29,4 +35,23 @@ export function computeCatalogTotal(
   }
 
   return Math.max(fromSetPrints, syncedPrintTotal);
+}
+
+/** Sets whose local collectible printings are below the upstream/probed expectation. */
+export function findSetPrintShortfalls(
+  snapshot: Pick<FilterSnapshot, 'sets'>,
+  localByCode: Record<string, number>
+): SetPrintShortfall[] {
+  const shortfalls: SetPrintShortfall[] = [];
+  for (const set of snapshot.sets ?? []) {
+    const code = (set.code ?? set.id).trim().toUpperCase();
+    if (!code) continue;
+    const expected = set.printCount ?? set.count;
+    if (expected <= 0) continue;
+    const actual = localByCode[code] ?? 0;
+    if (actual < expected) {
+      shortfalls.push({ code, expected, actual });
+    }
+  }
+  return shortfalls;
 }

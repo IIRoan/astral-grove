@@ -28,11 +28,16 @@ export function createSyncRoutes(
       }
       return SyncStatusResponse.parse({ data: await sync.getStatus() });
     })
-    .post('/catalog', async ({ headers, set }) => {
+    .post('/catalog', async ({ headers, set, request }) => {
       if (!isAdminAuthorization(env, headers.authorization)) {
         return setApiError(set, unauthorizedResponse('Admin token required'));
       }
-      return SyncCatalogResponse.parse({ data: await sync.syncCatalog() });
+      const url = new URL(request.url);
+      const forceParam = url.searchParams.get('force');
+      const force = forceParam === '1' || forceParam === 'true';
+      return SyncCatalogResponse.parse({
+        data: await sync.syncCatalog({ force }),
+      });
     })
     .post('/prices', async ({ headers, set }) => {
       if (!isAdminAuthorization(env, headers.authorization)) {

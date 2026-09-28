@@ -2,7 +2,10 @@ import { eq } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { syncState } from '../db/schema.js';
 import { catalogFingerprint } from '../lib/hash.js';
-import { computeCatalogTotal } from '../lib/catalog-total.js';
+import {
+  computeCatalogTotal,
+  findSetPrintShortfalls,
+} from '../lib/catalog-total.js';
 import type { PaClient } from '../upstream/pa-client.js';
 import type { CardCacheService } from './card-cache.js';
 import type { CatalogMetadataService } from './catalog-metadata.js';
@@ -12,6 +15,10 @@ const CATALOG_KEY = 'catalog';
 /** Upstream fingerprint of the last completed upsert; `catalog` holds the client-facing local hash. */
 export const CATALOG_UPSTREAM_KEY = 'catalog_upstream';
 
+export type SyncCatalogOptions = {
+  force?: boolean;
+};
+
 export class SyncEngine {
   constructor(
     private readonly db: Database,
@@ -20,12 +27,13 @@ export class SyncEngine {
     private readonly catalogMetadata: CatalogMetadataService
   ) {}
 
-  async syncCatalog(): Promise<{
+  async syncCatalog(options: SyncCatalogOptions = {}): Promise<{
     changed: boolean;
     pages: number;
     variantCount: number;
     hash: string;
   }> {
+    const force = Boolean(options.force);
     const now = new Date();
     await this.setSyncStatus(CATALOG_KEY, 'running');
 
@@ -40,15 +48,19 @@ export class SyncEngine {
       const upstreamState = await this.readSyncState(CATALOG_UPSTREAM_KEY);
 
       const enrichedFilters = await this.catalogMetadata.ensureExpandedPrintCounts(
-        upstreamState?.contentHash !== fingerprint
+        force || upstreamState?.contentHash !== fingerprint
       );
       const catalogPrintTotal = computeCatalogTotal(
         enrichedFilters,
         existing?.rowCount ?? 0
       );
       const localVariantCount = await this.cards.countVariants();
-      // Fingerprint alone is not enough — truncated SYNC_MAX_PAGES can write full hash while DB still incomplete.
+      const localBySet = await this.cards.countCollectibleVariantsBySetCode();
+      const setShortfalls = findSetPrintShortfalls(enrichedFilters, localBySet);
+      // Fingerprint alone is not enough — truncated SYNC_MAX_PAGES or silent skips can leave gaps.
       const catalogLooksComplete =
+        !force &&
+        setShortfalls.length === 0 &&
         localVariantCount > 0 &&
         (catalogPrintTotal <= 0 || localVariantCount >= catalogPrintTotal);
 
@@ -70,7 +82,15 @@ export class SyncEngine {
         return { changed: false, pages: 0, variantCount, hash };
       }
 
-      if (upstreamState?.contentHash === fingerprint && !catalogLooksComplete) {
+      if (force) {
+        console.warn('[sync] Forced catalog upsert requested');
+      } else if (setShortfalls.length > 0) {
+        console.warn(
+          `[sync] Per-set shortfalls: ${setShortfalls
+            .map((s) => `${s.code} ${String(s.actual)}/${String(s.expected)}`)
+            .join(', ')} — forcing full upsert`
+        );
+      } else if (upstreamState?.contentHash === fingerprint && !catalogLooksComplete) {
         console.warn(
           `[sync] Catalog hash matches but local variants (${String(localVariantCount)}) are below expected printings (${String(catalogPrintTotal)}) — forcing full upsert`
         );
@@ -85,6 +105,7 @@ export class SyncEngine {
       const syncedCardIds = new Set<string>();
       const syncedVariantNumbers = new Set<string>();
       const setPrintTotals = new Map<string, number>();
+      let upsertFailures = 0;
 
       console.log(
         `[sync] Starting catalog sync (fingerprint=${fingerprint}, maxPages=${maxPages === Infinity ? 'all' : String(maxPages)})`
@@ -116,6 +137,7 @@ export class SyncEngine {
             accumulatePrintCounts(logical, setPrintTotals);
             syncedCardIds.add(logical.id);
           } catch (err) {
+            upsertFailures += 1;
             console.warn(`Catalog sync skipped ${item.variantNumber}:`, err);
           }
         }
@@ -133,15 +155,28 @@ export class SyncEngine {
         computeCatalogTotal(enrichedFilters, 0),
         syncedVariantRows
       );
+      const finalBySet = await this.cards.countCollectibleVariantsBySetCode();
+      const remainingShortfalls = findSetPrintShortfalls(
+        enrichedFilters,
+        finalBySet
+      );
       // Never lock an incomplete catalog behind the full upstream fingerprint.
-      const upstreamHash =
-        truncatedByMaxPages && syncedVariantRows < finalPrintTotal
-          ? catalogFingerprint(pages, { partial: true, fingerprint })
-          : fingerprint;
+      const incomplete =
+        upsertFailures > 0 ||
+        remainingShortfalls.length > 0 ||
+        (truncatedByMaxPages && syncedVariantRows < finalPrintTotal);
+      const upstreamHash = incomplete
+        ? catalogFingerprint(pages, {
+            partial: true,
+            fingerprint,
+            upsertFailures,
+            shortfalls: remainingShortfalls,
+          })
+        : fingerprint;
 
       if (upstreamHash !== fingerprint) {
         console.warn(
-          `[sync] Truncated sync (pages=${String(pages)}, variants=${String(syncedVariantRows)}/${String(finalPrintTotal)}) — storing partial hash so the next run continues`
+          `[sync] Incomplete sync (pages=${String(pages)}, variants=${String(syncedVariantRows)}/${String(finalPrintTotal)}, failures=${String(upsertFailures)}, shortfalls=${String(remainingShortfalls.length)}) — storing partial hash so the next run continues`
         );
       }
 

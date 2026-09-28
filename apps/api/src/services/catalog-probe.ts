@@ -54,13 +54,11 @@ export async function probeExpandedCatalog(
 
   while (hasMore) {
     const res = await pa.listCards({ limit: 100, page });
-    let newCards = 0;
 
     for (const item of res.data) {
       const logical = await pa.getCard(item.variantNumber);
       if (seenCardIds.has(logical.id)) continue;
       seenCardIds.add(logical.id);
-      newCards += 1;
       catalogPrintTotal += accumulatePrintCounts(
         logical,
         setPrintTotals,
@@ -68,7 +66,8 @@ export async function probeExpandedCatalog(
       );
     }
 
-    hasMore = res.pagination.hasNext && newCards > 0;
+    // Keep paging even when a page only repeats already-seen logical cards.
+    hasMore = Boolean(res.pagination.hasNext);
     page += 1;
   }
 

@@ -32,12 +32,16 @@ function logicalCard(id: string, variantNumbers: string[]) {
 function createEngine(options: {
   rows?: Record<string, SyncRow>;
   localVariantCount?: number;
+  localBySet?: Record<string, number>;
   localHash?: string;
+  filters?: FilterSnapshot;
 }) {
   const rows = new Map(Object.entries(options.rows ?? {}));
   const upserted: string[] = [];
   const getCardCalls: string[] = [];
   let localVariantCount = options.localVariantCount ?? 0;
+  let localBySet = { ...(options.localBySet ?? { OGN: localVariantCount }) };
+  const activeFilters = options.filters ?? filters;
 
   const cardsById: Record<string, ReturnType<typeof logicalCard>> = {
     'OGN-001': logicalCard('card-a', ['OGN-001', 'OGN-001a']),
@@ -47,7 +51,7 @@ function createEngine(options: {
   const pa = {
     listCards: async (params: { limit?: number }) => ({
       pagination: { total: upstreamTotal, page: 1, totalPages: 1, hasNext: false },
-      meta: { filters },
+      meta: { filters: activeFilters },
       data:
         params.limit === 1
           ? []
@@ -63,9 +67,11 @@ function createEngine(options: {
 
   const cards = {
     countVariants: async () => localVariantCount,
+    countCollectibleVariantsBySetCode: async () => localBySet,
     upsertFromUpstream: async (card: { id: string; variants: unknown[] }) => {
       upserted.push(card.id);
       localVariantCount = card.variants.length;
+      localBySet = { OGN: card.variants.length };
       return true;
     },
     computeLocalCatalogHash: async () =>
@@ -74,7 +80,7 @@ function createEngine(options: {
   };
 
   const catalogMetadata = {
-    ensureExpandedPrintCounts: async () => filters,
+    ensureExpandedPrintCounts: async () => activeFilters,
   };
 
   const engine = new SyncEngine(
@@ -111,6 +117,7 @@ describe('SyncEngine.syncCatalog', () => {
       // Legacy state: the probe used to write the upstream fingerprint onto the catalog row.
       rows: { catalog: { contentHash: fingerprint, rowCount: 2 } },
       localVariantCount: 5,
+      localBySet: { OGN: 5 },
     });
 
     const result = await engine.syncCatalog();
@@ -146,6 +153,7 @@ describe('SyncEngine.syncCatalog', () => {
         [CATALOG_UPSTREAM_KEY]: { contentHash: fingerprint, rowCount: 2 },
       },
       localVariantCount: 2,
+      localBySet: { OGN: 2 },
       localHash: 'fresh-local',
     });
 
@@ -156,5 +164,46 @@ describe('SyncEngine.syncCatalog', () => {
     expect(result.hash).toBe('fresh-local');
     expect(rows.get('catalog')?.contentHash).toBe('fresh-local');
     expect(rows.get('catalog')?.lastSuccessAt).toBeInstanceOf(Date);
+  });
+
+  test('upserts when a single set is short even if the global total looks complete', async () => {
+    const shortFilters: FilterSnapshot = {
+      ...filters,
+      sets: [
+        { id: 'ogn', name: 'Origins', code: 'OGN', count: 2, printCount: 2 },
+        { id: 'rad', name: 'Radiance', code: 'RAD', count: 5, printCount: 5 },
+      ],
+    };
+    const shortFingerprint = catalogFingerprint(upstreamTotal, shortFilters);
+    const { engine, upserted } = createEngine({
+      rows: {
+        catalog: { contentHash: 'local', rowCount: 7 },
+        [CATALOG_UPSTREAM_KEY]: { contentHash: shortFingerprint, rowCount: 7 },
+      },
+      localVariantCount: 7,
+      localBySet: { OGN: 6, RAD: 1 },
+      filters: shortFilters,
+    });
+
+    const result = await engine.syncCatalog();
+
+    expect(result.changed).toBe(true);
+    expect(upserted).toEqual(['card-a']);
+  });
+
+  test('force=true upserts even when the catalog already looks complete', async () => {
+    const { engine, upserted } = createEngine({
+      rows: {
+        catalog: { contentHash: 'local', rowCount: 2 },
+        [CATALOG_UPSTREAM_KEY]: { contentHash: fingerprint, rowCount: 2 },
+      },
+      localVariantCount: 2,
+      localBySet: { OGN: 2 },
+    });
+
+    const result = await engine.syncCatalog({ force: true });
+
+    expect(result.changed).toBe(true);
+    expect(upserted).toEqual(['card-a']);
   });
 });

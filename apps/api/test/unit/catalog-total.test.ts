@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   computeCatalogTotal,
+  findSetPrintShortfalls,
   sumSetPrintCounts,
   sumVariantTypeCounts,
 } from '../../src/lib/catalog-total.js';
@@ -46,6 +47,20 @@ describe('catalog total', () => {
       { OGN: 544 }
     );
     expect(enriched.sets[0]?.printCount).toBe(544);
+  });
+
+  test('findSetPrintShortfalls reports only sets below expectation', () => {
+    expect(
+      findSetPrintShortfalls(
+        {
+          sets: [
+            { id: 'ogn', code: 'OGN', name: 'Origins', count: 2, printCount: 2 },
+            { id: 'rad', code: 'RAD', name: 'Radiance', count: 5, printCount: 5 },
+          ],
+        },
+        { OGN: 2, RAD: 1 }
+      )
+    ).toEqual([{ code: 'RAD', expected: 5, actual: 1 }]);
   });
 });
 

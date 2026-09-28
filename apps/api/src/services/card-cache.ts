@@ -1369,6 +1369,21 @@ export class CardCacheService {
     return row?.value ?? 0;
   }
 
+  async countCollectibleVariantsBySetCode(): Promise<Record<string, number>> {
+    const rows = await this.db
+      .select({
+        code: sets.code,
+        printCount: sql<number>`count(*) filter (where ${variants.isCollectible})::int`,
+      })
+      .from(variants)
+      .innerJoin(sets, eq(variants.setId, sets.id))
+      .groupBy(sets.code);
+
+    return Object.fromEntries(
+      rows.map((row) => [row.code.trim().toUpperCase(), row.printCount])
+    );
+  }
+
   async listIndex(): Promise<{
     items: CardListItem[];
     total: number;

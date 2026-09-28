@@ -113,6 +113,47 @@ describe('probeExpandedCatalog', () => {
     expect(getCard).toHaveBeenCalledTimes(3);
   });
 
+  test('keeps paging after a page that only repeats already-seen logical cards', async () => {
+    const cardA = logicalCard('card-a', [
+      { isCollectible: true, set: { prefix: 'OGN' } },
+    ] as PaLogicalCard['variants']);
+    const cardB = logicalCard('card-b', [
+      { isCollectible: true, set: { prefix: 'RAD' } },
+    ] as PaLogicalCard['variants']);
+
+    const listCards = mock(async ({ page }: { page?: number }) => {
+      if (page === 1) {
+        return {
+          data: [{ variantNumber: 'OGN-001' }],
+          pagination: { hasNext: true },
+        };
+      }
+      if (page === 2) {
+        return {
+          data: [{ variantNumber: 'OGN-001a' }],
+          pagination: { hasNext: true },
+        };
+      }
+      return {
+        data: [{ variantNumber: 'RAD-038' }],
+        pagination: { hasNext: false },
+      };
+    });
+    const getCard = mock(async (variantNumber: string) => {
+      if (variantNumber.startsWith('OGN')) return cardA;
+      return cardB;
+    });
+
+    const result = await probeExpandedCatalog({
+      listCards,
+      getCard,
+    } as unknown as PaClient);
+
+    expect(result.logicalCardCount).toBe(2);
+    expect(result.setPrintTotals).toEqual({ OGN: 1, RAD: 1 });
+    expect(listCards).toHaveBeenCalledTimes(3);
+  });
+
   test('counts foil printings separately when variant metadata is present', () => {
     const totals = new Map<string, number>();
     const foilTotals = new Map<string, number>();

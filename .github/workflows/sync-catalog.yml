@@ -8,6 +8,11 @@ on:
     # Daily 02:00 UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
+    inputs:
+      force:
+        description: Force a full catalog upsert even when the upstream fingerprint matches
+        type: boolean
+        default: true
 
 concurrency:
   group: sync-catalog
@@ -31,6 +36,7 @@ jobs:
           ADMIN_SYNC_TOKEN: ${{ secrets.ADMIN_SYNC_TOKEN }}
           # Optional repo variable; defaults to production API.
           API_BASE_URL: ${{ vars.API_BASE_URL }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
         run: |
           set -euo pipefail
 
@@ -38,13 +44,18 @@ jobs:
           # One minute of slack: the API stamps lastRun at sync start, possibly within the same second.
           started_at="$(date -u -d '-1 minute' +%Y-%m-%dT%H:%M:%SZ)"
           tmp="$(mktemp)"
+          sync_url="${API_BASE_URL}/api/v1/sync/catalog"
+          if [ "${FORCE}" = "true" ]; then
+            sync_url="${sync_url}?force=1"
+            echo "Forcing full catalog upsert"
+          fi
 
           set +e
           http_code="$(
             curl -sS -o "$tmp" -w '%{http_code}' \
               --connect-timeout 30 \
               --max-time 900 \
-              -X POST "${API_BASE_URL}/api/v1/sync/catalog" \
+              -X POST "$sync_url" \
               -H "Authorization: Bearer ${ADMIN_SYNC_TOKEN}" \
               -H "Accept: application/json"
           )"
@@ -60,49 +71,104 @@ jobs:
               echo "::error::Unexpected response body (missing data)"
               exit 1
             fi
-            echo "Catalog sync succeeded (changed=$(jq -r '.data.changed' "$tmp"), variants=$(jq -r '.data.variantCount' "$tmp"))."
-            exit 0
-          fi
-
-          # A full upsert can outlive the HTTP proxy timeout while the API keeps
-          # syncing, so fall back to polling sync status on timeouts and gateway errors.
-          case "$http_code" in
-            502|503|504|524|000) ;;
-            *)
-              echo "::error::Catalog sync failed with HTTP ${http_code}"
-              exit 1
-              ;;
-          esac
-
-          echo "Request did not complete; polling ${API_BASE_URL}/api/v1/sync/status"
-          for _ in $(seq 1 80); do
-            sleep 30
-            status_json="$(
-              curl -sS --connect-timeout 30 --max-time 60 \
-                "${API_BASE_URL}/api/v1/sync/status" \
-                -H "Authorization: Bearer ${ADMIN_SYNC_TOKEN}" \
-                -H "Accept: application/json" || true
-            )"
-            status="$(echo "$status_json" | jq -r '.data.catalog.status // empty' 2>/dev/null || true)"
-            last_run="$(echo "$status_json" | jq -r '.data.catalog.lastRun // empty' 2>/dev/null || true)"
-            echo "catalog status=${status:-unknown} lastRun=${last_run:-none}"
-
-            case "$status" in
-              running|'') continue ;;
-              failed)
-                echo "::error::Catalog sync reported failed status"
-                exit 1
-                ;;
-              idle)
-                if [ -n "$last_run" ] && [[ "$last_run" > "$started_at" ]]; then
-                  echo "Catalog sync succeeded."
-                  exit 0
-                fi
-                echo "::error::Catalog sync is idle but did not record a new successful run"
+            echo "Catalog sync succeeded (changed=$(jq -r '.data.changed' "$tmp"), variants=$(jq -r '.data.variantCount' "$tmp"), pages=$(jq -r '.data.pages' "$tmp"))."
+          else
+            # A full upsert can outlive the HTTP proxy timeout while the API keeps
+            # syncing, so fall back to polling sync status on timeouts and gateway errors.
+            case "$http_code" in
+              502|503|504|524|000) ;;
+              *)
+                echo "::error::Catalog sync failed with HTTP ${http_code}"
                 exit 1
                 ;;
             esac
-          done
 
-          echo "::error::Timed out waiting for catalog sync to finish"
-          exit 1
+            echo "Request did not complete; polling ${API_BASE_URL}/api/v1/sync/status"
+            for _ in $(seq 1 80); do
+              sleep 30
+              status_json="$(
+                curl -sS --connect-timeout 30 --max-time 60 \
+                  "${API_BASE_URL}/api/v1/sync/status" \
+                  -H "Authorization: Bearer ${ADMIN_SYNC_TOKEN}" \
+                  -H "Accept: application/json" || true
+              )"
+              status="$(echo "$status_json" | jq -r '.data.catalog.status // empty' 2>/dev/null || true)"
+              last_run="$(echo "$status_json" | jq -r '.data.catalog.lastRun // empty' 2>/dev/null || true)"
+              echo "catalog status=${status:-unknown} lastRun=${last_run:-none}"
+
+              case "$status" in
+                running|'') continue ;;
+                failed)
+                  echo "::error::Catalog sync reported failed status"
+                  exit 1
+                  ;;
+                idle)
+                  if [ -n "$last_run" ] && [[ "$last_run" > "$started_at" ]]; then
+                    echo "Catalog sync succeeded."
+                    break
+                  fi
+                  echo "::error::Catalog sync is idle but did not record a new successful run"
+                  exit 1
+                  ;;
+              esac
+            done
+
+            if [ "${status:-}" != "idle" ]; then
+              echo "::error::Timed out waiting for catalog sync to finish"
+              exit 1
+            fi
+          fi
+
+      - name: Validate set coverage against filters
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          set -euo pipefail
+          API_BASE_URL="${API_BASE_URL:-https://riftapi.solace.onl}"
+          filters_json="$(curl -sS --connect-timeout 30 --max-time 60 "${API_BASE_URL}/api/v1/filters")"
+          echo "$filters_json" | jq -e '.data.sets | length > 0' > /dev/null
+
+          shortfalls=0
+          while IFS=$'\t' read -r code expected; do
+            [ -n "$code" ] || continue
+            expected="$(printf '%s' "$expected" | tr -d '[:space:]')"
+            [ "${expected:-0}" -gt 0 ] || continue
+
+            got=0
+            page=1
+            while :; do
+              page_json="$(
+                curl -sS --connect-timeout 30 --max-time 60 \
+                  "${API_BASE_URL}/api/v1/cards?sets=$(printf '%s' "$code" | jq -sRr @uri)&limit=100&page=${page}"
+              )"
+              page_count="$(echo "$page_json" | jq -r '.data | length')"
+              got=$((got + page_count))
+              has_next="$(echo "$page_json" | jq -r '.pagination.hasNext // false')"
+              if [ "$page_count" -eq 0 ] || [ "$has_next" != "true" ]; then
+                break
+              fi
+              page=$((page + 1))
+              if [ "$page" -gt 50 ]; then
+                break
+              fi
+            done
+
+            echo "set ${code}: local=${got} expected>=${expected}"
+            if [ "$got" -lt "$expected" ]; then
+              echo "::error::Set ${code} is short (${got} < ${expected})"
+              shortfalls=$((shortfalls + 1))
+            fi
+          done < <(
+            echo "$filters_json" | jq -r '
+              .data.sets[]
+              | select((.code // .id) != null)
+              | [(.code // .id), (.printCount // .count // 0)]
+              | @tsv
+            '
+          )
+
+          if [ "$shortfalls" -gt 0 ]; then
+            echo "::error::Catalog validation failed for ${shortfalls} set(s)"
+            exit 1
+          fi
+          echo "All filter sets meet expected print counts."
