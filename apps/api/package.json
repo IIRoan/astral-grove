@@ -29,16 +29,17 @@
     "@elysia/cors": "2.0.0-beta.1",
     "@riftbound/contracts": "workspace:*",
     "better-auth": "^1.6.23",
-    "drizzle-orm": "^0.45.2",
-    "elysia": "2.0.0-beta.14",
+    "drizzle-orm": "^0.45.3",
+    "elysia": "2.0.0-beta.19",
+    "exact-mirror": "^1.2.6",
     "postgres": "^3.4.7",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "zod": "^3.25.51"
   },
   "devDependencies": {
     "@riftbound/typescript-config": "workspace:*",
-    "@types/bun": "^1.2.15",
-    "drizzle-kit": "^0.31.10",
+    "@types/bun": "^1.4.2",
+    "drizzle-kit": "^0.31.11",
     "typescript": "6.0.3"
   }
 }
