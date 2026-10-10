@@ -7,6 +7,8 @@ import {
   isNotNull,
   lt,
   ne,
+  or,
+  sql,
   type SQL,
 } from 'drizzle-orm';
 import type {
@@ -14,6 +16,8 @@ import type {
   CollectionAuditEvent,
   CollectionAuditListQuery,
   CollectionActivityEvent,
+  CollectionActivityHistoryRequest,
+  CollectionActivityHistoryResponse,
 } from '@riftbound/contracts';
 import {
   CardCondition,
@@ -171,10 +175,23 @@ export class CollectionAuditService {
     collectionId: string,
     variantNumbers: string[]
   ): Promise<CollectionActivityEvent[]> {
+    const result = await this.activityHistoryForVariants(collectionId, {
+      variantNumbers,
+      limit: RECENT_COLLECTION_ACTIVITY_LIMIT,
+    });
+    return result.data;
+  }
+
+  async activityHistoryForVariants(
+    collectionId: string,
+    { variantNumbers, limit, cursor }: CollectionActivityHistoryRequest
+  ): Promise<CollectionActivityHistoryResponse> {
     const unique = [
       ...new Set(variantNumbers.map((value) => value.trim()).filter(Boolean)),
     ].slice(0, COLLECTION_VARIANT_LOOKUP_MAX);
-    if (unique.length === 0) return [];
+    if (unique.length === 0) {
+      return { data: [], meta: { hasMore: false, nextCursor: null } };
+    }
 
     const rows = await this.db
       .select({
@@ -184,6 +201,8 @@ export class CollectionAuditService {
         quantityAfter: collectionAuditEvents.quantityAfter,
         isFoil: collectionAuditEvents.isFoil,
         createdAt: collectionAuditEvents.createdAt,
+        // Preserve PostgreSQL microseconds so a page boundary never loses events.
+        cursorAt: sql<string>`to_char(${collectionAuditEvents.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
         actorUserId: collectionAuditEvents.actorUserId,
         actorName: userTable.name,
         actorEmail: userTable.email,
@@ -195,27 +214,46 @@ export class CollectionAuditService {
           eq(collectionAuditEvents.collectionId, collectionId),
           inArray(collectionAuditEvents.variantNumber, unique),
           isNotNull(collectionAuditEvents.quantityDelta),
-          ne(collectionAuditEvents.quantityDelta, 0)
+          ne(collectionAuditEvents.quantityDelta, 0),
+          cursor
+            ? or(
+                sql`${collectionAuditEvents.createdAt} < ${cursor.at}::timestamptz`,
+                and(
+                  sql`${collectionAuditEvents.createdAt} = ${cursor.at}::timestamptz`,
+                  lt(collectionAuditEvents.id, cursor.id)
+                )
+              )
+            : undefined
         )
       )
       .orderBy(desc(collectionAuditEvents.createdAt), desc(collectionAuditEvents.id))
-      .limit(RECENT_COLLECTION_ACTIVITY_LIMIT);
+      .limit(limit + 1);
 
-    return takeRecentCollectionActivity(
-      rows.map((row) => ({
-        id: row.id,
-        action: row.action,
-        quantityDelta: row.quantityDelta,
-        quantityAfter: row.quantityAfter,
-        isFoil: row.isFoil,
-        createdAt: row.createdAt.toISOString(),
-        actor: {
-          userId: row.actorUserId,
-          name: row.actorName,
-          email: row.actorEmail,
-        },
-      }))
-    );
+    const pageRows = rows.slice(0, limit);
+    const hasMore = rows.length > limit;
+    const last = pageRows.at(-1);
+    return {
+      data: takeRecentCollectionActivity(
+        pageRows.map((row) => ({
+          id: row.id,
+          action: row.action,
+          quantityDelta: row.quantityDelta,
+          quantityAfter: row.quantityAfter,
+          isFoil: row.isFoil,
+          createdAt: row.createdAt.toISOString(),
+          actor: {
+            userId: row.actorUserId,
+            name: row.actorName,
+            email: row.actorEmail,
+          },
+        })),
+        limit
+      ),
+      meta: {
+        hasMore,
+        nextCursor: hasMore && last ? { at: last.cursorAt, id: last.id } : null,
+      },
+    };
   }
 
   private async page(

@@ -1,5 +1,7 @@
 import type {
   CollectionActivityEvent,
+  CollectionActivityHistoryRequest,
+  CollectionActivityHistoryResponse,
   CollectionImportPreviewResponse,
   CollectionItem,
   WishlistItem,
@@ -11,6 +13,7 @@ import {
   CollectionListResponse,
   CollectionQuantitiesResponse,
   CollectionRecentAddsResponse,
+  CollectionActivityHistoryResponse as CollectionActivityHistoryResponseSchema,
   WishlistListResponse,
 } from '@riftbound/contracts';
 import { authedFetch, authedFetchText, parseOrThrow } from '@/src/api/authedClient';
@@ -18,6 +21,20 @@ import { authedFetch, authedFetchText, parseOrThrow } from '@/src/api/authedClie
 export { RemoteApiError } from '@/src/api/authedClient';
 
 const COLLECTION_VARIANT_BATCH_SIZE = 200;
+
+export async function fetchRemoteCollectionActivityHistory(
+  input: CollectionActivityHistoryRequest
+): Promise<CollectionActivityHistoryResponse> {
+  const res = await authedFetch<unknown>('/api/v1/collection/activity-history', {
+    method: 'POST',
+    body: input,
+  });
+  return parseOrThrow(
+    'collection.activityHistory.parse',
+    CollectionActivityHistoryResponseSchema,
+    res
+  );
+}
 
 async function postCollectionQuantitiesBatch(
   variantNumbers: string[]
@@ -88,6 +105,7 @@ export async function remoteAddToCollection(
 ): Promise<void> {
   await authedFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/add`, {
     method: 'POST',
+    retryOnWake: false,
     body: { delta, ...(isFoil === undefined ? {} : { isFoil }) },
   });
 }
@@ -99,6 +117,7 @@ export async function remoteRemoveFromCollection(
 ): Promise<void> {
   await authedFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/remove`, {
     method: 'POST',
+    retryOnWake: false,
     body: { delta, ...(isFoil === undefined ? {} : { isFoil }) },
   });
 }

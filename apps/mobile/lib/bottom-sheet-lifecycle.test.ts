@@ -16,6 +16,7 @@ import {
   simulateQuickReopen,
   shouldApplyDeferredDrawerPresent,
   shouldDismissOnSheetEvent,
+  shouldDismissBottomSheetSession,
   runAfterDrawerHostCleared,
   type BottomSheetMountState,
 } from '@/lib/bottom-sheet-lifecycle';
@@ -160,6 +161,30 @@ describe('catalog drawer dismiss', () => {
     expect(shouldDismissOnSheetEvent('change', -1)).toBe(true);
     expect(shouldDismissOnSheetEvent('change', 0)).toBe(false);
     expect(shouldDismissOnSheetEvent('close', -1)).toBe(true);
+  });
+
+  test('an old filter sheet close cannot dismiss a newly opened session', () => {
+    expect(
+      shouldDismissBottomSheetSession({
+        dismissedSessionId: 1,
+        currentSessionId: 3,
+        open: true,
+      })
+    ).toBe(false);
+    expect(
+      shouldDismissBottomSheetSession({
+        dismissedSessionId: 3,
+        currentSessionId: 3,
+        open: true,
+      })
+    ).toBe(true);
+    expect(
+      shouldDismissBottomSheetSession({
+        dismissedSessionId: 3,
+        currentSessionId: 3,
+        open: false,
+      })
+    ).toBe(false);
   });
 
   test('deferred present only applies for the latest select generation', () => {

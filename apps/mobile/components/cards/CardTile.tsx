@@ -32,6 +32,7 @@ import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { cn } from '@/lib/utils';
 import { logDrawer } from '@/lib/drawer-debug';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cardTileOwnershipEqual } from '@/utils/cardTileOwnership';
 
 const LIST_THUMB_W = 56;
 const LIST_THUMB_H = 78;
@@ -268,23 +269,11 @@ function CardTileInner({
   );
 }
 
-function ownedForTileMemo(
-  card: CardListItem,
-  familyContextVariantNumber: string | null | undefined,
-  collectionByVariant: CollectionOwnershipMap | undefined
-): number {
-  const printings = resolveQuickAddPrintings(
-    card,
-    familyContextVariantNumber ?? card.variantNumber
-  );
-  return totalOwnedForCard({ ...card, printings }, collectionByVariant ?? new Map());
-}
-
 export const CardTile = memo(
   CardTileInner,
   (prev, next) =>
-    prev.card.variantNumber === next.card.variantNumber &&
-    prev.card.priceEur?.market === next.card.priceEur?.market &&
+    prev.card === next.card &&
+    prev.style === next.style &&
     prev.layout === next.layout &&
     prev.compact === next.compact &&
     prev.enableQuickAdd === next.enableQuickAdd &&
@@ -292,17 +281,12 @@ export const CardTile = memo(
     prev.selected === next.selected &&
     prev.familyContextVariantNumber === next.familyContextVariantNumber &&
     prev.hidePrice === next.hidePrice &&
-    prev.collectionByVariant === next.collectionByVariant &&
-    ownedForTileMemo(
+    cardTileOwnershipEqual(
       prev.card,
       prev.familyContextVariantNumber,
-      prev.collectionByVariant
-    ) ===
-      ownedForTileMemo(
-        next.card,
-        next.familyContextVariantNumber,
-        next.collectionByVariant
-      ) &&
+      prev.collectionByVariant,
+      next.collectionByVariant
+    ) &&
     prev.onSelectVariant === next.onSelectVariant &&
     prev.onPress === next.onPress &&
     prev.mode === next.mode &&

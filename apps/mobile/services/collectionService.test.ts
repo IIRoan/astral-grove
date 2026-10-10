@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { CardListItem } from '@riftbound/contracts';
 import type { CollectionEntry } from './collectionService';
-import { normalScanInput } from '@/lib/scan-confirmation';
+import { scanAddInput } from '@/lib/scan-confirmation';
 
 process.env.EXPO_PUBLIC_API_URL = 'http://localhost:7000';
 
@@ -181,19 +181,29 @@ describe('remote wishlist writes', () => {
 
 describe('collection add flows', () => {
   test('a confirmed scan sends exactly one normal copy through the collection API', async () => {
-    const input = normalScanInput(listCard);
+    const input = scanAddInput(listCard, { simpleAdd: true });
     await addToCollection(input.card, input);
 
     expectPostToSelectedVariant('SFD-R05', false);
   });
 
-  test('a foil-only scan never sends a collection write', async () => {
-    const foilOnlyCard = { ...listCard, variantNumber: 'SFD-R05a' };
-    await expect(async () => {
-      const input = normalScanInput(foilOnlyCard);
-      await addToCollection(input.card, input);
-    }).toThrow('normal finish');
-    expect(requests).toHaveLength(0);
+  test('a foil-only scan adds that foil printing', async () => {
+    const foilOnlyCard: CardListItem = {
+      ...listCard,
+      variantNumber: 'SFD-R05a',
+      printings: [
+        {
+          variantNumber: 'SFD-R05a',
+          variantLabel: 'Foil',
+          isFoil: true,
+          priceEur: null,
+        },
+      ],
+    };
+    const input = scanAddInput(foilOnlyCard, { simpleAdd: false });
+    await addToCollection(input.card, input);
+
+    expectPostToSelectedVariant('SFD-R05a', true);
   });
 
   test('quick-add stores the printing selected from the card picker', async () => {

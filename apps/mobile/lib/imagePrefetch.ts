@@ -4,6 +4,7 @@ import { CATALOG_ART_THUMB_WIDTH } from '@/constants/CardArt';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 
 const DEFAULT_BATCH = 48;
+const inFlightUris = new Set<string>();
 
 function normalizePrefetchUri(
   raw: string | null | undefined,
@@ -30,13 +31,14 @@ export async function prefetchImageUris(
 
   for (const raw of uris) {
     const uri = normalizePrefetchUri(raw, width);
-    if (!uri || seen.has(uri)) continue;
+    if (!uri || seen.has(uri) || inFlightUris.has(uri)) continue;
     seen.add(uri);
     unique.push(uri);
     if (unique.length >= limit) break;
   }
 
   if (unique.length === 0) return;
+  for (const uri of unique) inFlightUris.add(uri);
 
   try {
     const ok = await Image.prefetch(unique, { cachePolicy: 'memory-disk' });
@@ -52,6 +54,8 @@ export async function prefetchImageUris(
     );
   } catch {
     // Prefetch is best-effort; screens still load images on demand.
+  } finally {
+    for (const uri of unique) inFlightUris.delete(uri);
   }
 }
 

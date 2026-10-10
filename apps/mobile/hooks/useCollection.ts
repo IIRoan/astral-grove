@@ -4,7 +4,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
-import { collectionFinishKey, type CardListItem } from '@riftbound/contracts';
+import type { CardListItem, CollectionActivityEvent } from '@riftbound/contracts';
 import { useMemo } from 'react';
 import {
   addDetailToCollection,
@@ -44,16 +44,20 @@ import {
 import { authClient } from '@/src/lib/auth-client';
 import {
   recordOptimisticCollectionActivity,
-  restoreRecentActivityQueries,
-  snapshotRecentActivityQueries,
-  type RecentActivitySnapshot,
+  recentAddsQueryCoversVariant,
 } from '@/lib/collection-recent-activity';
 import {
-  applyCollectionQuantity,
   getOwnershipRecord,
-  setOwnershipQuantity,
   type CollectionEntrySeed,
 } from '@/lib/collection-optimistic-cache';
+import {
+  applyOptimisticCollectionQuantity,
+  beginOptimisticCollectionMutation,
+  collectionCachedQuantity,
+  rollbackOptimisticCollectionMutation,
+  settleOptimisticCollectionMutation,
+  type CollectionOptimisticMutation,
+} from '@/lib/collection-mutation-cache';
 
 const COLLECTION_STALE_MS = 5 * 60 * 1000;
 const OWNERSHIP_STALE_MS = 5 * 60 * 1000;
@@ -98,7 +102,7 @@ async function fetchCollectionQuery(
     );
   }
   syncOwnershipFromCollection(queryClient, entries);
-  await persistCollection(entries);
+  void persistCollection(entries);
   return entries;
 }
 
@@ -202,11 +206,34 @@ export function useCollectionOwnership(variantNumbers: readonly string[]): {
 }
 
 interface CollectionMutationContext {
-  previousAll?: CollectionEntry[];
-  previousEntry?: CollectionEntry | null | undefined;
-  previousEntries?: Map<string, CollectionEntry | null | undefined>;
-  previousOwnership?: OwnershipRecord;
-  previousRecentAdds?: RecentActivitySnapshot;
+  optimistic: CollectionOptimisticMutation;
+  optimisticActivityIds: Set<string>;
+}
+
+function recordMutationActivity(
+  queryClient: QueryClient,
+  context: CollectionMutationContext,
+  input: Parameters<typeof recordOptimisticCollectionActivity>[1]
+) {
+  const before = new Set(
+    queryClient
+      .getQueriesData<CollectionActivityEvent[]>({
+        queryKey: collectionQueryKeys.recentAddsRoot,
+        predicate: (query) =>
+          recentAddsQueryCoversVariant(query.queryKey, input.variantNumber),
+      })
+      .flatMap(([, data]) => data?.map((event) => event.id) ?? [])
+  );
+  recordOptimisticCollectionActivity(queryClient, input);
+  for (const [, events] of queryClient.getQueriesData<CollectionActivityEvent[]>({
+    queryKey: collectionQueryKeys.recentAddsRoot,
+    predicate: (query) =>
+      recentAddsQueryCoversVariant(query.queryKey, input.variantNumber),
+  })) {
+    for (const event of events ?? []) {
+      if (!before.has(event.id)) context.optimisticActivityIds.add(event.id);
+    }
+  }
 }
 
 function invalidateRecentAdds(queryClient: QueryClient) {
@@ -236,20 +263,26 @@ function commitCollectionLocal(queryClient: QueryClient) {
 
 function reconcileCollectionEntries(
   queryClient: QueryClient,
-  variantNumbers: string[],
-  error: unknown
+  context: CollectionMutationContext | undefined
 ) {
-  if (error) {
-    // Rollback already restored cache; pull server truth once.
-    invalidateCollection(queryClient);
-    for (const variantNumber of variantNumbers) {
-      void queryClient.invalidateQueries({
-        queryKey: collectionQueryKeys.entry(variantNumber),
-      });
-    }
+  if (!context) return;
+  const variantNumbers = settleOptimisticCollectionMutation(
+    queryClient,
+    context.optimistic
+  );
+  if (variantNumbers) {
+    // TanStack calls onSettled before marking the last mutation complete.
+    setTimeout(() => {
+      invalidateCollection(queryClient);
+      for (const variantNumber of variantNumbers) {
+        void queryClient.invalidateQueries({
+          queryKey: collectionQueryKeys.entry(variantNumber),
+          exact: true,
+        });
+      }
+    }, 0);
     return;
   }
-
   commitCollectionLocal(queryClient);
 }
 
@@ -260,12 +293,8 @@ function beginCollectionMutation(
 ): CollectionMutationContext {
   bumpCollectionMutationGeneration(queryClient);
   const context: CollectionMutationContext = {
-    previousAll: queryClient.getQueryData<CollectionEntry[]>(collectionQueryKeys.all),
-    previousEntry: queryClient.getQueryData<CollectionEntry | null>(
-      collectionQueryKeys.entry(variantNumber)
-    ),
-    previousOwnership: getOwnershipRecord(queryClient),
-    previousRecentAdds: snapshotRecentActivityQueries(queryClient),
+    optimistic: beginOptimisticCollectionMutation(queryClient),
+    optimisticActivityIds: new Set(),
   };
   void queryClient.cancelQueries({ queryKey: collectionQueryKeys.all, exact: true });
   void queryClient.cancelQueries({
@@ -279,30 +308,23 @@ function beginCollectionMutation(
 
 function rollbackCollectionCache(
   queryClient: QueryClient,
-  variantNumber: string,
   context?: CollectionMutationContext
 ) {
   if (!context) return;
-  if (context.previousAll !== undefined) {
-    queryClient.setQueryData(collectionQueryKeys.all, context.previousAll);
-  }
-  if (context.previousEntry !== undefined) {
+  rollbackOptimisticCollectionMutation(queryClient, context.optimistic);
+  for (const [key, events] of queryClient.getQueriesData<CollectionActivityEvent[]>({
+    queryKey: collectionQueryKeys.recentAddsRoot,
+    predicate: (query) =>
+      context.optimistic.changes.some((change) =>
+        recentAddsQueryCoversVariant(query.queryKey, change.variantNumber)
+      ),
+  })) {
+    if (!events?.some((event) => context.optimisticActivityIds.has(event.id))) continue;
     queryClient.setQueryData(
-      collectionQueryKeys.entry(variantNumber),
-      context.previousEntry
+      key,
+      events.filter((event) => !context.optimisticActivityIds.has(event.id))
     );
   }
-  if (context.previousOwnership !== undefined) {
-    queryClient.setQueryData(
-      collectionQueryKeys.ownershipRoot,
-      context.previousOwnership
-    );
-    queryClient.setQueriesData<OwnershipRecord>(
-      { queryKey: collectionQueryKeys.ownershipRoot },
-      () => context.previousOwnership
-    );
-  }
-  restoreRecentActivityQueries(queryClient, context.previousRecentAdds);
 }
 
 function entrySeedFromListCard(
@@ -361,21 +383,6 @@ function entrySeedFromDetailCard(
   };
 }
 
-function currentQuantity(
-  queryClient: QueryClient,
-  variantNumber: string,
-  isFoil = false
-): number {
-  const all =
-    queryClient.getQueryData<CollectionEntry[]>(collectionQueryKeys.all) ?? [];
-  const fromAll = all.find(
-    (entry) => entry.variantNumber === variantNumber && entry.isFoil === isFoil
-  )?.quantity;
-  if (fromAll !== undefined) return fromAll;
-  const finishKey = collectionFinishKey(variantNumber, isFoil);
-  return getOwnershipRecord(queryClient)[finishKey] ?? 0;
-}
-
 export function useCollectionMutations() {
   const queryClient = useQueryClient();
   const sessionQuery = authClient.useSession();
@@ -412,11 +419,23 @@ export function useCollectionMutations() {
         printings[0];
       const isFoil = vars.isFoil ?? printing?.isFoil ?? false;
       const context = beginCollectionMutation(queryClient, variantNumber);
-      const previousQuantity = currentQuantity(queryClient, variantNumber, isFoil);
+      const previousQuantity = collectionCachedQuantity(
+        queryClient,
+        variantNumber,
+        isFoil
+      );
       const nextQuantity = previousQuantity + 1;
       const seed = entrySeedFromListCard(vars.card, variantNumber, isFoil) ?? undefined;
-      applyCollectionQuantity(queryClient, variantNumber, nextQuantity, seed, isFoil);
-      recordOptimisticCollectionActivity(queryClient, {
+      applyOptimisticCollectionQuantity(
+        queryClient,
+        context.optimistic,
+        variantNumber,
+        nextQuantity,
+        seed,
+        isFoil,
+        true
+      );
+      recordMutationActivity(queryClient, context, {
         variantNumber,
         previousQuantity,
         nextQuantity,
@@ -425,13 +444,11 @@ export function useCollectionMutations() {
       });
       return context;
     },
-    onError: (_error, vars, context) => {
-      const variantNumber = vars.variantNumber ?? vars.card.variantNumber;
-      rollbackCollectionCache(queryClient, variantNumber, context);
+    onError: (_error, _vars, context) => {
+      rollbackCollectionCache(queryClient, context);
     },
-    onSettled: (_data, error, vars) => {
-      const variantNumber = vars.variantNumber ?? vars.card.variantNumber;
-      reconcileCollectionEntries(queryClient, [variantNumber], error);
+    onSettled: (_data, _error, _vars, context) => {
+      reconcileCollectionEntries(queryClient, context);
     },
   });
 
@@ -457,7 +474,7 @@ export function useCollectionMutations() {
           );
         })();
       const context = beginCollectionMutation(queryClient, vars.variantNumber);
-      const previousQuantity = currentQuantity(
+      const previousQuantity = collectionCachedQuantity(
         queryClient,
         vars.variantNumber,
         derivedIsFoil
@@ -466,14 +483,16 @@ export function useCollectionMutations() {
       const seed =
         entrySeedFromDetailCard(vars.card, vars.variantNumber, derivedIsFoil) ??
         undefined;
-      applyCollectionQuantity(
+      applyOptimisticCollectionQuantity(
         queryClient,
+        context.optimistic,
         vars.variantNumber,
         nextQuantity,
         seed,
-        derivedIsFoil
+        derivedIsFoil,
+        true
       );
-      recordOptimisticCollectionActivity(queryClient, {
+      recordMutationActivity(queryClient, context, {
         variantNumber: vars.variantNumber,
         previousQuantity,
         nextQuantity,
@@ -482,11 +501,11 @@ export function useCollectionMutations() {
       });
       return context;
     },
-    onError: (_error, vars, context) => {
-      rollbackCollectionCache(queryClient, vars.variantNumber, context);
+    onError: (_error, _vars, context) => {
+      rollbackCollectionCache(queryClient, context);
     },
-    onSettled: (_data, error, vars) => {
-      reconcileCollectionEntries(queryClient, [vars.variantNumber], error);
+    onSettled: (_data, _error, _vars, context) => {
+      reconcileCollectionEntries(queryClient, context);
     },
   });
 
@@ -505,15 +524,20 @@ export function useCollectionMutations() {
     onMutate: (vars) => {
       const isFoil = vars.isFoil ?? false;
       const context = beginCollectionMutation(queryClient, vars.variantNumber);
-      const previousQuantity = currentQuantity(queryClient, vars.variantNumber, isFoil);
-      applyCollectionQuantity(
+      const previousQuantity = collectionCachedQuantity(
         queryClient,
+        vars.variantNumber,
+        isFoil
+      );
+      applyOptimisticCollectionQuantity(
+        queryClient,
+        context.optimistic,
         vars.variantNumber,
         vars.quantity,
         undefined,
         isFoil
       );
-      recordOptimisticCollectionActivity(queryClient, {
+      recordMutationActivity(queryClient, context, {
         variantNumber: vars.variantNumber,
         previousQuantity,
         nextQuantity: vars.quantity,
@@ -522,11 +546,11 @@ export function useCollectionMutations() {
       });
       return context;
     },
-    onError: (_error, vars, context) => {
-      rollbackCollectionCache(queryClient, vars.variantNumber, context);
+    onError: (_error, _vars, context) => {
+      rollbackCollectionCache(queryClient, context);
     },
-    onSettled: (_data, error, vars) => {
-      reconcileCollectionEntries(queryClient, [vars.variantNumber], error);
+    onSettled: (_data, _error, _vars, context) => {
+      reconcileCollectionEntries(queryClient, context);
     },
   });
 
@@ -545,16 +569,22 @@ export function useCollectionMutations() {
     onMutate: (vars) => {
       const isFoil = vars.isFoil ?? false;
       const context = beginCollectionMutation(queryClient, vars.variantNumber);
-      const previousQuantity = currentQuantity(queryClient, vars.variantNumber, isFoil);
-      const nextQuantity = previousQuantity + vars.delta;
-      applyCollectionQuantity(
+      const previousQuantity = collectionCachedQuantity(
         queryClient,
+        vars.variantNumber,
+        isFoil
+      );
+      const nextQuantity = previousQuantity + vars.delta;
+      applyOptimisticCollectionQuantity(
+        queryClient,
+        context.optimistic,
         vars.variantNumber,
         nextQuantity,
         undefined,
-        isFoil
+        isFoil,
+        true
       );
-      recordOptimisticCollectionActivity(queryClient, {
+      recordMutationActivity(queryClient, context, {
         variantNumber: vars.variantNumber,
         previousQuantity,
         nextQuantity,
@@ -563,11 +593,11 @@ export function useCollectionMutations() {
       });
       return context;
     },
-    onError: (_error, vars, context) => {
-      rollbackCollectionCache(queryClient, vars.variantNumber, context);
+    onError: (_error, _vars, context) => {
+      rollbackCollectionCache(queryClient, context);
     },
-    onSettled: (_data, error, vars) => {
-      reconcileCollectionEntries(queryClient, [vars.variantNumber], error);
+    onSettled: (_data, _error, _vars, context) => {
+      reconcileCollectionEntries(queryClient, context);
     },
   });
 
@@ -583,9 +613,20 @@ export function useCollectionMutations() {
       const variantNumber = typeof input === 'string' ? input : input.variantNumber;
       const isFoil = typeof input === 'string' ? false : (input.isFoil ?? false);
       const context = beginCollectionMutation(queryClient, variantNumber);
-      const previousQuantity = currentQuantity(queryClient, variantNumber, isFoil);
-      applyCollectionQuantity(queryClient, variantNumber, 0, undefined, isFoil);
-      recordOptimisticCollectionActivity(queryClient, {
+      const previousQuantity = collectionCachedQuantity(
+        queryClient,
+        variantNumber,
+        isFoil
+      );
+      applyOptimisticCollectionQuantity(
+        queryClient,
+        context.optimistic,
+        variantNumber,
+        0,
+        undefined,
+        isFoil
+      );
+      recordMutationActivity(queryClient, context, {
         variantNumber,
         previousQuantity,
         nextQuantity: 0,
@@ -594,13 +635,11 @@ export function useCollectionMutations() {
       });
       return context;
     },
-    onError: (_error, input, context) => {
-      const variantNumber = typeof input === 'string' ? input : input.variantNumber;
-      rollbackCollectionCache(queryClient, variantNumber, context);
+    onError: (_error, _vars, context) => {
+      rollbackCollectionCache(queryClient, context);
     },
-    onSettled: (_data, error, input) => {
-      const variantNumber = typeof input === 'string' ? input : input.variantNumber;
-      reconcileCollectionEntries(queryClient, [variantNumber], error);
+    onSettled: (_data, _error, _vars, context) => {
+      reconcileCollectionEntries(queryClient, context);
     },
   });
 
@@ -609,74 +648,36 @@ export function useCollectionMutations() {
     meta: { action: 'collection.remove_many' },
     mutationFn: (variantNumbers: string[]) => removeManyFromCollection(variantNumbers),
     onMutate: (variantNumbers) => {
-      bumpCollectionMutationGeneration(queryClient);
-      const previousAll = queryClient.getQueryData<CollectionEntry[]>(
-        collectionQueryKeys.all
-      );
-      const previousOwnership = getOwnershipRecord(queryClient);
-      const previousRecentAdds = snapshotRecentActivityQueries(queryClient);
-      const previousEntries = new Map(
-        variantNumbers.map((variantNumber) => [
+      const context = beginCollectionMutation(queryClient, variantNumbers[0] ?? '');
+      for (const variantNumber of variantNumbers) {
+        applyOptimisticCollectionQuantity(
+          queryClient,
+          context.optimistic,
           variantNumber,
-          queryClient.getQueryData<CollectionEntry | null>(
-            collectionQueryKeys.entry(variantNumber)
-          ),
-        ])
-      );
-
-      const removeSet = new Set(variantNumbers);
-      queryClient.setQueryData(
-        collectionQueryKeys.all,
-        (previousAll ?? []).filter((entry) => !removeSet.has(entry.variantNumber))
-      );
-      for (const variantNumber of variantNumbers) {
-        queryClient.setQueryData(collectionQueryKeys.entry(variantNumber), null);
-        // Clear both finish keys — removeMany deletes every stack for the VN.
-        setOwnershipQuantity(queryClient, variantNumber, 0, false);
-        setOwnershipQuantity(queryClient, variantNumber, 0, true);
-      }
-
-      void queryClient.cancelQueries({
-        queryKey: collectionQueryKeys.all,
-        exact: true,
-      });
-      void queryClient.cancelQueries({ queryKey: collectionQueryKeys.ownershipRoot });
-      void queryClient.cancelQueries({ queryKey: collectionQueryKeys.recentAddsRoot });
-      for (const variantNumber of variantNumbers) {
+          0,
+          undefined,
+          false
+        );
+        applyOptimisticCollectionQuantity(
+          queryClient,
+          context.optimistic,
+          variantNumber,
+          0,
+          undefined,
+          true
+        );
         void queryClient.cancelQueries({
           queryKey: collectionQueryKeys.entry(variantNumber),
+          exact: true,
         });
       }
-
-      return { previousAll, previousEntries, previousOwnership, previousRecentAdds };
+      return context;
     },
-    onError: (_error, variantNumbers, context) => {
-      if (context?.previousAll !== undefined) {
-        queryClient.setQueryData(collectionQueryKeys.all, context.previousAll);
-      }
-      for (const variantNumber of variantNumbers) {
-        const previousEntry = context?.previousEntries?.get(variantNumber);
-        if (previousEntry !== undefined) {
-          queryClient.setQueryData(
-            collectionQueryKeys.entry(variantNumber),
-            previousEntry
-          );
-        }
-      }
-      if (context?.previousOwnership !== undefined) {
-        queryClient.setQueryData(
-          collectionQueryKeys.ownershipRoot,
-          context.previousOwnership
-        );
-        queryClient.setQueriesData<OwnershipRecord>(
-          { queryKey: collectionQueryKeys.ownershipRoot },
-          () => context.previousOwnership
-        );
-      }
-      restoreRecentActivityQueries(queryClient, context?.previousRecentAdds);
+    onError: (_error, _variantNumbers, context) => {
+      rollbackCollectionCache(queryClient, context);
     },
-    onSettled: (_data, error, variantNumbers) => {
-      reconcileCollectionEntries(queryClient, variantNumbers, error);
+    onSettled: (_data, _error, _variantNumbers, context) => {
+      reconcileCollectionEntries(queryClient, context);
     },
   });
 

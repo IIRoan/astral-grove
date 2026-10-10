@@ -36,7 +36,12 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
 
 export async function authedFetch<T>(
   path: string,
-  init?: { method?: string; body?: unknown; headers?: Record<string, string> }
+  init?: {
+    method?: string;
+    body?: unknown;
+    headers?: Record<string, string>;
+    retryOnWake?: boolean;
+  }
 ): Promise<T> {
   const method = init?.method ?? 'GET';
   const headers = authHeaders({
@@ -46,7 +51,8 @@ export async function authedFetch<T>(
 
   let res: Response;
   try {
-    res = await fetchWithApiWake(`${API_URL}${path}`, {
+    const requestFetch = init?.retryOnWake === false ? fetch : fetchWithApiWake;
+    res = await requestFetch(`${API_URL}${path}`, {
       method,
       credentials: 'include',
       cache: 'no-store',

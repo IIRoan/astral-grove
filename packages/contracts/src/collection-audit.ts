@@ -95,6 +95,34 @@ export const CollectionRecentAddsResponse = z.object({
 
 export type CollectionRecentAddsResponse = z.infer<typeof CollectionRecentAddsResponse>;
 
+export const CollectionActivityCursor = z.object({
+  at: z.string().datetime(),
+  id: z.string().uuid(),
+});
+
+export type CollectionActivityCursor = z.infer<typeof CollectionActivityCursor>;
+
+export const CollectionActivityHistoryRequest = CollectionVariantNumbersRequest.extend({
+  limit: z.number().int().positive().max(50).default(20),
+  cursor: CollectionActivityCursor.optional(),
+});
+
+export type CollectionActivityHistoryRequest = z.infer<
+  typeof CollectionActivityHistoryRequest
+>;
+
+export const CollectionActivityHistoryResponse = z.object({
+  data: z.array(CollectionActivityEvent).max(50),
+  meta: z.object({
+    hasMore: z.boolean(),
+    nextCursor: CollectionActivityCursor.nullable(),
+  }),
+});
+
+export type CollectionActivityHistoryResponse = z.infer<
+  typeof CollectionActivityHistoryResponse
+>;
+
 type ActivitySource = {
   id: string;
   action: string;

@@ -1,6 +1,10 @@
 import { describe, expect, mock, test } from 'bun:test';
 import type { CardListItem } from '@riftbound/contracts';
-import { createScanConfirmation, normalScanInput } from './scan-confirmation';
+import {
+  createScanConfirmation,
+  scanAddInput,
+  scanFinishOptions,
+} from './scan-confirmation';
 
 const card: CardListItem = {
   cardId: 'card-1',
@@ -103,8 +107,8 @@ describe('scan confirmation', () => {
     session.select(card);
     expect(save).not.toHaveBeenCalled();
     expect(session.getSnapshot().pending).toMatchObject({ kind: 'card', card });
-    await session.confirm();
-    expect(save).toHaveBeenCalledWith(card);
+    await session.confirm('OGN-001::foil');
+    expect(save).toHaveBeenCalledWith(card, 'OGN-001::foil');
   });
 
   test('a later confirmed copy of the same card increments the session total', async () => {
@@ -119,31 +123,49 @@ describe('scan confirmation', () => {
   });
 });
 
-describe('normal scan finish', () => {
-  test('uses the normal finish even when foil is listed first', () => {
+describe('scan finish', () => {
+  test('quick add uses the normal finish even when foil is listed first', () => {
     expect(
-      normalScanInput({ ...card, printings: [...card.printings!].reverse() })
+      scanAddInput(
+        { ...card, printings: [...card.printings!].reverse() },
+        { simpleAdd: true }
+      )
     ).toMatchObject({ variantNumber: 'OGN-001', isFoil: false });
+    expect(scanFinishOptions(card, true)).toBeNull();
   });
-  test('rejects foil-only printings instead of falling back to foil or another printing', () => {
-    expect(() =>
-      normalScanInput({
-        ...card,
-        printings: [
-          {
-            variantNumber: 'OGN-001',
-            variantLabel: 'Foil',
-            isFoil: true,
-            priceEur: null,
-          },
-          {
-            variantNumber: 'OGN-002',
-            variantLabel: 'Standard',
-            isFoil: false,
-            priceEur: null,
-          },
-        ],
-      })
-    ).toThrow('normal finish');
+
+  test('a foil-only printing adds that foil instead of another printing', () => {
+    const foilOnly = {
+      ...card,
+      printings: [
+        {
+          variantNumber: 'OGN-001',
+          variantLabel: 'Foil',
+          isFoil: true,
+          priceEur: null,
+        },
+        {
+          variantNumber: 'OGN-002',
+          variantLabel: 'Standard',
+          isFoil: false,
+          priceEur: null,
+        },
+      ],
+    };
+    expect(scanAddInput(foilOnly, { simpleAdd: true })).toMatchObject({
+      variantNumber: 'OGN-001',
+      isFoil: true,
+    });
+    expect(scanFinishOptions(foilOnly, false)).toBeNull();
+  });
+
+  test('without quick add, both finishes are a choice and the picked one is saved', () => {
+    expect(scanFinishOptions(card, false)?.map((option) => option.label)).toEqual([
+      'Standard',
+      'Foil',
+    ]);
+    expect(
+      scanAddInput(card, { simpleAdd: false, selectionId: 'OGN-001::foil' })
+    ).toMatchObject({ variantNumber: 'OGN-001', isFoil: true });
   });
 });

@@ -56,8 +56,9 @@ const getCard = mock(async () => {
   throw new Error('getCard should not be used for catalog prefetch');
 });
 
+const prefetchImages = mock(async () => true);
 mock.module('expo-image', () => ({
-  Image: { prefetch: mock(async () => false) },
+  Image: { prefetch: prefetchImages },
 }));
 
 mock.module('@/src/api/client', () => ({
@@ -69,7 +70,8 @@ mock.module('@/lib/imageSessionCache', () => ({
 }));
 
 mock.module('@/utils/resolveImageUrl', () => ({
-  resolveImageUrl: (url: string | null | undefined) => url ?? null,
+  resolveImageUrl: (url: string | null | undefined, options?: { width?: number }) =>
+    url ? `${url}${options?.width ? `?w=${options.width}` : ''}` : null,
 }));
 
 const {
@@ -109,11 +111,20 @@ function listItem(variantNumber: string): CardListItem {
 
 beforeEach(() => {
   batchCards.mockClear();
+  prefetchImages.mockClear();
   getCard.mockClear();
   resetCardDetailPrefetchQueue();
 });
 
 describe('prefetchCardDetail', () => {
+  test('warms thumbnails without competing full-size artwork downloads', async () => {
+    prefetchCardDetail(new QueryClient(), listItem('OGN-001'));
+    await flushCardDetailPrefetch();
+    const urls = prefetchImages.mock.calls.flatMap((call) => call[0]);
+    expect(urls).toContain('https://example.com/card.webp?w=160');
+    expect(urls).not.toContain('https://example.com/card.webp');
+  });
+
   test('coalesces many list rows into one batch POST', async () => {
     const queryClient = new QueryClient();
 

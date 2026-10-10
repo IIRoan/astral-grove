@@ -23,6 +23,7 @@ import {
   onSheetIndexChange,
   runAfterDrawerHostCleared,
   shouldApplyDeferredDrawerPresent,
+  shouldDismissBottomSheetSession,
   shouldDismissOnSheetEvent,
 } from '@/lib/bottom-sheet-lifecycle';
 import { claimSheetHost, releaseSheetHost } from '@/lib/sheet-host';
@@ -107,6 +108,7 @@ type BottomSheetContextValue = {
   sessionId: number;
   setMounted: (mounted: boolean) => void;
   onOpenChange: (open: boolean) => void;
+  onSessionDismiss: (sessionId: number) => void;
   bottomSheetRef: React.RefObject<GorhomBottomSheet | null>;
   animatedIndex: SharedValue<number>;
   contentConfig: BottomSheetContentConfig;
@@ -451,10 +453,27 @@ export const BottomSheet = ({
     [isControlled, onOpenChangeProp]
   );
   const onOpenChangeRef = useLatestRef(onOpenChange);
+  const openRef = useLatestRef(open);
+  const onSessionDismiss = useCallback(
+    (dismissedSessionId: number) => {
+      if (
+        !shouldDismissBottomSheetSession({
+          dismissedSessionId,
+          currentSessionId: presentGenerationRef.current,
+          open: openRef.current,
+        })
+      )
+        return;
+      onOpenChangeRef.current(false);
+    },
+    [onOpenChangeRef, openRef]
+  );
 
   useLayoutEffect(() => {
     cancelPresentRef.current?.();
     cancelPresentRef.current = null;
+    const generation = presentGenerationRef.current + 1;
+    presentGenerationRef.current = generation;
 
     if (!open) {
       if (hostTokenRef.current != null) {
@@ -467,13 +486,11 @@ export const BottomSheet = ({
     }
 
     hostTokenRef.current = claimSheetHost(() => {
-      onOpenChangeRef.current(false);
+      onSessionDismiss(generation);
     });
 
     // Failsafe: tear down any prior Gorhom/FWO host, then remount after two frames.
     setMounted(false);
-    const generation = presentGenerationRef.current + 1;
-    presentGenerationRef.current = generation;
     cancelPresentRef.current = runAfterDrawerHostCleared(() => {
       if (
         !shouldApplyDeferredDrawerPresent({
@@ -483,15 +500,16 @@ export const BottomSheet = ({
       ) {
         return;
       }
-      setSessionId((current) => current + 1);
+      setSessionId(generation);
       setMounted(true);
     });
 
     return () => {
+      presentGenerationRef.current += 1;
       cancelPresentRef.current?.();
       cancelPresentRef.current = null;
     };
-  }, [open, onOpenChangeRef]);
+  }, [open, onSessionDismiss]);
 
   useEffect(() => {
     return () => {
@@ -524,6 +542,7 @@ export const BottomSheet = ({
       sessionId,
       setMounted,
       onOpenChange,
+      onSessionDismiss,
       bottomSheetRef,
       animatedIndex,
       contentConfig,
@@ -537,6 +556,7 @@ export const BottomSheet = ({
       mounted,
       sessionId,
       onOpenChange,
+      onSessionDismiss,
       animatedIndex,
       contentConfig,
       currentSnapIndex,
@@ -648,6 +668,8 @@ export const BottomSheetContent = ({
   const {
     open,
     onOpenChange,
+    onSessionDismiss,
+    sessionId,
     bottomSheetRef,
     animatedIndex,
     setContentConfig,
@@ -727,15 +749,15 @@ export const BottomSheetContent = ({
     (index: number) => {
       setCurrentSnapIndex(index);
       if (!shouldDismissOnSheetEvent('change', index)) return;
-      onSheetIndexChange(index, () => onOpenChange(false));
+      onSheetIndexChange(index, () => onSessionDismiss(sessionId));
     },
-    [onOpenChange, setCurrentSnapIndex]
+    [onSessionDismiss, sessionId, setCurrentSnapIndex]
   );
 
   const handleSheetClose = useCallback(() => {
     if (!shouldDismissOnSheetEvent('close', -1)) return;
-    onOpenChange(false);
-  }, [onOpenChange]);
+    onSessionDismiss(sessionId);
+  }, [onSessionDismiss, sessionId]);
 
   useEffect(() => {
     // BackHandler is Android-only; react-native-web logs an error when it is used.

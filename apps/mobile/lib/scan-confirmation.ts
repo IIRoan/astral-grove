@@ -1,10 +1,21 @@
 import type { CardListItem } from '@riftbound/contracts';
 import type { MatchKind } from '@/lib/card-scan';
-import { getCardPrintings, variantNumbersMatch } from '@/utils/variants';
+import type { PrintingPickerOption } from '@/utils/collectionPrintingPicker';
+import {
+  resolvePrintingPickerState,
+  resolveQuickAddPrintings,
+  resolveQuickAddSelection,
+} from '@/utils/collectionPrintingPicker';
 
 export type ScanOutcome =
   | { kind: 'card'; card: CardListItem; via: MatchKind; sure: boolean }
   | { kind: 'ambiguous'; name: string; options: CardListItem[] };
+
+export type ScanAddInput = {
+  card: CardListItem;
+  variantNumber: string;
+  isFoil: boolean;
+};
 
 type ConfirmationState = {
   pending: ScanOutcome | null;
@@ -14,22 +25,37 @@ type ConfirmationState = {
   justAdded: string | null;
 };
 
-export function normalScanInput(card: CardListItem) {
-  const printing = getCardPrintings(card).find(
-    (item) =>
-      !item.isFoil && variantNumbersMatch(item.variantNumber, card.variantNumber)
+function scanPrintings(card: CardListItem) {
+  return resolveQuickAddPrintings(card, card.variantNumber);
+}
+
+export function scanFinishOptions(
+  card: CardListItem,
+  simpleAdd: boolean
+): PrintingPickerOption[] | null {
+  const state = resolvePrintingPickerState({
+    printings: scanPrintings(card),
+    simpleAdd,
+  });
+  return state.showAddPicker ? state.addOptions : null;
+}
+
+// Quick add picks non-foil when both exist, otherwise the only finish.
+export function scanAddInput(
+  card: CardListItem,
+  options: { simpleAdd: boolean; selectionId?: string }
+): ScanAddInput {
+  const selection = resolveQuickAddSelection(
+    scanPrintings(card),
+    options.simpleAdd ? undefined : options.selectionId
   );
-  if (!printing) {
-    throw new Error(
-      'This printing has no normal finish. Foil scanning is not supported yet.'
-    );
-  }
-  return { card, variantNumber: printing.variantNumber, isFoil: false };
+  if (!selection) throw new Error(`No printing found for ${card.name}`);
+  return { card, variantNumber: selection.variantNumber, isFoil: selection.isFoil };
 }
 
 // Synchronous transitions also guard against queued camera results and repeated taps.
 export function createScanConfirmation(
-  save: (card: CardListItem) => Promise<void>,
+  save: (card: CardListItem, selectionId?: string) => Promise<void>,
   onSettled: (outcome: ScanOutcome) => void
 ) {
   let state: ConfirmationState = {
@@ -65,12 +91,13 @@ export function createScanConfirmation(
         error: null,
       });
     },
-    confirm: async () => {
+    confirm: async (selectionId?: string) => {
       if (state.saving || state.pending?.kind !== 'card') return;
       const outcome = state.pending;
       update({ saving: true, error: null });
       try {
-        await save(outcome.card);
+        if (selectionId === undefined) await save(outcome.card);
+        else await save(outcome.card, selectionId);
       } catch (error) {
         update({
           saving: false,

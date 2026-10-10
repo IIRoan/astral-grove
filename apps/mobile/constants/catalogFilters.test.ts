@@ -167,6 +167,26 @@ describe('matchesCatalogFilters', () => {
     );
   });
 
+  test('type filters match composite types using the same tokens as the API', () => {
+    const composite = { ...sampleCard, type: ' Unit  Gear ' };
+    for (const type of ['Unit', 'Gear']) {
+      expect(
+        matchesCatalogFilters(
+          composite,
+          { ...DEFAULT_CATALOG_FILTERS, types: [type] },
+          new Map()
+        )
+      ).toBe(true);
+    }
+    expect(
+      matchesCatalogFilters(
+        composite,
+        { ...DEFAULT_CATALOG_FILTERS, types: ['Legend'] },
+        new Map()
+      )
+    ).toBe(false);
+  });
+
   test('owned filter sums quantities across printings', () => {
     const collection = new Map([
       ['OGN-001', { quantity: 0 }],

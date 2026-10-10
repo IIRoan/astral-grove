@@ -23,7 +23,7 @@ export type { MatchKind, ScanOutcome };
 export function useScanSession({
   onConfirm,
 }: {
-  onConfirm: (card: CardListItem) => Promise<void>;
+  onConfirm: (card: CardListItem, selectionId?: string) => Promise<void>;
 }) {
   const onConfirmRef = useLatestRef(onConfirm);
   const catalogIndex = useCatalogIndex();
@@ -36,7 +36,7 @@ export function useScanSession({
   const absentPasses = useRef(0);
   const [confirmation] = useState(() =>
     createScanConfirmation(
-      (card) => onConfirmRef.current(card),
+      (card, selectionId) => onConfirmRef.current(card, selectionId),
       (outcome) => {
         const cards = outcome.kind === 'card' ? [outcome.card] : outcome.options;
         for (const card of cards) {

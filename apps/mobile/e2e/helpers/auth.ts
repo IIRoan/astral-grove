@@ -9,8 +9,6 @@ export type UiE2eUser = {
   name: string;
 };
 
-const SESSION_COOKIE = '__Secure-better-auth.session_token';
-
 export function uniqueTestUser(prefix = 'ui-e2e'): UiE2eUser {
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return {
@@ -35,7 +33,7 @@ export async function installLocalApiOverride(context: BrowserContext): Promise<
   );
 }
 
-/** Sign up via Better Auth; inject cookie via fetch+addCookies (APIRequestContext hangs on `__Secure-*` from http://localhost). */
+/** Hydrate the cookie returned by Better Auth, including its local/HTTPS name and security attributes. */
 export async function signUpAndHydrateSession(
   context: BrowserContext,
   user: UiE2eUser = uniqueTestUser()
@@ -54,17 +52,25 @@ export async function signUpAndHydrateSession(
   });
   expect(res.ok, `sign-up HTTP ${res.status}: ${await res.text()}`).toBeTruthy();
 
-  const token = res.headers.get('set-auth-token');
-  expect(token, 'missing set-auth-token from sign-up').toBeTruthy();
+  const sessionCookie = res.headers
+    .getSetCookie()
+    .find((cookie) =>
+      cookie.slice(0, cookie.indexOf('=')).endsWith('better-auth.session_token')
+    );
+  expect(sessionCookie, 'missing session cookie from sign-up').toBeTruthy();
+  const [pair, ...attributes] = sessionCookie!.split(';');
+  const separator = pair!.indexOf('=');
 
   await context.addCookies([
     {
-      name: SESSION_COOKIE,
-      value: token!,
-      domain: 'localhost',
+      name: pair!.slice(0, separator),
+      value: pair!.slice(separator + 1),
+      domain: new URL(API_URL).hostname,
       path: '/',
       httpOnly: true,
-      secure: true,
+      secure: attributes.some(
+        (attribute) => attribute.trim().toLowerCase() === 'secure'
+      ),
       sameSite: 'Lax',
     },
   ]);

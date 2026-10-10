@@ -25,6 +25,23 @@ mock.module('@/lib/imageSessionCache', () => ({
 const { prefetchImageUris, prefetchCatalogArt } = await import('@/lib/imagePrefetch');
 
 describe('prefetchImageUris', () => {
+  test('coalesces overlapping requests for the same image', async () => {
+    prefetch.mockClear();
+    resolveImageUrl.mockImplementation((url: string | null | undefined) => url ?? '');
+    let finish!: (value: boolean) => void;
+    prefetch.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        })
+    );
+    const first = prefetchImageUris(['https://a/overlap.webp']);
+    await prefetchImageUris(['https://a/overlap.webp']);
+    expect(prefetch).toHaveBeenCalledTimes(1);
+    finish(true);
+    await first;
+  });
+
   test('batches unique uris into expo-image disk prefetch', async () => {
     prefetch.mockClear();
     markSessionImageLoaded.mockClear();

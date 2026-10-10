@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Linking,
   Pressable,
@@ -12,6 +12,7 @@ import { useIsFocused } from 'expo-router/react-navigation';
 import type { CardListItem } from '@riftbound/contracts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardArtImage } from '@/components/cards/CardArtImage';
+import { CatalogSimpleAddToggle } from '@/components/catalog/CatalogSimpleAddToggle';
 import { ScanCameraFrame } from '@/components/collection/ScanCameraFrame';
 import { ScanCameraPhoto } from '@/components/collection/ScanCameraPhoto';
 import { CameraIcon, XIcon } from '@/components/icons';
@@ -21,7 +22,7 @@ import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
 import { useCollectionMutations } from '@/hooks/useCollection';
 import { useScanSession } from '@/hooks/useScanSession';
 import { useScannerEngine } from '@/hooks/useScannerEngine';
-import { normalScanInput } from '@/lib/scan-confirmation';
+import { scanAddInput, scanFinishOptions } from '@/lib/scan-confirmation';
 import { cn } from '@/lib/utils';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { PREVIEW_ASPECT } from '@/utils/scanCrop';
@@ -36,11 +37,12 @@ export function CollectionScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const { engine, level, loaded: engineLoaded } = useScannerEngine();
   const { addCard } = useCollectionMutations();
+  const [simpleAdd, setSimpleAdd] = useState(false);
   const saveCard = useCallback(
-    async (card: CardListItem) => {
-      await addCard.mutateAsync(normalScanInput(card));
+    async (card: CardListItem, selectionId?: string) => {
+      await addCard.mutateAsync(scanAddInput(card, { simpleAdd, selectionId }));
     },
-    [addCard.mutateAsync]
+    [addCard.mutateAsync, simpleAdd]
   );
   const session = useScanSession({ onConfirm: saveCard });
 
@@ -92,10 +94,11 @@ export function CollectionScanScreen() {
         accessibilityElementsHidden={Boolean(session.pending)}
         importantForAccessibility={session.pending ? 'no-hide-descendants' : 'auto'}
       >
-        <View className="flex-row items-center justify-between px-4 py-2">
-          <Text className="text-lg font-semibold text-foreground">
+        <View className="flex-row items-center justify-between gap-2 px-4 py-2">
+          <Text className="min-w-0 flex-1 text-lg font-semibold text-foreground">
             Scan to collection
           </Text>
+          <CatalogSimpleAddToggle active={simpleAdd} onChange={setSimpleAdd} />
           <Button
             variant="ghost"
             size="icon"
@@ -121,9 +124,6 @@ export function CollectionScanScreen() {
               : 'Ready for the next card'}
           </Text>
           <Text className="text-center text-sm text-muted-foreground">
-            Confirm each match to add one normal copy. No foil scanning yet.
-          </Text>
-          <Text className="text-center text-sm text-muted-foreground">
             {session.totalCopies.toLocaleString()} added this session
           </Text>
         </View>
@@ -137,9 +137,11 @@ export function CollectionScanScreen() {
           {session.pending.kind === 'card' ? (
             <ConfirmCard
               card={session.pending.card}
+              simpleAdd={simpleAdd}
+              onSimpleAddChange={setSimpleAdd}
               saving={session.saving}
               error={session.error}
-              onYes={() => void session.confirmPending()}
+              onYes={(selectionId) => void session.confirmPending(selectionId)}
               onNo={session.rejectPending}
             />
           ) : (
@@ -158,25 +160,38 @@ export function CollectionScanScreen() {
 
 function ConfirmCard({
   card,
+  simpleAdd,
+  onSimpleAddChange,
   saving,
   error,
   onYes,
   onNo,
 }: {
   card: CardListItem;
+  simpleAdd: boolean;
+  onSimpleAddChange: (active: boolean) => void;
   saving: boolean;
   error: string | null;
-  onYes: () => void;
+  onYes: (selectionId?: string) => void;
   onNo: () => void;
 }) {
   const uri = card.imageUrl ? resolveImageUrl(card.imageUrl) : '';
   const { width, height } = useWindowDimensions();
   const artWidth = Math.min(260, width * 0.6, height * 0.32);
+  const finishOptions = scanFinishOptions(card, simpleAdd);
+  const adding = finishOptions ? null : scanAddInput(card, { simpleAdd });
   return (
     <View className="flex-1 gap-4 px-4 pt-4">
-      <Text className="text-center text-xl font-semibold text-foreground">
-        Is this the card you scanned?
-      </Text>
+      <View className="flex-row items-center justify-between gap-2">
+        <Text className="min-w-0 flex-1 text-xl font-semibold text-foreground">
+          Is this the card you scanned?
+        </Text>
+        <CatalogSimpleAddToggle
+          active={simpleAdd}
+          onChange={onSimpleAddChange}
+          iconOnly
+        />
+      </View>
       <ScrollView
         className="flex-1"
         contentContainerClassName="grow items-center justify-center gap-4 py-4"
@@ -208,7 +223,11 @@ function ConfirmCard({
             {card.setCode} · {card.variantNumber} · {card.rarity}
           </Text>
           <Text className="text-center text-sm text-muted-foreground">
-            Adds 1 normal copy to your collection
+            {finishOptions
+              ? 'Foil or standard?'
+              : adding?.isFoil
+                ? 'Adds 1 foil copy'
+                : 'Adds 1 copy'}
           </Text>
         </View>
         {error ? (
@@ -220,23 +239,39 @@ function ConfirmCard({
           </Text>
         ) : null}
       </ScrollView>
-      <View className="flex-row gap-3">
+      <View className="gap-2">
+        {finishOptions ? (
+          <View className="flex-row gap-3">
+            {finishOptions.map((option) => (
+              <Button
+                key={option.id}
+                className="h-16 w-auto flex-1"
+                accessibilityLabel={`Add ${option.label} ${card.name}`}
+                busy={saving}
+                onPress={() => onYes(option.id)}
+              >
+                <ButtonText>{option.label}</ButtonText>
+              </Button>
+            ))}
+          </View>
+        ) : (
+          <Button
+            className="h-16"
+            accessibilityLabel={`Yes, add ${card.name}`}
+            busy={saving}
+            onPress={() => onYes()}
+          >
+            <ButtonText>{saving ? 'Adding…' : 'Yes, add card'}</ButtonText>
+          </Button>
+        )}
         <Button
           variant="outline"
-          className="h-16 w-auto flex-1"
+          className="h-16"
           accessibilityLabel="No, scan again"
           disabled={saving}
           onPress={onNo}
         >
           <ButtonText>No</ButtonText>
-        </Button>
-        <Button
-          className="h-16 w-auto flex-[1.4]"
-          accessibilityLabel={`Yes, add one normal copy of ${card.name}`}
-          busy={saving}
-          onPress={onYes}
-        >
-          <ButtonText>{saving ? 'Adding…' : 'Yes, add card'}</ButtonText>
         </Button>
       </View>
     </View>

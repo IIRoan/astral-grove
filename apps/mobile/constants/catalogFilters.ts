@@ -1,5 +1,6 @@
 import {
   cardHasCost,
+  cardTypeMatchesFilters,
   type CardListItem,
   type CardsListQuery,
 } from '@riftbound/contracts';
@@ -358,10 +359,7 @@ export function matchesCatalogFilters(
     if (!allowedSets.has(card.setCode.toUpperCase())) return false;
   }
 
-  if (filters.types.length > 0) {
-    const allowedTypes = new Set(filters.types.map((type) => type.toLowerCase()));
-    if (!allowedTypes.has(card.type.toLowerCase())) return false;
-  }
+  if (!cardTypeMatchesFilters(card.type, filters.types)) return false;
 
   if (filters.supertypes.length > 0) {
     const supertype = card.super?.trim().toLowerCase();

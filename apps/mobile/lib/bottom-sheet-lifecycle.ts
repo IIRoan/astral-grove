@@ -109,6 +109,14 @@ export function shouldDismissOnSheetEvent(
   return toIndex === -1;
 }
 
+export function shouldDismissBottomSheetSession(input: {
+  dismissedSessionId: number;
+  currentSessionId: number;
+  open: boolean;
+}): boolean {
+  return input.open && input.dismissedSessionId === input.currentSessionId;
+}
+
 /** True when a deferred present still matches the latest select generation. */
 export function shouldApplyDeferredDrawerPresent(input: {
   scheduledGeneration: number;

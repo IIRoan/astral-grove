@@ -5,6 +5,8 @@ import {
   CollectionAdjustRequest,
   CollectionAuditListQuery,
   CollectionAuditListResponse,
+  CollectionActivityHistoryRequest,
+  CollectionActivityHistoryResponse,
   CollectionBatchSyncRequest,
   CollectionBatchSyncResponse,
   CollectionDeleteQuery,
@@ -26,6 +28,7 @@ import type { CollectionItem as CollectionItemDto } from '@riftbound/contracts';
 import type { Auth } from '../auth.js';
 import type { Database } from '../db/client.js';
 import { COLLECTION_LIVE_HEARTBEAT_MS } from '../lib/http-listen.js';
+import { setApiError, validationErrorResponse } from '../lib/api-error.js';
 import { logActionFailure } from '../lib/logger.js';
 import { mergeRequestBody, parseRequest } from '../lib/request-validation.js';
 import { getSessionUser, unauthorized } from '../lib/session.js';
@@ -233,6 +236,25 @@ export function createCollectionRoutes(
         const { variantNumbers } = parseRequest(CollectionVariantNumbersRequest, body);
         const rows = await audit.recentAddsForVariants(collectionId, variantNumbers);
         return CollectionRecentAddsResponse.parse({ data: rows });
+      }
+    )
+    .post(
+      '/activity-history',
+      { detail: { tags: ['collection'] } },
+      async ({ request, set, body }) => {
+        const user = await getSessionUser(auth, request.headers);
+        if (!user) {
+          set.status = 401;
+          return unauthorized();
+        }
+        const input = CollectionActivityHistoryRequest.safeParse(body);
+        if (!input.success) {
+          return setApiError(set, validationErrorResponse());
+        }
+        const { collectionId } = await ensureCollectionMembership(db, user.id);
+        return CollectionActivityHistoryResponse.parse(
+          await audit.activityHistoryForVariants(collectionId, input.data)
+        );
       }
     )
     .get('/events', { detail: { tags: ['collection'] } }, async ({ request, set }) => {

@@ -14,6 +14,7 @@ export function recentAddsQueryCoversVariant(
   queryKey: readonly unknown[],
   variantNumber: string
 ): boolean {
+  if (queryKey.length !== 3) return false;
   if (queryKey[0] !== 'collection' || queryKey[1] !== 'recent-adds') return false;
   const encoded = queryKey[2];
   if (typeof encoded !== 'string' || encoded.length === 0) return false;

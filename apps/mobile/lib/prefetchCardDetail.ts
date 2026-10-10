@@ -29,7 +29,7 @@ let flushChain: Promise<void> = Promise.resolve();
 
 function prefetchCardImage(item: CardListItem): void {
   // Tiles paint ?w=160 first — warm that URI or cells still shimmer while full loads.
-  prefetchCatalogArt([item], { limit: 1, includeFull: true });
+  prefetchCatalogArt([item], { limit: 1 });
 }
 
 const LIST_PLACEHOLDER_HASH = 'list-placeholder';

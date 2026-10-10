@@ -4,9 +4,46 @@ import {
   CollectionAuditEvent,
   CollectionAuditListQuery,
   CollectionAuditListResponse,
+  CollectionActivityHistoryRequest,
+  CollectionActivityHistoryResponse,
   CollectionRecentAddsResponse,
   takeRecentCollectionActivity,
 } from './collection-audit.js';
+
+describe('collection activity history pagination', () => {
+  test('defaults to twenty events and bounds page size', () => {
+    expect(
+      CollectionActivityHistoryRequest.parse({ variantNumbers: ['OGN-001'] }).limit
+    ).toBe(20);
+    for (const limit of [0, 51, 1.5]) {
+      expect(
+        CollectionActivityHistoryRequest.safeParse({
+          variantNumbers: ['OGN-001'],
+          limit,
+        }).success
+      ).toBe(false);
+    }
+  });
+
+  test('preserves a precise timestamp and event ID in the cursor', () => {
+    const cursor = {
+      at: '2026-10-09T12:00:00.123456Z',
+      id: '11111111-1111-4111-8111-111111111111',
+    };
+    expect(
+      CollectionActivityHistoryRequest.parse({
+        variantNumbers: ['OGN-001'],
+        cursor,
+      }).cursor
+    ).toEqual(cursor);
+    expect(
+      CollectionActivityHistoryResponse.parse({
+        data: [],
+        meta: { hasMore: false, nextCursor: null },
+      }).meta.nextCursor
+    ).toBeNull();
+  });
+});
 
 describe('CollectionAuditAction', () => {
   test('accepts known mutation actions', () => {

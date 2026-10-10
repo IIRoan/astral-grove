@@ -29,6 +29,7 @@ import {
 import { searchCatalogItems } from '@/utils/catalogSearch';
 import {
   catalogFiltersToQuery,
+  catalogFilterNeedsOwnership,
   DEFAULT_CATALOG_FILTERS,
   matchesCatalogFilters,
   type CatalogFilters,
@@ -39,12 +40,14 @@ import { DEFAULT_CATALOG_SORT, type CatalogSort } from '@/constants/catalogSort'
 
 const DEBOUNCE_MS = 150;
 const STALE_MS = 5 * 60 * 1000;
+const EMPTY_OWNERSHIP: ReadonlyMap<string, { quantity: number }> = new Map();
 
 export function useCardSearch(
   query: string,
   sort: CatalogSort = DEFAULT_CATALOG_SORT,
   pageSize = 40,
-  filters: CatalogFilters = DEFAULT_CATALOG_FILTERS
+  filters: CatalogFilters = DEFAULT_CATALOG_FILTERS,
+  collectionByVariant: ReadonlyMap<string, { quantity: number }> = EMPTY_OWNERSHIP
 ) {
   const trimmed = query.trim();
   const debouncedApiTerm = useDebounce(trimmed, DEBOUNCE_MS);
@@ -66,7 +69,11 @@ export function useCardSearch(
     setImmediateTerm(null);
   }
 
-  const apiEnabled = activeApiTerm.length >= MIN_SEARCH_LENGTH;
+  const needsOwnership = catalogFilterNeedsOwnership(filters.collection);
+  const ownershipForFilter = needsOwnership ? collectionByVariant : EMPTY_OWNERSHIP;
+  // Ownership must filter the full index, not an arbitrary page of server matches.
+  const apiEnabled =
+    activeApiTerm.length >= MIN_SEARCH_LENGTH && !(indexReady && needsOwnership);
   const instantCacheForTerm =
     instantCache?.term === activeApiTerm ? instantCache.response : null;
 
@@ -105,10 +112,10 @@ export function useCardSearch(
   const localSearchPool = useMemo(() => {
     if (!hasQuery || !indexReady) return [];
     const filtered = catalogItems.filter((card) =>
-      matchesCatalogFilters(card, filters, new Map(), { colorMode: 'within' })
+      matchesCatalogFilters(card, filters, ownershipForFilter)
     );
     return searchCatalogItems(filtered, trimmed, sort);
-  }, [hasQuery, indexReady, catalogItems, filters, trimmed, sort]);
+  }, [hasQuery, indexReady, catalogItems, filters, ownershipForFilter, trimmed, sort]);
 
   const localPageResult = useMemo(
     () => paginateLocalCardSearch(localSearchPool, localPage, pageSize),
@@ -135,7 +142,9 @@ export function useCardSearch(
       const response = await api.listCards(params);
       const normalized = normalizeCardsListResponse(response);
       if (pageParam === 1) {
-        await cacheSearchResults(activeApiTerm, cacheScope, normalized);
+        void cacheSearchResults(activeApiTerm, cacheScope, normalized).catch(
+          () => undefined
+        );
       }
       return normalized;
     },
@@ -261,6 +270,7 @@ export function useCardSearch(
         : (instantCacheForTerm?.meta ?? lastPage?.meta ?? firstPage?.meta),
     isLoading:
       hasQuery &&
+      apiEnabled &&
       !hasInstantResults &&
       !hasApiResults &&
       localLoadedItems.length === 0 &&

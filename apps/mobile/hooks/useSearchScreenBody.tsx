@@ -197,22 +197,7 @@ export function useSearchScreenBody(): React.ReactElement {
     [numColumns, view, catalogViewportHeight, tileWidth, compact]
   );
 
-  const {
-    debouncedQuery,
-    items,
-    isLoading,
-    isFetching,
-    isError,
-    minLength,
-    searchNow,
-    hasNextPage: searchHasNextPage,
-    isFetchingNextPage: searchIsFetchingNextPage,
-    fetchNextPage: fetchNextSearchPage,
-  } = useCardSearch(activeSearchQuery, catalogSort, pageSize, catalogFilters);
-
   const trimmedQuery = activeSearchQuery.trim();
-  const hasSearchInput = trimmedQuery.length >= minLength;
-  const searchPending = hasSearchInput && trimmedQuery !== debouncedQuery;
   const ownershipVariantSetRef = useRef(new Set<string>());
   const ownershipFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ownershipRevision, setOwnershipRevision] = useState(0);
@@ -266,6 +251,27 @@ export function useSearchScreenBody(): React.ReactElement {
     }
     return ownedMap;
   }, [ownedFilterActive, collectionEntries, collectionByVariant]);
+
+  const {
+    debouncedQuery,
+    items,
+    isLoading,
+    isFetching,
+    isError,
+    minLength,
+    searchNow,
+    hasNextPage: searchHasNextPage,
+    isFetchingNextPage: searchIsFetchingNextPage,
+    fetchNextPage: fetchNextSearchPage,
+  } = useCardSearch(
+    activeSearchQuery,
+    catalogSort,
+    pageSize,
+    catalogFilters,
+    filterOwnership
+  );
+  const hasSearchInput = trimmedQuery.length >= minLength;
+  const searchPending = hasSearchInput && trimmedQuery !== debouncedQuery;
 
   const browseCatalog = useCatalogBrowseInfinite(
     pageSize,
@@ -392,7 +398,6 @@ export function useSearchScreenBody(): React.ReactElement {
     lastArtWarmIndexRef.current = -1;
     prefetchCatalogArt(displayItems.slice(0, pageSize), {
       limit: pageSize,
-      includeFull: true,
     });
   }, [displayItems, pageSize, queryClient]);
 
@@ -632,7 +637,7 @@ export function useSearchScreenBody(): React.ReactElement {
       }
       lastArtWarmIndexRef.current = warmStart;
       const upcoming = displayItemsRef.current.slice(warmStart, warmStart + lookahead);
-      prefetchCatalogArt(upcoming, { limit: lookahead, includeFull: true });
+      prefetchCatalogArt(upcoming, { limit: lookahead });
     },
     [compact, displayItemsRef, isList, maybePrefetchCatalog, numColumns, tileWidth]
   );

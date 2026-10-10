@@ -300,7 +300,16 @@ function ModalInfoPanel({
         </Text>
       ) : null}
 
-      {showCollectionActions ? <CollectionAddLog events={events} /> : null}
+      {showCollectionActions ? (
+        <CollectionAddLog
+          key={card.id}
+          events={events}
+          variantNumbers={getCollectionActivityVariantNumbers(
+            card.variants,
+            activeVariant
+          )}
+        />
+      ) : null}
 
       <Stack gap="md">
         <Stack direction="row" className="flex-wrap items-center gap-x-4 gap-y-2">

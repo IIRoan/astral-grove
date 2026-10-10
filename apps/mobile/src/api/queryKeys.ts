@@ -36,6 +36,13 @@ export const collectionQueryKeys = {
   recentAdds: (variantNumbers: string[]) =>
     ['collection', 'recent-adds', [...variantNumbers].sort().join(',')] as const,
   recentAddsRoot: ['collection', 'recent-adds'] as const,
+  activityHistory: (variantNumbers: readonly string[]) =>
+    [
+      'collection',
+      'recent-adds',
+      [...variantNumbers].sort().join(','),
+      'history',
+    ] as const,
   share: ['collection', 'share'] as const,
 };
 

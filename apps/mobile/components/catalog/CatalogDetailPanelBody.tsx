@@ -250,7 +250,15 @@ export function CatalogDetailPanelBody({
       printingRows={printingRows}
       addedLog={
         hideCollectionActions ? null : (
-          <CollectionAddLog events={events} className="px-3 py-2.5" />
+          <CollectionAddLog
+            key={card.id}
+            events={events}
+            variantNumbers={getCollectionActivityVariantNumbers(
+              card.variants,
+              activeVariant
+            )}
+            className="px-3 py-2.5"
+          />
         )
       }
       statsRow={statsRow}

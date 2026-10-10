@@ -8,10 +8,11 @@ import {
 } from 'bun:test';
 import {
   CollectionAuditListResponse,
+  CollectionActivityHistoryResponse,
   CollectionItemResponse,
   CollectionRecentAddsResponse,
 } from '@riftbound/contracts';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { authFetch, cleanupTestUsers, signUpTestUser } from './helpers/auth.js';
 import { getContext } from './support.js';
 import { collectionAuditEvents, collectionMembers } from '../../src/db/schema.js';
@@ -158,5 +159,82 @@ describe('collection audit trail', () => {
   test('rejects unauthenticated audit reads', async () => {
     const res = await authFetch('/api/v1/collection/audit');
     expect(res.status).toBe(401);
+  });
+
+  test('pages older card activity without losing timestamp ties or leaking another collection', async () => {
+    const { db } = getContext();
+    const [membership] = await db
+      .select()
+      .from(collectionMembers)
+      .where(eq(collectionMembers.userId, userId))
+      .limit(1);
+    const variantNumber = `history-${stamp}`;
+    const ids = Array.from({ length: 5 }, () => crypto.randomUUID())
+      .sort()
+      .reverse();
+    await db.insert(collectionAuditEvents).values(
+      ids.map((id, index) => ({
+        id,
+        collectionId: membership!.collectionId,
+        actorUserId: userId,
+        action: index % 2 === 0 ? 'add' : 'remove',
+        variantNumber,
+        isFoil: index % 2 === 0,
+        quantityBefore: 2,
+        quantityAfter: index % 2 === 0 ? 3 : 1,
+        quantityDelta: index % 2 === 0 ? 1 : -1,
+        createdAt: sql`'2026-10-09T12:00:00.123456Z'::timestamptz`,
+      }))
+    );
+
+    const seen: string[] = [];
+    let cursor: { at: string; id: string } | null = null;
+    do {
+      const response = await authFetch('/api/v1/collection/activity-history', {
+        method: 'POST',
+        cookie,
+        body: JSON.stringify({
+          variantNumbers: [variantNumber],
+          limit: 2,
+          ...(cursor ? { cursor } : {}),
+        }),
+      });
+      expect(response.status).toBe(200);
+      const page = CollectionActivityHistoryResponse.parse(await response.json());
+      seen.push(...page.data.map((event) => event.id));
+      expect(page.meta.hasMore).toBe(page.meta.nextCursor !== null);
+      cursor = page.meta.nextCursor;
+      if (cursor) expect(cursor.at).toBe('2026-10-09T12:00:00.123456Z');
+    } while (cursor && seen.length < 10);
+    expect(seen).toEqual(ids);
+
+    const otherCookie = await signUpTestUser({
+      email: `test-db-coll-audit-other-${stamp}@test.riftbound.dev`,
+      password,
+      name: 'Other collector',
+    });
+    const otherResponse = await authFetch('/api/v1/collection/activity-history', {
+      method: 'POST',
+      cookie: otherCookie,
+      body: JSON.stringify({ variantNumbers: [variantNumber] }),
+    });
+    expect(otherResponse.status).toBe(200);
+    expect(
+      CollectionActivityHistoryResponse.parse(await otherResponse.json()).data
+    ).toEqual([]);
+  });
+
+  test('rejects unauthenticated history reads and oversized pages', async () => {
+    const response = await authFetch('/api/v1/collection/activity-history', {
+      method: 'POST',
+      body: JSON.stringify({ variantNumbers: ['OGN-001'] }),
+    });
+    expect(response.status).toBe(401);
+    const invalid = await authFetch('/api/v1/collection/activity-history', {
+      method: 'POST',
+      cookie,
+      body: JSON.stringify({ variantNumbers: ['OGN-001'], limit: 51 }),
+    });
+    expect(invalid.status).toBe(422);
   });
 });

@@ -116,7 +116,15 @@ export function CardDetailPage({
         ) : null}
       </View>
 
-      <CollectionAddLog events={events} className="mx-8 mb-2" />
+      <CollectionAddLog
+        key={card.id}
+        events={events}
+        variantNumbers={getCollectionActivityVariantNumbers(
+          card.variants,
+          activeVariant
+        )}
+        className="mx-8 mb-2"
+      />
 
       <View className="mx-8 mb-4 flex-row overflow-hidden rounded-[10px] bg-card">
         <CardStat label="Cost">

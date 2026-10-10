@@ -41,6 +41,26 @@ describe('recentAddsQueryCoversVariant', () => {
 });
 
 describe('prependRecentActivity', () => {
+  test('preserves paginated history while updating the compact preview', () => {
+    const client = new QueryClient();
+    const historyKey = collectionQueryKeys.activityHistory(['OGN-001']);
+    const history = { pages: [{ data: [] }], pageParams: [null] };
+    client.setQueryData(historyKey, history);
+    const previewKey = collectionQueryKeys.recentAdds(['OGN-001']);
+    client.setQueryData(previewKey, []);
+    const incoming = createOptimisticActivityEvent({
+      delta: 1,
+      quantityAfter: 1,
+      isFoil: false,
+      actor,
+    });
+
+    prependRecentActivity(client, 'OGN-001', incoming);
+
+    expect(client.getQueryData(historyKey)).toEqual(history);
+    expect(client.getQueryData(previewKey)).toEqual([incoming]);
+  });
+
   test('inserts newest first and keeps three lines', () => {
     const client = new QueryClient();
     const key = collectionQueryKeys.recentAdds(['OGN-001', 'OGN-002']);

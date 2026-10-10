@@ -25,7 +25,11 @@ export function useOwnershipMap(options?: {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     enabled,
+    subscribed: enabled,
   });
 
-  return useMemo(() => (data ? ownershipMapFromRecord(data) : EMPTY_MAP), [data]);
+  return useMemo(
+    () => (enabled && data ? ownershipMapFromRecord(data) : EMPTY_MAP),
+    [enabled, data]
+  );
 }
