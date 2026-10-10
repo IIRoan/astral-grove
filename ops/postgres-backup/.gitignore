@@ -1,0 +1,5 @@
+__pycache__/
+*.agekey
+*.pgdump
+*.age
+*.env

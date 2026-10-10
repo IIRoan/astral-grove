@@ -3,7 +3,8 @@ import { eq, inArray, isNull, sql } from 'drizzle-orm';
 import { PriceStatsBatchResponse, SyncPricesResponse } from '@riftbound/contracts';
 import { CardmarketIdBackfillService } from '../../src/services/cardmarket-id-backfill.js';
 import { adminAuthHeaders, apiJson, getContext, getEnv } from './support.js';
-import { variants } from '../../src/db/schema.js';
+import { fetchCardmarketProductCatalog } from '../../src/upstream/cardmarket-products.js';
+import { cards, variants } from '../../src/db/schema.js';
 
 setDefaultTimeout(300_000);
 
@@ -60,11 +61,17 @@ describe('Cardmarket id backfill (e2e)', () => {
   test('catalog has a Cardmarket product id on every variant after backfill', async () => {
     const { db } = getContext();
     const missing = await db
-      .select({ variantNumber: variants.variantNumber })
+      .select({ variantNumber: variants.variantNumber, cardName: cards.name })
       .from(variants)
+      .innerJoin(cards, eq(variants.cardId, cards.id))
       .where(isNull(variants.cardmarketId));
-    const missingNumbers = missing.map((row) => row.variantNumber).sort();
-    // New sets often land in PA days before Cardmarket has product SKUs.
+    // New sets land in PA days before Cardmarket lists them, so only cards Cardmarket knows can be mapped.
+    const catalog = await fetchCardmarketProductCatalog(getEnv().CARDMARKET_GAME_ID);
+    const listedNames = new Set(catalog.products.map((p) => p.name.toLowerCase()));
+    const missingNumbers = missing
+      .filter((row) => listedNames.has(row.cardName.toLowerCase()))
+      .map((row) => row.variantNumber)
+      .sort();
     if (missingNumbers.length > 0) {
       console.warn(
         `[e2e] variants still missing Cardmarket ids: ${missingNumbers.join(', ')}`
