@@ -317,7 +317,9 @@ describe('feature', () => {
 ## Database & migrations
 
 ```bash
-bun run db:up          # docker compose up postgres (port 5433)
+bun run db             # local Postgres with logs (port 5433)
+bun run db -d          # local Postgres in the background
+bun run db:down        # stop local Postgres; keep its data volume
 bun run db:migrate     # drizzle-kit migrate (apps/api)
 bun run db:generate    # generate migration from schema changes
 bun run db:studio      # Drizzle Studio

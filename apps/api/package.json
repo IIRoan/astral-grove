@@ -23,12 +23,12 @@
     "test:e2e": "bun test --preload ./test/e2e/preload.ts --max-concurrency=1 test/e2e"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "^1.6.23",
-    "@better-auth/expo": "^1.6.23",
+    "@better-auth/drizzle-adapter": "^1.7.7",
+    "@better-auth/expo": "^1.7.7",
     "@elysia/compress": "2.0.0-beta.2",
     "@elysia/cors": "2.0.0-beta.1",
     "@riftbound/contracts": "workspace:*",
-    "better-auth": "^1.6.23",
+    "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.3",
     "elysia": "2.0.0-beta.19",
     "exact-mirror": "^1.2.6",

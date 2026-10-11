@@ -7,6 +7,7 @@ import {
   FilterOptionChip,
 } from '@/components/filters/MobileFilterSheet';
 import { FilterToggleRow } from '@/components/filters/FilterPrimitives';
+import { SetFilterOptions } from '@/components/filters/SetFilterOptions';
 import { SearchInput } from '@/components/ui/search-input';
 import { Text } from '@/components/ui/text';
 import { type DeckBrowseFilters } from '@/constants/deckBrowse';
@@ -155,41 +156,14 @@ export function DeckBrowseFilterSegmentPanel({
           </View>
         );
       }
-      if (setOptions.length === 0) {
-        return (
-          <Text className="py-6 text-center text-sm text-muted-foreground">
-            No set filters available.
-          </Text>
-        );
-      }
-      if (isMobile) {
-        return (
-          <FilterChipGrid>
-            {setOptions.map((set) => (
-              <FilterOptionChip
-                key={set.code}
-                label={set.code}
-                active={selectedSets.has(set.code)}
-                onPress={() => toggleSet(set.code)}
-                accessibilityLabel={`${set.name} (${set.code})`}
-              />
-            ))}
-          </FilterChipGrid>
-        );
-      }
       return (
-        <View className="gap-0.5">
-          {setOptions.map((set) => (
-            <FilterToggleRow
-              key={set.code}
-              label={set.name}
-              subtitle={`${set.code} · ${set.count.toLocaleString()} printings`}
-              active={selectedSets.has(set.code)}
-              onPress={() => toggleSet(set.code)}
-              compact={compact}
-            />
-          ))}
-        </View>
+        <SetFilterOptions
+          options={setOptions}
+          selectedSets={selectedSets}
+          onToggle={toggleSet}
+          compact={compact}
+          presentation={presentation}
+        />
       );
     case 'legality':
       if (isMobile) {

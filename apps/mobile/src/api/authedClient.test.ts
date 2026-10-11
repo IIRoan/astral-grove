@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 process.env.EXPO_PUBLIC_API_URL = 'http://localhost:7000';
 
-const getAuthCookieHeader = mock(() => 'better-auth.session_token=test-session');
+const getAuthCookieHeader = mock(async () => 'better-auth.session_token=test-session');
 
 mock.module('@/lib/auth-cookie', () => ({
   getAuthCookieHeader,

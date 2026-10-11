@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import type ExpoSecureStore from 'expo-secure-store';
 
-/** better-auth sync storage: web=localStorage; native=SecureStore + memory cache (call hydrateSecureStorage on start). */
+/** Better Auth storage: web=localStorage; native=SecureStore + memory cache (hydrate on start). */
 
 const CHUNK_MARKER = 'ba-chunks:';
 const KNOWN_KEYS = ['astral-grove_cookie', 'astral-grove_session_data'];
@@ -53,6 +53,15 @@ export const secureStorage = {
     return cache.get(key) ?? null;
   },
 
+  async getItemAsync(key: string): Promise<string | null> {
+    if (isWeb) return webGetItem(key);
+    if (cache.has(key)) return cache.get(key) ?? null;
+    const value = (await SecureStore?.getItemAsync(key)) ?? null;
+    if (cache.has(key)) return cache.get(key) ?? null;
+    if (value !== null) cache.set(key, value);
+    return value;
+  },
+
   setItem(key: string, value: string): void {
     if (isWeb) {
       webSetItem(key, value);
@@ -62,6 +71,15 @@ export const secureStorage = {
     if (SecureStore) {
       void SecureStore.setItemAsync(key, value);
     }
+  },
+
+  async setItemAsync(key: string, value: string): Promise<void> {
+    if (isWeb) {
+      webSetItem(key, value);
+      return;
+    }
+    cache.set(key, value);
+    await SecureStore?.setItemAsync(key, value);
   },
 
   removeItem(key: string): void {

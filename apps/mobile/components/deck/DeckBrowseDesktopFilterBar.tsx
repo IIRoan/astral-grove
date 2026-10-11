@@ -34,7 +34,7 @@ export function DeckBrowseDesktopFilterBar({
         label: segment.label,
         hasValue: deckBrowseFilterSegmentActive(segment.id, filters),
         contentClassName: segment.id === 'legends' ? 'w-[300px]' : undefined,
-        maxHeight: segment.id === 'legends' ? 360 : 280,
+        maxHeight: segment.id === 'sets' ? 420 : segment.id === 'legends' ? 360 : 280,
         children: (
           <DeckBrowseFilterSegmentPanel
             segment={segment.id}

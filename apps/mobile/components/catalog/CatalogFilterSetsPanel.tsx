@@ -1,10 +1,4 @@
-import { View } from 'react-native';
-import {
-  FilterChipGrid,
-  FilterOptionChip,
-} from '@/components/filters/MobileFilterSheet';
-import { FilterToggleRow } from '@/components/filters/FilterPrimitives';
-import { Text } from '@/components/ui/text';
+import { SetFilterOptions } from '@/components/filters/SetFilterOptions';
 import {
   toggleCatalogFilterValue,
   type CatalogFilterSegmentCommonProps,
@@ -27,46 +21,15 @@ export function CatalogFilterSetsPanel({
   setOptions: SetOption[];
   selectedSets: Set<string>;
 }) {
-  if (setOptions.length === 0) {
-    return (
-      <Text className="py-6 text-center text-sm text-archive-subtle">
-        No set filters available.
-      </Text>
-    );
-  }
-
-  if (presentation === 'mobile') {
-    return (
-      <FilterChipGrid>
-        {setOptions.map((set) => (
-          <FilterOptionChip
-            key={set.code}
-            label={set.code}
-            active={selectedSets.has(set.code)}
-            onPress={() =>
-              onUpdate({ sets: toggleCatalogFilterValue(filters.sets, set.code) })
-            }
-            accessibilityLabel={`${set.name} (${set.code})`}
-          />
-        ))}
-      </FilterChipGrid>
-    );
-  }
-
   return (
-    <View className="gap-0.5">
-      {setOptions.map((set) => (
-        <FilterToggleRow
-          key={set.code}
-          label={set.name}
-          subtitle={`${set.code} · ${set.count.toLocaleString()} printings`}
-          active={selectedSets.has(set.code)}
-          onPress={() =>
-            onUpdate({ sets: toggleCatalogFilterValue(filters.sets, set.code) })
-          }
-          compact={compact}
-        />
-      ))}
-    </View>
+    <SetFilterOptions
+      options={setOptions}
+      selectedSets={selectedSets}
+      onToggle={(code) =>
+        onUpdate({ sets: toggleCatalogFilterValue(filters.sets, code) })
+      }
+      compact={compact}
+      presentation={presentation}
+    />
   );
 }

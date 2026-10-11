@@ -36,6 +36,6 @@ export default defineConfig({
   dbCredentials: {
     url:
       process.env.DATABASE_URL ??
-      'postgres://postgres:postgres@localhost:5432/riftbound',
+      'postgres://riftbound:riftbound@localhost:5433/riftbound',
   },
 });

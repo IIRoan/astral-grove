@@ -13,6 +13,7 @@ import {
 } from 'react';
 import {
   type GestureResponderEvent,
+  Platform,
   Pressable,
   View,
   type ViewProps,
@@ -314,6 +315,7 @@ export const AccordionTrigger = ({
     <Comp
       accessibilityRole="button"
       accessibilityState={{ expanded: item.isOpen }}
+      {...(Platform.OS === 'web' ? { 'aria-expanded': item.isOpen } : null)}
       className={cn(
         'flex flex-row items-center justify-between gap-2 bg-card px-3 py-3 active:opacity-75',
         className

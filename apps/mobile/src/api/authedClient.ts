@@ -20,14 +20,16 @@ export class RemoteApiError extends Error {
   }
 }
 
-function authHeaders(extra?: Record<string, string>): Record<string, string> {
+async function authHeaders(
+  extra?: Record<string, string>
+): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
     ...extra,
   };
 
   if (!isBrowserRuntime) {
-    const cookie = getAuthCookieHeader();
+    const cookie = await getAuthCookieHeader();
     if (cookie) headers.cookie = cookie;
   }
 
@@ -44,7 +46,7 @@ export async function authedFetch<T>(
   }
 ): Promise<T> {
   const method = init?.method ?? 'GET';
-  const headers = authHeaders({
+  const headers = await authHeaders({
     ...(init?.body == null ? {} : { 'Content-Type': 'application/json' }),
     ...init?.headers,
   });
@@ -89,7 +91,7 @@ export async function authedFetchText(
   init?: { method?: string; accept?: string }
 ): Promise<string> {
   const method = init?.method ?? 'GET';
-  const headers = authHeaders({
+  const headers = await authHeaders({
     Accept: init?.accept ?? 'text/plain',
   });
 

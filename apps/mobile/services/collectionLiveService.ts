@@ -11,12 +11,12 @@ import { Platform } from 'react-native';
 
 const isBrowserRuntime = typeof document !== 'undefined';
 
-function authHeaders(): Record<string, string> {
+async function authHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     Accept: 'text/event-stream',
   };
   if (!isBrowserRuntime) {
-    const cookie = getAuthCookieHeader();
+    const cookie = await getAuthCookieHeader();
     if (cookie) headers.cookie = cookie;
   }
   return headers;
@@ -51,7 +51,7 @@ export async function subscribeCollectionLiveEvents(options: {
     res = await fetch(url, {
       method: 'GET',
       credentials: 'include',
-      headers: authHeaders(),
+      headers: await authHeaders(),
       signal: options.signal,
     });
   } catch (error) {
