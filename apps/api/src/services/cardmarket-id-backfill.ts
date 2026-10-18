@@ -1,9 +1,10 @@
-import { count, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { count, eq, isNull, sql } from 'drizzle-orm';
 import type { PaLogicalCard, PaVariant } from '@riftbound/contracts';
 import type { Database } from '../db/client.js';
 import { cards, prices, sets, variants } from '../db/schema.js';
 import {
   buildSetExpansionMap,
+  inferExpansionId,
   matchUnmappedVariantsToProducts,
   type VariantForCardmarketMatch,
 } from '../lib/cardmarket-id-match.js';
@@ -31,7 +32,7 @@ function chunk<T>(items: T[], size: number): T[][] {
   return batches;
 }
 
-interface UnmappedVariantRow {
+interface VariantRow {
   id: string;
   cardId: string;
   variantNumber: string;
@@ -40,6 +41,8 @@ interface UnmappedVariantRow {
   rarity: string;
   cardName: string;
   setCode: string;
+  cardmarketId: number | null;
+  upstreamCardmarketId: number | null;
 }
 
 function groupBy<T>(items: T[], keyFn: (item: T) => string): Map<string, T[]> {
@@ -78,25 +81,7 @@ export class CardmarketIdBackfillService {
       product.name.toLowerCase()
     );
 
-    const mappedRows = await this.db
-      .select({
-        setCode: sets.code,
-        cardmarketId: variants.cardmarketId,
-      })
-      .from(variants)
-      .innerJoin(sets, eq(variants.setId, sets.id))
-      .where(isNotNull(variants.cardmarketId));
-
-    const setExpansionMap = buildSetExpansionMap(
-      mappedRows.flatMap((row) =>
-        row.cardmarketId == null
-          ? []
-          : [{ setCode: row.setCode, cardmarketId: row.cardmarketId }]
-      ),
-      productsById
-    );
-
-    const unmapped = await this.db
+    const catalogVariants = await this.db
       .select({
         id: variants.id,
         cardId: variants.cardId,
@@ -106,28 +91,65 @@ export class CardmarketIdBackfillService {
         rarity: variants.rarity,
         cardName: cards.name,
         setCode: sets.code,
+        cardmarketId: variants.cardmarketId,
+        upstreamCardmarketId: sql<
+          number | null
+        >`(${variants.upstreamRaw}->>'cardmarketId')::integer`,
       })
       .from(variants)
       .innerJoin(cards, eq(variants.cardId, cards.id))
-      .innerJoin(sets, eq(variants.setId, sets.id))
-      .where(isNull(variants.cardmarketId));
+      .innerJoin(sets, eq(variants.setId, sets.id));
 
-    const mappedOnCard = await this.db
-      .select({
-        cardId: variants.cardId,
-        variantNumber: variants.variantNumber,
-        cardmarketId: variants.cardmarketId,
-      })
-      .from(variants)
-      .where(isNotNull(variants.cardmarketId));
+    const setExpansionMap = buildSetExpansionMap(
+      catalogVariants.flatMap((row) =>
+        row.cardmarketId == null
+          ? []
+          : [{ setCode: row.setCode, cardmarketId: row.cardmarketId }]
+      ),
+      productsById
+    );
+
+    const upstreamExpansionMap = buildSetExpansionMap(
+      catalogVariants.flatMap((row) =>
+        row.upstreamCardmarketId == null || row.variantType === 'Promo'
+          ? []
+          : [{ setCode: row.setCode, cardmarketId: row.upstreamCardmarketId }]
+      ),
+      productsById
+    );
+    for (const [setCode, setVariants] of groupBy(
+      catalogVariants,
+      (row) => row.setCode
+    )) {
+      const expansionId =
+        upstreamExpansionMap.get(setCode) ??
+        inferExpansionId(setVariants, productsByExpansion) ??
+        setExpansionMap.get(setCode);
+      if (expansionId != null) setExpansionMap.set(setCode, expansionId);
+    }
+
+    const unmapped = catalogVariants.filter((row) => {
+      if (row.cardmarketId == null) return true;
+      if (row.upstreamCardmarketId != null || row.variantType === 'Promo') return false;
+      const expansionId = setExpansionMap.get(row.setCode);
+      const product = productsById.get(row.cardmarketId);
+      // Revisit older name-only backfills when their product belongs to another set.
+      return (
+        expansionId != null &&
+        product != null &&
+        product.name.toLowerCase() === row.cardName.toLowerCase() &&
+        product.idExpansion !== expansionId
+      );
+    });
+    const pendingIds = new Set(unmapped.map((row) => row.id));
 
     const reservedIdsByCardId = new Map<string, Set<number>>();
     const mappedVariantsByCardId = new Map<
       string,
       { variantNumber: string; cardmarketId: number }[]
     >();
-    for (const row of mappedOnCard) {
-      if (row.cardmarketId == null) continue;
+    for (const row of catalogVariants) {
+      if (row.cardmarketId == null || pendingIds.has(row.id)) continue;
       const reserved = reservedIdsByCardId.get(row.cardId) ?? new Set<number>();
       reserved.add(row.cardmarketId);
       reservedIdsByCardId.set(row.cardId, reserved);
@@ -144,33 +166,47 @@ export class CardmarketIdBackfillService {
     const assignments = new Map<string, number>();
 
     const bySet = groupBy(unmapped, (row) => row.setCode);
-    for (const [, setVariants] of bySet) {
+    for (const [setCode, setVariants] of bySet) {
+      const expansionId = setExpansionMap.get(setCode);
       const byCard = groupBy(setVariants, (row) => row.cardId);
-      for (const cardVariants of byCard.values()) {
-        const cardName = cardVariants[0]?.cardName;
-        if (!cardName) continue;
-        const products = productsByNameGlobal.get(cardName.toLowerCase()) ?? [];
-        if (products.length === 0) continue;
-
-        const cardId = cardVariants[0]!.cardId;
-        const reservedProductIds = reservedIdsByCardId.get(cardId) ?? new Set<number>();
-        const foilBaseProductId = resolveFoilBaseProductId(
-          cardVariants,
-          mappedVariantsByCardId.get(cardId) ?? []
+      for (const pendingCardVariants of byCard.values()) {
+        const regular = pendingCardVariants.filter(
+          (row) => row.variantType !== 'Promo'
         );
+        const promos = pendingCardVariants.filter((row) => row.variantType === 'Promo');
+        for (const cardVariants of [regular, promos]) {
+          const first = cardVariants[0];
+          if (!first) continue;
+          const products = (
+            productsByNameGlobal.get(first.cardName.toLowerCase()) ?? []
+          ).filter(
+            (product) =>
+              first.variantType === 'Promo' || product.idExpansion === expansionId
+          );
+          if (products.length === 0) continue;
 
-        const matches = matchUnmappedVariantsToProducts(
-          cardVariants.map(toMatchVariant),
-          products,
-          reservedProductIds,
-          priceRankByProduct,
-          foilBaseProductId
-        );
+          const reservedProductIds =
+            reservedIdsByCardId.get(first.cardId) ?? new Set<number>();
+          const foilBaseProductId = resolveFoilBaseProductId(
+            cardVariants,
+            mappedVariantsByCardId.get(first.cardId) ?? []
+          );
 
-        for (const variant of cardVariants) {
-          const cardmarketId = matches.get(variant.variantNumber);
-          if (cardmarketId == null) continue;
-          assignments.set(variant.id, cardmarketId);
+          const matches = matchUnmappedVariantsToProducts(
+            cardVariants.map(toMatchVariant),
+            products,
+            reservedProductIds,
+            priceRankByProduct,
+            foilBaseProductId
+          );
+
+          for (const variant of cardVariants) {
+            const cardmarketId = matches.get(variant.variantNumber);
+            if (cardmarketId == null) continue;
+            assignments.set(variant.id, cardmarketId);
+            reservedProductIds.add(cardmarketId);
+          }
+          reservedIdsByCardId.set(first.cardId, reservedProductIds);
         }
       }
     }
@@ -386,7 +422,7 @@ export class CardmarketIdBackfillService {
   }
 }
 
-function toMatchVariant(row: UnmappedVariantRow): VariantForCardmarketMatch {
+function toMatchVariant(row: VariantRow): VariantForCardmarketMatch {
   return {
     variantNumber: row.variantNumber,
     variantLabel: row.variantLabel,
@@ -396,7 +432,7 @@ function toMatchVariant(row: UnmappedVariantRow): VariantForCardmarketMatch {
 }
 
 function resolveFoilBaseProductId(
-  unmapped: UnmappedVariantRow[],
+  unmapped: VariantRow[],
   mappedSiblings: { variantNumber: string; cardmarketId: number }[]
 ): number | null {
   const foilRow = unmapped.find((row) => /-foil$/i.test(row.variantNumber));

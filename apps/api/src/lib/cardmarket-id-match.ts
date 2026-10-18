@@ -204,12 +204,13 @@ export function inferExpansionId(
 ): number | null {
   if (variants.length === 0) return null;
 
-  const cardNames = new Set(variants.map((variant) => variant.cardName));
+  const cardNames = new Set(variants.map((variant) => variant.cardName.toLowerCase()));
   let bestExpansion: number | null = null;
   let bestScore = 0;
+  let tied = false;
 
   for (const [expansionKey, products] of productsByExpansion) {
-    const productNames = new Set(products.map((product) => product.name));
+    const productNames = new Set(products.map((product) => product.name.toLowerCase()));
     let score = 0;
     for (const name of cardNames) {
       if (productNames.has(name)) score += 1;
@@ -217,6 +218,9 @@ export function inferExpansionId(
     if (score > bestScore) {
       bestScore = score;
       bestExpansion = Number(expansionKey);
+      tied = false;
+    } else if (score === bestScore) {
+      tied = true;
     }
   }
 
@@ -224,5 +228,5 @@ export function inferExpansionId(
     cardNames.size,
     Math.max(3, Math.ceil(cardNames.size * 0.5))
   );
-  return bestScore >= minimumMatches ? bestExpansion : null;
+  return !tied && bestScore >= minimumMatches ? bestExpansion : null;
 }

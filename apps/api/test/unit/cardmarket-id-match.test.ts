@@ -231,4 +231,34 @@ describe('inferExpansionId', () => {
 
     expect(expansionId).toBe(6587);
   });
+
+  test('compares upstream and Cardmarket card names case-insensitively', () => {
+    expect(
+      inferExpansionId(
+        [{ cardName: 'SERAPHINE, NOT ALONE' }, { cardName: 'Radiance anchor' }],
+        new Map([
+          ['6705', [product(904078, 'Seraphine, Not Alone', 6705)]],
+          [
+            '6659',
+            [
+              product(917339, 'Seraphine, Not Alone', 6659),
+              product(917200, 'Radiance anchor', 6659),
+            ],
+          ],
+        ])
+      )
+    ).toBe(6659);
+  });
+
+  test('does not guess an expansion when T1 and Radiance overlap equally', () => {
+    expect(
+      inferExpansionId(
+        [{ cardName: 'Seraphine, Not Alone' }],
+        new Map([
+          ['6705', [product(904078, 'Seraphine, Not Alone', 6705)]],
+          ['6659', [product(917339, 'Seraphine, Not Alone', 6659)]],
+        ])
+      )
+    ).toBeNull();
+  });
 });
