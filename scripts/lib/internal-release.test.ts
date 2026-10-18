@@ -9,7 +9,9 @@ import {
   isProfile,
   releaseKeys,
   resolveBuildPlan,
+  resolveUrl,
 } from './internal-release.ts';
+import { releaseAccessToken } from '../../apps/api/src/lib/internal-release.ts';
 
 describe('internal-release manifest', () => {
   test('escapes & in plist IPA URLs so Apple can parse the manifest', () => {
@@ -74,6 +76,8 @@ describe('combined install page', () => {
     expect(page).toContain(`href="${escapeHtml(androidApkUrl)}"`);
     expect(page).toContain('Install on iPhone');
     expect(page).toContain('Download for Android');
+    expect(page).toContain('download="astral-grove-development.apk"');
+    expect(page).toContain('open it from Downloads to install');
   });
 
   test('renders disabled rows for a platform that has no artifact yet', () => {
@@ -132,5 +136,52 @@ describe('native build plan', () => {
       true
     );
     expect(plan.every((d) => d.build)).toBe(true);
+  });
+});
+
+describe('permanent release URLs', () => {
+  test('requires a stable public base rather than falling back to expiring signatures', () => {
+    const previous = process.env.S3_PUBLIC_BASE_URL;
+    delete process.env.S3_PUBLIC_BASE_URL;
+    try {
+      expect(() => resolveUrl('releases/preview.html')).toThrow('S3_PUBLIC_BASE_URL');
+    } finally {
+      if (previous === undefined) delete process.env.S3_PUBLIC_BASE_URL;
+      else process.env.S3_PUBLIC_BASE_URL = previous;
+    }
+  });
+
+  test('uses the same permanent URL for the page, manifest, and APK', () => {
+    const previous = process.env.S3_PUBLIC_BASE_URL;
+    const previousSecret = process.env.S3_SECRET_ACCESS_KEY;
+    process.env.S3_PUBLIC_BASE_URL = 'https://riftapi.solace.onl/api/v1/';
+    process.env.S3_SECRET_ACCESS_KEY = 'test-internal-release-secret';
+    try {
+      for (const key of Object.values(releaseKeys('preview'))) {
+        const url = resolveUrl(key);
+        expect(url).toBe(
+          `https://riftapi.solace.onl/api/v1/${key}?token=${releaseAccessToken('test-internal-release-secret', key)}`
+        );
+        expect(resolveUrl(key)).toBe(url);
+        expect(new URL(url).searchParams.has('X-Amz-Expires')).toBe(false);
+      }
+    } finally {
+      if (previous === undefined) delete process.env.S3_PUBLIC_BASE_URL;
+      else process.env.S3_PUBLIC_BASE_URL = previous;
+      if (previousSecret === undefined) delete process.env.S3_SECRET_ACCESS_KEY;
+      else process.env.S3_SECRET_ACCESS_KEY = previousSecret;
+    }
+  });
+
+  test('rejects an expiring signed URL supplied as the public base', () => {
+    const previous = process.env.S3_PUBLIC_BASE_URL;
+    process.env.S3_PUBLIC_BASE_URL =
+      'https://storage.example/releases?X-Amz-Expires=604800';
+    try {
+      expect(() => resolveUrl('releases/preview.html')).toThrow('S3_PUBLIC_BASE_URL');
+    } finally {
+      if (previous === undefined) delete process.env.S3_PUBLIC_BASE_URL;
+      else process.env.S3_PUBLIC_BASE_URL = previous;
+    }
   });
 });

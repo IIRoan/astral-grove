@@ -44,10 +44,8 @@ async function main(): Promise<void> {
     client.exists(keys.apk),
   ]);
 
-  const iosInstallUrl = hasPlist
-    ? buildItmsInstallUrl(resolveUrl(client, keys.plist))
-    : null;
-  const androidApkUrl = hasApk ? resolveUrl(client, keys.apk) : null;
+  const iosInstallUrl = hasPlist ? buildItmsInstallUrl(resolveUrl(keys.plist)) : null;
+  const androidApkUrl = hasApk ? resolveUrl(keys.apk) : null;
 
   if (!iosInstallUrl && !androidApkUrl) {
     throw new Error(
@@ -66,7 +64,7 @@ async function main(): Promise<void> {
   writeFileSync(join(args.outDir, `${args.profile}.html`), pageBody, 'utf8');
   await client.write(keys.page, pageBody, { type: 'text/html; charset=utf-8' });
 
-  const pageUrl = resolveUrl(client, keys.page);
+  const pageUrl = resolveUrl(keys.page);
   const qrPath = join(args.outDir, `${args.profile}-qr.png`);
   const qrProc = Bun.spawn(['bunx', 'qrcode', '-o', qrPath, '-w', '512', pageUrl], {
     stdout: 'inherit',

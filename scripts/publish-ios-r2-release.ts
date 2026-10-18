@@ -43,6 +43,7 @@ function parseArgs(argv: string[]): {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const keys = releaseKeys(args.profile);
+  const ipaUrl = resolveUrl(keys.ipa);
   const client = createClient();
 
   const ipaFile = Bun.file(args.ipaPath);
@@ -52,7 +53,6 @@ async function main(): Promise<void> {
 
   await client.write(keys.ipa, ipaFile, { type: 'application/octet-stream' });
 
-  const ipaUrl = resolveUrl(client, keys.ipa);
   const plistBody = buildManifestPlist({
     ipaUrl,
     bundleId: args.bundleId,

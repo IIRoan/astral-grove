@@ -1,17 +1,17 @@
 import { S3Client } from 'bun';
-
-export const PROFILES = ['development', 'preview'] as const;
-export type Profile = (typeof PROFILES)[number];
-
-export const RELEASE_PREFIX = 'releases/';
-
-export const releaseKeys = (profile: Profile) => ({
-  ipa: `${RELEASE_PREFIX}${profile}.ipa`,
-  apk: `${RELEASE_PREFIX}${profile}.apk`,
-  plist: `${RELEASE_PREFIX}${profile}.plist`,
-  page: `${RELEASE_PREFIX}${profile}.html`,
-  qr: `${RELEASE_PREFIX}${profile}-qr.png`,
-});
+import {
+  PROFILES,
+  type Profile,
+  RELEASE_PREFIX,
+  releaseAccessToken,
+} from '../../apps/api/src/lib/internal-release.ts';
+export {
+  isProfile,
+  PROFILES,
+  type Profile,
+  RELEASE_PREFIX,
+  releaseKeys,
+} from '../../apps/api/src/lib/internal-release.ts';
 
 export const PLATFORMS = ['ios', 'android'] as const;
 export type Platform = (typeof PLATFORMS)[number];
@@ -30,10 +30,6 @@ export function resolveBuildPlan(
     const { current, previous } = fingerprints[platform];
     return { platform, fingerprint: current, build: force || current !== previous };
   });
-}
-
-export function isProfile(value: string | undefined): value is Profile {
-  return value !== undefined && (PROFILES as readonly string[]).includes(value);
 }
 
 export function escapeXml(value: string): string {
@@ -105,8 +101,8 @@ export function buildCombinedInstallPage(input: {
     : `<span class="btn btn-disabled" aria-disabled="true">iOS build unavailable</span>`;
 
   const androidBlock = input.androidApkUrl
-    ? `<a class="btn" href="${escapeHtml(input.androidApkUrl)}">Download for Android</a>
-        <p class="hint">Tap to download the APK, then open it to install. Allow installs from this source if prompted.</p>`
+    ? `<a class="btn" href="${escapeHtml(input.androidApkUrl)}" download="astral-grove-${escapeHtml(input.profile)}.apk">Download for Android</a>
+        <p class="hint">Open this page in Chrome or your phone's browser. Download the APK, then open it from Downloads to install. Allow installs from this browser if prompted.</p>`
     : `<span class="btn btn-disabled" aria-disabled="true">Android build unavailable</span>`;
 
   return `<!DOCTYPE html>
@@ -157,9 +153,21 @@ export function requiredEnv(name: string): string {
   return value;
 }
 
-export function publicBaseUrl(): string | null {
-  const raw = process.env.S3_PUBLIC_BASE_URL?.trim();
-  if (!raw) return null;
+export function publicBaseUrl(): string {
+  const raw = requiredEnv('S3_PUBLIC_BASE_URL');
+  const url = URL.canParse(raw) ? new URL(raw) : null;
+  if (
+    !url ||
+    url.protocol !== 'https:' ||
+    url.search ||
+    url.hash ||
+    url.username ||
+    url.password
+  ) {
+    throw new Error(
+      'S3_PUBLIC_BASE_URL must be a permanent HTTPS base URL without credentials, query parameters, or a fragment'
+    );
+  }
   return raw.replace(/\/+$/, '');
 }
 
@@ -177,13 +185,14 @@ export function createClient(): S3Client {
   });
 }
 
-// Public base gives stable URLs the combined page can point at across separate CI jobs;
-// presigned URLs are the fallback when no public base is configured.
-export function resolveUrl(client: S3Client, key: string): string {
-  const base = publicBaseUrl();
-  return base
-    ? objectUrl(base, key)
-    : client.presign(key, { expiresIn: 60 * 60 * 24 * 7, method: 'GET' });
+// Stored pages, manifests, and QR codes must only contain permanent URLs.
+export function resolveUrl(key: string): string {
+  const url = new URL(objectUrl(publicBaseUrl(), key));
+  url.searchParams.set(
+    'token',
+    releaseAccessToken(requiredEnv('S3_SECRET_ACCESS_KEY'), key)
+  );
+  return url.href;
 }
 
 export function getArg(argv: string[], flag: string): string | undefined {

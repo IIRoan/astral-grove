@@ -6,12 +6,14 @@ import { createAuth, type Auth } from './auth.js';
 import { createDb, type Database } from './db/client.js';
 import type { Env } from './env.js';
 import { resolveCorsOrigins } from './lib/trusted-origins.js';
+import { createS3Client, hasS3Config } from './lib/s3.js';
 import { createAuthPlugin } from './plugins/auth.js';
 import { errorPlugin } from './plugins/error-handler.js';
 import { createRateLimitPlugin } from './plugins/rate-limit.js';
 import { createSecurityHeadersPlugin } from './plugins/security-headers.js';
 import { createCardsRoutes } from './routes/cards.js';
 import { createImagesRoutes } from './routes/images.js';
+import { createReleasesRoutes } from './routes/releases.js';
 import { createCollectionRoutes } from './routes/collection.js';
 import { createCollectionShareRoutes } from './routes/collection-share.js';
 import { createFiltersRoutes } from './routes/filters.js';
@@ -96,6 +98,12 @@ function buildApp(env: Env): AppContext {
     .use(authPlugin)
     .use(createHealthRoutes(db, syncEngine, env))
     .use(createImagesRoutes(imageStore))
+    .use(
+      createReleasesRoutes(
+        hasS3Config(env) ? createS3Client(env) : null,
+        env.S3_SECRET_ACCESS_KEY
+      )
+    )
     .use(createCardsRoutes(cardCache, env))
     .use(createSearchRoutes(cardCache))
     .use(createPricesRoutes(priceCache, db))

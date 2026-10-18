@@ -20,6 +20,7 @@ jobs:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       - run: bun run check
+      - run: bun test scripts/lib/internal-release.test.ts
       - run: bun run --cwd packages/contracts test
       - run: bun run --cwd apps/api test:unit
       - run: bun run --cwd apps/mobile test

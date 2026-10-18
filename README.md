@@ -74,3 +74,28 @@ bun run db:down
 
 `Ctrl+C` also stops it when running attached. `bun run test` starts local Postgres
 and creates the separate `riftbound_test` database if needed.
+
+## Internal mobile downloads
+
+Use the install link or QR sent to Discord for the latest preview. The permanent
+address starts with `https://riftapi.solace.onl/api/v1/releases/preview.html` and
+includes an access token. Development builds use `development.html` at the same
+base. Each build replaces its profile's current artifacts; the install page and QR
+keep the same address.
+
+The API and the Mobile internal build workflow must use the same R2 bucket and S3
+secret access key. The bucket stays private: the API checks a per-file access
+token, serves the page and iOS manifest without caching, and generates a fresh
+download URL when an APK or IPA is requested. The install links have no timed
+expiry; rotating the S3 secret access key revokes existing links. Android users
+download the APK, open it from Downloads, and allow installs from their browser if
+prompted.
+
+Deploy the API release routes before publishing with this workflow for the first
+time, then manually run Mobile internal build with the `preview` profile to replace
+the old page and iOS manifest and send the permanent URL to Discord. Existing
+Discord links containing an expired signature remain expired.
+
+The workflow defaults `S3_PUBLIC_BASE_URL` to `https://riftapi.solace.onl/api/v1`.
+An existing public download host can override it with that GitHub secret. Local
+publishing scripts require an explicit permanent HTTPS base and reject signed URLs.

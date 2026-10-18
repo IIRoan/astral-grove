@@ -44,6 +44,7 @@ async function main(): Promise<void> {
 
   await client.write(keys.apk, apkFile, {
     type: 'application/vnd.android.package-archive',
+    contentDisposition: `attachment; filename="astral-grove-${args.profile}.apk"`,
   });
 
   const remainingApks = await pruneReleaseArtifacts(
