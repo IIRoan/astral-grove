@@ -101,14 +101,14 @@ Production builds use `Dockerfile.backend`; the runtime contains a native binary
 and no TypeScript server. `tests/reference-api` retains the original implementation
 solely for regression comparison and is excluded from the image.
 
-GitHub CI runs two parallel jobs on pull requests and pushes to `main` or
-`rust-backend-rewrite`: **Checks and unit tests** covers Rust/TypeScript checks,
-native units, runtime schema/rule parity, shared/mobile and retained oracle units;
-**Backend integration** builds the production Docker image and tests its binary
-with PostgreSQL, native HTTP/compatibility suites and auth/HTTP boundary parity.
-It also checks production-mode auth, SSE and shutdown inside the container. Each
-HTTP suite runs once against the release binary. CI uses synthetic credentials
-and local service fixtures.
+GitHub CI runs two parallel jobs on pull requests and pushes to `main`.
+**Checks and native tests** covers Rust/TypeScript checks, native units, runtime
+schema/rule parity, shared/mobile and retained oracle units, plus the complete
+HTTP/compatibility and auth/HTTP boundary suites against the development binary.
+**Production image tests** builds the Docker image, repeats the full HTTP suites
+against its release binary, and checks production-mode auth, SSE and shutdown
+inside the container. Builds are reused within each job; both binary modes keep
+their test coverage. CI uses synthetic credentials and local service fixtures.
 
 ## Internal mobile downloads
 

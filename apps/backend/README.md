@@ -99,7 +99,8 @@ packaged release binary for the same HTTP tests. Use `test:http` to run those
 tests without compiling a local binary; `test:e2e` builds the development server
 first. With `ASTRAL_BACKEND_BIN` set, the compatibility runner also skips the local
 build and auth/HTTP parity probes target that binary. CI runs all HTTP suites
-once against the production-image binary, alongside the container smoke test.
+against both the development binary and the production-image binary, alongside
+the container smoke test. Migration parity checks remain during rewrite validation.
 The compatibility runner targets
 Rust with the 219 original e2e cases; some cases also call frozen TypeScript
 services directly, as recorded in the case map. Retained reference unit cases

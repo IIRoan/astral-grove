@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main, rust-backend-rewrite]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -11,9 +11,24 @@ concurrency:
   cancel-in-progress: true
 jobs:
   check:
-    name: Checks and unit tests
+    name: Checks and native tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: riftbound
+          POSTGRES_PASSWORD: riftbound
+          POSTGRES_DB: riftbound_test
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U riftbound -d riftbound_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      TEST_DB_URL: postgres://riftbound:riftbound@127.0.0.1:5433/riftbound_test
+      ASTRAL_BACKEND_BIN: ${{ github.workspace }}/target/debug/astral-grove-server
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,8 +58,19 @@ jobs:
           bun run --cwd packages/contracts test
           bun run --cwd tests/reference-api test
           bun run --cwd apps/mobile test
+      - name: Native HTTP and original compatibility suites against the development binary
+        run: |
+          bun run --cwd apps/backend test:http
+          bun run --cwd apps/backend test:compat
+      - name: Auth protocol and malformed input parity against the development binary
+        run: |
+          bun --no-env-file scripts/rust-migration/auth-parity.ts
+          bun --no-env-file scripts/rust-migration/http-boundary-parity.ts
+      - name: Development server diagnostics
+        if: failure()
+        run: cat /tmp/astral-native-test-*.log /tmp/astral-auth-parity-server.log /tmp/astral-grove-rust-e2e-server.log 2>/dev/null || true
   backend-image:
-    name: Backend integration
+    name: Production image tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
     services:
