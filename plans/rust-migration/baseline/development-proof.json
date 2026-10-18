@@ -1,0 +1,9 @@
+{
+  "nativeCliMigration": true,
+  "nativeDevHealth": true,
+  "sourceChangeRestartsNativeChild": true,
+  "wrapperAndChildDrainOnSigterm": true,
+  "readIgnoredApiEnv": false,
+  "syntheticEnvironment": true,
+  "database": "riftbound_test_rust_runtime_20261018"
+}

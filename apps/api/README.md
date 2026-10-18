@@ -1,0 +1,1 @@
+The backend moved to `apps/backend`. Development commands still read an existing ignored `apps/api/.env` as a compatibility fallback; new configuration belongs in `apps/backend/.env`. The old implementation is retained under `tests/reference-api` for migration comparisons.

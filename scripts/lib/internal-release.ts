@@ -4,14 +4,14 @@ import {
   type Profile,
   RELEASE_PREFIX,
   releaseAccessToken,
-} from '../../apps/api/src/lib/internal-release.ts';
+} from './internal-release-signing.ts';
 export {
   isProfile,
   PROFILES,
   type Profile,
   RELEASE_PREFIX,
   releaseKeys,
-} from '../../apps/api/src/lib/internal-release.ts';
+} from './internal-release-signing.ts';
 
 export const PLATFORMS = ['ios', 'android'] as const;
 export type Platform = (typeof PLATFORMS)[number];

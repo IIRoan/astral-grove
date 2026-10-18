@@ -5,8 +5,9 @@ card data, prices, and community decks from Piltover Archive.
 
 ## Local database setup
 
-Install Bun 1.4.2 and Docker with Compose, then install dependencies from the repo
-root:
+Install Bun 1.4.2, Rust (the pinned 1.98.1 toolchain is selected automatically),
+and Docker with Compose. The backend is a native Rust/Axum service; Expo remains
+TypeScript. Install workspace tooling from the repo root:
 
 ```bash
 bun install
@@ -15,10 +16,11 @@ bun install
 For a new checkout, copy the API environment template:
 
 ```bash
-cp apps/api/.env.example apps/api/.env
+cp apps/backend/.env.example apps/backend/.env
 ```
 
-If you already have `apps/api/.env`, keep your other settings and replace its
+Existing `apps/api/.env` files remain supported by the native dev/CLI wrappers.
+For a new checkout use `apps/backend/.env`. Keep other settings and set its
 database settings with these local values:
 
 ```dotenv
@@ -64,7 +66,7 @@ bun run sync:prices
 ```
 
 These commands use `ADMIN_SYNC_TOKEN` from your shell or the example's default
-token. If you changed it in `apps/api/.env`, set the same value in your shell first.
+token. If you changed it in your backend environment, set the same value in your shell first.
 
 Stop the database while keeping its data:
 
@@ -74,6 +76,36 @@ bun run db:down
 
 `Ctrl+C` also stops it when running attached. `bun run test` starts local Postgres
 and creates the separate `riftbound_test` database if needed.
+
+## Backend contracts and verification
+
+Rust request validators and DTOs generate OpenAPI and TypeScript types. Shared
+Zod schemas still validate every Expo response, with compile-time assertions for
+all 135 shared schema outputs.
+
+```bash
+bun run api:contracts          # regenerate after backend contract changes
+bun run check                  # generated contracts, TS, lint, format, Rust clippy
+bun run test                   # native unit/HTTP, compatibility, shared/mobile tests
+cargo xtask baseline           # frozen-source, route and case inventory checks
+```
+
+Tests accept only loopback PostgreSQL databases named `riftbound_test` or
+`riftbound_test_*` through `TEST_DB_URL`; upstream, mail and S3 flows use local
+fixtures. `DATABASE_URL` is never the fallback test target. No reset is needed.
+
+See [backend development](apps/backend/README.md), the
+[Rocal migration map](plans/rust-migration/rocal-reference.md), and the
+[local validation report](plans/rust-migration/local-validation.md).
+Production builds use `Dockerfile.backend`; the runtime contains a native binary
+and no TypeScript server. `tests/reference-api` retains the original implementation
+solely for regression comparison and is excluded from the image.
+
+GitHub CI runs on pull requests and pushes to `main` or `rust-backend-rewrite`.
+It checks native Rust units, HTTP/PostgreSQL integration, runtime parity and the
+production Docker image, including the packaged binary's HTTP/compatibility suites
+and production-mode auth, SSE and shutdown. Shared/mobile and retained oracle
+tests run separately. CI uses synthetic credentials and local service fixtures.
 
 ## Internal mobile downloads
 

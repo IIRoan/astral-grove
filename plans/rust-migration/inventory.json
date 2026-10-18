@@ -1,0 +1,781 @@
+{
+  "astralGroveRevision": "598a9189d8beb1222a789ed836d37754e4826001",
+  "rocalRevision": "b28edbe04e1ecccbe01ebf4e77b173f6d4a12a8e",
+  "applicationOperationCount": 55,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "source": "apps/api/src/app.ts",
+      "factory": "buildApp",
+      "boundarySchemas": [],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cards",
+      "source": "apps/api/src/routes/cards.ts",
+      "line": 19,
+      "factory": "createCardsRoutes",
+      "boundarySchemas": ["CardsListQuery", "CardsListResponse"],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cards/:variantNumber",
+      "source": "apps/api/src/routes/cards.ts",
+      "line": 60,
+      "factory": "createCardsRoutes",
+      "boundarySchemas": ["CardDetailResponse", "CardsDetailQuery", "VariantNumber"],
+      "access": "public"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/cards/batch",
+      "source": "apps/api/src/routes/cards.ts",
+      "line": 76,
+      "factory": "createCardsRoutes",
+      "boundarySchemas": ["CardsBatchRequest", "CardsBatchResponse"],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cards/index",
+      "source": "apps/api/src/routes/cards.ts",
+      "line": 47,
+      "factory": "createCardsRoutes",
+      "boundarySchemas": ["CatalogIndexResponse"],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/collection",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 173,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": [],
+      "access": "session"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/collection/:variantNumber",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 397,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": ["CollectionDeleteQuery", "OkResponse"],
+      "access": "session"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/collection/:variantNumber",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 297,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": ["CollectionUpsertRequest"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/:variantNumber/add",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 337,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": ["CollectionAdjustRequest"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/:variantNumber/remove",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 367,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": ["CollectionAdjustRequest"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/activity-history",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 241,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": [
+        "CollectionActivityHistoryRequest",
+        "CollectionActivityHistoryResponse"
+      ],
+      "access": "session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/collection/audit",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 183,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": ["CollectionAuditListQuery", "CollectionAuditListResponse"],
+      "access": "session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/collection/audit/me",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 205,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": ["CollectionAuditListQuery", "CollectionAuditListResponse"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/batch",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 420,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": ["CollectionBatchSyncRequest", "CollectionBatchSyncResponse"],
+      "access": "session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/collection/events",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 260,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": [],
+      "access": "session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/collection/export",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 439,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": [],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/import",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 479,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": ["CollectionImportRequest", "CollectionImportResponse"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/import/preview",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 452,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": [
+        "CollectionImportPreviewRequest",
+        "CollectionImportPreviewResponse"
+      ],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/quantities",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 278,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": [
+        "CollectionQuantitiesResponse",
+        "CollectionVariantNumbersRequest"
+      ],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/recent-adds",
+      "source": "apps/api/src/routes/collection.ts",
+      "line": 226,
+      "factory": "createCollectionRoutes",
+      "boundarySchemas": [
+        "CollectionRecentAddsResponse",
+        "CollectionVariantNumbersRequest"
+      ],
+      "access": "session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/collection/share",
+      "source": "apps/api/src/routes/collection-share.ts",
+      "line": 21,
+      "factory": "createCollectionShareRoutes",
+      "boundarySchemas": ["CollectionShareStatusResponse"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/share/invite",
+      "source": "apps/api/src/routes/collection-share.ts",
+      "line": 30,
+      "factory": "createCollectionShareRoutes",
+      "boundarySchemas": ["CollectionShareInviteCreateResponse"],
+      "access": "session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/collection/share/invite/:token",
+      "source": "apps/api/src/routes/collection-share.ts",
+      "line": 64,
+      "factory": "createCollectionShareRoutes",
+      "boundarySchemas": ["CollectionShareInvitePreviewResponse"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/share/invite/:token/accept",
+      "source": "apps/api/src/routes/collection-share.ts",
+      "line": 85,
+      "factory": "createCollectionShareRoutes",
+      "boundarySchemas": [
+        "CollectionShareAcceptRequest",
+        "CollectionShareAcceptResponse"
+      ],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/share/invite/revoke",
+      "source": "apps/api/src/routes/collection-share.ts",
+      "line": 51,
+      "factory": "createCollectionShareRoutes",
+      "boundarySchemas": ["OkResponse"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/collection/share/leave",
+      "source": "apps/api/src/routes/collection-share.ts",
+      "line": 107,
+      "factory": "createCollectionShareRoutes",
+      "boundarySchemas": ["CollectionShareLeaveResponse"],
+      "access": "session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/deck-rules",
+      "source": "apps/api/src/routes/deck-rules.ts",
+      "line": 15,
+      "factory": "createDeckRulesRoutes",
+      "boundarySchemas": ["DeckRulesResponse"],
+      "access": "public"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/deck-rules/validate",
+      "source": "apps/api/src/routes/deck-rules.ts",
+      "line": 23,
+      "factory": "createDeckRulesRoutes",
+      "boundarySchemas": ["DeckValidateInput", "DeckValidateResponse"],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/decks",
+      "source": "apps/api/src/routes/decks.ts",
+      "line": 67,
+      "factory": "createDecksRoutes",
+      "boundarySchemas": ["DeckListResponse", "DecksListQuery"],
+      "access": "session"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/decks/:id",
+      "source": "apps/api/src/routes/decks.ts",
+      "line": 351,
+      "factory": "createDecksRoutes",
+      "boundarySchemas": ["IdResponse"],
+      "access": "session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/decks/:id",
+      "source": "apps/api/src/routes/decks.ts",
+      "line": 97,
+      "factory": "createDecksRoutes",
+      "boundarySchemas": ["DeckDetailResponse"],
+      "access": "session"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/decks/:id",
+      "source": "apps/api/src/routes/decks.ts",
+      "line": 311,
+      "factory": "createDecksRoutes",
+      "boundarySchemas": ["DeckDetailResponse", "DeckUpsertRequest"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/decks/:id/import",
+      "source": "apps/api/src/routes/decks.ts",
+      "line": 119,
+      "factory": "createDecksRoutes",
+      "boundarySchemas": ["DeckDetailResponse"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/decks/:id/versions",
+      "source": "apps/api/src/routes/decks.ts",
+      "line": 148,
+      "factory": "createDecksRoutes",
+      "boundarySchemas": ["CreateDeckVersionRequest", "DeckDetailResponse"],
+      "access": "session"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/decks/:id/versions/:versionId",
+      "source": "apps/api/src/routes/decks.ts",
+      "line": 283,
+      "factory": "createDecksRoutes",
+      "boundarySchemas": ["DeckDetailResponse"],
+      "access": "session"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/decks/:id/versions/:versionId",
+      "source": "apps/api/src/routes/decks.ts",
+      "line": 217,
+      "factory": "createDecksRoutes",
+      "boundarySchemas": ["DeckDetailResponse", "RenameDeckVersionRequest"],
+      "access": "session"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/decks/:id/versions/:versionId",
+      "source": "apps/api/src/routes/decks.ts",
+      "line": 176,
+      "factory": "createDecksRoutes",
+      "boundarySchemas": ["DeckDetailResponse", "DeckUpsertRequest"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/decks/:id/versions/:versionId/activate",
+      "source": "apps/api/src/routes/decks.ts",
+      "line": 251,
+      "factory": "createDecksRoutes",
+      "boundarySchemas": ["DeckDetailResponse"],
+      "access": "session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/filters",
+      "source": "apps/api/src/routes/filters.ts",
+      "line": 6,
+      "factory": "createFiltersRoutes",
+      "boundarySchemas": ["FiltersResponse"],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "source": "apps/api/src/routes/sync.ts",
+      "line": 77,
+      "factory": "createHealthRoutes",
+      "boundarySchemas": ["HealthResponse"],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/images/*",
+      "source": "apps/api/src/routes/images.ts",
+      "line": 12,
+      "factory": "createImagesRoutes",
+      "boundarySchemas": ["ImageThumbQuery"],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/prices",
+      "source": "apps/api/src/routes/prices.ts",
+      "line": 50,
+      "factory": "createPricesRoutes",
+      "boundarySchemas": ["PricesListQuery", "PricesListResponse"],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/prices/history",
+      "source": "apps/api/src/routes/prices.ts",
+      "line": 73,
+      "factory": "createPricesRoutes",
+      "boundarySchemas": ["PriceHistoryQuery", "PriceHistoryResponse"],
+      "access": "public"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/prices/stats/batch",
+      "source": "apps/api/src/routes/prices.ts",
+      "line": 115,
+      "factory": "createPricesRoutes",
+      "boundarySchemas": ["PriceStatsBatchRequest", "PriceStatsBatchResponse"],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/releases/:filename",
+      "source": "apps/api/src/routes/releases.ts",
+      "line": 69,
+      "factory": "createReleasesRoutes",
+      "boundarySchemas": [],
+      "access": "release-token"
+    },
+    {
+      "method": "HEAD",
+      "path": "/api/v1/releases/:filename",
+      "source": "apps/api/src/routes/releases.ts",
+      "line": 70,
+      "factory": "createReleasesRoutes",
+      "boundarySchemas": [],
+      "access": "release-token"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/search",
+      "source": "apps/api/src/routes/search.ts",
+      "line": 7,
+      "factory": "createSearchRoutes",
+      "boundarySchemas": ["GlobalSearchQuery", "GlobalSearchResponse"],
+      "access": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/settings/:device",
+      "source": "apps/api/src/routes/settings.ts",
+      "line": 42,
+      "factory": "createSettingsRoutes",
+      "boundarySchemas": [],
+      "access": "session"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/settings/:device",
+      "source": "apps/api/src/routes/settings.ts",
+      "line": 57,
+      "factory": "createSettingsRoutes",
+      "boundarySchemas": ["UserSettingsUpsertRequest"],
+      "access": "session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sync/catalog",
+      "source": "apps/api/src/routes/sync.ts",
+      "line": 31,
+      "factory": "createSyncRoutes",
+      "boundarySchemas": ["SyncCatalogResponse"],
+      "access": "admin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sync/prices",
+      "source": "apps/api/src/routes/sync.ts",
+      "line": 42,
+      "factory": "createSyncRoutes",
+      "boundarySchemas": ["SyncPricesResponse"],
+      "access": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sync/status",
+      "source": "apps/api/src/routes/sync.ts",
+      "line": 25,
+      "factory": "createSyncRoutes",
+      "boundarySchemas": ["SyncStatusResponse"],
+      "access": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/wishlist",
+      "source": "apps/api/src/routes/wishlist.ts",
+      "line": 30,
+      "factory": "createWishlistRoutes",
+      "boundarySchemas": ["WishlistListResponse"],
+      "access": "session"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/wishlist/:variantNumber",
+      "source": "apps/api/src/routes/wishlist.ts",
+      "line": 71,
+      "factory": "createWishlistRoutes",
+      "boundarySchemas": ["OkResponse"],
+      "access": "session"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/wishlist/:variantNumber",
+      "source": "apps/api/src/routes/wishlist.ts",
+      "line": 47,
+      "factory": "createWishlistRoutes",
+      "boundarySchemas": ["WishlistUpsertRequest"],
+      "access": "session"
+    }
+  ],
+  "auth": [
+    {
+      "name": "signInSocial",
+      "path": "/api/auth/sign-in/social",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "callbackOAuth",
+      "path": "/api/auth/callback/:id",
+      "methods": ["GET", "POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "getSession",
+      "path": "/api/auth/get-session",
+      "methods": ["GET", "POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "signOut",
+      "path": "/api/auth/sign-out",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "signUpEmail",
+      "path": "/api/auth/sign-up/email",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "signInEmail",
+      "path": "/api/auth/sign-in/email",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "resetPassword",
+      "path": "/api/auth/reset-password",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "verifyPassword",
+      "path": "/api/auth/verify-password",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "verifyEmail",
+      "path": "/api/auth/verify-email",
+      "methods": ["GET"],
+      "serverOnly": false
+    },
+    {
+      "name": "sendVerificationEmail",
+      "path": "/api/auth/send-verification-email",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "changeEmail",
+      "path": "/api/auth/change-email",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "changePassword",
+      "path": "/api/auth/change-password",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "setPassword",
+      "methods": ["POST"],
+      "serverOnly": true
+    },
+    {
+      "name": "updateSession",
+      "path": "/api/auth/update-session",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "updateUser",
+      "path": "/api/auth/update-user",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "deleteUser",
+      "path": "/api/auth/delete-user",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "requestPasswordReset",
+      "path": "/api/auth/request-password-reset",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "requestPasswordResetCallback",
+      "path": "/api/auth/reset-password/:token",
+      "methods": ["GET"],
+      "serverOnly": false
+    },
+    {
+      "name": "listSessions",
+      "path": "/api/auth/list-sessions",
+      "methods": ["GET"],
+      "serverOnly": false
+    },
+    {
+      "name": "revokeSession",
+      "path": "/api/auth/revoke-session",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "revokeSessions",
+      "path": "/api/auth/revoke-sessions",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "revokeOtherSessions",
+      "path": "/api/auth/revoke-other-sessions",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "linkSocialAccount",
+      "path": "/api/auth/link-social",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "listUserAccounts",
+      "path": "/api/auth/list-accounts",
+      "methods": ["GET"],
+      "serverOnly": false
+    },
+    {
+      "name": "deleteUserCallback",
+      "path": "/api/auth/delete-user/callback",
+      "methods": ["GET"],
+      "serverOnly": false
+    },
+    {
+      "name": "unlinkAccount",
+      "path": "/api/auth/unlink-account",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "refreshToken",
+      "path": "/api/auth/refresh-token",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "getAccessToken",
+      "path": "/api/auth/get-access-token",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "accountInfo",
+      "path": "/api/auth/account-info",
+      "methods": ["GET"],
+      "serverOnly": false
+    },
+    {
+      "name": "expoAuthorizationProxy",
+      "path": "/api/auth/expo-authorization-proxy",
+      "methods": ["GET"],
+      "serverOnly": false
+    },
+    {
+      "name": "sendVerificationOTP",
+      "path": "/api/auth/email-otp/send-verification-otp",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "createVerificationOTP",
+      "methods": ["POST"],
+      "serverOnly": true
+    },
+    {
+      "name": "getVerificationOTP",
+      "methods": ["GET"],
+      "serverOnly": true
+    },
+    {
+      "name": "checkVerificationOTP",
+      "path": "/api/auth/email-otp/check-verification-otp",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "verifyEmailOTP",
+      "path": "/api/auth/email-otp/verify-email",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "signInEmailOTP",
+      "path": "/api/auth/sign-in/email-otp",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "requestPasswordResetEmailOTP",
+      "path": "/api/auth/email-otp/request-password-reset",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "forgetPasswordEmailOTP",
+      "path": "/api/auth/forget-password/email-otp",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "resetPasswordEmailOTP",
+      "path": "/api/auth/email-otp/reset-password",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "requestEmailChangeEmailOTP",
+      "path": "/api/auth/email-otp/request-email-change",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "changeEmailEmailOTP",
+      "path": "/api/auth/email-otp/change-email",
+      "methods": ["POST"],
+      "serverOnly": false
+    },
+    {
+      "name": "ok",
+      "path": "/api/auth/ok",
+      "methods": ["GET"],
+      "serverOnly": false
+    },
+    {
+      "name": "error",
+      "path": "/api/auth/error",
+      "methods": ["GET"],
+      "serverOnly": false
+    }
+  ],
+  "defaults": {
+    "sessionLifetimeSeconds": 604800,
+    "sessionUpdateAgeSeconds": 86400,
+    "sessionFreshAgeSeconds": 86400,
+    "cookieCacheEnabled": false,
+    "minimumPasswordLength": 12,
+    "maximumPasswordLength": 128
+  }
+}

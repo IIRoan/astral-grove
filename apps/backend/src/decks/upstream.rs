@@ -1,0 +1,578 @@
+use crate::{
+    AppState, catalog, db,
+    error::{AppError, Result},
+    http, upstream,
+};
+use serde_json::{Value, json};
+use std::collections::{HashMap, HashSet};
+fn list<'a>(value: &'a Value, key: &str) -> &'a [Value] {
+    value[key].as_array().map(Vec::as_slice).unwrap_or(&[])
+}
+fn checked(name: &str, value: &Value) -> Result<Value> {
+    let normalized = http::upstream_decks::schema(name)
+        .parse(Some(value))
+        .map_err(|_| AppError::internal())?
+        .ok_or_else(AppError::internal)?;
+    match name {
+        "UpstreamDeckDetail" => {
+            let _: astral_grove_api_types::upstream_decks::UpstreamDeckDetail =
+                serde_json::from_value(normalized.clone())?;
+        }
+        "UpstreamDeckListResponse" => {
+            let _: astral_grove_api_types::upstream_decks::UpstreamDeckListResponse =
+                serde_json::from_value(normalized.clone())?;
+        }
+        _ => unreachable!(),
+    }
+    Ok(normalized)
+}
+pub fn millis(value: &Value) -> i64 {
+    value
+        .as_str()
+        .and_then(crate::instant::parse_js_date)
+        .unwrap_or(0)
+}
+fn image(value: &Value) -> Value {
+    let Some(text) = value.as_str().filter(|value| !value.is_empty()) else {
+        return Value::Null;
+    };
+    let path = url::Url::parse(text)
+        .ok()
+        .map(|url| url.path().to_owned())
+        .unwrap_or_else(|| text.into());
+    if let Some(key) = path.strip_prefix("/api/v1/images/")
+        && crate::images::safe_key(key)
+    {
+        return json!(format!("https://cdn.piltoverarchive.com/{key}"));
+    }
+    json!(text)
+}
+fn legend_fallback(legend: &Value) -> Value {
+    json!({"cardId":legend["id"],"variantNumber":legend["variantNumber"],"name":legend["name"],"type":"Unit","super":"Champion","tags":legend.get("tags").cloned().unwrap_or(json!([])),"colors":list(legend,"colors").iter().filter_map(|color|color["name"].as_str()).filter(|name|!name.is_empty()).collect::<Vec<_>>(),"energy":0,"power":0,"setCode":db::string(legend,"variantNumber").split('-').next().unwrap_or(""),"rarity":"Rare","variantType":"Standard","isSignature":false,"imageUrl":image(&legend["imageUrl"])})
+}
+fn placeholder(reference: &Value) -> Value {
+    json!({"cardId":reference["cardId"],"variantNumber":format!("unknown:{}",db::string(reference,"variantId")),"name":"Card not in catalog","type":"Unit","super":null,"tags":[],"colors":[],"energy":0,"power":0,"setCode":"???","rarity":"Unknown","variantType":"Unknown","isSignature":false,"imageUrl":null})
+}
+pub async fn deck_card(state: &AppState, number: &str) -> Result<Value> {
+    let response = catalog::store::detail(state, number, false).await?;
+    let detail = &response["data"];
+    let variant = list(detail, "variants")
+        .iter()
+        .find(|variant| variant["variantNumber"] == number)
+        .ok_or_else(AppError::internal)?;
+    let signature = format!(
+        "{} {}",
+        db::string(variant, "rarity"),
+        db::string(variant, "variantType")
+    )
+    .to_lowercase()
+    .contains("signature");
+    http::value(
+        "DeckCardInput",
+        &json!({"cardId":detail["id"],"variantNumber":number,"name":detail["name"],"type":detail["type"],"super":detail["super"],"tags":detail["tags"],"colors":list(detail,"colors").iter().map(|color|color["name"].clone()).collect::<Vec<_>>(),"energy":detail["energy"],"power":detail["power"],"setCode":number.split('-').next().unwrap_or(""),"rarity":variant["rarity"],"variantType":variant["variantType"],"isSignature":signature,"imageUrl":image(&variant["imageUrl"]),"banEffectiveDate":detail["banEffectiveDate"]}),
+    )
+}
+fn payload(detail: &Value) -> Value {
+    let created = millis(&detail["createdAt"]);
+    let updated = millis(&detail["editedAt"]).max(millis(&detail["updatedAt"]));
+    let mut value = json!({"id":detail["id"],"name":detail["name"],"format":"constructed","createdAt":created,"updatedAt":if updated==0{created}else{updated},"legend":null,"champion":null,"mainDeck":[],"runes":[],"battlefields":[],"sideboard":[]});
+    if let Some(description) = detail["description"].as_str() {
+        value["description"] = json!(description);
+    }
+    value
+}
+async fn resolve_refs(state: &AppState, refs: &[Value]) -> Result<HashMap<String, String>> {
+    let ids: Vec<String> = refs
+        .iter()
+        .filter_map(|row| row["variantId"].as_str().map(str::to_owned))
+        .collect();
+    if ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let rows = db::rows(
+        &state.db,
+        "SELECT id::text AS id,variant_number AS number FROM variants WHERE id=ANY($1::uuid[])",
+        vec![ids.into()],
+    )
+    .await?;
+    let mut resolved: HashMap<_, _> = rows
+        .into_iter()
+        .map(|row| {
+            (
+                db::string(&row, "id").to_owned(),
+                db::string(&row, "number").to_owned(),
+            )
+        })
+        .collect();
+    for reference in refs {
+        let id = db::string(reference, "variantId");
+        if resolved.contains_key(id) {
+            continue;
+        }
+        let card_id = db::string(reference, "cardId");
+        let card = db::rows(
+            &state.db,
+            "SELECT upstream_raw AS raw FROM cards WHERE id=$1::uuid",
+            vec![card_id.into()],
+        )
+        .await?
+        .into_iter()
+        .next();
+        if let Some(card) = card {
+            let raw = &card["raw"];
+            if let Some(variant) = list(raw, "variants")
+                .iter()
+                .find(|variant| variant["id"] == id)
+            {
+                catalog::store::upsert(state, raw).await?;
+                resolved.insert(id.into(), db::string(variant, "variantNumber").into());
+                continue;
+            }
+            if let Some(seed) = list(raw, "variants").first()
+                && let Ok(detail) =
+                    catalog::store::detail(state, db::string(seed, "variantNumber"), true).await
+                && let Some(variant) = list(&detail["data"], "variants")
+                    .iter()
+                    .find(|variant| variant["id"] == id)
+            {
+                resolved.insert(id.into(), db::string(variant, "variantNumber").into());
+                continue;
+            }
+        }
+        if let Some(row) = db::rows(
+            &state.db,
+            "SELECT variant_number AS number FROM variants WHERE card_id=$1::uuid LIMIT 1",
+            vec![card_id.into()],
+        )
+        .await?
+        .first()
+            && let Ok(detail) = catalog::store::detail(state, db::string(row, "number"), true).await
+            && let Some(variant) = list(&detail["data"], "variants")
+                .iter()
+                .find(|variant| variant["id"] == id)
+        {
+            resolved.insert(id.into(), db::string(variant, "variantNumber").into());
+        }
+    }
+    let mut pending: HashSet<String> = refs
+        .iter()
+        .filter_map(|row| row["variantId"].as_str())
+        .filter(|id| !resolved.contains_key(*id))
+        .map(str::to_owned)
+        .collect();
+    let pending_cards: HashSet<_> = refs
+        .iter()
+        .filter_map(|row| row["cardId"].as_str())
+        .collect();
+    let mut fetched = HashSet::new();
+    if !pending.is_empty() {
+        for page in 1..=500 {
+            let response = upstream::list_cards(state, &json!({"page":page,"limit":100})).await?;
+            for item in list(&response, "data") {
+                let id = db::string(item, "id");
+                let card_id = db::string(&item["card"], "id");
+                let wanted = pending.contains(id)
+                    || !card_id.is_empty()
+                        && pending_cards.contains(card_id)
+                        && fetched.insert(card_id.to_owned());
+                if !wanted {
+                    continue;
+                }
+                if let Ok(card) = upstream::card(state, db::string(item, "variantNumber")).await
+                    && catalog::store::upsert(state, &card).await.is_ok()
+                {
+                    if pending.remove(id) {
+                        resolved.insert(id.into(), db::string(item, "variantNumber").into());
+                    }
+                    for variant in list(&card, "variants") {
+                        let id = db::string(variant, "id");
+                        if pending.remove(id) {
+                            resolved.insert(id.into(), db::string(variant, "variantNumber").into());
+                        }
+                    }
+                }
+            }
+            if pending.is_empty()
+                || response["pagination"]["hasNext"] != true
+                || page
+                    >= response["pagination"]["totalPages"]
+                        .as_i64()
+                        .unwrap_or(page)
+            {
+                break;
+            }
+        }
+    }
+    Ok(resolved)
+}
+pub async fn transform(state: &AppState, detail: &Value) -> Result<Value> {
+    let detail = checked("UpstreamDeckDetail", detail)?;
+    let refs: Vec<Value> = [
+        "champions",
+        "maindeck",
+        "runes",
+        "battlefields",
+        "sideboard",
+    ]
+    .iter()
+    .flat_map(|section| list(&detail, section).to_vec())
+    .collect();
+    let resolved = resolve_refs(state, &refs).await?;
+    let mut warnings = Vec::new();
+    let mut value = payload(&detail);
+    let mut cache = HashMap::<String, Value>::new();
+    let mut missing = HashSet::new();
+    if let Some(legend) = detail["legend"].as_object().map(|_| &detail["legend"])
+        && !db::string(legend, "variantNumber").is_empty()
+    {
+        value["legend"] = match deck_card(state, db::string(legend, "variantNumber")).await {
+            Ok(card) => card,
+            Err(_) => {
+                warnings.push("Legend card could not be loaded from the local catalog.".to_owned());
+                legend_fallback(legend)
+            }
+        };
+    }
+    for (from, to) in [
+        ("champions", "champion"),
+        ("maindeck", "mainDeck"),
+        ("runes", "runes"),
+        ("battlefields", "battlefields"),
+        ("sideboard", "sideboard"),
+    ] {
+        let mut mapped = Vec::new();
+        for reference in list(&detail, from) {
+            if from == "champions" && !mapped.is_empty() {
+                break;
+            }
+            let id = db::string(reference, "variantId");
+            let mut card = None;
+            if let Some(number) = resolved.get(id) {
+                card = cache.get(number).cloned();
+                if card.is_none()
+                    && let Ok(loaded) = deck_card(state, number).await
+                {
+                    cache.insert(number.clone(), loaded.clone());
+                    card = Some(loaded);
+                }
+            }
+            let card = card.unwrap_or_else(|| {
+                missing.insert(id.to_owned());
+                placeholder(reference)
+            });
+            mapped.push(if from=="champions"{card}else{http::value("DeckEntryInput",&json!({"card":card,"count":if from=="battlefields"{json!(1)}else{reference["quantity"].clone()}}))?});
+        }
+        value[to] = if from == "champions" {
+            mapped.into_iter().next().unwrap_or(Value::Null)
+        } else {
+            json!(mapped)
+        };
+    }
+    if !missing.is_empty() {
+        warnings.push(format!("{} card variant{} not in the local catalog yet. Counts match Piltover Archive; sync the card catalog for names and images.",missing.len(),if missing.len()==1{""}else{"s"}));
+    }
+    if !warnings.is_empty() {
+        value["syncWarnings"] = json!(warnings);
+    }
+    http::value("StoredDeckPayload", &value)
+}
+pub async fn get_stored(state: &AppState, id: &str) -> Option<Value> {
+    let detail = upstream::request(
+        state,
+        reqwest::Method::GET,
+        &format!("/v1/decks/{}", crate::auth::cookies::encode(id)),
+        &Value::Null,
+        None,
+        None,
+        false,
+    )
+    .await
+    .ok()?;
+    transform(state, &detail).await.ok()
+}
+fn meta(detail: &Value, is_list: bool) -> Value {
+    let mut meta = json!({});
+    for key in ["authorName", "videoUrl"] {
+        if !db::string(detail, key).is_empty() {
+            meta[key] = detail[key].clone();
+        }
+    }
+    for key in ["views", "likes", "isLegal"] {
+        if let Some(value) = detail.get(key) {
+            meta[key] = value.clone();
+        }
+    }
+    if !list(detail, "bannedCardNames").is_empty() {
+        meta["bannedCardNames"] = detail["bannedCardNames"].clone();
+    }
+    if is_list {
+        for key in ["hasGuide", "hasVideo", "hasMatchups"] {
+            if let Some(value) = detail["contentFlags"].get(key) {
+                meta[key] = value.clone();
+            }
+        }
+    } else {
+        for key in ["hasGuide", "hasMatchups"] {
+            if let Some(value) = detail.get(key) {
+                meta[key] = value.clone();
+            }
+        }
+    }
+    if !db::string(detail, "videoUrl").is_empty() && (!is_list || meta.get("hasVideo").is_none()) {
+        meta["hasVideo"] = json!(true);
+    }
+    meta
+}
+pub async fn get_item(state: &AppState, id: &str) -> Option<Value> {
+    let detail = upstream::request(
+        state,
+        reqwest::Method::GET,
+        &format!("/v1/decks/{}", crate::auth::cookies::encode(id)),
+        &Value::Null,
+        None,
+        None,
+        false,
+    )
+    .await
+    .ok()?;
+    let detail = checked("UpstreamDeckDetail", &detail).ok()?;
+    let mut item = transform(state, &detail).await.ok()?;
+    let detail_meta = meta(&detail, false);
+    let mut merged = detail_meta.as_object()?.clone();
+    if let Ok(response) = upstream::request(
+        state,
+        reqwest::Method::GET,
+        "/v1/decks",
+        &json!({"q":detail["name"],"limit":50}),
+        None,
+        None,
+        false,
+    )
+    .await
+        && let Ok(response) = checked("UpstreamDeckListResponse", &response)
+        && let Some(entry) = list(&response, "data")
+            .iter()
+            .find(|entry| entry["id"] == id)
+    {
+        merged.extend(meta(entry, true).as_object()?.clone());
+    }
+    if detail_meta.get("videoUrl").is_some() {
+        merged.insert("videoUrl".into(), detail_meta["videoUrl"].clone());
+    }
+    item.as_object_mut()?.extend(merged);
+    item["source"] = json!("imported");
+    item["readOnly"] = json!(true);
+    Some(item)
+}
+pub async fn list_imported(
+    state: &AppState,
+    query: &Value,
+    skip: &HashSet<String>,
+) -> Result<Value> {
+    let mut parts = Vec::new();
+    for (key, prefix) in [("q", ""), ("legend", "legend:")] {
+        if let Some(value) = query[key]
+            .as_str()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            parts.push(format!("{prefix}{value}"));
+        }
+    }
+    if let Some(sets) = query["sets"].as_str() {
+        parts.extend(
+            sets.split(',')
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| format!("set:{value}")),
+        );
+    }
+    let mut params = json!({"page":query["page"],"limit":query["limit"].as_i64().unwrap_or(25).min(50),"sort":query["sort"],"dir":query["dir"]});
+    if !parts.is_empty() {
+        params["q"] = json!(parts.join(" "));
+    }
+    if let Some(value) = query.get("isLegal") {
+        params["isLegal"] = value.clone();
+    }
+    for key in ["hasGuide", "hasVideo", "hasMatchups"] {
+        if query[key] == true {
+            params[key] = json!(true);
+        }
+    }
+    let response = upstream::request(
+        state,
+        reqwest::Method::GET,
+        "/v1/decks",
+        &params,
+        None,
+        None,
+        false,
+    )
+    .await?;
+    let response = checked("UpstreamDeckListResponse", &response)?;
+    let mut items = Vec::new();
+    let mut legends = HashMap::<String, Value>::new();
+    for entry in list(&response, "data") {
+        if skip.contains(db::string(entry, "id")) {
+            continue;
+        }
+        let mut item = payload(entry);
+        if let Some(legend) = entry["legend"].as_object().map(|_| &entry["legend"]) {
+            let number = db::string(legend, "variantNumber");
+            if !number.is_empty() {
+                let card = if let Some(card) = legends.get(number) {
+                    card.clone()
+                } else {
+                    let card = deck_card(state, number)
+                        .await
+                        .unwrap_or_else(|_| legend_fallback(legend));
+                    legends.insert(number.into(), card.clone());
+                    card
+                };
+                item["legend"] = card;
+            }
+        }
+        if let (Some(item), Value::Object(meta)) = (item.as_object_mut(), meta(entry, true)) {
+            item.extend(meta);
+        }
+        item["source"] = json!("imported");
+        item["readOnly"] = json!(true);
+        if !list(entry, "sets").is_empty() {
+            item["setPrefixes"] = json!(
+                list(entry, "sets")
+                    .iter()
+                    .map(|set| set["prefix"].clone())
+                    .collect::<Vec<_>>()
+            );
+        }
+        items.push(item);
+    }
+    if query["preview"] == true {
+        use futures_util::StreamExt;
+        items = futures_util::stream::iter(items.into_iter().map(|mut item| async move {
+            if let Some(payload) = get_stored(state, db::string(&item, "id")).await {
+                for section in [
+                    "legend",
+                    "champion",
+                    "mainDeck",
+                    "runes",
+                    "battlefields",
+                    "sideboard",
+                ] {
+                    if section != "legend" || !payload[section].is_null() {
+                        item[section] = payload[section].clone();
+                    }
+                }
+            }
+            item
+        }))
+        .buffered(6)
+        .collect()
+        .await;
+    }
+    let mut result = json!({"items":items});
+    if let Some(pagination) = response.get("pagination") {
+        let page = pagination["page"].as_i64().unwrap_or(1);
+        let pages = pagination["totalPages"].as_i64().unwrap_or(1);
+        result["pagination"] = json!({"total":pagination["total"],"page":page,"limit":pagination["pageSize"],"totalPages":pages,"hasNext":page<pages,"hasPrevious":page>1});
+    }
+    Ok(result)
+}
+pub async fn sync_owned(state: &AppState, payload: &Value) -> Value {
+    async fn write(state: &AppState, payload: &Value) -> Result<Value> {
+        let mut numbers = Vec::<String>::new();
+        let mut collect = |card: &Value| {
+            let number = db::string(card, "variantNumber");
+            if !number.is_empty() && !numbers.iter().any(|stored| stored == number) {
+                numbers.push(number.into());
+            }
+        };
+        collect(&payload["legend"]);
+        collect(&payload["champion"]);
+        for section in ["mainDeck", "runes", "battlefields", "sideboard"] {
+            for entry in list(payload, section) {
+                collect(&entry["card"]);
+            }
+        }
+        let rows=db::rows(&state.db,"SELECT variant_number AS number,id::text AS id FROM variants WHERE variant_number=ANY($1::text[])",vec![numbers.clone().into()]).await?;
+        let ids: HashMap<_, _> = rows
+            .iter()
+            .map(|row| (db::string(row, "number"), db::string(row, "id")))
+            .collect();
+        if numbers
+            .iter()
+            .any(|number| !ids.contains_key(number.as_str()))
+        {
+            return Err(AppError::internal());
+        }
+        let reference = |card: &Value, quantity: Option<&Value>| {
+            let mut value = json!({"cardId":card["cardId"],"variantId":ids.get(db::string(card,"variantNumber")).copied().unwrap_or("")});
+            if let Some(quantity) = quantity {
+                value["quantity"] = quantity.clone();
+            }
+            value
+        };
+        let mut body = json!({"name":payload["name"],"description":payload["description"].as_str().unwrap_or(""),"legend":if payload["legend"].is_null(){Value::Null}else{reference(&payload["legend"],None)},"champions":if payload["champion"].is_null(){vec![]}else{vec![reference(&payload["champion"],Some(&json!(1)))]}});
+        for (from, to) in [
+            ("mainDeck", "maindeck"),
+            ("runes", "runes"),
+            ("battlefields", "battlefields"),
+            ("sideboard", "sideboard"),
+        ] {
+            body[to] = json!(
+                list(payload, from)
+                    .iter()
+                    .map(|entry| reference(
+                        &entry["card"],
+                        if from == "battlefields" {
+                            None
+                        } else {
+                            entry.get("count")
+                        }
+                    ))
+                    .collect::<Vec<_>>()
+            );
+        }
+        if payload.get("upstreamId").is_some()
+            && !(payload.get("importedFromId").is_some()
+                && payload["upstreamId"] == payload["importedFromId"])
+        {
+            body["id"] = payload["upstreamId"].clone();
+        }
+        let response = upstream::request(
+            state,
+            reqwest::Method::POST,
+            "/v1/decks",
+            &Value::Null,
+            Some(&body),
+            None,
+            true,
+        )
+        .await?;
+        let synced = transform(state, &response)
+            .await
+            .unwrap_or_else(|_| payload.clone());
+        let mut result = payload.clone();
+        result["updatedAt"] = json!(
+            payload["updatedAt"]
+                .as_i64()
+                .unwrap_or(0)
+                .max(synced["updatedAt"].as_i64().unwrap_or(0))
+        );
+        let upstream_id = if synced["id"] != payload["id"] {
+            Some(synced["id"].clone())
+        } else {
+            payload
+                .get("upstreamId")
+                .or_else(|| synced.get("upstreamId"))
+                .cloned()
+        };
+        if let Some(id) = upstream_id {
+            result["upstreamId"] = id;
+        }
+        Ok(result)
+    }
+    write(state, payload)
+        .await
+        .unwrap_or_else(|_| payload.clone())
+}

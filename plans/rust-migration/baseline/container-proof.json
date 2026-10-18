@@ -1,0 +1,16 @@
+{
+  "image": "localhost/astral-grove-backend:migration-local",
+  "imageId": "601e9ba9ef635f129a3be8eb3f8d7d4224cae0ab44325bf58051c8a2ce79428c",
+  "runtimeUser": "10001:10001",
+  "binarySha256": "84e6eb959c8ee51fa709974f4757381845ac39bf048d0bdcc6d5caad0a539dc6",
+  "database": "riftbound_test_rust_runtime_final_20261018",
+  "freshNativeMigrations": 16,
+  "initiallyEmptyDatabase": true,
+  "productionDatabaseHealth": true,
+  "productionSignupSessionAndSecureCookie": true,
+  "activeSseDrain": true,
+  "exitCode": 0,
+  "shutdownMs": 726,
+  "nodeOrBunInRuntime": false,
+  "hostedDeployment": false
+}

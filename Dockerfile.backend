@@ -1,0 +1,18 @@
+FROM rust:1.98.1-bookworm AS build
+WORKDIR /app
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY .cargo .cargo
+COPY crates crates
+COPY apps/backend/Cargo.toml apps/backend/Cargo.toml
+COPY apps/backend/src apps/backend/src
+COPY apps/backend/migrations apps/backend/migrations
+COPY xtask xtask
+RUN --mount=type=cache,id=astral-grove-registry,target=/usr/local/cargo/registry --mount=type=cache,id=astral-grove-target,target=/app/target cargo build --locked --release --package astral-grove-server --bin astral-grove-server && cp target/release/astral-grove-server /app/astral-grove-server
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgcc-s1 && rm -rf /var/lib/apt/lists/*
+COPY --from=build /app/astral-grove-server /usr/local/bin/astral-grove-server
+USER 10001:10001
+ENV NODE_ENV=production HOST=:: PORT=7000
+EXPOSE 7000
+ENTRYPOINT ["astral-grove-server"]

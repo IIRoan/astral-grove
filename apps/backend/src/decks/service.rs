@@ -1,0 +1,435 @@
+use super::upstream;
+use crate::{
+    AppState, db,
+    error::{AppError, Result},
+};
+use sea_orm::{ConnectionTrait, DatabaseTransaction, TransactionTrait};
+use serde_json::{Value, json};
+use std::collections::HashSet;
+pub fn missing(version: bool) -> AppError {
+    AppError {
+        status: axum::http::StatusCode::NOT_FOUND,
+        body: json!({"error":if version{"Deck version not found"}else{"Deck not found"}}),
+    }
+}
+fn readonly() -> AppError {
+    AppError::new(
+        403,
+        "DECK_READ_ONLY",
+        "Imported Piltover Archive decks are read-only",
+    )
+}
+fn now() -> i64 {
+    (time::OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000) as i64
+}
+fn id(prefix: &str) -> String {
+    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
+}
+fn field<'a>(value: &'a Value, key: &str) -> &'a str {
+    db::string(value, key)
+}
+pub async fn row(db: &impl ConnectionTrait, user: &str, id: &str) -> Result<Option<Value>> {
+    Ok(db::rows(
+        db,
+        "SELECT payload,active_version_id AS active FROM user_decks WHERE user_id=$1 AND id=$2",
+        vec![user.into(), id.into()],
+    )
+    .await?
+    .into_iter()
+    .next())
+}
+async fn versions(db: &impl ConnectionTrait, user: &str, id: &str) -> Result<Vec<Value>> {
+    db::rows(db,"SELECT id,name,payload,floor(extract(epoch FROM created_at)*1000)::bigint AS \"createdAt\",floor(extract(epoch FROM updated_at)*1000)::bigint AS \"updatedAt\" FROM user_deck_versions WHERE user_id=$1 AND deck_id=$2 ORDER BY updated_at DESC",vec![user.into(),id.into()]).await
+}
+fn owned(mut payload: Value) -> Value {
+    payload["source"] = json!("owned");
+    payload["readOnly"] = json!(false);
+    payload
+}
+async fn detail(
+    db: &impl ConnectionTrait,
+    user: &str,
+    payload: Value,
+    active: Option<&str>,
+) -> Result<Value> {
+    let records = versions(db, user, field(&payload, "id")).await?;
+    let active = records
+        .iter()
+        .find(|row| Some(field(row, "id")) == active)
+        .or_else(|| records.first());
+    let mut payload = owned(payload);
+    if let Some(active) = active {
+        payload["versionId"] = active["id"].clone();
+        payload["versionName"] = active["name"].clone();
+        let mut summaries:Vec<_>=records.iter().map(|row|json!({"id":row["id"],"name":row["name"],"createdAt":row["createdAt"],"updatedAt":row["updatedAt"],"isActive":row["id"]==active["id"]})).collect();
+        summaries.sort_by(|left, right| {
+            right["isActive"]
+                .as_bool()
+                .cmp(&left["isActive"].as_bool())
+                .then_with(|| right["updatedAt"].as_i64().cmp(&left["updatedAt"].as_i64()))
+        });
+        payload["versions"] = json!(summaries);
+    }
+    Ok(payload)
+}
+async fn lock(state: &AppState, user: &str) -> Result<DatabaseTransaction> {
+    let tx = state.db.begin().await?;
+    db::execute(
+        &tx,
+        "SELECT pg_advisory_xact_lock(hashtextextended($1,1280472987))",
+        vec![user.into()],
+    )
+    .await?;
+    Ok(tx)
+}
+async fn assert_editable(state: &AppState, user: &str, id: &str, version: bool) -> Result<Value> {
+    if let Some(row) = row(&state.db, user, id).await? {
+        return Ok(row);
+    }
+    if upstream::get_stored(state, id).await.is_some() {
+        return Err(readonly());
+    }
+    Err(missing(version))
+}
+fn persist(mut incoming: Value, stored: Option<&Value>, trusted: bool) -> Value {
+    let stored = stored.unwrap_or(&Value::Null);
+    for key in ["upstreamId", "importedFromId"] {
+        let value = stored
+            .get(key)
+            .or_else(|| trusted.then(|| incoming.get(key)).flatten())
+            .cloned();
+        if let Some(map) = incoming.as_object_mut() {
+            map.remove(key);
+            if let Some(value) =
+                value.filter(|value| value.as_str().is_some_and(|value| !value.is_empty()))
+            {
+                map.insert(key.into(), value);
+            }
+        }
+    }
+    if incoming.get("description").is_none() {
+        incoming["description"] = json!("");
+    }
+    incoming
+}
+fn merge(family: &Value, version: &Value) -> Value {
+    let mut result = version.clone();
+    for key in ["id", "name", "createdAt"] {
+        result[key] = family[key].clone();
+    }
+    result["description"] = family.get("description").cloned().unwrap_or(json!(""));
+    for key in ["upstreamId", "importedFromId", "syncWarnings"] {
+        if let Some(value) = family.get(key) {
+            result[key] = value.clone();
+        }
+    }
+    result
+}
+pub async fn list(state: &AppState, user: &str, query: &Value) -> Result<Value> {
+    let rows=db::rows(&state.db,"SELECT d.payload,d.active_version_id AS active,v.name AS \"versionName\" FROM user_decks d LEFT JOIN user_deck_versions v ON v.user_id=d.user_id AND v.id=d.active_version_id WHERE d.user_id=$1 ORDER BY d.updated_at DESC",vec![user.into()]).await?;
+    let needle = field(query, "q").trim().to_lowercase();
+    let mut owned_items = Vec::new();
+    let mut skip = HashSet::new();
+    for row in &rows {
+        let payload = &row["payload"];
+        if let Some(upstream) = payload["upstreamId"]
+            .as_str()
+            .filter(|value| !value.is_empty())
+        {
+            skip.insert(upstream.into());
+        }
+        let id = field(payload, "id");
+        if !id.starts_with("deck_") {
+            skip.insert(id.into());
+        }
+        if query["source"] == "imported" {
+            continue;
+        }
+        let haystack = format!(
+            "{} {} {} {}",
+            field(payload, "name"),
+            field(payload, "description"),
+            field(&payload["legend"], "name"),
+            field(&payload["champion"], "name")
+        )
+        .to_lowercase();
+        if !needle.is_empty() && !haystack.contains(&needle) {
+            continue;
+        }
+        let mut item = owned(payload.clone());
+        if let (Some(active), Some(name)) = (
+            row["active"].as_str().filter(|value| !value.is_empty()),
+            row["versionName"]
+                .as_str()
+                .filter(|value| !value.is_empty()),
+        ) {
+            item["versionId"] = json!(active);
+            item["versionName"] = json!(name);
+        }
+        owned_items.push(item);
+    }
+    let imported = if query["source"] == "owned" {
+        json!({"items":[]})
+    } else {
+        upstream::list_imported(state, query, &skip)
+            .await
+            .unwrap_or(json!({"items":[]}))
+    };
+    let imported_items = imported["items"].as_array().cloned().unwrap_or_default();
+    let owned_count = owned_items.len();
+    let imported_count = imported_items.len();
+    owned_items.extend(imported_items);
+    let mut meta = json!({"total":imported["pagination"]["total"].as_i64().unwrap_or(owned_items.len() as i64),"owned":owned_count,"imported":imported_count});
+    if let Some(pagination) = imported.get("pagination") {
+        meta["pagination"] = pagination.clone();
+    }
+    Ok(json!({"data":owned_items,"meta":meta}))
+}
+pub async fn get(state: &AppState, user: &str, id: &str) -> Result<Value> {
+    if let Some(row) = row(&state.db, user, id).await? {
+        return detail(
+            &state.db,
+            user,
+            row["payload"].clone(),
+            row["active"].as_str(),
+        )
+        .await;
+    }
+    upstream::get_item(state, id)
+        .await
+        .ok_or_else(|| missing(false))
+}
+pub async fn upsert(
+    state: &AppState,
+    user: &str,
+    incoming: Value,
+    trusted: bool,
+    skip_sync: bool,
+    deduplicate: Option<&str>,
+) -> Result<Value> {
+    let deck_id = field(&incoming, "id").to_owned();
+    let initial = row(&state.db, user, &deck_id).await?;
+    if initial.is_none() && upstream::get_stored(state, &deck_id).await.is_some() {
+        return Err(readonly());
+    }
+    let base = persist(
+        incoming.clone(),
+        initial.as_ref().map(|row| &row["payload"]),
+        trusted,
+    );
+    let candidate = if skip_sync {
+        base
+    } else {
+        upstream::sync_owned(state, &base).await
+    };
+    let tx = lock(state, user).await?;
+    if let Some(source) = deduplicate
+        && let Some(existing)=db::rows(&tx,"SELECT payload FROM user_decks WHERE user_id=$1 AND (payload->>'importedFromId'=$2 OR payload->>'upstreamId'=$2 OR id=$2) LIMIT 1",vec![user.into(),source.into()]).await?.first(){return Ok(owned(existing["payload"].clone()));}
+    let existing = row(&tx, user, &deck_id).await?;
+    let mut next = persist(
+        candidate.clone(),
+        existing.as_ref().map(|row| &row["payload"]),
+        trusted,
+    );
+    if let Some(id) = candidate.get("upstreamId")
+        && existing.as_ref().map(|row| &row["payload"]["upstreamId"])
+            == initial.as_ref().map(|row| &row["payload"]["upstreamId"])
+    {
+        next["upstreamId"] = id.clone();
+    }
+    let version = existing
+        .as_ref()
+        .and_then(|row| row["active"].as_str())
+        .map(str::to_owned)
+        .unwrap_or_else(|| id("dver"));
+    let timestamp = now();
+    db::execute(&tx,"INSERT INTO user_decks(id,user_id,name,description,payload,active_version_id,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,to_timestamp($7::double precision/1000.0),to_timestamp($8::double precision/1000.0)) ON CONFLICT(user_id,id) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description,payload=EXCLUDED.payload,active_version_id=EXCLUDED.active_version_id,updated_at=EXCLUDED.updated_at",vec![deck_id.clone().into(),user.into(),field(&next,"name").into(),field(&next,"description").into(),next.clone().into(),version.clone().into(),next["createdAt"].as_i64().unwrap_or(0).into(),timestamp.into()]).await?;
+    if existing
+        .as_ref()
+        .and_then(|row| row["active"].as_str())
+        .is_none()
+    {
+        db::execute(&tx,"INSERT INTO user_deck_versions(id,user_id,deck_id,name,payload,created_at,updated_at) VALUES($1,$2,$3,'Current',$4,to_timestamp($5::double precision/1000.0),to_timestamp($6::double precision/1000.0))",vec![version.clone().into(),user.into(),deck_id.into(),next.clone().into(),next["createdAt"].as_i64().unwrap_or(0).into(),timestamp.into()]).await?;
+    } else {
+        db::execute(&tx,"UPDATE user_deck_versions SET payload=$3,updated_at=to_timestamp($4::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),version.clone().into(),next.clone().into(),timestamp.into()]).await?;
+    }
+    next["updatedAt"] = json!(timestamp);
+    let result = detail(&tx, user, next, Some(&version)).await?;
+    tx.commit().await?;
+    Ok(result)
+}
+pub async fn import(state: &AppState, user: &str, source: &str) -> Result<Value> {
+    if let Some(existing)=db::rows(&state.db,"SELECT payload FROM user_decks WHERE user_id=$1 AND (payload->>'importedFromId'=$2 OR payload->>'upstreamId'=$2 OR id=$2) LIMIT 1",vec![user.into(),source.into()]).await?.first(){return Ok(owned(existing["payload"].clone()));}
+    let mut payload = upstream::get_stored(state, source)
+        .await
+        .ok_or_else(|| missing(false))?;
+    let timestamp = now();
+    payload["id"] = json!(id("deck"));
+    payload["createdAt"] = json!(timestamp);
+    payload["updatedAt"] = json!(timestamp);
+    payload["upstreamId"] = json!(source);
+    payload["importedFromId"] = json!(source);
+    upsert(state, user, payload, true, true, Some(source)).await
+}
+pub enum VersionAction {
+    Create(String),
+    Rename(String, String),
+    Activate(String),
+    Delete(String),
+    Save(String, Value),
+}
+pub async fn version(
+    state: &AppState,
+    user: &str,
+    deck: &str,
+    action: VersionAction,
+) -> Result<Value> {
+    let initial = assert_editable(state, user, deck, true).await?;
+    let prepared = match &action {
+        VersionAction::Save(id, incoming) => {
+            let next = persist(incoming.clone(), Some(&initial["payload"]), false);
+            Some(if initial["active"] == *id {
+                upstream::sync_owned(state, &next).await
+            } else {
+                next
+            })
+        }
+        _ => None,
+    };
+    let tx = lock(state, user).await?;
+    let family = row(&tx, user, deck).await?.ok_or_else(|| missing(true))?;
+    let mut records = versions(&tx, user, deck).await?;
+    let active = family["active"].as_str().unwrap_or("");
+    let timestamp = now();
+    let mut payload = family["payload"].clone();
+    let mut active_id = active.to_owned();
+    match action {
+        VersionAction::Create(name) => {
+            if records.len() >= 25 {
+                return Err(AppError::new(
+                    409,
+                    "DECK_VERSION_LIMIT",
+                    "A deck can have at most 25 versions",
+                ));
+            }
+            let source = records
+                .iter()
+                .find(|row| row["id"] == active)
+                .or_else(|| records.first())
+                .map(|row| &row["payload"])
+                .unwrap_or(&payload);
+            let mut copy = merge(&payload, source);
+            copy["updatedAt"] = json!(timestamp);
+            active_id = id("dver");
+            db::execute(&tx,"INSERT INTO user_deck_versions(id,user_id,deck_id,name,payload,created_at,updated_at) VALUES($1,$2,$3,$4,$5,to_timestamp($6::double precision/1000.0),to_timestamp($6::double precision/1000.0))",vec![active_id.clone().into(),user.into(),deck.into(),name.into(),copy.clone().into(),timestamp.into()]).await?;
+            payload = copy;
+            db::execute(&tx,"UPDATE user_decks SET name=$3,description=$4,payload=$5,active_version_id=$6,updated_at=to_timestamp($7::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),field(&payload,"name").into(),field(&payload,"description").into(),payload.clone().into(),active_id.clone().into(),timestamp.into()]).await?;
+        }
+        VersionAction::Rename(id, name) => {
+            if !records.iter().any(|row| row["id"] == id) {
+                return Err(missing(true));
+            }
+            db::execute(&tx,"UPDATE user_deck_versions SET name=$4,updated_at=to_timestamp($5::double precision/1000.0) WHERE user_id=$1 AND deck_id=$2 AND id=$3",vec![user.into(),deck.into(),id.into(),name.into(),timestamp.into()]).await?;
+        }
+        VersionAction::Activate(id) => {
+            let record = records
+                .iter()
+                .find(|row| row["id"] == id)
+                .ok_or_else(|| missing(true))?;
+            payload = merge(&payload, &record["payload"]);
+            active_id = id;
+            db::execute(&tx,"UPDATE user_decks SET payload=$3,active_version_id=$4,updated_at=to_timestamp($5::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),payload.clone().into(),active_id.clone().into(),timestamp.into()]).await?;
+            payload["updatedAt"] = json!(timestamp);
+        }
+        VersionAction::Delete(id) => {
+            if !records.iter().any(|row| row["id"] == id) {
+                return Err(missing(true));
+            }
+            if records.len() <= 1 {
+                return Err(AppError::new(
+                    409,
+                    "DECK_LAST_VERSION",
+                    "Cannot delete the last remaining deck version",
+                ));
+            }
+            records.retain(|row| row["id"] != id);
+            let next = if active == id {
+                records.first()
+            } else {
+                records
+                    .iter()
+                    .find(|row| row["id"] == active)
+                    .or_else(|| records.first())
+            }
+            .ok_or_else(|| missing(true))?;
+            active_id = field(next, "id").into();
+            if active == id {
+                payload = merge(&payload, &next["payload"]);
+                db::execute(&tx,"UPDATE user_decks SET payload=$3,active_version_id=$4,updated_at=to_timestamp($5::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),payload.clone().into(),active_id.clone().into(),timestamp.into()]).await?;
+                payload["updatedAt"] = json!(timestamp);
+            }
+            db::execute(
+                &tx,
+                "DELETE FROM user_deck_versions WHERE user_id=$1 AND deck_id=$2 AND id=$3",
+                vec![user.into(), deck.into(), id.into()],
+            )
+            .await?;
+        }
+        VersionAction::Save(id, _) => {
+            if !records.iter().any(|row| row["id"] == id) {
+                return Err(missing(true));
+            }
+            let mut next = prepared.ok_or_else(AppError::internal)?;
+            for key in ["upstreamId", "importedFromId"] {
+                if family["payload"][key] != initial["payload"][key] {
+                    if let Some(value) = family["payload"].get(key) {
+                        next[key] = value.clone();
+                    } else {
+                        next.as_object_mut().map(|object| object.remove(key));
+                    }
+                }
+            }
+            db::execute(&tx,"UPDATE user_deck_versions SET payload=$4,updated_at=to_timestamp($5::double precision/1000.0) WHERE user_id=$1 AND deck_id=$2 AND id=$3",vec![user.into(),deck.into(),id.clone().into(),next.clone().into(),timestamp.into()]).await?;
+            if active == id {
+                db::execute(&tx,"UPDATE user_decks SET name=$3,description=$4,payload=$5,updated_at=to_timestamp($6::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),field(&next,"name").into(),field(&next,"description").into(),next.clone().into(),timestamp.into()]).await?;
+                next["updatedAt"] = json!(timestamp);
+                payload = next;
+            }
+        }
+    }
+    let result = detail(&tx, user, payload, Some(&active_id)).await?;
+    tx.commit().await?;
+    Ok(result)
+}
+pub async fn delete(state: &AppState, user: &str, id: &str) -> Result<Value> {
+    let owned = assert_editable(state, user, id, false).await?;
+    let payload = &owned["payload"];
+    if let Some(upstream) = payload["upstreamId"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+        && payload["importedFromId"] != upstream
+    {
+        let _ = crate::upstream::request(
+            state,
+            reqwest::Method::DELETE,
+            &format!("/v1/decks/{}", crate::auth::cookies::encode(upstream)),
+            &Value::Null,
+            None,
+            None,
+            true,
+        )
+        .await;
+    }
+    let tx = lock(state, user).await?;
+    let deleted = db::execute(
+        &tx,
+        "DELETE FROM user_decks WHERE user_id=$1 AND id=$2",
+        vec![user.into(), id.into()],
+    )
+    .await?;
+    tx.commit().await?;
+    if deleted == 0 {
+        return Err(missing(false));
+    }
+    Ok(json!({"data":{"id":id}}))
+}

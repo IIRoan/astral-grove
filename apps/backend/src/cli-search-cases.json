@@ -1,0 +1,379 @@
+[
+  {
+    "id": "name-jinx",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "jinx"
+    }
+  },
+  {
+    "id": "name-ambessa",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "ambessa"
+    }
+  },
+  {
+    "id": "name-matriarch",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "matriarch"
+    }
+  },
+  {
+    "id": "name-vi",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "vi"
+    }
+  },
+  {
+    "id": "accent-ambessa-precomposed",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "Ambéssa"
+    }
+  },
+  {
+    "id": "accent-ambessa-decomposed",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "Ambéssa"
+    }
+  },
+  {
+    "id": "accent-ambessa-spaced",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "AM BÉSSA"
+    }
+  },
+  {
+    "id": "accent-matriarch",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "Matriarch"
+    }
+  },
+  {
+    "id": "compact-soul-spinner",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "soul spinner"
+    }
+  },
+  {
+    "id": "compact-soulspinner",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "soulspinner"
+    }
+  },
+  {
+    "id": "typo-embessa",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "embessa"
+    }
+  },
+  {
+    "id": "typo-stargazer",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "stargazer"
+    }
+  },
+  {
+    "id": "false-positive-plate",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "plate"
+    }
+  },
+  {
+    "id": "printing-ogn-prefix",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "OGN-"
+    }
+  },
+  {
+    "id": "printing-ogn-253",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "OGN-253"
+    }
+  },
+  {
+    "id": "printing-signed",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "signed"
+    }
+  },
+  {
+    "id": "printing-artist-kudos",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "kudos"
+    }
+  },
+  {
+    "id": "printing-set-origins",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "origins"
+    }
+  },
+  {
+    "id": "mixed-unit-fury",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "unit fury"
+    }
+  },
+  {
+    "id": "mixed-ambessa-legend",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "ambessa legend"
+    }
+  },
+  {
+    "id": "mixed-jinx-signed",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "jinx signed"
+    }
+  },
+  {
+    "id": "filter-unit-gear",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "spinner",
+      "types": "Unit,Gear"
+    }
+  },
+  {
+    "id": "filter-champion",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "vi",
+      "super": "Champion"
+    }
+  },
+  {
+    "id": "filter-set-rarity",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "vi",
+      "sets": "OGN",
+      "rarities": "Rare"
+    }
+  },
+  {
+    "id": "filter-variant-type",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "vi",
+      "variants": "Standard"
+    }
+  },
+  {
+    "id": "filter-energy-might-power",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "vi",
+      "energyMin": 1,
+      "energyMax": 4,
+      "mightMin": 1,
+      "mightMax": 6,
+      "powerMin": 0,
+      "powerMax": 3
+    }
+  },
+  {
+    "id": "filter-color-all",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "vi",
+      "colors": "Body"
+    }
+  },
+  {
+    "id": "filter-color-within",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "within",
+      "q": "vi",
+      "colors": "Body,Mind"
+    }
+  },
+  {
+    "id": "filter-exclude-tokens",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "vi",
+      "excludeTokens": true
+    }
+  },
+  {
+    "id": "page-first",
+    "query": {
+      "page": 1,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "a"
+    }
+  },
+  {
+    "id": "page-later",
+    "query": {
+      "page": 3,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "a"
+    }
+  },
+  {
+    "id": "page-beyond-former-cap",
+    "query": {
+      "page": 1,
+      "limit": 40,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "unit"
+    }
+  },
+  {
+    "id": "page-out-of-range",
+    "query": {
+      "page": 99,
+      "limit": 20,
+      "sortBy": "name",
+      "dir": "asc",
+      "colorMode": "all",
+      "q": "jinx"
+    }
+  }
+]

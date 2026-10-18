@@ -1,34 +1,53 @@
 name: CI
-
 on:
   push:
-    branches: [main]
+    branches: [main, rust-backend-rewrite]
   pull_request:
-
+  workflow_dispatch:
+permissions:
+  contents: read
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 jobs:
   check:
-    name: Typecheck, lint, unit tests
+    name: Contracts, Rust, TypeScript and unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
+      - uses: dtolnay/rust-toolchain@1.98.1
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
       - run: bun install --frozen-lockfile
       - run: bun run check
-      - run: bun test scripts/lib/internal-release.test.ts
+      - name: Native Rust unit tests
+        run: cargo test --workspace --locked
+      - name: Build native server and validation probes
+        run: cargo build --package astral-grove-server --bins --locked
+      - name: Verify frozen baseline and every original test destination
+        run: cargo xtask baseline
+      - name: Shared runtime validation parity against Rust
+        run: bun --no-env-file scripts/rust-migration/validation-corpus.mjs --check-rust
+      - name: Business rule parity against Rust
+        run: bun --no-env-file scripts/rust-migration/business-corpus.ts --check-rust
+      - name: Better Auth schema parity against Rust
+        run: bun --no-env-file scripts/rust-migration/auth-validation-corpus.mjs --check-rust
+      - run: bun test scripts/lib/internal-release.test.ts scripts/rust-migration/test-target.test.ts
       - run: bun run --cwd packages/contracts test
-      - run: bun run --cwd apps/api test:unit
+      - name: Retained Elysia oracle units (reference evidence)
+        run: bun run --cwd tests/reference-api test
       - run: bun run --cwd apps/mobile test
-
   api-e2e:
-    name: API e2e
+    name: Native Rust HTTP and PostgreSQL compatibility
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:16-alpine
@@ -43,15 +62,79 @@ jobs:
     env:
       NODE_ENV: test
       TEST_DB_URL: postgres://riftbound:riftbound@localhost:5433/riftbound_test
-      PA_API_KEY: ${{ secrets.PA_API_KEY }}
-      ADMIN_SYNC_TOKEN: ci-admin-sync-token-not-secret
-      BETTER_AUTH_SECRET: ci-better-auth-secret-not-secret-32chars
-      BETTER_AUTH_URL: http://localhost:3099
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
+      - uses: dtolnay/rust-toolchain@1.98.1
+      - uses: Swatinem/rust-cache@v2
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/contracts build
-      - run: bun run --cwd apps/api test:e2e
+      - name: Native Rust HTTP, migrations, auth, fixtures and concurrency
+        run: bun run --cwd apps/backend test:e2e
+      - name: Original 219 compatibility cases targeting Rust
+        run: bun run --cwd apps/backend test:compat
+      - name: Auth HTTP protocol parity
+        run: bun --no-env-file scripts/rust-migration/auth-parity.ts
+      - name: Malformed input and HTTP boundary parity
+        run: bun --no-env-file scripts/rust-migration/http-boundary-parity.ts
+      - name: Native server diagnostics
+        if: failure()
+        run: cat /tmp/astral-native-test-*.log /tmp/astral-auth-parity-server.log 2>/dev/null || true
+  backend-image:
+    name: Production Rust image and packaged HTTP tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: riftbound
+          POSTGRES_PASSWORD: riftbound
+          POSTGRES_DB: riftbound_test
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U riftbound -d riftbound_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      TEST_DB_URL: postgres://riftbound:riftbound@127.0.0.1:5433/riftbound_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: dtolnay/rust-toolchain@1.98.1
+      - uses: Swatinem/rust-cache@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run --cwd packages/contracts build
+      - uses: docker/setup-buildx-action@v3
+      - name: Build production Rust image without publishing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.backend
+          load: true
+          tags: astral-grove-backend:ci
+          cache-from: type=gha,scope=astral-grove-backend
+          cache-to: type=gha,scope=astral-grove-backend,mode=max
+      - name: Verify native runtime and extract its binary
+        run: |
+          test "$(docker image inspect --format '{{.Config.User}}' astral-grove-backend:ci)" = '10001:10001'
+          docker run --rm --entrypoint /bin/sh astral-grove-backend:ci -ec 'if command -v bun || command -v node; then exit 1; fi'
+          container_id=$(docker create astral-grove-backend:ci)
+          docker cp "$container_id:/usr/local/bin/astral-grove-server" "$RUNNER_TEMP/astral-grove-server"
+          docker rm "$container_id"
+          chmod +x "$RUNNER_TEMP/astral-grove-server"
+          sha256sum "$RUNNER_TEMP/astral-grove-server"
+          echo "ASTRAL_BACKEND_BIN=$RUNNER_TEMP/astral-grove-server" >> "$GITHUB_ENV"
+      - name: Production container health, secure auth, SSE and SIGTERM drain
+        run: bun --no-env-file apps/backend/test/container-smoke.ts astral-grove-backend:ci
+      - name: Native HTTP suites against the packaged release binary
+        run: bun run --cwd apps/backend test:e2e
+      - name: Original compatibility suites against the packaged release binary
+        run: bun run --cwd apps/backend test:compat
+      - name: Packaged server diagnostics
+        if: failure()
+        run: cat /tmp/astral-native-test-*.log 2>/dev/null || true

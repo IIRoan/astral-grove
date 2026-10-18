@@ -11,7 +11,7 @@ import {
   resolveBuildPlan,
   resolveUrl,
 } from './internal-release.ts';
-import { releaseAccessToken } from '../../apps/api/src/lib/internal-release.ts';
+import { releaseAccessToken } from './internal-release-signing.ts';
 
 describe('internal-release manifest', () => {
   test('escapes & in plist IPA URLs so Apple can parse the manifest', () => {

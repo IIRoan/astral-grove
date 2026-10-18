@@ -1,15 +1,13 @@
 {
   "$schema": "https://schema.railpack.com",
-  "provider": "node",
-  "packages": {
-    "bun": "1.4.2"
-  },
+  "provider": "rust",
+  "packages": { "rust": "1.98.1" },
   "steps": {
     "build": {
-      "commands": ["bun run --filter @riftbound/contracts build"]
+      "commands": [
+        "cargo build --locked --release --package astral-grove-server --bin astral-grove-server"
+      ]
     }
   },
-  "deploy": {
-    "startCommand": "bun run --cwd apps/api start"
-  }
+  "deploy": { "startCommand": "./target/release/astral-grove-server" }
 }

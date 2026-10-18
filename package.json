@@ -5,16 +5,17 @@
   "packageManager": "bun@1.4.2",
   "scripts": {
     "dev": "turbo dev",
-    "dev:api": "bun run --cwd apps/api dev",
+    "dev:api": "bun run --cwd apps/backend dev",
     "dev:mobile": "bun run --cwd apps/mobile dev",
     "cloudflared": "bun scripts/dev-tunnel.mjs",
     "build": "turbo build",
     "lint": "eslint \"apps/**/*.{ts,tsx,js,mjs}\" \"packages/**/*.{ts,tsx,js,mjs}\" \"design/**/*.{ts,tsx,js,mjs}\" --ignore-pattern \"**/dist/**\" --ignore-pattern \"**/.next/**\"",
     "lint:fix": "bun run lint --fix",
     "typecheck": "turbo typecheck",
+    "typecheck:iac": "tsc -p .railway/tsconfig.json",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
-    "check": "bun run typecheck && bun run lint && bun run format:check",
+    "check": "bun run api:contracts:check && bun run typecheck && bun run typecheck:iac && bun run lint && bun run format:check && cargo fmt --all -- --check && cargo clippy --workspace --all-targets --locked -- -D warnings",
     "unused": "knip",
     "unused:exports": "knip --exports --no-config-hints --no-exit-code",
     "dupes": "jscpd --config .jscpd.json .",
@@ -23,14 +24,12 @@
     "db": "exec bun scripts/db.mjs",
     "db:up": "bun run db -d",
     "db:down": "docker compose down",
-    "db:migrate": "bun run --filter @riftbound/api db:migrate",
-    "db:reset": "bun run --filter @riftbound/api db:reset",
-    "db:reset:full": "bun run --filter @riftbound/api db:reset:full",
-    "db:generate": "bun run --filter @riftbound/api db:generate",
-    "db:studio": "bun run --filter @riftbound/api db:studio",
+    "db:migrate": "bun run --cwd apps/backend db:migrate",
     "sync:catalog": "curl -s -X POST http://localhost:7000/api/v1/sync/catalog -H \"Authorization: Bearer ${ADMIN_SYNC_TOKEN:-dev-sync-token-change-me}\"",
-    "sync:prices": "curl -s -X POST http://localhost:7000/api/v1/sync/prices -H \"Authorization: Bearer ${ADMIN_SYNC_TOKEN:-dev-sync-token-change-me}\"",
-    "audit:cards": "bun run --cwd apps/api audit:cards"
+    "sync:prices": "bun scripts/backend-cli.mjs sync:prices",
+    "audit:cards": "bun scripts/backend-cli.mjs audit:cards",
+    "api:contracts": "cargo xtask openapi",
+    "api:contracts:check": "cargo xtask openapi --check"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
@@ -41,11 +40,13 @@
     "railway": "^3.11.0",
     "turbo": "^2.5.4",
     "typescript": "6.0.3",
-    "typescript-eslint": "^8.66.0"
+    "typescript-eslint": "^8.66.0",
+    "zod": "3.25.76"
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "tests/reference-api"
   ],
   "overrides": {
     "expo": "57.0.23",

@@ -1,7 +1,13 @@
 # Riftbound App — Implementation Specification
 
-> **Architecture:** Expo (mobile + web) → **Our Elysia API** → PostgreSQL cache → piltoverarchive.com External API  
+> **Current architecture:** Expo (mobile + web) → **Our Rust/Axum API** → PostgreSQL cache → piltoverarchive.com External API
+>
 > **Goal:** Type-safe, fast card catalog + Cardmarket prices with local persistence and hash-based upstream sync.
+
+The backend has been migrated to Rust. Elysia/Drizzle implementation outlines below
+describe the historical baseline; current source, commands and verification are in
+[the backend guide](apps/backend/README.md) and
+[the migration report](plans/rust-migration/local-validation.md).
 
 ---
 
@@ -10,7 +16,7 @@
 Build a monorepo containing:
 
 1. **`apps/mobile`** — Expo app (iOS, Android, Web) using Expo Router
-2. **`apps/api`** — ElysiaJS backend (TypeScript strict, Zod validation)
+2. **`apps/backend`** — native Rust/Axum backend, with generated TypeScript types and retained shared Zod validation
 3. **`packages/contracts`** — Shared Zod schemas + inferred types (single source of truth)
 
 The client **never** calls piltoverarchive.com directly. Our API mirrors all **card-related** upstream data locally (cards, variants, sets, colors metadata, prices) using a **cache-aside + content-hash** invalidation strategy.

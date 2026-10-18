@@ -1,0 +1,96 @@
+{
+  "version": "2026.1",
+  "game": "Riftbound",
+  "format": "Constructed",
+  "sections": {
+    "legend": {
+      "key": "legend",
+      "title": "Champion Legend",
+      "target": 1,
+      "single": true,
+      "required": true,
+      "description": "One Champion Legend defines your deck Domain Identity."
+    },
+    "champion": {
+      "key": "champion",
+      "title": "Chosen Champion",
+      "target": 1,
+      "single": true,
+      "required": true,
+      "description": "One Champion Unit that shares a champion tag with your Legend and matches Domain Identity."
+    },
+    "mainDeck": {
+      "key": "mainDeck",
+      "title": "Main Deck",
+      "target": 39,
+      "minimum": 39,
+      "required": true,
+      "description": "At least 39 Main Deck cards. With your Chosen Champion, your playable deck is 40 cards."
+    },
+    "runes": {
+      "key": "runes",
+      "title": "Rune Deck",
+      "target": 12,
+      "exact": true,
+      "required": true,
+      "description": "Exactly 12 Rune cards matching your Legend Domain Identity. Split freely across your Legend two domains."
+    },
+    "battlefields": {
+      "key": "battlefields",
+      "title": "Battlefields",
+      "target": 3,
+      "exact": true,
+      "required": true,
+      "uniqueNames": true,
+      "description": "Exactly 3 Battlefield cards with unique names."
+    },
+    "sideboard": {
+      "key": "sideboard",
+      "title": "Sideboard",
+      "target": 10,
+      "maximum": 10,
+      "required": false,
+      "description": "Up to 10 Main Deck cards. Signature cards cannot be sideboarded."
+    }
+  },
+  "copyLimits": {
+    "default": 3,
+    "rune": 12,
+    "battlefieldPerName": 1,
+    "signatureTotal": 3
+  },
+  "maxDomains": null,
+  "requireChampionTagMatch": true,
+  "requireSignatureTagMatch": true,
+  "restrictPicker": true,
+  "constraints": [
+    {
+      "code": "domain_identity",
+      "message": "All cards in Main Deck, Rune Deck, Battlefields, Sideboard, and Chosen Champion must match your Legend Domain Identity."
+    },
+    {
+      "code": "champion_tag",
+      "message": "Chosen Champion must share at least one champion tag with your Legend."
+    },
+    {
+      "code": "champion_supertype",
+      "message": "Chosen Champion must be a Champion Unit (supertype: Champion)."
+    },
+    {
+      "code": "signature_cap",
+      "message": "At most 3 Signature cards total in the Main Deck, matching Legend champion tags."
+    },
+    {
+      "code": "signature_sideboard",
+      "message": "Signature cards cannot be added to the sideboard."
+    },
+    {
+      "code": "battlefield_unique",
+      "message": "Each Battlefield name may appear at most once."
+    },
+    {
+      "code": "copy_limit_spiderling",
+      "message": "Your deck can have any number of cards named Spiderling."
+    }
+  ]
+}

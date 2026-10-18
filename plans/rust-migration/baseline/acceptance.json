@@ -1,0 +1,87 @@
+{
+  "recordedAtUtc": "2026-10-18T21:14:28.246344+00:00",
+  "scope": "Local acceptance snapshot before branch publication and hosted CI",
+  "branch": "rust-backend-rewrite",
+  "baseRevision": "598a9189d8beb1222a789ed836d37754e4826001",
+  "rocalReference": "b28edbe04e1ecccbe01ebf4e77b173f6d4a12a8e",
+  "toolchains": {
+    "bun": "1.4.2",
+    "rust": "1.98.1",
+    "postgres": "16.15"
+  },
+  "baseline": {
+    "sourceFiles": 84,
+    "namedFunctionsExercised": 516,
+    "originalUnitCases": 398,
+    "originalCompatibilityCases": 219,
+    "unaccountedOriginalCases": 0,
+    "applicationOperations": 55,
+    "authOperations": 42,
+    "sharedOutputTypeAssertions": 135,
+    "originalMigrationFilesUnchanged": 16,
+    "scope": "Named function coverage; does not measure branch coverage or anonymous callbacks"
+  },
+  "tests": {
+    "rustUnit": 30,
+    "generatorUnit": 1,
+    "nativeHttp": 22,
+    "nativeCompatibility": 219,
+    "retainedOracleUnit": 406,
+    "extraOracleIntegration": 5,
+    "mobile": 1029,
+    "contracts": 152,
+    "publishingAndGuards": 24,
+    "failures": 0,
+    "skipped": 0
+  },
+  "differential": {
+    "sharedSchemas": 45050,
+    "authSchemas": 2318,
+    "businessRules": 2228,
+    "authHttp": 100,
+    "applicationHttp": 192,
+    "documentedHttpCorrections": 86,
+    "unexpectedMismatches": 0
+  },
+  "packaged": {
+    "imageId": "601e9ba9ef635f129a3be8eb3f8d7d4224cae0ab44325bf58051c8a2ce79428c",
+    "binarySha256": "84e6eb959c8ee51fa709974f4757381845ac39bf048d0bdcc6d5caad0a539dc6",
+    "nativeHttpCasesPassed": 22,
+    "compatibilityCasesPassed": 219,
+    "runtimeUser": "10001:10001",
+    "productionSmokeExitCode": 0
+  },
+  "quality": {
+    "generatedContracts": true,
+    "freshWorkspaceTypecheck": true,
+    "iacTypecheck": true,
+    "eslint": true,
+    "prettier": true,
+    "rustfmt": true,
+    "strictClippy": true,
+    "frozenInstallPinnedBun": true
+  },
+  "unchanged": {
+    "mobileSource": true,
+    "marketingSource": true,
+    "gitIndex": true,
+    "ignoredApiEnv": true
+  },
+  "committed": false,
+  "deployed": false,
+  "evidenceLogs": {
+    "rootCheck": "/tmp/astral-acceptance-check.log",
+    "rootTests": "/tmp/astral-acceptance-suite.log",
+    "packagedNative": "/tmp/astral-image-native-acceptance.log",
+    "packagedCompatibility": "/tmp/astral-image-compat-acceptance.log",
+    "freshTypecheck": "/tmp/astral-typecheck-fresh-final.log",
+    "oracleBoundaries": "/tmp/astral-oracle-boundaries-final.log",
+    "tools": "/tmp/astral-final-tools.log"
+  },
+  "limits": [
+    "Physical-device and browser interaction not exercised",
+    "Hosted CI and production/live external providers not exercised",
+    "Production backup restoration and traffic-switch rollback not exercised",
+    "Retained reference units and direct reference-service assertions are oracle evidence"
+  ]
+}

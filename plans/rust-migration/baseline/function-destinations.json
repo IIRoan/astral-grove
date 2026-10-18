@@ -1,0 +1,435 @@
+[
+  {
+    "reference": "apps/api/src/app.ts",
+    "functionCount": 3,
+    "native": ["apps/backend/src/lib.rs", "apps/backend/src/main.rs"]
+  },
+  {
+    "reference": "apps/api/src/auth.ts",
+    "functionCount": 2,
+    "native": [
+      "apps/backend/src/auth.rs",
+      "apps/backend/src/auth/routes.rs",
+      "apps/backend/src/auth/service.rs"
+    ]
+  },
+  {
+    "reference": "apps/api/src/db/auth-schema.ts",
+    "functionCount": 0,
+    "native": ["apps/backend/src/auth/core.rs", "apps/backend/src/migrations.rs"]
+  },
+  {
+    "reference": "apps/api/src/db/client.ts",
+    "functionCount": 3,
+    "native": ["apps/backend/src/db.rs"]
+  },
+  {
+    "reference": "apps/api/src/db/migrate.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/db.rs", "apps/backend/src/migrations.rs"]
+  },
+  {
+    "reference": "apps/api/src/db/schema.ts",
+    "functionCount": 0,
+    "native": ["apps/backend/src/migrations.rs", "apps/backend/src/db.rs"]
+  },
+  {
+    "reference": "apps/api/src/db/transient-errors.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/db.rs"]
+  },
+  {
+    "reference": "apps/api/src/env.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/config.rs"]
+  },
+  {
+    "reference": "apps/api/src/index.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/main.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/admin-token.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/middleware.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/api-error.ts",
+    "functionCount": 9,
+    "native": ["apps/backend/src/error.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/auth-advanced.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/auth/pipeline.rs", "apps/backend/src/auth/service.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/auth-cookie-domain.ts",
+    "functionCount": 3,
+    "native": ["apps/backend/src/auth/cookies.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/bearer-session.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/auth/cookies.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/capped-body.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/upstream.rs", "apps/backend/src/images.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/card-colors-filter.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/catalog/query.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/card-types-filter.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/catalog/query.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/cardmarket-id-match.ts",
+    "functionCount": 12,
+    "native": ["apps/backend/src/cardmarket/matching.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/cardmarket-price-rows.ts",
+    "functionCount": 8,
+    "native": ["apps/backend/src/cardmarket/guide.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/catalog-total.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/catalog/metadata.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/email.ts",
+    "functionCount": 19,
+    "native": ["apps/backend/src/auth/email.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/hash.ts",
+    "functionCount": 5,
+    "native": [
+      "apps/backend/src/catalog/store.rs",
+      "apps/backend/src/cardmarket/guide.rs"
+    ]
+  },
+  {
+    "reference": "apps/api/src/lib/http-listen.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/main.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/image-resize-buffer.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/images.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/image-resize.ts",
+    "functionCount": 3,
+    "native": ["apps/backend/src/images.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/internal-release.ts",
+    "functionCount": 5,
+    "native": ["apps/backend/src/releases.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/invite-token.ts",
+    "functionCount": 3,
+    "native": ["apps/backend/src/collection/share.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/logger.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/main.rs", "apps/backend/src/error.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/password-reset-email.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/auth/email.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/price-history-retention.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/cardmarket/guide.rs", "apps/backend/src/cli.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/price-stats.ts",
+    "functionCount": 3,
+    "native": ["apps/backend/src/prices.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/rate-limit.ts",
+    "functionCount": 5,
+    "native": ["apps/backend/src/middleware.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/request-validation.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/http.rs", "apps/backend/src/http/zod.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/s3.ts",
+    "functionCount": 10,
+    "native": ["apps/backend/src/images.rs", "apps/backend/src/releases.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/search-candidates.ts",
+    "functionCount": 8,
+    "native": ["apps/backend/src/catalog/query.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/search-sql.ts",
+    "functionCount": 12,
+    "native": ["apps/backend/src/catalog/query.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/search.ts",
+    "functionCount": 19,
+    "native": ["apps/backend/src/search.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/session.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/auth.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/signature-image.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/catalog/mapper.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/synthetic-signed-overnumbered.ts",
+    "functionCount": 5,
+    "native": [
+      "apps/backend/src/catalog/mapper.rs",
+      "apps/backend/src/catalog/store.rs"
+    ]
+  },
+  {
+    "reference": "apps/api/src/lib/trusted-origins.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/config.rs", "apps/backend/src/auth/pipeline.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/ttl-cache.ts",
+    "functionCount": 10,
+    "native": ["apps/backend/src/cache.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/upstream-deck-list-params.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/http/upstream_decks.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/upstream-list-params.ts",
+    "functionCount": 5,
+    "native": ["apps/backend/src/upstream.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/variant-cardmarket.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/cardmarket/matching.rs"]
+  },
+  {
+    "reference": "apps/api/src/lib/verification-email.ts",
+    "functionCount": 5,
+    "native": ["apps/backend/src/auth/email.rs"]
+  },
+  {
+    "reference": "apps/api/src/plugins/auth.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/auth/pipeline.rs"]
+  },
+  {
+    "reference": "apps/api/src/plugins/error-handler.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/error.rs", "apps/backend/src/middleware.rs"]
+  },
+  {
+    "reference": "apps/api/src/plugins/rate-limit.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/middleware.rs"]
+  },
+  {
+    "reference": "apps/api/src/plugins/security-headers.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/middleware.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/cards.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/catalog/routes.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/collection-share.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/collection/share.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/collection.ts",
+    "functionCount": 8,
+    "native": ["apps/backend/src/collection/routes.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/deck-rules.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/deck_rules.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/decks.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/decks/routes.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/filters.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/catalog/metadata.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/images.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/images.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/prices.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/prices.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/releases.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/releases.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/search.ts",
+    "functionCount": 1,
+    "native": ["apps/backend/src/catalog/routes.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/settings.ts",
+    "functionCount": 3,
+    "native": ["apps/backend/src/user_data.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/sync.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/sync.rs"]
+  },
+  {
+    "reference": "apps/api/src/routes/wishlist.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/user_data.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/card-cache.ts",
+    "functionCount": 38,
+    "native": ["apps/backend/src/catalog/store.rs", "apps/backend/src/catalog/query.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/card-mapper.ts",
+    "functionCount": 15,
+    "native": ["apps/backend/src/catalog/mapper.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/cardmarket-id-backfill.ts",
+    "functionCount": 10,
+    "native": ["apps/backend/src/cardmarket/backfill.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/catalog-metadata.ts",
+    "functionCount": 12,
+    "native": ["apps/backend/src/catalog/metadata.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/catalog-probe.ts",
+    "functionCount": 5,
+    "native": ["apps/backend/src/catalog/metadata.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/collection-audit-service.ts",
+    "functionCount": 10,
+    "native": ["apps/backend/src/collection/audit.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/collection-live-hub.ts",
+    "functionCount": 5,
+    "native": ["apps/backend/src/collection/live.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/collection-membership.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/collection/membership.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/collection-service.ts",
+    "functionCount": 23,
+    "native": [
+      "apps/backend/src/collection/service.rs",
+      "apps/backend/src/collection/imports.rs"
+    ]
+  },
+  {
+    "reference": "apps/api/src/services/collection-share-service.ts",
+    "functionCount": 18,
+    "native": ["apps/backend/src/collection/share.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/deck-service.ts",
+    "functionCount": 33,
+    "native": ["apps/backend/src/decks/service.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/deck-sync.ts",
+    "functionCount": 27,
+    "native": ["apps/backend/src/decks/upstream.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/image-store.ts",
+    "functionCount": 19,
+    "native": ["apps/backend/src/images.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/price-cache.ts",
+    "functionCount": 20,
+    "native": ["apps/backend/src/prices.rs", "apps/backend/src/cardmarket/guide.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/sync-engine.ts",
+    "functionCount": 6,
+    "native": ["apps/backend/src/sync.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/user-settings-service.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/user_data.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/variant-resolver.ts",
+    "functionCount": 6,
+    "native": ["apps/backend/src/collection/imports.rs"]
+  },
+  {
+    "reference": "apps/api/src/services/wishlist-service.ts",
+    "functionCount": 4,
+    "native": ["apps/backend/src/user_data.rs"]
+  },
+  {
+    "reference": "apps/api/src/upstream/cardmarket-export.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/cardmarket/guide.rs"]
+  },
+  {
+    "reference": "apps/api/src/upstream/cardmarket-products.ts",
+    "functionCount": 2,
+    "native": ["apps/backend/src/cardmarket/backfill.rs"]
+  },
+  {
+    "reference": "apps/api/src/upstream/pa-client.ts",
+    "functionCount": 11,
+    "native": ["apps/backend/src/upstream.rs", "apps/backend/src/decks/upstream.rs"]
+  }
+]

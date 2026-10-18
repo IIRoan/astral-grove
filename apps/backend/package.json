@@ -1,0 +1,27 @@
+{
+  "name": "@riftbound/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cargo build --package astral-grove-server --release --locked",
+    "dev": "bun ../../scripts/backend-dev.mjs",
+    "start": "../../target/release/astral-grove-server",
+    "typecheck": "cargo check --workspace --locked && tsc --noEmit -p test/tsconfig.json",
+    "test:unit": "cargo test --workspace --locked",
+    "test:e2e": "cargo build --package astral-grove-server --bins --locked && bun test --max-concurrency=1 test/*.test.ts",
+    "test": "bun run test:unit && bun run test:e2e && bun run test:compat && bun run test:parity",
+    "db:migrate": "bun ../../scripts/backend-cli.mjs migrate",
+    "test:compat": "bun ../../scripts/backend-compat.mjs",
+    "test:parity": "bun --no-env-file ../../scripts/rust-migration/business-corpus.ts --check-rust && bun --no-env-file ../../scripts/rust-migration/validation-corpus.mjs --check-rust && bun --no-env-file ../../scripts/rust-migration/auth-validation-corpus.mjs --check-rust && bun --no-env-file ../../scripts/rust-migration/auth-parity.ts && bun --no-env-file ../../scripts/rust-migration/http-boundary-parity.ts"
+  },
+  "devDependencies": {
+    "@riftbound/contracts": "workspace:*",
+    "@types/bun": "^1.4.2",
+    "postgres": "^3.4.7",
+    "zod": "3.25.76",
+    "drizzle-orm": "^0.45.3",
+    "sharp": "^0.35.5",
+    "typescript": "6.0.3"
+  }
+}

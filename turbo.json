@@ -19,7 +19,28 @@
       "dependsOn": ["^build"]
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "cache": false,
+      "passThroughEnv": [
+        "TEST_DB_URL",
+        "NODE_ENV",
+        "BUN_RESOURCE_LIMITED",
+        "ASTRAL_BACKEND_BIN",
+        "E2E_PORT"
+      ]
+    },
+    "@riftbound/api#build": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "@riftbound/api#typecheck": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "@riftbound/api#dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["*"]
     }
   }
 }

@@ -31,6 +31,7 @@ export default defineRailway(() => {
 
   const backend = service('backend', {
     source: astralGrove,
+    build: { builder: 'DOCKERFILE', dockerfilePath: 'Dockerfile.backend' },
     healthcheck: '/api/v1/health',
     healthcheckTimeout: 300,
     replicas: { 'europe-west4-drams3a': 1 },
