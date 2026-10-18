@@ -95,7 +95,12 @@ bun run test
 
 Native tests launch the Rust process and use PostgreSQL plus local PA/Cardmarket,
 JMAP and independently verified S3 fixtures. `ASTRAL_BACKEND_BIN` can select a
-packaged release binary for the same HTTP tests. The compatibility runner targets
+packaged release binary for the same HTTP tests. Use `test:http` to run those
+tests without compiling a local binary; `test:e2e` builds the development server
+first. With `ASTRAL_BACKEND_BIN` set, the compatibility runner also skips the local
+build and auth/HTTP parity probes target that binary. CI runs all HTTP suites
+once against the production-image binary, alongside the container smoke test.
+The compatibility runner targets
 Rust with the 219 original e2e cases; some cases also call frozen TypeScript
 services directly, as recorded in the case map. Retained reference unit cases
 are oracle evidence, not Rust unit-test coverage. Native corpus and integration

@@ -9,12 +9,14 @@ const report = join(tmpdir(), `astral-native-compat-${crypto.randomUUID()}.xml`)
 const files = readdirSync(resolve(cwd, 'test/e2e'))
   .filter((file) => file.endsWith('.test.ts') && file !== 'migration-baseline.test.ts')
   .map((file) => 'test/e2e/' + file);
-const build = spawnSync(
-  'cargo',
-  ['build', '--package', 'astral-grove-server', '--bins', '--locked'],
-  { cwd: root, stdio: 'inherit' }
-);
-if (build.status !== 0) process.exit(build.status ?? 1);
+if (!process.env.ASTRAL_BACKEND_BIN) {
+  const build = spawnSync(
+    'cargo',
+    ['build', '--package', 'astral-grove-server', '--bins', '--locked'],
+    { cwd: root, stdio: 'inherit' }
+  );
+  if (build.status !== 0) process.exit(build.status ?? 1);
+}
 const env = { ...process.env, E2E_BACKEND: 'rust', NODE_ENV: 'test' };
 if (!env.E2E_PORT) {
   const listener = Bun.listen({

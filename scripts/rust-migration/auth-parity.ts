@@ -32,23 +32,26 @@ const referenceContext = await ctx.auth.$context;
 referenceContext.skipOriginCheck = false;
 referenceContext.skipCSRFCheck = false;
 const output = openSync('/tmp/astral-auth-parity-server.log', 'w');
-const rust = Bun.spawn(['target/debug/astral-grove-server'], {
-  env: {
-    NODE_ENV: 'test',
-    DATABASE_URL: database,
-    HOST: '127.0.0.1',
-    PORT: String(port),
-    PA_API_KEY: env.PA_API_KEY,
-    PA_BASE_URL: env.PA_BASE_URL,
-    ADMIN_SYNC_TOKEN: env.ADMIN_SYNC_TOKEN,
-    BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
-    BETTER_AUTH_URL: origin,
-    PUBLIC_APP_URL: env.PUBLIC_APP_URL,
-    CATALOG_PROBE_DISABLED: 'true',
-  },
-  stdout: output,
-  stderr: output,
-});
+const rust = Bun.spawn(
+  [process.env.ASTRAL_BACKEND_BIN ?? 'target/debug/astral-grove-server'],
+  {
+    env: {
+      NODE_ENV: 'test',
+      DATABASE_URL: database,
+      HOST: '127.0.0.1',
+      PORT: String(port),
+      PA_API_KEY: env.PA_API_KEY,
+      PA_BASE_URL: env.PA_BASE_URL,
+      ADMIN_SYNC_TOKEN: env.ADMIN_SYNC_TOKEN,
+      BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
+      BETTER_AUTH_URL: origin,
+      PUBLIC_APP_URL: env.PUBLIC_APP_URL,
+      CATALOG_PROBE_DISABLED: 'true',
+    },
+    stdout: output,
+    stderr: output,
+  }
+);
 const mismatches: unknown[] = [];
 let checked = 0;
 function normalize(value: unknown): unknown {
