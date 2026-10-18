@@ -18,7 +18,12 @@ export function useCatalogDesktopFilterSegments(
           label: segment.label,
           hasValue: catalogFilterSegmentActive(segment.id, filters),
           width: segment.id === 'stats' ? 320 : undefined,
-          maxHeight: segment.id === 'stats' ? 480 : 420,
+          maxHeight:
+            segment.id === 'sets'
+              ? ('available' as const)
+              : segment.id === 'stats'
+                ? 480
+                : 420,
           children: (
             <CatalogFilterSegmentPanel
               segment={segment.id}

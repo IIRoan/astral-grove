@@ -39,6 +39,15 @@ export const FADE_TRANSITION = {
   durationMs: 220,
 } as const;
 
+/** Measured disclosure resize leads a deferred, unscaled content reveal. */
+export const DISCLOSURE_MOTION = {
+  resizeMs: 240,
+  enterMs: 160,
+  enterDelayMs: 50,
+  exitMs: 100,
+  easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
+} as const;
+
 /** Expo-out curve for height collapses and polished settles (near GSAP power3.out). */
 export const EASE_OUT_EXPO = Easing.bezier(0.16, 1, 0.3, 1);
 

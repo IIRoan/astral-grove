@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import type { ScrollView as ScrollViewType } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { DISCLOSURE_MOTION } from '@/lib/motion';
 import { Popover, PopoverContent, PopoverPortal } from '@/components/ui/popover';
 import { Text } from '@/components/ui/text';
 import {
@@ -138,7 +140,7 @@ export type FilterPopoverBarItem<T extends string> = {
   contentClassName?: string;
   /** Popover width in px — PopoverContent's `width` style wins over `w-*` classes. */
   width?: number;
-  maxHeight?: number;
+  maxHeight?: number | 'available';
 };
 
 const DEFAULT_POPOVER_WIDTH = 280;
@@ -217,6 +219,8 @@ export function FilterPopoverBar<T extends string>({
   const triggerRefs = useRef<Partial<Record<T, View | null>>>({});
   const contentRef = useRef<ScrollViewType | null>(null);
   const [triggerPosition, setTriggerPosition] = useState<TriggerPosition>();
+  const [contentSize, setContentSize] = useState<{ id: T; height: number }>();
+  const reducedMotion = useReduceMotion();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const viewportMaxHeight = Math.max(
@@ -235,6 +239,7 @@ export function FilterPopoverBar<T extends string>({
       if (!node) return;
 
       node.measure((_x, _y, width, height, pageX, pageY) => {
+        setContentSize(undefined);
         setTriggerPosition({ pageX, pageY, width, height });
         onOpenIdChange(openId === id ? null : id);
       });
@@ -242,9 +247,28 @@ export function FilterPopoverBar<T extends string>({
     [onOpenIdChange, openId]
   );
 
-  const effectiveMaxHeight = activeSegment
-    ? Math.min(activeSegment.maxHeight ?? 420, viewportMaxHeight)
+  const fitAvailableSpace = activeSegment?.maxHeight === 'available';
+  const availableHeight = triggerPosition
+    ? Math.max(
+        160,
+        windowHeight -
+          insets.bottom -
+          triggerPosition.pageY -
+          triggerPosition.height -
+          16
+      )
     : viewportMaxHeight;
+  const effectiveMaxHeight = fitAvailableSpace
+    ? Math.min(availableHeight, viewportMaxHeight)
+    : Math.min(
+        typeof activeSegment?.maxHeight === 'number' ? activeSegment.maxHeight : 420,
+        viewportMaxHeight
+      );
+  const scrollMaxHeight = effectiveMaxHeight - 2;
+  const contentHeight =
+    fitAvailableSpace && contentSize?.id === openId
+      ? Math.min(contentSize.height, scrollMaxHeight)
+      : undefined;
 
   useEffect(() => {
     if (!openId || Platform.OS !== 'web') return;
@@ -268,6 +292,7 @@ export function FilterPopoverBar<T extends string>({
 
       onOpenIdChange(null);
       setTriggerPosition(undefined);
+      setContentSize(undefined);
     };
 
     const frame = requestAnimationFrame(() => {
@@ -307,6 +332,7 @@ export function FilterPopoverBar<T extends string>({
           if (!nextOpen) {
             onOpenIdChange(null);
             setTriggerPosition(undefined);
+            setContentSize(undefined);
           }
         }}
         triggerPosition={triggerPosition}
@@ -315,6 +341,7 @@ export function FilterPopoverBar<T extends string>({
         <PopoverPortal name={portalName}>
           {activeSegment ? (
             <PopoverContent
+              testID="filter-popover-content"
               className={cn(
                 'overflow-hidden border border-border bg-card-panel p-0 shadow-none',
                 FACTORY_RADIUS_CONTROL_CLASS,
@@ -327,7 +354,24 @@ export function FilterPopoverBar<T extends string>({
             >
               <ScrollView
                 ref={contentRef}
-                style={{ maxHeight: effectiveMaxHeight }}
+                style={[
+                  { maxHeight: scrollMaxHeight },
+                  fitAvailableSpace && Platform.OS === 'web'
+                    ? {
+                        height: contentHeight,
+                        transitionProperty: 'height',
+                        transitionDuration: reducedMotion
+                          ? '0ms'
+                          : `${DISCLOSURE_MOTION.resizeMs}ms`,
+                        transitionTimingFunction: DISCLOSURE_MOTION.easing,
+                      }
+                    : undefined,
+                ]}
+                onContentSizeChange={(_width, height) => {
+                  if (fitAvailableSpace && openId) {
+                    setContentSize({ id: openId, height });
+                  }
+                }}
                 contentContainerClassName="p-1.5"
                 contentContainerStyle={{ flexGrow: 0 }}
                 keyboardShouldPersistTaps="handled"

@@ -27,6 +27,8 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { cn, mergeRefs } from '@/lib/utils';
+import { DISCLOSURE_MOTION } from '@/lib/motion';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { ChevronDownIcon } from '@/components/icons';
 import { Slot } from './slot';
 
@@ -56,6 +58,8 @@ type AccordionRootContextValue = {
   itemLayouts: Record<string, AccordionItemLayout>;
   isOpen: (value: string) => boolean;
   toggle: (value: string) => void;
+  deferredMotion: boolean;
+  reduceMotion: boolean;
 };
 
 type AccordionItemContextValue = {
@@ -129,6 +133,7 @@ export type AccordionProps = {
   defaultValue?: string | string[];
   onValueChange?: (value: string | string[] | undefined) => void;
   children: ReactNode;
+  animation?: 'default' | 'deferred';
 };
 
 export const Accordion = ({
@@ -138,7 +143,10 @@ export const Accordion = ({
   defaultValue,
   onValueChange,
   children,
+  animation = 'default',
 }: AccordionProps) => {
+  const deferredMotion = Platform.OS === 'web' && animation === 'deferred';
+  const reduceMotion = useReduceMotion();
   const itemValues = useMemo(() => getAccordionItemValues(children), [children]);
   const isControlled = valueProp !== undefined;
 
@@ -227,8 +235,10 @@ export const Accordion = ({
       itemLayouts,
       isOpen,
       toggle,
+      deferredMotion,
+      reduceMotion,
     }),
-    [type, collapsible, itemLayouts, isOpen, toggle]
+    [type, collapsible, itemLayouts, isOpen, toggle, deferredMotion, reduceMotion]
   );
 
   return (
@@ -255,6 +265,7 @@ export const AccordionItem = ({
   const contentId = `${baseId}-content`;
   const open = root.isOpen(value);
   const layout = root.itemLayouts[value] ?? 'closed-only';
+  const Comp = root.deferredMotion ? View : AnimatedView;
 
   const itemCtx = useMemo(
     () => ({
@@ -268,14 +279,14 @@ export const AccordionItem = ({
 
   return (
     <AccordionItemContext.Provider value={itemCtx}>
-      <AnimatedView
+      <Comp
         className={cn(ACCORDION_ITEM_CLASSNAME, className)}
         data-layout={layout}
-        layout={ITEM_LAYOUT}
+        {...(root.deferredMotion ? null : { layout: ITEM_LAYOUT })}
         {...props}
       >
         {children}
-      </AnimatedView>
+      </Comp>
     </AccordionItemContext.Provider>
   );
 };
@@ -334,12 +345,104 @@ export type AccordionContentProps = ViewProps & {
   children: ReactNode;
 };
 
+function DeferredAccordionContent({
+  children,
+  className,
+  ...props
+}: AccordionContentProps) {
+  const { isOpen, contentId } = useAccordionItem();
+  const { reduceMotion } = useAccordionRoot();
+  const [present, setPresent] = useState(isOpen);
+  const [measured, setMeasured] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [interactive, setInteractive] = useState(false);
+
+  useEffect(() => {
+    let prepareFrame = 0;
+    let revealFrame = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    setInteractive(false);
+    if (reduceMotion) {
+      setPresent(isOpen);
+      setRevealed(isOpen);
+      setInteractive(isOpen);
+    } else if (isOpen) {
+      setPresent(true);
+      if (measured) {
+        // Paint the measured, hidden rows before starting their reveal.
+        prepareFrame = requestAnimationFrame(() => {
+          revealFrame = requestAnimationFrame(() => {
+            setRevealed(true);
+            timer = setTimeout(
+              () => setInteractive(true),
+              DISCLOSURE_MOTION.enterDelayMs + DISCLOSURE_MOTION.enterMs
+            );
+          });
+        });
+      }
+    } else {
+      setRevealed(false);
+      timer = setTimeout(() => {
+        setPresent(false);
+        setMeasured(false);
+      }, DISCLOSURE_MOTION.exitMs);
+    }
+
+    return () => {
+      cancelAnimationFrame(prepareFrame);
+      cancelAnimationFrame(revealFrame);
+      clearTimeout(timer);
+    };
+  }, [isOpen, measured, reduceMotion]);
+
+  if (reduceMotion ? !isOpen : !present) return null;
+
+  const visible = isOpen && (reduceMotion || revealed);
+  const enabled = isOpen && (reduceMotion || interactive);
+
+  return (
+    <View
+      nativeID={contentId}
+      testID="accordion-deferred-content"
+      aria-hidden={!enabled}
+      {...{ inert: !enabled }}
+      pointerEvents={enabled ? 'auto' : 'none'}
+      onLayout={() => setMeasured(true)}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: [{ translateY: visible || reduceMotion ? 0 : 4 }],
+        transitionProperty: 'opacity, transform',
+        transitionDuration: reduceMotion
+          ? '0ms'
+          : `${visible ? DISCLOSURE_MOTION.enterMs : DISCLOSURE_MOTION.exitMs}ms`,
+        transitionDelay:
+          visible && !reduceMotion ? `${DISCLOSURE_MOTION.enterDelayMs}ms` : '0ms',
+        transitionTimingFunction: DISCLOSURE_MOTION.easing,
+      }}
+    >
+      <View className={cn('px-3 pt-1 pb-3', className)} {...props}>
+        {children}
+      </View>
+    </View>
+  );
+}
+
 export const AccordionContent = ({
   children,
   className,
   ...props
 }: AccordionContentProps) => {
   const item = useAccordionItem();
+  const root = useAccordionRoot();
+
+  if (root.deferredMotion) {
+    return (
+      <DeferredAccordionContent className={className} {...props}>
+        {children}
+      </DeferredAccordionContent>
+    );
+  }
 
   if (!item.isOpen) {
     return null;
@@ -368,15 +471,37 @@ export const AccordionIndicator = ({
   children,
 }: AccordionIndicatorProps) => {
   const item = useAccordionItem();
+  const root = useAccordionRoot();
   const rotation = useSharedValue(item.isOpen ? 180 : 0);
 
   useEffect(() => {
+    if (root.deferredMotion) return;
     rotation.value = withSpring(item.isOpen ? 180 : 0, ICON_SPRING);
-  }, [item.isOpen, rotation]);
+  }, [item.isOpen, rotation, root.deferredMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
+
+  if (root.deferredMotion) {
+    return (
+      <View
+        className="shrink-0"
+        style={{
+          transform: [{ rotate: item.isOpen ? '180deg' : '0deg' }],
+          transitionProperty: 'transform',
+          transitionDuration: root.reduceMotion
+            ? '0ms'
+            : `${DISCLOSURE_MOTION.resizeMs}ms`,
+          transitionTimingFunction: DISCLOSURE_MOTION.easing,
+        }}
+      >
+        {children ?? (
+          <ChevronDownIcon className={cn('size-5 text-muted-foreground', className)} />
+        )}
+      </View>
+    );
+  }
 
   if (children) {
     return (

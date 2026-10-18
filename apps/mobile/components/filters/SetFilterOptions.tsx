@@ -78,7 +78,10 @@ export function SetFilterOptions({
     <View className="gap-3">
       {mainline.length > 0 ? renderOptions(mainline) : null}
       {special.length > 0 ? (
-        <Accordion collapsible>
+        <Accordion
+          collapsible
+          animation={presentation === 'list' ? 'deferred' : 'default'}
+        >
           <AccordionItem
             value="special-sets"
             className="border-t border-border bg-transparent pt-2 data-[layout=open]:my-0 data-[layout=open]:rounded-none data-[layout=closed-only]:rounded-none"

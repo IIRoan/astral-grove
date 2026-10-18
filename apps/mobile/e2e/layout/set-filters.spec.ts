@@ -55,6 +55,98 @@ function setControl(page: Page, code: string, name: string) {
   });
 }
 
+for (const path of ['/search', '/decks/browse']) {
+  test(`set dropdown grows and shrinks with special sets on ${path}`, async ({
+    context,
+    page,
+  }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1024, 'Desktop popover');
+    const width = page.viewportSize()!.width;
+    await page.setViewportSize({ width, height: 1100 });
+    await installSetFilters(
+      context,
+      SET_DIRECTORY.map((set) => ({ ...set, id: set.code, count: 10, printCount: 10 }))
+    );
+    await page.goto(path);
+    await openSetFilters(page);
+    const panel = page.getByTestId('filter-popover-content');
+    const specialTrigger = page.getByRole('button', { name: /^Special sets/ });
+    const height = () =>
+      panel.evaluate((element) => element.getBoundingClientRect().height);
+    await expect(panel).toHaveCSS('opacity', '1');
+    const collapsedHeight = await height();
+
+    await panel.evaluate((element) => {
+      const observer = new MutationObserver(() => {
+        const content = element.querySelector(
+          '[data-testid="accordion-deferred-content"]'
+        );
+        if (!content) return;
+        element.setAttribute(
+          'data-prepared-hidden',
+          String(
+            getComputedStyle(content).opacity === '0' &&
+              content.hasAttribute('inert') &&
+              content.getAttribute('aria-hidden') === 'true'
+          )
+        );
+        observer.disconnect();
+      });
+      observer.observe(element, { childList: true, subtree: true });
+    });
+
+    await specialTrigger.click();
+    await expect(panel).toHaveAttribute('data-prepared-hidden', 'true');
+    const content = page.getByTestId('accordion-deferred-content');
+    await expect(content).toHaveCSS('opacity', '1');
+    await expect(content).not.toHaveAttribute('inert');
+    await expect(content.locator('..')).toHaveCSS('transform', 'none');
+    await expect.poll(height).toBeGreaterThan(collapsedHeight + 200);
+    for (const set of SET_DIRECTORY) {
+      await expect(setControl(page, set.code, set.name)).toBeInViewport({ ratio: 1 });
+    }
+    await specialTrigger.click();
+    await expect.poll(height).toBeLessThan(collapsedHeight + 2);
+
+    // A short viewport still grows the panel, then scrolls the remaining options.
+    await page.setViewportSize({ width, height: 700 });
+    const shortCollapsedHeight = await height();
+    await specialTrigger.click();
+    await expect.poll(height).toBeGreaterThan(shortCollapsedHeight + 30);
+    await expect(panel).toBeInViewport({ ratio: 1 });
+    await setControl(page, 'VEN-NN', 'Vendetta | Nexus Night').click();
+    await expect(setControl(page, 'VEN-NN', 'Vendetta | Nexus Night')).toBeChecked();
+    await specialTrigger.click();
+    await expect.poll(height).toBeLessThan(shortCollapsedHeight + 2);
+    await expect(setControl(page, 'OGN', 'Origins')).toBeInViewport({ ratio: 1 });
+
+    // Reversing a queued reveal must cancel its stale frames and exit timer.
+    await specialTrigger.evaluate(async (element: HTMLElement) => {
+      element.click();
+      await new Promise(requestAnimationFrame);
+      element.click();
+      await new Promise(requestAnimationFrame);
+      element.click();
+    });
+    await expect(specialTrigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(content).toHaveCSS('opacity', '1');
+    await expect(content).not.toHaveAttribute('inert');
+    await specialTrigger.click();
+    await expect(content).toHaveCount(0);
+    await expect.poll(height).toBeLessThan(shortCollapsedHeight + 2);
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.reload();
+    await openSetFilters(page);
+    await specialTrigger.press('Enter');
+    await expect.poll(height).toBeGreaterThan(shortCollapsedHeight + 30);
+    await expect(panel.locator(':scope > div').first()).toHaveCSS(
+      'transition-duration',
+      '0s'
+    );
+  });
+}
+
 test('keeps mainline sets visible and preserves collapsed special selections', async ({
   context,
   page,
