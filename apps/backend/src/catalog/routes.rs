@@ -12,9 +12,6 @@ use axum::{
 use serde_json::{Value, json};
 use std::sync::Arc;
 use utoipa_axum::{router::OpenApiRouter, routes};
-fn admin(state: &AppState, headers: &HeaderMap) -> bool {
-    crate::middleware::admin(state, headers)
-}
 #[utoipa::path(get,path="/api/v1/cards",operation_id="listCards",responses((status=200,body=CardsListResponse)))]
 async fn list(
     State(state): State<Arc<AppState>>,
@@ -22,7 +19,7 @@ async fn list(
     headers: HeaderMap,
 ) -> Result<(HeaderMap, Json<CardsListResponse>)> {
     let mut input = http::value("CardsListQuery", &http::query(raw.as_deref()))?;
-    let refresh = input["refresh"] == true && admin(&state, &headers);
+    let refresh = input["refresh"] == true && crate::middleware::admin(&state, &headers);
     input["refresh"] = json!(refresh);
     let result = query::search(&state, &input).await?;
     let total = result["total"].as_i64().unwrap_or(0);
@@ -73,7 +70,7 @@ async fn detail(
         store::detail(
             &state,
             &number,
-            input["refresh"] == true && admin(&state, &headers),
+            input["refresh"] == true && crate::middleware::admin(&state, &headers),
         )
         .await?,
     )
@@ -106,7 +103,7 @@ async fn batch(
             false,
         )
         .await?;
-        for item in result["data"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+        for item in crate::db::array(&result, "data") {
             let card = upstream::card(&state, crate::db::string(item, "variantNumber")).await?;
             store::upsert(&state, &card).await?;
             found.push(store::detail_value(&state, &card).await?);
@@ -147,7 +144,7 @@ async fn search(
             &json!({"q":input["q"],"page":input["page"],"limit":input["limit"],"sortBy":"name","dir":"asc","colorMode":"all"}),
         )?;
         let result = query::search(&state, &query).await?;
-        let hits:Vec<_>=result["items"].as_array().map(Vec::as_slice).unwrap_or(&[]).iter().map(|item|json!({"kind":"card","variantNumber":item["variantNumber"],"name":item["name"],"imageUrl":item["imageUrl"],"setCode":item["setCode"],"type":item["type"],"rarity":item["rarity"]})).collect();
+        let hits:Vec<_>=crate::db::array(&result, "items").iter().map(|item|json!({"kind":"card","variantNumber":item["variantNumber"],"name":item["name"],"imageUrl":item["imageUrl"],"setCode":item["setCode"],"type":item["type"],"rarity":item["rarity"]})).collect();
         data["cards"] = json!({"hits":hits,"total":result["total"]});
     }
     if types.iter().any(|value| value == "decks") {

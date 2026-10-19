@@ -1,9 +1,18 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  isTokenCard,
   isTokenVariantNumber,
   isUnresolvedDeckVariant,
   unresolvedDeckVariantNumber,
 } from './variant-utils.js';
+
+describe('isTokenCard', () => {
+  test('detects tokens by super or token printing number', () => {
+    expect(isTokenCard({ super: 'Token', variantNumber: 'OGN-273' })).toBe(true);
+    expect(isTokenCard({ super: null, variantNumber: 'SFD-T03' })).toBe(true);
+    expect(isTokenCard({ super: 'Champion', variantNumber: 'OGN-030' })).toBe(false);
+  });
+});
 
 describe('isTokenVariantNumber', () => {
   test('detects token printings', () => {

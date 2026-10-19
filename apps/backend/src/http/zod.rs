@@ -133,7 +133,6 @@ enum Kind {
     },
     Union(Vec<Schema>),
     Record,
-    TypedRecord(Box<Schema>),
     Optional(Box<Schema>),
     NonOptional(Box<Schema>),
     Nullable(Box<Schema>),
@@ -221,13 +220,6 @@ pub fn object<const N: usize>(shape: [(&str, Schema); N]) -> Schema {
     }
 }
 
-/// `z.record(z.string(), z.any())`: any object, kept whole.
-pub fn record_values(value: Schema) -> Schema {
-    Schema {
-        kind: Kind::TypedRecord(Box::new(value)),
-    }
-}
-
 pub fn record() -> Schema {
     Schema { kind: Kind::Record }
 }
@@ -292,9 +284,6 @@ impl Schema {
             Kind::Any => json!({}),
             Kind::Enum(values) => json!({"type":"string","enum":values}),
             Kind::Record => json!({"type":"object","additionalProperties":{}}),
-            Kind::TypedRecord(inner) => {
-                serde_json::json!({"type":"object","additionalProperties":inner.json_schema(output)})
-            }
             Kind::Array { element, min, max } => {
                 let mut result = json!({"type":"array","items":element.json_schema(output)});
                 if let Some(min) = min {
@@ -542,28 +531,6 @@ impl Schema {
             Kind::Array { element, min, max } => parse_array(input, element, min, max, path, ctx),
             Kind::Object { shape, strict } => parse_object(input, shape, *strict, path, ctx),
             Kind::Union(options) => parse_union(input, options, path, ctx),
-            Kind::TypedRecord(inner) => match input {
-                Some(Value::Object(object)) => {
-                    let mut output = Map::new();
-                    let mut status = Status::Valid;
-                    for (key, value) in object {
-                        let mut path = path.to_vec();
-                        path.push(key.clone());
-                        let parsed = inner.run(Some(value), &path, ctx);
-                        status = status.max(parsed.status);
-                        if key != "__proto__"
-                            && let Some(value) = parsed.value
-                        {
-                            output.insert(key.clone(), value);
-                        }
-                    }
-                    Parsed {
-                        status,
-                        value: Some(Value::Object(output)),
-                    }
-                }
-                _ => invalid_type(ctx, path, "object", input),
-            },
             Kind::Record => match input {
                 Some(Value::Object(object)) => {
                     let mut object = object.clone();

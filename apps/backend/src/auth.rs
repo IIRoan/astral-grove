@@ -16,11 +16,10 @@ use axum::{extract::FromRequestParts, http::request::Parts};
 use std::sync::Arc;
 
 pub fn error(status: u16, code: &str, message: &str) -> AppError {
-    AppError {
-        status: axum::http::StatusCode::from_u16(status)
-            .unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
-        body: serde_json::json!({"code": code, "message": message}),
-    }
+    AppError::json(
+        status,
+        serde_json::json!({"code": code, "message": message}),
+    )
 }
 
 pub struct RouteUser(pub SessionResponse);

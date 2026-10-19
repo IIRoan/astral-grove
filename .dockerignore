@@ -6,7 +6,5 @@ target
 **/.env
 .env*
 **/.env.*
-tests
-plans
 apps/mobile
 design

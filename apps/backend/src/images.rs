@@ -1,8 +1,10 @@
 use crate::{
     AppState,
+    cache::TtlCache,
     config::Config,
     error::{AppError, Result},
     http,
+    middleware::Limits,
 };
 use axum::{
     body::Body,
@@ -13,7 +15,7 @@ use axum::{
 use rusty_s3::{Bucket, Credentials, S3Action, UrlStyle};
 use serde_json::Value;
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -28,41 +30,6 @@ struct Cached {
     bytes: axum::body::Bytes,
     content_type: String,
     etag: String,
-    expires: Instant,
-}
-#[derive(Default)]
-struct Cache {
-    values: HashMap<String, Cached>,
-    order: VecDeque<String>,
-    bytes: usize,
-}
-impl Cache {
-    fn get(&self, key: &str) -> Option<Cached> {
-        self.values
-            .get(key)
-            .filter(|v| v.expires > Instant::now())
-            .cloned()
-    }
-    fn insert(&mut self, key: String, value: Cached) {
-        if value.bytes.len() > MAX_MEMORY {
-            return;
-        }
-        if let Some(old) = self.values.remove(&key) {
-            self.bytes -= old.bytes.len();
-        }
-        self.order.retain(|stored| stored != &key);
-        while self.values.len() >= 2000 || self.bytes + value.bytes.len() > MAX_MEMORY {
-            let Some(old) = self.order.pop_front() else {
-                break;
-            };
-            if let Some(value) = self.values.remove(&old) {
-                self.bytes -= value.bytes.len();
-            }
-        }
-        self.bytes += value.bytes.len();
-        self.order.push_back(key.clone());
-        self.values.insert(key, value);
-    }
 }
 pub struct Storage {
     bucket: Bucket,
@@ -111,9 +78,12 @@ impl Storage {
         content_type: Option<&str>,
         disposition: Option<&str>,
     ) -> url::Url {
-        let duration = Duration::from_secs(seconds);
-        if head {
-            let mut action = self.bucket.head_object(Some(&self.credentials), key);
+        fn sign<'a>(
+            mut action: impl S3Action<'a>,
+            seconds: u64,
+            content_type: Option<&'a str>,
+            disposition: Option<&'a str>,
+        ) -> url::Url {
             if let Some(value) = content_type {
                 action.query_mut().insert("response-content-type", value);
             }
@@ -122,18 +92,15 @@ impl Storage {
                     .query_mut()
                     .insert("response-content-disposition", value);
             }
-            return action.sign(duration);
+            action.sign(Duration::from_secs(seconds))
         }
-        let mut action = self.bucket.get_object(Some(&self.credentials), key);
-        if let Some(value) = content_type {
-            action.query_mut().insert("response-content-type", value);
+        if head {
+            let action = self.bucket.head_object(Some(&self.credentials), key);
+            sign(action, seconds, content_type, disposition)
+        } else {
+            let action = self.bucket.get_object(Some(&self.credentials), key);
+            sign(action, seconds, content_type, disposition)
         }
-        if let Some(value) = disposition {
-            action
-                .query_mut()
-                .insert("response-content-disposition", value);
-        }
-        action.sign(duration)
     }
     pub async fn exists(&self, key: &str) -> bool {
         self.client
@@ -200,12 +167,12 @@ pub async fn capped(mut response: reqwest::Response, cap: usize) -> Option<Vec<u
 pub struct ImageStore {
     pub storage: Option<Arc<Storage>>,
     client: reqwest::Client,
-    cache: Mutex<Cache>,
+    cache: Mutex<TtlCache<Cached>>,
     misses: Arc<Mutex<HashMap<String, Instant>>>,
     uploads: crate::tasks::Tasks,
     pending_uploads: Arc<std::sync::Mutex<HashSet<String>>>,
     locks: Mutex<HashMap<String, std::sync::Weak<Mutex<()>>>>,
-    rate: Mutex<HashMap<String, (Instant, u32)>>,
+    rate: Limits,
     resize: Arc<Semaphore>,
     resize_queue: Arc<Semaphore>,
     cdn: String,
@@ -229,12 +196,16 @@ impl ImageStore {
         Ok(Self {
             storage: Storage::new(config, client.clone())?.map(Arc::new),
             client,
-            cache: Mutex::new(Cache::default()),
+            cache: Mutex::new(TtlCache::new(
+                Duration::from_secs(86400),
+                2000,
+                Some(MAX_MEMORY),
+            )),
             misses: Arc::new(Mutex::new(HashMap::new())),
             uploads: crate::tasks::Tasks::new(8),
             pending_uploads: Default::default(),
             locks: Mutex::new(HashMap::new()),
-            rate: Mutex::new(HashMap::new()),
+            rate: Limits::default(),
             resize: Arc::new(Semaphore::new(2)),
             resize_queue: Arc::new(Semaphore::new(8)),
             cdn: config
@@ -278,19 +249,8 @@ impl ImageStore {
     }
 
     async fn allow_cdn(&self, ip: &str) -> bool {
-        let now = Instant::now();
-        let mut buckets = self.rate.lock().await;
-        buckets.retain(|_, (expires, _)| *expires > now);
-        for (key, max) in [(format!("ip:{ip}"), 120), ("global".into(), 600)] {
-            let entry = buckets
-                .entry(key)
-                .or_insert((now + Duration::from_secs(60), 0));
-            if entry.1 >= max {
-                return false;
-            }
-            entry.1 += 1;
-        }
-        true
+        self.rate.check(format!("ip:{ip}"), 120, 60).await.is_none()
+            && self.rate.check("global".into(), 600, 60).await.is_none()
     }
     async fn load(&self, key: &str, ip: &str) -> Option<(Vec<u8>, String, &'static str)> {
         if self
@@ -343,7 +303,7 @@ impl ImageStore {
     ) -> Result<Option<(Cached, &'static str)>> {
         let width = width.filter(|_| key.starts_with("cards/"));
         let storage_key = width.map_or_else(|| key.into(), |w| format!("thumbs/w{w}/{key}"));
-        if let Some(cached) = self.cache.lock().await.get(&storage_key) {
+        if let Some(cached) = self.cache.lock().await.get(&storage_key).cloned() {
             return Ok(Some((cached, "memory")));
         }
         let lock = {
@@ -359,7 +319,7 @@ impl ImageStore {
             }
         };
         let _guard = lock.lock().await;
-        if let Some(cached) = self.cache.lock().await.get(&storage_key) {
+        if let Some(cached) = self.cache.lock().await.get(&storage_key).cloned() {
             return Ok(Some((cached, "memory")));
         }
         let mut loaded = None;
@@ -415,9 +375,12 @@ impl ImageStore {
             etag: format!("\"{}:{}\"", actual_key, bytes.len()),
             bytes: bytes.into(),
             content_type,
-            expires: Instant::now() + Duration::from_secs(86400),
         };
-        self.cache.lock().await.insert(actual_key, cached.clone());
+        let size = cached.bytes.len();
+        self.cache
+            .lock()
+            .await
+            .insert(actual_key, cached.clone(), size);
         Ok(Some((cached, source)))
     }
 }

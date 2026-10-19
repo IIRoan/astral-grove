@@ -64,3 +64,37 @@ export function validS3Signature(request: Request, secret: string) {
   const received = Buffer.from(signature, 'hex');
   return received.length === expected.length && timingSafeEqual(received, expected);
 }
+
+export function startStorageFixture(
+  onPut: (key: string, store: () => void) => void | Promise<void> = (_key, store) =>
+    store()
+) {
+  const objects = new Map<string, { body: Uint8Array<ArrayBuffer>; type: string }>();
+  const server = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    async fetch(request) {
+      if (!validS3Signature(request, 'fixture-secret'))
+        return new Response(null, { status: 403 });
+      const url = new URL(request.url);
+      const key = url.pathname;
+      if (request.method === 'PUT') {
+        const body = new Uint8Array(await request.arrayBuffer());
+        const type = request.headers.get('content-type') ?? '';
+        await onPut(key, () => objects.set(key, { body, type }));
+        return new Response(null, { status: 200 });
+      }
+      const object = objects.get(key);
+      if (!object) return new Response(null, { status: 404 });
+      const disposition = url.searchParams.get('response-content-disposition');
+      return new Response(request.method === 'HEAD' ? null : object.body, {
+        headers: {
+          'content-type': url.searchParams.get('response-content-type') ?? object.type,
+          ...(disposition !== null ? { 'content-disposition': disposition } : {}),
+          'content-length': String(object.body.byteLength),
+        },
+      });
+    },
+  });
+  return { objects, origin: server.url.origin, stop: () => server.stop(true) };
+}

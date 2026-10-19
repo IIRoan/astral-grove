@@ -1,4 +1,4 @@
-import type { CardCondition } from './collection.js';
+import { CollectionImportItemInput, type CardCondition } from './collection.js';
 
 export const COLLECTION_CSV_HEADERS = [
   'Variant Number',
@@ -192,20 +192,29 @@ export function csvRowToImportItem(
   const gradeCompany = row['Grading Company'].trim() || null;
   const gradeScore = row['Grading Value'].trim() || null;
   const notes = row.Notes.trim() || null;
-
-  return {
-    item: {
-      variantNumber,
-      quantity,
-      condition,
-      language,
-      isFoil,
-      notes,
-      isGraded: Boolean(gradeCompany || gradeScore),
-      gradeCompany,
-      gradeScore,
-    },
+  const item = {
+    variantNumber,
+    quantity,
+    condition,
+    language,
+    isFoil,
+    notes,
+    isGraded: Boolean(gradeCompany || gradeScore),
+    gradeCompany,
+    gradeScore,
   };
+  // Reject oversized fields per row so one bad row cannot fail its whole import chunk.
+  const checked = CollectionImportItemInput.safeParse(item);
+  if (!checked.success) {
+    const issue = checked.error.issues[0];
+    return {
+      error: {
+        row: rowNumber,
+        message: `Invalid ${String(issue?.path[0] ?? 'row')}: ${issue?.message ?? 'invalid value'}`,
+      },
+    };
+  }
+  return { item };
 }
 
 export function aggregateImportItems(

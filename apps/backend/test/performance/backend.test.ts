@@ -16,9 +16,9 @@ import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { z } from 'zod';
 import sharp from 'sharp';
-import { cookie, createHarness, json, runNativeCommand } from '../support';
+import { createHarness, json, runCommand, waitFor } from '../support';
 import { startFixtures } from './fixtures';
-import { measure, percentiles, Resources, waitUntil } from './metrics';
+import { measure, percentiles, Resources } from './metrics';
 import type { Sample } from './metrics';
 import budgets from './budgets.json';
 
@@ -33,11 +33,10 @@ const plansPath = reportPath.replace(/\.json$/, '') + '-search-plans.json';
 const harness = createHarness();
 const results: Array<Awaited<ReturnType<typeof measure>> & { resources: unknown }> = [];
 const observations: Record<string, unknown> = {};
-const emails: string[] = [];
 const collections: string[] = [];
 const runId = crypto.randomUUID();
 let fixtures: Awaited<ReturnType<typeof startFixtures>>;
-let app: Awaited<ReturnType<typeof harness.startRust>>;
+let app: Awaited<ReturnType<typeof harness.startServer>>;
 let resources: Resources;
 let initialResources: Awaited<ReturnType<Resources['snapshot']>>;
 let user: { id: string; token: string; cookie: string };
@@ -114,22 +113,16 @@ beforeAll(async () => {
   fixtures = await startFixtures();
   imageHash = new Bun.CryptoHasher('sha256').update(fixtures.image).digest('hex');
   expect(fixtures.image.byteLength).toBeLessThan(5 * 1024 * 1024);
-  app = await harness.startRust(fixtures.config);
+  app = await harness.startServer(fixtures.config);
   resources = new Resources(app.pid);
   resources.start();
   initialResources = await resources.snapshot();
-  const email = `performance-${runId}@test.riftbound.dev`;
-  emails.push(email);
-  const signup = await app.fetch(
-    '/api/auth/sign-up/email',
-    json({ name: 'Performance fixture', email, password: 'performance-password-12345' })
-  );
-  expect(signup.status).toBe(200);
-  const rows =
-    await harness.sql`SELECT u.id,s.token FROM "user" u JOIN session s ON s.user_id=u.id WHERE u.email=${email}`;
-  const row = z.object({ id: z.string(), token: z.string() }).parse(rows[0]);
-  user = { ...row, cookie: cookie(signup) };
-  await signup.arrayBuffer();
+  const signup = await harness.signup(app, 'performance');
+  user = {
+    id: signup.user.id,
+    token: z.string().parse(signup.token),
+    cookie: signup.cookie,
+  };
   await readJson('/api/v1/collection', CollectionListResponse, {
     headers: credentials(),
   });
@@ -206,10 +199,9 @@ afterAll(async () => {
   } finally {
     try {
       await harness.sql`DELETE FROM collections WHERE id=ANY(${collections}::uuid[])`;
-      await harness.sql`DELETE FROM "user" WHERE email=ANY(${emails})`;
     } finally {
       try {
-        await harness.stopRust();
+        await harness.stopServer();
       } finally {
         fixtures?.stop();
       }
@@ -438,7 +430,7 @@ test('concurrent renewal stays fast and fresh sessions avoid repeated database w
 });
 
 test('search diagnostics preserve SQL plans alongside HTTP measurements', async () => {
-  const command = await runNativeCommand(app.config, [
+  const command = await runCommand(app.config, [
     'explain:search',
     '--target=test',
     '--use-env=TEST_DB_URL',
@@ -499,7 +491,7 @@ test.each(['original', 'thumbnail'] as const)(
         budgets.concurrency,
         0
       );
-      await waitUntil(() => fixtures.counters.activeUploads === (thumbnail ? 2 : 1));
+      await waitFor(() => fixtures.counters.activeUploads === (thumbnail ? 2 : 1));
       expect(fixtures.cdnReads.get('/' + key)).toBe(1);
       expect(fixtures.counters.uploads - uploads).toBe(thumbnail ? 2 : 1);
       await bench(
@@ -537,8 +529,8 @@ test.each(['original', 'thumbnail'] as const)(
         expect(metadata.height).toBe(213);
       }
     } finally {
-      blocked.release();
-      await waitUntil(() => fixtures.counters.activeUploads === 0);
+      blocked.resolve();
+      await waitFor(() => fixtures.counters.activeUploads === 0);
     }
   }
 );
@@ -580,8 +572,8 @@ test('image-cache churn has bounded upload concurrency, RSS and health latency',
     if (memory)
       expect(memory.peakRssBytes).toBeLessThanOrEqual(budgets.peakRssMiB * 1024 * 1024);
   } finally {
-    blocked.release();
-    await waitUntil(() => fixtures.counters.activeUploads === 0);
+    blocked.resolve();
+    await waitFor(() => fixtures.counters.activeUploads === 0);
   }
   await bench(
     'health/after-image-load',
@@ -621,7 +613,7 @@ test('sync saturation rejects excess work quickly and drains all jobs after clie
           })
       );
     }
-    await waitUntil(
+    await waitFor(
       () =>
         rejected.size === initialRequests - 8 &&
         blocked.started.catalog === 1 &&
@@ -666,8 +658,8 @@ test('sync saturation rejects excess work quickly and drains all jobs after clie
     for (const controller of controllers) controller.abort();
     await Promise.all(requests);
     const start = performance.now();
-    blocked.release();
-    await waitUntil(async () => {
+    blocked.resolve();
+    await waitFor(async () => {
       const response = await app.fetch('/api/v1/sync/status', { headers: admin });
       const status = SyncStatusResponse.parse(await response.json());
       return (
@@ -706,7 +698,7 @@ test('sync saturation rejects excess work quickly and drains all jobs after clie
     );
   } finally {
     for (const controller of controllers) controller.abort();
-    blocked.release();
+    blocked.resolve();
     await Promise.all(requests);
   }
 });

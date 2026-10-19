@@ -11,11 +11,8 @@ use std::{
     sync::Arc,
 };
 use utoipa_axum::{router::OpenApiRouter, routes};
-fn entries<'a>(value: &'a Value, key: &str) -> &'a [Value] {
-    value[key].as_array().map(Vec::as_slice).unwrap_or(&[])
-}
 pub fn total(snapshot: &Value, synced: i64) -> i64 {
-    let sets = entries(snapshot, "sets");
+    let sets = db::array(snapshot, "sets");
     let from_sets: i64 = sets
         .iter()
         .map(|set| {
@@ -28,7 +25,7 @@ pub fn total(snapshot: &Value, synced: i64) -> i64 {
     if from_sets > 0 && sets.iter().any(|set| set.get("printCount").is_some()) {
         return from_sets.max(synced);
     }
-    let variants: i64 = entries(snapshot, "variants")
+    let variants: i64 = db::array(snapshot, "variants")
         .iter()
         .filter_map(|value| value["count"].as_i64())
         .sum();
@@ -74,7 +71,7 @@ pub async fn expanded(state: &Arc<AppState>, force: bool, blocking: bool) -> Res
     .into_iter()
     .next();
     let complete = previous.as_ref().is_some_and(|row| {
-        entries(&row["snapshot"], "sets")
+        db::array(&row["snapshot"], "sets")
             .iter()
             .any(|set| set["printCount"].as_i64().unwrap_or(0) > 0)
     });
@@ -106,7 +103,7 @@ async fn run_probe(state: &Arc<AppState>, base: &Value, fingerprint: &str) -> Re
     let mut page = 1;
     loop {
         let response = upstream::list_cards(state, &json!({"limit":100,"page":page})).await?;
-        for variant in entries(&response, "data") {
+        for variant in db::array(&response, "data") {
             let number = db::string(variant, "variantNumber");
             if seen_variants.contains(number) {
                 continue;
@@ -115,7 +112,7 @@ async fn run_probe(state: &Arc<AppState>, base: &Value, fingerprint: &str) -> Re
             if !seen.insert(db::string(&card, "id").to_owned()) {
                 continue;
             }
-            for variant in entries(&card, "variants") {
+            for variant in db::array(&card, "variants") {
                 seen_variants.insert(db::string(variant, "variantNumber").to_owned());
                 if variant["isCollectible"] != true {
                     continue;
@@ -176,7 +173,7 @@ async fn filters(
     .first()
     .and_then(|row| row["count"].as_i64())
     .unwrap_or(0);
-    let set_sum: i64 = entries(&snapshot, "sets")
+    let set_sum: i64 = db::array(&snapshot, "sets")
         .iter()
         .map(|set| {
             set["printCount"]
@@ -186,7 +183,7 @@ async fn filters(
         })
         .sum();
     let overlay_sets = !(synced > 0 && set_sum >= synced);
-    let overlay_foils = !entries(&snapshot, "sets")
+    let overlay_foils = !db::array(&snapshot, "sets")
         .iter()
         .all(|set| set.get("foilPrintCount").is_some());
     if let Some(sets) = snapshot["sets"].as_array_mut() {

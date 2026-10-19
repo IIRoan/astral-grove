@@ -181,7 +181,7 @@ pub async fn persist(
                 row["cardmarketId"],
                 row["isFoil"],
                 db::string(row, "lastUpdated"),
-                row["marketPrice"].as_str().unwrap_or("")
+                db::string(row, "marketPrice")
             )
         })
         .collect();

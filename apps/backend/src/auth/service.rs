@@ -8,7 +8,6 @@ use axum::http::HeaderMap;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::RngExt;
 use sea_orm::TransactionTrait;
-use serde_json::json;
 
 pub const USER_COLUMNS: &str = "id, name, email, email_verified AS \"emailVerified\", image, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"";
 
@@ -229,9 +228,14 @@ pub fn signed_headers(state: &AppState, token: &str, remember: bool) -> Result<H
     let mut headers = HeaderMap::new();
     headers.insert(
         "set-cookie",
-        cookies::cookie(&state.config, &encoded, remember.then_some(604800))
-            .parse()
-            .map_err(|_| AppError::internal())?,
+        cookies::cookie_kind(
+            &state.config,
+            "session_token",
+            &encoded,
+            remember.then_some(604800),
+        )
+        .parse()
+        .map_err(|_| AppError::internal())?,
     );
     if !remember {
         let value = cookies::encode(
@@ -253,13 +257,6 @@ pub fn signed_headers(state: &AppState, token: &str, remember: bool) -> Result<H
         axum::http::HeaderValue::from_static("set-auth-token"),
     );
     Ok(headers)
-}
-
-pub fn invalid_body() -> AppError {
-    error(400, "VALIDATION_ERROR", "Invalid request body")
-}
-pub fn status() -> serde_json::Value {
-    json!({"success":true})
 }
 
 pub async fn user_by_id(state: &AppState, id: &str) -> Result<Option<User>> {

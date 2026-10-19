@@ -234,23 +234,29 @@ pub fn score(card: &Value, query: &Query) -> u8 {
     }
     10
 }
+#[derive(Default)]
 pub struct Sql {
     pub values: Vec<sea_orm::Value>,
 }
-impl Default for Sql {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Sql {
-    pub fn new() -> Self {
-        Self { values: Vec::new() }
-    }
     pub fn bind(&mut self, value: impl Into<sea_orm::Value>) -> String {
         self.values.push(value.into());
         format!("${}", self.values.len())
     }
+}
+fn split(query: &Value, key: &str, lower: bool) -> Vec<String> {
+    db::string(query, key)
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| {
+            if lower {
+                value.to_lowercase()
+            } else {
+                value.into()
+            }
+        })
+        .collect()
 }
 fn like(value: &str) -> String {
     format!(
@@ -273,7 +279,7 @@ fn fuzzy(sql: &mut Sql, token: &str, threshold: f64) -> String {
 }
 pub fn filters(query: &Value, sql: &mut Sql) -> String {
     let mut clauses = Vec::new();
-    let q = query["q"].as_str().unwrap_or("");
+    let q = db::string(query, "q");
     if !q.is_empty() {
         let parsed = parse(q);
         if parsed.identity.is_empty() && parsed.intents.is_empty() {
@@ -328,50 +334,23 @@ pub fn filters(query: &Value, sql: &mut Sql) -> String {
         ("rarities", "v.rarity", false),
         ("super", "lower(c.super)", true),
     ] {
-        if let Some(value) = query[key].as_str().filter(|value| !value.is_empty()) {
-            let values: Vec<String> = value
-                .split(',')
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(|value| {
-                    if lower {
-                        value.to_lowercase()
-                    } else {
-                        value.into()
-                    }
-                })
-                .collect();
-            if !values.is_empty() {
-                let p = sql.bind(values);
-                clauses.push(format!("{column}=ANY({p}::text[])"));
-            }
-        }
-    }
-    if let Some(value) = query["types"].as_str().filter(|value| !value.is_empty()) {
-        let values: Vec<String> = value
-            .split(',')
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_lowercase)
-            .collect();
+        let values = split(query, key, lower);
         if !values.is_empty() {
             let p = sql.bind(values);
-            clauses.push(format!(
-                "string_to_array(lower(trim(c.type)),' ') && {p}::text[]"
-            ));
+            clauses.push(format!("{column}=ANY({p}::text[])"));
         }
     }
-    if let Some(value) = query["variants"].as_str().filter(|value| !value.is_empty()) {
-        let values: Vec<String> = value
-            .split(',')
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_lowercase)
-            .collect();
-        if !values.is_empty() {
-            let p = sql.bind(values);
-            clauses.push(format!("(lower(v.variant_type)=ANY({p}::text[]) OR EXISTS(SELECT 1 FROM jsonb_array_elements_text(v.variant_types) AS vt(value) WHERE lower(vt.value)=ANY({p}::text[])))"));
-        }
+    let values = split(query, "types", true);
+    if !values.is_empty() {
+        let p = sql.bind(values);
+        clauses.push(format!(
+            "string_to_array(lower(trim(c.type)),' ') && {p}::text[]"
+        ));
+    }
+    let values = split(query, "variants", true);
+    if !values.is_empty() {
+        let p = sql.bind(values);
+        clauses.push(format!("(lower(v.variant_type)=ANY({p}::text[]) OR EXISTS(SELECT 1 FROM jsonb_array_elements_text(v.variant_types) AS vt(value) WHERE lower(vt.value)=ANY({p}::text[])))"));
     }
     if query["sortBy"] == "energy"
         || query.get("energyMin").is_some()
@@ -392,22 +371,15 @@ pub fn filters(query: &Value, sql: &mut Sql) -> String {
             clauses.push(format!("{column}{operator}{p}"));
         }
     }
-    if let Some(value) = query["colors"].as_str() {
-        let colors: Vec<String> = value
-            .split(',')
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_lowercase)
-            .collect();
-        if !colors.is_empty() {
-            if query["colorMode"] == "within" {
-                let p = sql.bind(colors);
-                clauses.push(format!("NOT EXISTS(SELECT 1 FROM card_colors cc JOIN colors co ON co.id=cc.color_id WHERE cc.card_id=c.id AND NOT(lower(co.name)=ANY({p}::text[])))"));
-            } else {
-                for color in colors {
-                    let p = sql.bind(color);
-                    clauses.push(format!("EXISTS(SELECT 1 FROM card_colors cc JOIN colors co ON co.id=cc.color_id WHERE cc.card_id=c.id AND lower(co.name)={p})"));
-                }
+    let colors = split(query, "colors", true);
+    if !colors.is_empty() {
+        if query["colorMode"] == "within" {
+            let p = sql.bind(colors);
+            clauses.push(format!("NOT EXISTS(SELECT 1 FROM card_colors cc JOIN colors co ON co.id=cc.color_id WHERE cc.card_id=c.id AND NOT(lower(co.name)=ANY({p}::text[])))"));
+        } else {
+            for color in colors {
+                let p = sql.bind(color);
+                clauses.push(format!("EXISTS(SELECT 1 FROM card_colors cc JOIN colors co ON co.id=cc.color_id WHERE cc.card_id=c.id AND lower(co.name)={p})"));
             }
         }
     }

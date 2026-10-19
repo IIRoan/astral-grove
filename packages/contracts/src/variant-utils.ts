@@ -5,6 +5,17 @@ export function isTokenVariantNumber(variantNumber: string): boolean {
   return TOKEN_VARIANT_SUFFIX.test(variantNumber.trim());
 }
 
+/** Tokens can't be deckbuilt; catalog marks them `super: "Token"`, some printings only by number. */
+export function isTokenCard(card: {
+  super?: string | null;
+  variantNumber: string;
+}): boolean {
+  return (
+    (card.super ?? '').toLowerCase() === 'token' ||
+    isTokenVariantNumber(card.variantNumber)
+  );
+}
+
 /** Prefix for deck cards whose upstream variant is not in the local catalog yet. */
 export const UNRESOLVED_DECK_VARIANT_PREFIX = 'unknown:';
 

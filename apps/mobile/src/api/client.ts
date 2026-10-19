@@ -1,15 +1,16 @@
 import type {
   CardDetail,
+  CardsBatchResponse as CardsBatch,
   CardsListQuery,
   GlobalSearchQuery,
   PriceStatsBatchRequest,
 } from '@riftbound/contracts';
 import {
   CardDetailResponse,
+  chunkArray,
   CardsBatchResponse,
   CardsListResponse,
   CatalogIndexResponse,
-  DeckRulesResponse,
   FiltersResponse,
   GlobalSearchResponse,
   HealthResponse,
@@ -18,7 +19,7 @@ import {
   PricesListResponse,
 } from '@riftbound/contracts';
 import type { z } from 'zod';
-import { fetchWithApiWake } from '@/lib/api-fetch';
+import { apiErrorMessage, fetchWithApiWake } from '@/lib/api-fetch';
 import { getApiUrl } from '@/lib/api-url';
 
 // Unauthenticated JSON client for catalog/prices/filters; user data uses authedClient.ts.
@@ -30,7 +31,7 @@ export class ApiError extends Error {
     readonly status: number,
     body: string
   ) {
-    super(`API ${String(status)}: ${body}`);
+    super(apiErrorMessage(status, body));
     this.name = 'ApiError';
   }
 }
@@ -40,14 +41,19 @@ async function apiFetch<T>(
   schema: z.ZodType<T>,
   init?: Pick<RequestInit, 'method' | 'body'>
 ): Promise<T> {
-  const res = await fetchWithApiWake(`${API_URL}${path}`, {
-    method: init?.method,
-    body: init?.body,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
+  // Every route here is a catalog/price read, including the batch POSTs.
+  const res = await fetchWithApiWake(
+    `${API_URL}${path}`,
+    {
+      method: init?.method,
+      body: init?.body,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
     },
-  });
+    { readOnly: true }
+  );
   if (!res.ok) {
     throw new ApiError(res.status, await res.text());
   }
@@ -89,15 +95,28 @@ export const api = {
   getCard: (variantNumber: string) =>
     apiFetch(`/api/v1/cards/${encodeURIComponent(variantNumber)}`, CardDetailResponse),
 
-  batchCards: (variantNumbers: string[]) =>
-    apiFetch('/api/v1/cards/batch', CardsBatchResponse, {
-      method: 'POST',
-      body: JSON.stringify({ variantNumbers }),
-    }),
+  // The API caps batches at 100 variants; larger lists are split and merged.
+  batchCards: async (variantNumbers: string[]): Promise<CardsBatch> => {
+    const pages = await Promise.all(
+      chunkArray(variantNumbers, 100).map((batch) =>
+        apiFetch('/api/v1/cards/batch', CardsBatchResponse, {
+          method: 'POST',
+          body: JSON.stringify({ variantNumbers: batch }),
+        })
+      )
+    );
+    const sources = new Set(pages.map((page) => page.meta.source));
+    return {
+      data: pages.flatMap((page) => page.data),
+      meta: {
+        found: pages.reduce((sum, page) => sum + page.meta.found, 0),
+        notFound: pages.flatMap((page) => page.meta.notFound),
+        source: sources.size === 1 ? (pages[0]?.meta.source ?? 'cache') : 'mixed',
+      },
+    };
+  },
 
   getFilters: () => apiFetch('/api/v1/filters', FiltersResponse),
-
-  getDeckRules: () => apiFetch('/api/v1/deck-rules', DeckRulesResponse),
 
   getPrices: (query: {
     cardmarketId?: number;
@@ -129,11 +148,26 @@ export const api = {
     );
   },
 
-  getPriceStatsBatch: (body: PriceStatsBatchRequest) =>
-    apiFetch('/api/v1/prices/stats/batch', PriceStatsBatchResponse, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
+  // The API caps stats batches at 200 items; larger lists are split and merged.
+  getPriceStatsBatch: async (
+    body: PriceStatsBatchRequest
+  ): Promise<z.infer<typeof PriceStatsBatchResponse>> => {
+    const pages = await Promise.all(
+      chunkArray(body.items, 200).map((items) =>
+        apiFetch('/api/v1/prices/stats/batch', PriceStatsBatchResponse, {
+          method: 'POST',
+          body: JSON.stringify({ ...body, items }),
+        })
+      )
+    );
+    return {
+      data: pages.flatMap((page) => page.data),
+      meta: {
+        days: pages[0]?.meta.days ?? body.days,
+        rowCount: pages.reduce((sum, page) => sum + page.meta.rowCount, 0),
+      },
+    };
+  },
 };
 
 export type { CardDetail };

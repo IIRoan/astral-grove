@@ -105,7 +105,6 @@ export async function remoteAddToCollection(
 ): Promise<void> {
   await authedFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/add`, {
     method: 'POST',
-    retryOnWake: false,
     body: { delta, ...(isFoil === undefined ? {} : { isFoil }) },
   });
 }
@@ -117,7 +116,6 @@ export async function remoteRemoveFromCollection(
 ): Promise<void> {
   await authedFetch(`/api/v1/collection/${encodeURIComponent(variantNumber)}/remove`, {
     method: 'POST',
-    retryOnWake: false,
     body: { delta, ...(isFoil === undefined ? {} : { isFoil }) },
   });
 }

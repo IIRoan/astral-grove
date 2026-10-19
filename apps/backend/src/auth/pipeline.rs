@@ -4,9 +4,10 @@ use crate::{
     error::{AppError, Result},
 };
 use axum::{
+    Json,
     body::Body,
     extract::{FromRequestParts, Request, State},
-    http::{HeaderMap, Method, request::Parts},
+    http::{HeaderMap, Method, StatusCode, request::Parts},
     middleware::Next,
     response::{IntoResponse, Response},
 };
@@ -26,75 +27,65 @@ impl FromRequestParts<Arc<AppState>> for AuthBody {
     }
 }
 pub fn message(status: u16, message: &str) -> AppError {
-    AppError {
-        status: axum::http::StatusCode::from_u16(status)
-            .unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
-        body: json!({"message":message}),
-    }
+    AppError::json(status, json!({"message":message}))
 }
 pub fn truthy(value: &Value) -> bool {
     !matches!(value, Value::Null | Value::Bool(false)) && value != &json!("") && value != &json!(0)
 }
 pub async fn apply(State(state): State<Arc<AppState>>, request: Request, next: Next) -> Response {
-    match prepare(&state, request).await {
-        Ok(request) => next.run(request).await,
-        Err(mut error) => {
-            let retry = error
-                .body
-                .as_object_mut()
-                .and_then(|v| v.remove("retryAfter"));
-            let mut response = error.into_response();
-            if let Some(retry) = retry.and_then(|v| v.as_u64())
-                && let Ok(value) = retry.to_string().parse()
-            {
-                response.headers_mut().insert("x-retry-after", value);
-            }
-            response
-        }
-    }
-}
-async fn prepare(state: &AppState, request: Request) -> Result<Request> {
     let path = request
         .uri()
         .path()
         .trim_start_matches("/api/auth")
         .to_owned();
-    let ip = super::service::client_ip(state, request.headers());
-    if state.config.production {
-        // Better Auth falls back to one shared per-path bucket when no trusted IP is available.
-        let ip = if ip.is_empty() { "no-trusted-ip" } else { &ip };
-        let (max, window) = if path.contains("email-otp")
-            || [
-                "/request-password-reset",
-                "/send-verification-email",
-                "/forget-password",
-            ]
-            .contains(&path.as_str())
-        {
-            (3, 60)
-        } else if [
-            "/sign-in/email",
-            "/sign-up/email",
-            "/change-password",
-            "/change-email",
-        ]
-        .contains(&path.as_str())
-        {
-            (3, 10)
-        } else {
-            (100, 10)
-        };
-        if let Some(retry) = state
-            .limits
-            .rolling(format!("{}:auth:{path}", ip), max, window)
-            .await
-        {
-            return Err(AppError {
-                status: axum::http::StatusCode::TOO_MANY_REQUESTS,
-                body: json!({"message":"Too many requests. Please try again later.","retryAfter":retry}),
-            });
-        }
+    if let Some(retry) = limited(&state, &path, request.headers()).await {
+        let body = json!({"message":"Too many requests. Please try again later."});
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            [("x-retry-after", retry.to_string())],
+            Json(body),
+        )
+            .into_response();
     }
+    match prepare(&state, &path, request).await {
+        Ok(request) => next.run(request).await,
+        Err(error) => error.into_response(),
+    }
+}
+async fn limited(state: &AppState, path: &str, headers: &HeaderMap) -> Option<u64> {
+    if !state.config.production {
+        return None;
+    }
+    let ip = super::service::client_ip(state, headers);
+    // Better Auth falls back to one shared per-path bucket when no trusted IP is available.
+    let ip = if ip.is_empty() { "no-trusted-ip" } else { &ip };
+    let (max, window) = if path.contains("email-otp")
+        || [
+            "/request-password-reset",
+            "/send-verification-email",
+            "/forget-password",
+        ]
+        .contains(&path)
+    {
+        (3, 60)
+    } else if [
+        "/sign-in/email",
+        "/sign-up/email",
+        "/change-password",
+        "/change-email",
+    ]
+    .contains(&path)
+    {
+        (3, 10)
+    } else {
+        (100, 10)
+    };
+    state
+        .limits
+        .rolling(format!("{ip}:auth:{path}"), max, window)
+        .await
+}
+async fn prepare(state: &AppState, path: &str, request: Request) -> Result<Request> {
     let (mut parts, body) = request.into_parts();
     if !parts.headers.contains_key("origin")
         && let Some(origin) = parts.headers.get("expo-origin").cloned()
@@ -118,13 +109,13 @@ async fn prepare(state: &AppState, request: Request) -> Result<Request> {
                 .unwrap_or("")
                 .trim()
                 .to_ascii_lowercase();
-            let form = ["/sign-in/email", "/sign-up/email"].contains(&path.as_str())
+            let form = ["/sign-in/email", "/sign-up/email"].contains(&path)
                 || path.starts_with("/callback/");
             value = Some(match media.as_str() {
                 "application/json" => serde_json::from_slice(&bytes)
                     .map_err(|_| error(400, "BAD_REQUEST", "Invalid JSON in request body"))?,
                 "application/x-www-form-urlencoded" if form => {
-                    query(Some(std::str::from_utf8(&bytes).unwrap_or("")))
+                    crate::http::query(Some(std::str::from_utf8(&bytes).unwrap_or("")))
                 }
                 _ => {
                     return Err(error(
@@ -146,13 +137,6 @@ async fn prepare(state: &AppState, request: Request) -> Result<Request> {
     }
     parts.extensions.insert(AuthBody(value));
     Ok(Request::from_parts(parts, Body::from(bytes)))
-}
-pub fn query(query: Option<&str>) -> Value {
-    let mut result = serde_json::Map::new();
-    for (key, value) in url::form_urlencoded::parse(query.unwrap_or("").as_bytes()) {
-        result.insert(key.into_owned(), Value::String(value.into_owned()));
-    }
-    Value::Object(result)
 }
 pub fn validate_origin(state: &AppState, headers: &HeaderMap, force: bool) -> Result<()> {
     if !force && !headers.contains_key("cookie") {
@@ -197,7 +181,7 @@ fn check_origin(
     raw_query: Option<&str>,
 ) -> Result<()> {
     validate_origin(state, headers, false)?;
-    let query = query(raw_query);
+    let query = crate::http::query(raw_query);
     for (name, label, code) in [
         ("callbackURL", "callbackURL", "INVALID_CALLBACK_URL"),
         ("redirectTo", "redirectURL", "INVALID_REDIRECT_URL"),
@@ -379,20 +363,6 @@ pub fn validate_kind(name: &str, kind: &str, value: Option<&Value>) -> Result<()
         return Ok(());
     }
     if let Some(schema) = schema(name, kind) {
-        let normalized = if name == "getSession" && kind == "query" {
-            value.map(|value| {
-                let mut value = value.clone();
-                for key in ["disableCookieCache", "disableRefresh"] {
-                    if let Some(field) = value.get_mut(key) {
-                        *field = serde_json::json!(truthy(field));
-                    }
-                }
-                value
-            })
-        } else {
-            None
-        };
-        let value = normalized.as_ref().or(value);
         let mut issues = Vec::new();
         validate_node(schema, value, kind, &mut issues);
         if !issues.is_empty() {

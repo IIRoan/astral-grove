@@ -105,7 +105,7 @@ async fn list(
     let meta=db::rows(&state.db,"SELECT content_hash AS hash,to_char(last_success_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS synced FROM sync_state WHERE key='prices'",vec![]).await?.into_iter().next().unwrap_or(json!({}));
     http::respond(
         "PricesListResponse",
-        json!({"meta":{"pricesCatalogHash":meta["hash"].as_str().unwrap_or(""),"lastSyncedAt":meta["synced"],"rowCount":rows.len()},"data":rows}),
+        json!({"meta":{"pricesCatalogHash":db::string(&meta, "hash"),"lastSyncedAt":meta["synced"],"rowCount":rows.len()},"data":rows}),
     )
 }
 pub async fn daily(state: &AppState, ids: Vec<i64>, days: i64) -> Result<Vec<Value>> {
@@ -176,7 +176,7 @@ async fn stats(
     crate::http::BodyJson(body): crate::http::BodyJson,
 ) -> Result<Json<PriceStatsBatchResponse>> {
     let input = http::value("PriceStatsBatchRequest", &body)?;
-    let items = input["items"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+    let items = db::array(&input, "items");
     let days = input["days"].as_i64().unwrap_or(30);
     let numbers: Vec<String> = items
         .iter()
@@ -193,7 +193,7 @@ async fn stats(
     let today = time::OffsetDateTime::now_utc().date().to_string();
     let mut data = Vec::new();
     for item in items {
-        let number = item["variantNumber"].as_str().unwrap_or("");
+        let number = db::string(item, "variantNumber");
         let id = resolve_id(number, &variants);
         let requested = item["isFoil"].as_bool().unwrap_or(false);
         let matching = |foil| {

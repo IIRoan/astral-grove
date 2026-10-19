@@ -27,7 +27,10 @@ function deckToValidateInput(deck: DeckState): DeckValidateInput {
 }
 
 export function validateDeck(deck: DeckState): DeckValidationMessage[] {
-  const messages = validateRiftboundDeckContract(deckToValidateInput(deck));
+  const messages = validateRiftboundDeckContract(
+    deckToValidateInput(deck),
+    deck.bannedCardNames ? { bannedCardNames: deck.bannedCardNames } : {}
+  );
 
   const unresolvedCount = countUnresolvedCards(deck);
   if (unresolvedCount > 0) {

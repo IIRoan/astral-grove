@@ -22,11 +22,7 @@ pub async fn upsert(state: &AppState, card: &Value) -> Result<bool> {
     .await?;
     if exists.first().is_some_and(|row| row["hash"] == digest) {
         let mut patched = 0;
-        for variant in card["variants"]
-            .as_array()
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-        {
+        for variant in db::array(&card, "variants") {
             if !variant["cardmarketId"].is_null() || !variant["tcgplayerId"].is_null() {
                 patched += db::execute(&tx,"UPDATE variants SET cardmarket_id=coalesce(($1->>'cardmarketId')::integer,cardmarket_id),tcgplayer_id=coalesce(($1->>'tcgplayerId')::integer,tcgplayer_id),updated_at=now() WHERE variant_number=$1->>'variantNumber' AND (cardmarket_id IS DISTINCT FROM coalesce(($1->>'cardmarketId')::integer,cardmarket_id) OR tcgplayer_id IS DISTINCT FROM coalesce(($1->>'tcgplayerId')::integer,tcgplayer_id))",vec![variant.clone().into()]).await?;
             }
@@ -37,7 +33,7 @@ pub async fn upsert(state: &AppState, card: &Value) -> Result<bool> {
         }
         return Ok(false);
     }
-    for color in card["colors"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+    for color in db::array(&card, "colors") {
         db::execute(&tx,"INSERT INTO colors(id,name,hex_code,image_url) VALUES(($1->>'id')::uuid,$1->>'name',$1->>'hexCode',$1->>'imageUrl') ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,hex_code=EXCLUDED.hex_code,image_url=EXCLUDED.image_url",vec![color.clone().into()]).await?;
     }
     db::execute(&tx,"INSERT INTO cards(id,name,type,super,description,energy,might,power,tags,attach_text,effect,might_bonus,max_copies,ban_effective_date,content_hash,upstream_raw,fetched_at) VALUES(($1->>'id')::uuid,$1->>'name',$1->>'type',$1->>'super',$1->>'description',($1->>'energy')::smallint,($1->>'might')::smallint,($1->>'power')::smallint,$1->'tags',$1->>'attachText',$1->>'effect',coalesce(($1->>'mightBonus')::smallint,0),($1->>'maxCopies')::smallint,$3::timestamptz,$2,$1,now()) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,type=EXCLUDED.type,super=EXCLUDED.super,description=EXCLUDED.description,energy=EXCLUDED.energy,might=EXCLUDED.might,power=EXCLUDED.power,tags=EXCLUDED.tags,attach_text=EXCLUDED.attach_text,effect=EXCLUDED.effect,might_bonus=EXCLUDED.might_bonus,max_copies=EXCLUDED.max_copies,ban_effective_date=EXCLUDED.ban_effective_date,content_hash=EXCLUDED.content_hash,upstream_raw=EXCLUDED.upstream_raw,fetched_at=now(),updated_at=now()",vec![card.clone().into(),digest.into(),card.get("banEffectiveDate").and_then(Value::as_str).map(|value|crate::instant::milliseconds_only(value).into_owned()).into()]).await?;
@@ -47,7 +43,7 @@ pub async fn upsert(state: &AppState, card: &Value) -> Result<bool> {
         vec![id.into()],
     )
     .await?;
-    for color in card["colors"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+    for color in db::array(&card, "colors") {
         db::execute(
             &tx,
             "INSERT INTO card_colors(card_id,color_id) VALUES($1::uuid,$2::uuid)",
@@ -55,11 +51,7 @@ pub async fn upsert(state: &AppState, card: &Value) -> Result<bool> {
         )
         .await?;
     }
-    for variant in card["variants"]
-        .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
-    {
+    for variant in db::array(&card, "variants") {
         let set = &variant["set"];
         db::execute(&tx,"INSERT INTO sets(id,code,name,release_date) VALUES(($1->>'id')::uuid,$1->>'prefix',$1->>'name',$1->>'releaseDate') ON CONFLICT(id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,release_date=EXCLUDED.release_date,updated_at=now()",vec![set.clone().into()]).await?;
         write_variant(&tx, id, variant, false).await?;

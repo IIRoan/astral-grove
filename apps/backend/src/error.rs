@@ -13,11 +13,14 @@ pub struct AppError {
 }
 
 impl AppError {
-    pub fn new(status: u16, error: &str, message: &str) -> Self {
+    pub fn json(status: u16, body: Value) -> Self {
         Self {
             status: StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            body: json!({"error": error, "message": message}),
+            body,
         }
+    }
+    pub fn new(status: u16, error: &str, message: &str) -> Self {
+        Self::json(status, json!({"error": error, "message": message}))
     }
     pub fn validation() -> Self {
         Self::new(422, "VALIDATION_ERROR", "Request validation failed")
@@ -40,17 +43,7 @@ impl IntoResponse for AppError {
 }
 
 impl From<sea_orm::DbErr> for AppError {
-    fn from(error: sea_orm::DbErr) -> Self {
-        let message = error.to_string().to_lowercase();
-        if (message.contains("user_decks") || message.contains("user_deck_versions"))
-            && message.contains("does not exist")
-        {
-            return Self::new(
-                503,
-                "DECKS_STORAGE_UNAVAILABLE",
-                "Deck storage is not migrated yet. Run database migrations.",
-            );
-        }
+    fn from(_: sea_orm::DbErr) -> Self {
         tracing::error!(category = "database", "Database operation failed");
         Self::internal()
     }

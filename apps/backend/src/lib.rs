@@ -9,7 +9,6 @@ mod cli_search;
 pub mod collection;
 pub mod config;
 pub mod db;
-pub mod deck_rules;
 pub mod decks;
 pub mod error;
 pub mod http;
@@ -47,9 +46,6 @@ pub struct AppState {
     tasks: tasks::Tasks,
 }
 impl AppState {
-    pub async fn connect(config: config::Config) -> anyhow::Result<Arc<Self>> {
-        Self::connect_with_migrations(config, true).await
-    }
     pub async fn connect_with_migrations(
         config: config::Config,
         migrate: bool,
@@ -133,7 +129,6 @@ fn api() -> OpenApiRouter<Arc<AppState>> {
         .merge(collection::share::router())
         .merge(user_data::router())
         .merge(images::router())
-        .merge(deck_rules::router())
         .merge(prices::router())
         .merge(catalog::routes::router())
         .merge(catalog::metadata::router())

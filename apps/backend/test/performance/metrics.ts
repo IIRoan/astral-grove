@@ -65,26 +65,6 @@ export async function measure(
   };
 }
 
-export async function waitUntil(
-  check: () => boolean | Promise<boolean>,
-  timeoutMs = 5000
-) {
-  const deadline = performance.now() + timeoutMs;
-  while (performance.now() < deadline) {
-    if (await check()) return;
-    await Bun.sleep(20);
-  }
-  throw new Error('Performance fixture did not reach its expected state');
-}
-
-export function barrier() {
-  let release = () => {};
-  const promise = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  return { promise, release };
-}
-
 export class Resources {
   private peakRssBytes = 0;
   private timer: ReturnType<typeof setInterval> | undefined;

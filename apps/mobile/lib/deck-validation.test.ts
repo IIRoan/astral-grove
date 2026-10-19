@@ -245,6 +245,20 @@ describe('validateDeck', () => {
     expect(messages.some((m) => m.message.includes('Signature cards'))).toBe(true);
   });
 
+  test('reports cards from the upstream banned list as errors', () => {
+    let deck = createEmptyDeck();
+    deck = addCardToDeck(deck, jinxLegend, { section: 'legend' });
+    deck = addCardToDeck(deck, mainUnit, { section: 'mainDeck' });
+    deck.bannedCardNames = ['Flame Chompers'];
+
+    const messages = validateDeck(deck);
+    expect(messages).toContainEqual({
+      type: 'error',
+      code: 'banned_card',
+      message: '"Flame Chompers" is banned.',
+    });
+  });
+
   test('returns valid message for complete deck', () => {
     let deck = createEmptyDeck();
     deck = addCardToDeck(deck, jinxLegend, { section: 'legend' });
@@ -279,13 +293,13 @@ describe('validateDeck', () => {
 });
 
 describe('deckCardFromDetail', () => {
-  test('marks signature variants', () => {
+  test('marks super "Signature" cards as Signature', () => {
     const card = deckCardFromDetail(
       {
         id: 'card-id',
-        name: 'Jinx - Loose Cannon',
-        type: 'Legend',
-        super: null,
+        name: 'Super Mega Death Rocket!',
+        type: 'Spell',
+        super: 'Signature',
         description: '',
         energy: 0,
         might: 0,
@@ -296,8 +310,8 @@ describe('deckCardFromDetail', () => {
         variants: [
           {
             id: 'v1',
-            variantNumber: 'OGN-251',
-            rarity: 'Signature',
+            variantNumber: 'OGN-252',
+            rarity: 'Epic',
             variantType: 'Standard',
             variantLabel: 'Standard',
             imageUrl: 'https://example.com/card.webp',
@@ -309,7 +323,7 @@ describe('deckCardFromDetail', () => {
           },
         ],
       },
-      'OGN-251'
+      'OGN-252'
     );
 
     expect(card.isSignature).toBe(true);

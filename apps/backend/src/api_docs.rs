@@ -24,7 +24,7 @@ pub fn complete(document: &mut Value) {
             ) {
                 continue;
             }
-            let name = operation["operationId"].as_str().unwrap_or("").to_owned();
+            let name = crate::db::string(operation, "operationId").to_owned();
             if !operation["parameters"].is_array() {
                 operation["parameters"] = json!([]);
             }

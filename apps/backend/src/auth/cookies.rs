@@ -37,23 +37,31 @@ pub fn encode(value: &str) -> String {
         .remove(b')');
     percent_encoding::utf8_percent_encode(value, SET).to_string()
 }
-pub fn name(config: &Config) -> &'static str {
-    if config.secure_cookies {
-        "__Secure-better-auth.session_token"
-    } else {
-        "better-auth.session_token"
-    }
-}
-pub fn cookie(config: &Config, value: &str, age: Option<i64>) -> String {
-    cookie_kind(config, "session_token", value, age)
-}
-pub fn cookie_kind(config: &Config, kind: &str, value: &str, age: Option<i64>) -> String {
+fn cookie_name(config: &Config, kind: &str) -> String {
     let prefix = if config.secure_cookies {
         "__Secure-"
     } else {
         ""
     };
-    let mut cookie = format!("{prefix}better-auth.{kind}={value}; Path=/; HttpOnly; SameSite=Lax");
+    format!("{prefix}better-auth.{kind}")
+}
+fn read_cookie(config: &Config, headers: &HeaderMap, kind: &str) -> Option<String> {
+    let name = cookie_name(config, kind);
+    headers
+        .get_all("cookie")
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(';'))
+        .filter_map(|v| v.trim().split_once('='))
+        .filter(|(key, _)| *key == name)
+        // Stale duplicates (other path/domain) may come first, so take the first that verifies.
+        .find_map(|(_, value)| verify(&config.auth_secret, value.trim_matches('"')))
+}
+pub fn cookie_kind(config: &Config, kind: &str, value: &str, age: Option<i64>) -> String {
+    let mut cookie = format!(
+        "{}={value}; Path=/; HttpOnly; SameSite=Lax",
+        cookie_name(config, kind)
+    );
     if let Some(age) = age {
         cookie.push_str(&format!("; Max-Age={age}"));
     }
@@ -80,36 +88,11 @@ pub fn token(config: &Config, headers: &HeaderMap) -> Option<String> {
             (!value.is_empty()).then(|| value.to_owned())
         };
     }
-    for header in headers.get_all("cookie") {
-        for pair in header.to_str().ok()?.split(';') {
-            if let Some((key, value)) = pair.trim().split_once('=')
-                && key == name(config)
-            {
-                return verify(&config.auth_secret, value.trim_matches('"'));
-            }
-        }
-    }
-    None
+    read_cookie(config, headers, "session_token")
 }
 
 pub fn dont_remember(config: &Config, headers: &HeaderMap) -> bool {
-    let name = format!(
-        "{}better-auth.dont_remember",
-        if config.secure_cookies {
-            "__Secure-"
-        } else {
-            ""
-        }
-    );
-    headers
-        .get_all("cookie")
-        .iter()
-        .filter_map(|v| v.to_str().ok())
-        .flat_map(|v| v.split(';'))
-        .filter_map(|v| v.trim().split_once('='))
-        .any(|(key, value)| {
-            key == name && verify(&config.auth_secret, value).as_deref() == Some("true")
-        })
+    read_cookie(config, headers, "dont_remember").as_deref() == Some("true")
 }
 
 #[cfg(test)]
@@ -125,5 +108,18 @@ mod tests {
         );
         assert!(verify("other-secret", &value).is_none());
         assert!(verify("test-secret", "forged.token").is_none());
+    }
+    #[test]
+    fn a_stale_duplicate_cookie_does_not_hide_the_valid_one() {
+        let config = Config::for_test(&[]).unwrap();
+        let fresh = encode(&sign(&config.auth_secret, "true").unwrap());
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "cookie",
+            format!("better-auth.dont_remember=stale.bad; better-auth.dont_remember={fresh}")
+                .parse()
+                .unwrap(),
+        );
+        assert!(dont_remember(&config, &headers));
     }
 }

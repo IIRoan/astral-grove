@@ -1,4 +1,4 @@
-import { fetchWithApiWake } from '@/lib/api-fetch';
+import { apiErrorMessage, fetchWithApiWake } from '@/lib/api-fetch';
 import { getApiUrl } from '@/lib/api-url';
 import { getAuthCookieHeader } from '@/lib/auth-cookie';
 import { logActionFailure } from '@/lib/logger';
@@ -15,7 +15,7 @@ export class RemoteApiError extends Error {
     readonly path: string,
     readonly body: string
   ) {
-    super(`API ${String(status)} ${path}: ${body}`);
+    super(apiErrorMessage(status, body));
     this.name = 'RemoteApiError';
   }
 }
@@ -42,7 +42,6 @@ export async function authedFetch<T>(
     method?: string;
     body?: unknown;
     headers?: Record<string, string>;
-    retryOnWake?: boolean;
   }
 ): Promise<T> {
   const method = init?.method ?? 'GET';
@@ -53,8 +52,7 @@ export async function authedFetch<T>(
 
   let res: Response;
   try {
-    const requestFetch = init?.retryOnWake === false ? fetch : fetchWithApiWake;
-    res = await requestFetch(`${API_URL}${path}`, {
+    res = await fetchWithApiWake(`${API_URL}${path}`, {
       method,
       credentials: 'include',
       cache: 'no-store',

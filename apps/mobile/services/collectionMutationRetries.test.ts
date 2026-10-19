@@ -19,7 +19,7 @@ for (const adjust of [remoteAddToCollection, remoteRemoveFromCollection]) {
         status: writes === 1 ? 503 : 200,
       });
     }) as typeof fetch;
-    await expect(adjust('OGN-001', 1, false)).rejects.toThrow('503');
+    await expect(adjust('OGN-001', 1, false)).rejects.toMatchObject({ status: 503 });
     expect(writes).toBe(1);
   });
   test(`${adjust.name} does not retry a request whose response was lost`, async () => {

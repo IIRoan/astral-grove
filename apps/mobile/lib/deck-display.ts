@@ -1,4 +1,4 @@
-import { getDeckRules } from '@riftbound/contracts';
+import { getDeckRules, sideboardMaximum } from '@riftbound/contracts';
 import { getSectionCount } from '@/lib/deck-card';
 import type { DeckEntry, DeckState } from '@/lib/deck-types';
 
@@ -64,10 +64,16 @@ export function deckSectionProgress(
   }
 
   if (section === 'sideboard') {
+    const rules = getDeckRules(deck.format);
     return {
       current: getSectionCount(deck, 'sideboard'),
-      target: getDeckRules(deck.format).sections.sideboard.target,
-      hint: deck.addToSideboard ? 'Sideboard enabled' : undefined,
+      target: rules.sections.sideboard.target,
+      hint:
+        sideboardMaximum(rules) == null
+          ? 'Card pool (no limit)'
+          : deck.addToSideboard
+            ? 'Sideboard enabled'
+            : undefined,
     };
   }
 

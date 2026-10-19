@@ -264,7 +264,6 @@ dependencies = [
  "async-stream",
  "axum",
  "base64 0.22.1",
- "futures-core",
  "futures-util",
  "hex",
  "hmac",
@@ -4179,7 +4178,6 @@ dependencies = [
  "anyhow",
  "astral-grove-server",
  "serde_json",
- "tokio",
 ]
 
 [[package]]

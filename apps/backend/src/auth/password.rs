@@ -9,9 +9,6 @@ use unicode_normalization::UnicodeNormalization;
 /// Each hash takes 32 MiB, so at most two run at once (the memory budget assumes this).
 static HASHING: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(2));
 
-pub const MIN_LENGTH: usize = 12;
-pub const MAX_LENGTH: usize = 128;
-
 #[derive(Debug, thiserror::Error)]
 #[error("password hashing failed")]
 pub struct HashError;

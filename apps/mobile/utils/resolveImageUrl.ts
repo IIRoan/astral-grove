@@ -1,3 +1,4 @@
+import { ALLOWED_THUMB_WIDTHS } from '@riftbound/contracts';
 import { getApiUrl } from '@/lib/api-url';
 
 const API_URL = getApiUrl();
@@ -9,6 +10,13 @@ export type ResolveImageUrlOptions = {
   /** Request a cached derivative from GET /api/v1/images/*?w=… */
   width?: number;
 };
+
+// The API only resizes to these widths; anything else would silently return the full image.
+function servedWidth(width: number | undefined): number | undefined {
+  return width == null
+    ? undefined
+    : ALLOWED_THUMB_WIDTHS.find((served) => served >= width);
+}
 
 function isSafeImageKey(key: string): boolean {
   if (!key || key.includes('..')) return false;
@@ -47,6 +55,8 @@ export function resolveImageUrl(
   options?: ResolveImageUrlOptions
 ): string {
   if (!url) return '';
+  const width = servedWidth(options?.width);
+  options = width == null ? undefined : { width };
 
   if (url.startsWith(API_IMAGES_PREFIX)) {
     const key = keyFromApiPath(url);

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, test, setDefaultTimeout } from 'bun:test';
 import sharp from 'sharp';
 import { S3Client } from 'bun';
-import { validS3Signature } from './s3-fixture';
+import { startStorageFixture, validS3Signature } from './s3-fixture';
 import {
   SyncCatalogResponse,
   SyncPricesResponse,
@@ -10,52 +10,16 @@ import {
   CollectionItemResponse,
   PaLogicalCard,
 } from '@riftbound/contracts';
-import { createHarness, json, cookie, runNativeCommand } from './support';
-const { startRust, stopRust, sql } = createHarness();
+import { createHarness, json, runCommand, waitFor } from './support';
+const { startServer, stopServer, signup, sql } = createHarness();
 import { seedOfflineCatalog, startOfflineUpstream } from './fixtures/offline';
 import { releaseAccessToken } from '../../../scripts/lib/internal-release-signing';
 setDefaultTimeout(180000);
-let app: Awaited<ReturnType<typeof startRust>>;
+let app: Awaited<ReturnType<typeof startServer>>;
 const upstream = startOfflineUpstream();
-const objects = new Map<string, { body: Uint8Array; type: string }>();
+const storage = startStorageFixture();
+const { objects } = storage;
 let source: Uint8Array;
-const storage = Bun.serve({
-  hostname: '127.0.0.1',
-  port: 0,
-  async fetch(request) {
-    if (!validS3Signature(request, 'fixture-secret'))
-      return new Response(null, { status: 403 });
-    const key = new URL(request.url).pathname;
-    if (request.method === 'PUT') {
-      objects.set(key, {
-        body: new Uint8Array(await request.arrayBuffer()),
-        type: request.headers.get('content-type') ?? '',
-      });
-      return new Response(null, { status: 200 });
-    }
-    const object = objects.get(key);
-    return object
-      ? new Response(
-          request.method === 'HEAD' ? null : new Uint8Array(object.body).buffer,
-          {
-            headers: {
-              'content-type':
-                new URL(request.url).searchParams.get('response-content-type') ??
-                object.type,
-              ...(new URL(request.url).searchParams.has('response-content-disposition')
-                ? {
-                    'content-disposition': new URL(request.url).searchParams.get(
-                      'response-content-disposition'
-                    )!,
-                  }
-                : {}),
-              'content-length': String(object.body.byteLength),
-            },
-          }
-        )
-      : new Response(null, { status: 404 });
-  },
-});
 const cdn = Bun.serve({
   hostname: '127.0.0.1',
   port: 0,
@@ -75,13 +39,13 @@ beforeAll(async () => {
       .png()
       .toBuffer()
   );
-  app = await startRust({
+  app = await startServer({
     PA_BASE_URL: upstream.url,
     CARDMARKET_EXPORT_BASE_URL: upstream.url,
     IMAGE_CDN_BASE_URL: cdn.url.origin,
     SYNC_MAX_PAGES: '1',
-    S3_ENDPOINT: storage.url.origin,
-    S3_BUCKET: 'native-fixture',
+    S3_ENDPOINT: storage.origin,
+    S3_BUCKET: 'workflow-fixture',
     S3_ACCESS_KEY_ID: 'fixture-access',
     S3_SECRET_ACCESS_KEY: 'fixture-secret',
   });
@@ -89,11 +53,11 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   upstream.stop();
-  storage.stop(true);
+  storage.stop();
   cdn.stop(true);
-  await stopRust();
+  await stopServer();
 });
-test('Rust catalog sync publishes partial progress and remains retryable', async () => {
+test('catalog sync publishes partial progress and remains retryable', async () => {
   const response = await app.fetch('/api/v1/sync/catalog?force=true', {
     method: 'POST',
     headers: { authorization: 'Bearer ' + app.config.ADMIN_SYNC_TOKEN },
@@ -118,8 +82,8 @@ test('card audit detects stale fields, stays read-only by default and verifies e
     await sql`SELECT c.id,c.name,c.content_hash AS hash,v.variant_number AS number FROM cards c JOIN variants v ON v.card_id=c.id ORDER BY v.variant_number LIMIT 1`
   )[0]!;
   try {
-    await sql`UPDATE cards SET name='Synthetic stale audit name',content_hash='stale-native-audit' WHERE id=${row.id}`;
-    const check = await runNativeCommand(app.config, [
+    await sql`UPDATE cards SET name='Synthetic stale audit name',content_hash='stale-audit' WHERE id=${row.id}`;
+    const check = await runCommand(app.config, [
       'audit:cards',
       '--variant',
       row.number,
@@ -135,7 +99,7 @@ test('card audit detects stale fields, stays read-only by default and verifies e
     expect((await sql`SELECT name FROM cards WHERE id=${row.id}`)[0]!.name).toBe(
       'Synthetic stale audit name'
     );
-    const repair = await runNativeCommand(app.config, [
+    const repair = await runCommand(app.config, [
       'audit:cards',
       '--variant=' + row.number,
       '--fix',
@@ -157,10 +121,10 @@ test('maintenance selection, retention dry run and database-only search explain 
   const config = { ...app.config, PA_BASE_URL: 'http://127.0.0.1:1' };
   const before = (await sql`SELECT count(*)::integer AS count FROM price_history`)[0]!
     .count;
-  const missing = await runNativeCommand(config, ['prune:prices', '--target=test']);
+  const missing = await runCommand(config, ['prune:prices', '--target=test']);
   expect(missing.exitCode).toBe(1);
   expect(missing.errors).toContain('no default database');
-  const prune = await runNativeCommand(config, [
+  const prune = await runCommand(config, [
     'prune:prices',
     '--target=test',
     '--use-env=TEST_DB_URL',
@@ -171,7 +135,7 @@ test('maintenance selection, retention dry run and database-only search explain 
   expect(
     (await sql`SELECT count(*)::integer AS count FROM price_history`)[0]!.count
   ).toBe(before);
-  const explain = await runNativeCommand(config, [
+  const explain = await runCommand(config, [
     'explain:search',
     '--target=test',
     '--use-env=TEST_DB_URL',
@@ -206,23 +170,18 @@ test('price sync persists current and daily prices and skips unchanged exports',
   expect(SyncPricesResponse.parse(await next.json()).data.changed).toBe(false);
 });
 test('image derivatives persist to S3, validate decoding and use conditional HTTP caching', async () => {
-  const response = await app.fetch('/api/v1/images/cards/native.png?w=%2B96');
+  const response = await app.fetch('/api/v1/images/cards/workflow.png?w=%2B96');
   expect(response.status).toBe(200);
   expect(response.headers.get('content-type')).toBe('image/webp');
   const image = await sharp(Buffer.from(await response.arrayBuffer())).metadata();
   expect(image.width).toBe(96);
   expect(image.height).toBe(48);
-  for (let attempt = 0; attempt < 100; attempt++) {
-    if (
-      objects.has('/native-fixture/cards/native.png') &&
-      objects.has('/native-fixture/thumbs/w96/cards/native.png')
-    )
-      break;
-    await Bun.sleep(20);
-  }
-  expect(objects.has('/native-fixture/cards/native.png')).toBe(true);
-  expect(objects.has('/native-fixture/thumbs/w96/cards/native.png')).toBe(true);
-  const cached = await app.fetch('/api/v1/images/cards/native.png?w=96', {
+  await waitFor(
+    () =>
+      objects.has('/workflow-fixture/cards/workflow.png') &&
+      objects.has('/workflow-fixture/thumbs/w96/cards/workflow.png')
+  );
+  const cached = await app.fetch('/api/v1/images/cards/workflow.png?w=96', {
     headers: { 'if-none-match': response.headers.get('etag')! },
   });
   expect(cached.status).toBe(304);
@@ -232,7 +191,7 @@ test('image derivatives persist to S3, validate decoding and use conditional HTT
 test('signed release downloads preserve GET, HEAD, MIME and private-cache behavior', async () => {
   for (const filename of ['preview.html', 'preview.plist', 'preview.apk']) {
     const key = 'releases/' + filename;
-    objects.set('/native-fixture/' + key, {
+    objects.set('/workflow-fixture/' + key, {
       body: new TextEncoder().encode('synthetic release content'),
       type: 'application/octet-stream',
     });
@@ -278,8 +237,8 @@ test('signed release downloads preserve GET, HEAD, MIME and private-cache behavi
 
 test('the independent S3 verifier accepts Bun signatures and rejects tampering', async () => {
   const client = new S3Client({
-    endpoint: storage.url.origin,
-    bucket: 'native-fixture',
+    endpoint: storage.origin,
+    bucket: 'workflow-fixture',
     accessKeyId: 'fixture-access',
     secretAccessKey: 'fixture-secret',
     region: 'us-east-1',
@@ -293,156 +252,129 @@ test('the independent S3 verifier accepts Bun signatures and rejects tampering',
 });
 
 test('default request bodies and public errors remain usable through HTTP and Expo web CORS', async () => {
-  const email = `native-boundary-${crypto.randomUUID()}@test.riftbound.dev`;
-  try {
-    const signup = await app.fetch(
-      '/api/auth/sign-up/email',
-      json({ name: 'Boundary', email, password: 'native-boundary-password-12345' })
-    );
-    expect(signup.status).toBe(200);
-    const headers = { 'content-type': 'application/json', cookie: cookie(signup) };
-    for (const path of [
-      '/api/v1/collection/OGN-001/add',
-      '/api/v1/collection/OGN-001/remove',
-    ]) {
-      expect((await app.fetch(path, { method: 'POST', headers })).status).toBe(200);
-    }
-    expect(
-      (await app.fetch('/api/v1/settings/phone', { method: 'PUT', headers })).status
-    ).toBe(200);
-    const malformed = await app.fetch('/api/v1/collection/OGN-001', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: '{',
-    });
-    expect(malformed.status).toBe(400);
-    expect(await malformed.json()).toEqual({
-      error: 'VALIDATION_ERROR',
-      message: 'Invalid JSON request body',
-    });
-    const invalid = await app.fetch('/api/v1/collection/OGN-001', {
-      method: 'PUT',
-      headers,
-      body: '{"quantity":null}',
-    });
-    expect(invalid.status).toBe(422);
-    expect(await invalid.json()).toEqual({
-      error: 'VALIDATION_ERROR',
-      message: 'Request validation failed',
-    });
-    const preflight = await app.fetch('/api/v1/decks/example/versions/example', {
-      method: 'OPTIONS',
-      headers: { 'access-control-request-method': 'PATCH' },
-    });
-    expect(preflight.status).toBe(204);
-    expect(
-      preflight.headers
-        .get('access-control-allow-methods')
-        ?.split(',')
-        .map((value) => value.trim())
-    ).toContain('PATCH');
-  } finally {
-    await sql`DELETE FROM "user" WHERE email=${email}`;
+  const user = await signup(app, 'boundary');
+  const headers = { 'content-type': 'application/json', cookie: user.cookie };
+  for (const path of [
+    '/api/v1/collection/OGN-001/add',
+    '/api/v1/collection/OGN-001/remove',
+  ]) {
+    expect((await app.fetch(path, { method: 'POST', headers })).status).toBe(200);
   }
+  expect(
+    (await app.fetch('/api/v1/settings/phone', { method: 'PUT', headers })).status
+  ).toBe(200);
+  const malformed = await app.fetch('/api/v1/collection/OGN-001', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: '{',
+  });
+  expect(malformed.status).toBe(400);
+  expect(await malformed.json()).toEqual({
+    error: 'VALIDATION_ERROR',
+    message: 'Invalid JSON request body',
+  });
+  const invalid = await app.fetch('/api/v1/collection/OGN-001', {
+    method: 'PUT',
+    headers,
+    body: '{"quantity":null}',
+  });
+  expect(invalid.status).toBe(422);
+  expect(await invalid.json()).toEqual({
+    error: 'VALIDATION_ERROR',
+    message: 'Request validation failed',
+  });
+  const preflight = await app.fetch('/api/v1/decks/example/versions/example', {
+    method: 'OPTIONS',
+    headers: { 'access-control-request-method': 'PATCH' },
+  });
+  expect(preflight.status).toBe(204);
+  expect(
+    preflight.headers
+      .get('access-control-allow-methods')
+      ?.split(',')
+      .map((value) => value.trim())
+  ).toContain('PATCH');
 });
 
 test('quantity lookups retain both finishes, sum stacks and deduplicate requested variants', async () => {
-  const email = `native-quantities-${crypto.randomUUID()}@test.riftbound.dev`;
-  try {
-    const signup = await app.fetch(
-      '/api/auth/sign-up/email',
-      json({ name: 'Quantity test', email, password: 'native-quantity-password-12345' })
-    );
-    expect(signup.status).toBe(200);
-    const current = cookie(signup);
-    for (const body of [
-      { delta: 2, isFoil: false },
-      { delta: 3, isFoil: true },
-      { delta: 4, isFoil: true, condition: 'mint' },
-    ])
-      expect(
-        (await app.fetch('/api/v1/collection/OGN-001/add', json(body, current))).status
-      ).toBe(200);
-    const response = await app.fetch(
-      '/api/v1/collection/quantities',
-      json({ variantNumbers: ['OGN-001', 'OGN-001', 'NOT-OWNED'] }, current)
-    );
-    expect(response.status).toBe(200);
-    expect(CollectionQuantitiesResponse.parse(await response.json()).data).toEqual([
-      { variantNumber: 'OGN-001', isFoil: false, quantity: 2 },
-      { variantNumber: 'OGN-001', isFoil: true, quantity: 7 },
-      { variantNumber: 'NOT-OWNED', isFoil: false, quantity: 0 },
-    ]);
-  } finally {
-    await sql`DELETE FROM "user" WHERE email=${email}`;
-  }
+  const current = (await signup(app, 'quantities')).cookie;
+  for (const body of [
+    { delta: 2, isFoil: false },
+    { delta: 3, isFoil: true },
+    { delta: 4, isFoil: true, condition: 'mint' },
+  ])
+    expect(
+      (await app.fetch('/api/v1/collection/OGN-001/add', json(body, current))).status
+    ).toBe(200);
+  const response = await app.fetch(
+    '/api/v1/collection/quantities',
+    json({ variantNumbers: ['OGN-001', 'OGN-001', 'NOT-OWNED'] }, current)
+  );
+  expect(response.status).toBe(200);
+  expect(CollectionQuantitiesResponse.parse(await response.json()).data).toEqual([
+    { variantNumber: 'OGN-001', isFoil: false, quantity: 2 },
+    { variantNumber: 'OGN-001', isFoil: true, quantity: 7 },
+    { variantNumber: 'NOT-OWNED', isFoil: false, quantity: 0 },
+  ]);
 });
 
 test('stored acquisition and legality timestamps preserve JavaScript millisecond semantics', async () => {
-  const email = `native-date-${crypto.randomUUID()}@test.riftbound.dev`;
-  try {
-    const signup = await app.fetch(
-      '/api/auth/sign-up/email',
-      json({ name: 'Date test', email, password: 'native-date-password-12345' })
+  const user = await signup(app, 'date');
+  const current = user.cookie;
+  for (const acquiredAt of [
+    '2026-01-01T00:00:00.123999999999Z',
+    '1969-12-31T23:59:59.999999999999Z',
+    '0001-01-01T12:00:00.99999999Z',
+    '9999-12-31T23:59:59.99999999Z',
+  ]) {
+    const response = await app.fetch('/api/v1/collection/OGN-001', {
+      ...json({ quantity: 1, acquiredAt }, current),
+      method: 'PUT',
+    });
+    expect(response.status).toBe(200);
+    const expected = new Date(acquiredAt).toISOString();
+    expect(CollectionItemResponse.parse(await response.json()).data.acquiredAt).toBe(
+      expected
     );
-    expect(signup.status).toBe(200);
-    const user = await signup.json();
-    const current = cookie(signup);
-    for (const acquiredAt of [
+    const rows =
+      await sql`SELECT to_char(i.acquired_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS value FROM collection_items i JOIN collection_members m ON m.collection_id=i.collection_id WHERE m.user_id=${user.user.id} AND i.variant_number='OGN-001'`;
+    expect(rows[0]!.value).toBe(expected.replace('Z', '000Z'));
+  }
+  const original = (
+    await sql`SELECT c.id,c.content_hash AS hash,c.upstream_raw AS raw,to_char(c.ban_effective_date AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS ban,v.variant_number AS number FROM cards c JOIN variants v ON v.card_id=c.id ORDER BY v.variant_number LIMIT 1`
+  )[0]!;
+  const logical = PaLogicalCard.parse(original.raw);
+  let remote = logical;
+  const pa = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    fetch: () => Response.json(remote),
+  });
+  try {
+    for (const date of [
       '2026-01-01T00:00:00.123999999999Z',
       '1969-12-31T23:59:59.999999999999Z',
-      '0001-01-01T12:00:00.99999999Z',
+      '0001-01-01T00:00:00.99999999Z',
       '9999-12-31T23:59:59.99999999Z',
     ]) {
-      const response = await app.fetch('/api/v1/collection/OGN-001', {
-        ...json({ quantity: 1, acquiredAt }, current),
-        method: 'PUT',
-      });
-      expect(response.status).toBe(200);
-      const expected = new Date(acquiredAt).toISOString();
-      expect(CollectionItemResponse.parse(await response.json()).data.acquiredAt).toBe(
-        expected
-      );
-      const rows =
-        await sql`SELECT to_char(i.acquired_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS value FROM collection_items i JOIN collection_members m ON m.collection_id=i.collection_id WHERE m.user_id=${user.user.id} AND i.variant_number='OGN-001'`;
-      expect(rows[0]!.value).toBe(expected.replace('Z', '000Z'));
-    }
-    const original = (
-      await sql`SELECT c.id,c.content_hash AS hash,c.upstream_raw AS raw,to_char(c.ban_effective_date AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS ban,v.variant_number AS number FROM cards c JOIN variants v ON v.card_id=c.id ORDER BY v.variant_number LIMIT 1`
-    )[0]!;
-    const logical = PaLogicalCard.parse(original.raw);
-    let remote = logical;
-    const pa = Bun.serve({
-      hostname: '127.0.0.1',
-      port: 0,
-      fetch: () => Response.json(remote),
-    });
-    try {
-      for (const date of [
-        '2026-01-01T00:00:00.123999999999Z',
-        '1969-12-31T23:59:59.999999999999Z',
-        '0001-01-01T00:00:00.99999999Z',
-        '9999-12-31T23:59:59.99999999Z',
-      ]) {
-        remote = { ...logical, banEffectiveDate: date };
-        const result = await runNativeCommand(
-          { ...app.config, PA_BASE_URL: pa.url.origin },
-          ['audit:cards', '--variant=' + original.number, '--fix', '--json']
-        );
-        if (result.exitCode !== 0) throw new Error(result.errors);
-        const stored = (
-          await sql`SELECT to_char(ban_effective_date AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS value FROM cards WHERE id=${original.id}`
-        )[0]!;
-        expect(stored.value).toBe(new Date(date).toISOString().replace('Z', '000Z'));
-      }
-    } finally {
-      pa.stop(true);
-      await sql.unsafe(
-        'UPDATE cards SET upstream_raw=$2::text::json,content_hash=$3,ban_effective_date=$4::timestamptz WHERE id=$1::uuid',
-        [original.id, JSON.stringify(original.raw), original.hash, original.ban]
-      );
+      remote = { ...logical, banEffectiveDate: date };
+      const result = await runCommand({ ...app.config, PA_BASE_URL: pa.url.origin }, [
+        'audit:cards',
+        '--variant=' + original.number,
+        '--fix',
+        '--json',
+      ]);
+      if (result.exitCode !== 0) throw new Error(result.errors);
+      const stored = (
+        await sql`SELECT to_char(ban_effective_date AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS value FROM cards WHERE id=${original.id}`
+      )[0]!;
+      expect(stored.value).toBe(new Date(date).toISOString().replace('Z', '000Z'));
     }
   } finally {
-    await sql`DELETE FROM "user" WHERE email=${email}`;
+    pa.stop(true);
+    await sql.unsafe(
+      'UPDATE cards SET upstream_raw=$2::text::json,content_hash=$3,ban_effective_date=$4::timestamptz WHERE id=$1::uuid',
+      [original.id, JSON.stringify(original.raw), original.hash, original.ban]
+    );
   }
 });

@@ -41,13 +41,13 @@ test('startup retries a transient PostgreSQL error and drains gracefully after r
   target.port = String(address.port);
   const harness = createHarness();
   try {
-    const app = await harness.startRust({ DATABASE_URL: target.toString() });
+    const app = await harness.startServer({ DATABASE_URL: target.toString() });
     expect((await app.fetch('/api/v1/health')).status).toBe(200);
     expect(readFileSync(app.logPath, 'utf8')).toContain('retrying');
-    await harness.stopRust();
+    await harness.stopServer();
   } finally {
     try {
-      await harness.stopRust();
+      await harness.stopServer();
     } finally {
       for (const socket of sockets) socket.destroy();
       await new Promise<void>((resolve) => proxy.close(() => resolve()));

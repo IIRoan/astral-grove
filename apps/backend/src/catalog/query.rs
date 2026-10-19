@@ -52,28 +52,25 @@ const COLUMNS: &str = "c.id::text AS \"cardId\",c.name,c.type,c.super,c.energy,c
 fn number(query: &Value, key: &str, default: i64) -> i64 {
     query[key].as_i64().unwrap_or(default)
 }
-fn text<'a>(value: &'a Value, key: &str) -> &'a str {
-    db::string(value, key)
-}
 fn bool_value(value: &Value, key: &str) -> bool {
     value[key] == true
 }
 fn paged(query: &Value) -> bool {
     query["sortBy"] != "price"
-        && text(query, "q").trim().is_empty()
+        && db::string(query, "q").trim().is_empty()
         && ["types", "colors", "sets", "super", "variants", "rarities"]
             .iter()
-            .all(|key| text(query, key).is_empty())
+            .all(|key| db::string(query, key).is_empty())
         && !bool_value(query, "excludeTokens")
 }
 pub(crate) fn candidate_query(query: &Value) -> (String, Vec<sea_orm::Value>, bool) {
-    let mut sql = search::Sql::new();
+    let mut sql = search::Sql::default();
     let filter = search::filters(query, &mut sql);
     let page = number(query, "page", 1);
     let limit = number(query, "limit", 50);
     let offset = (page - 1).saturating_mul(limit);
     let direct = paged(query);
-    let order = match text(query, "sortBy") {
+    let order = match db::string(query, "sortBy") {
         "energy" => "c.energy",
         "variantNumber" => "v.variant_number",
         _ => "c.name",
@@ -103,7 +100,7 @@ async fn local(state: &AppState, query: &Value, hash: &str) -> Result<Value> {
     let page = number(query, "page", 1);
     let limit = number(query, "limit", 50);
     let offset = (page - 1).saturating_mul(limit);
-    let mut sql = search::Sql::new();
+    let mut sql = search::Sql::default();
     let filter = search::filters(query, &mut sql);
     let mut rows = db::rows(&state.db, &statement, values).await?;
     let null_card_ids: Vec<String> = rows
@@ -121,7 +118,7 @@ async fn local(state: &AppState, query: &Value, hash: &str) -> Result<Value> {
                     .cloned()
                     .collect();
                 row["cardmarketId"] = json!(crate::prices::resolve_id(
-                    text(row, "variantNumber"),
+                    db::string(row, "variantNumber"),
                     &siblings
                 ));
             }
@@ -153,7 +150,7 @@ async fn local(state: &AppState, query: &Value, hash: &str) -> Result<Value> {
         } else {
             std::cmp::Ordering::Less
         };
-        let parsed = search::parse(text(query, "q"));
+        let parsed = search::parse(db::string(query, "q"));
         let price = |item: &Value| {
             let mut maximum = item["priceEur"]["market"].as_f64().unwrap_or(0.0).max(0.0);
             if let Some(prints) = item["printings"].as_array() {
@@ -171,33 +168,41 @@ async fn local(state: &AppState, query: &Value, hash: &str) -> Result<Value> {
                 } else {
                     diff
                 };
-                return diff.then_with(|| search::compare(text(left, "name"), text(right, "name")));
+                return diff.then_with(|| {
+                    search::compare(db::string(left, "name"), db::string(right, "name"))
+                });
             }
-            if !text(query, "q").trim().is_empty() {
+            if !db::string(query, "q").trim().is_empty() {
                 return search::score(left, &parsed)
                     .cmp(&search::score(right, &parsed))
                     .then_with(|| {
-                        search::hits(text(right, "name"), &parsed)
-                            .cmp(&search::hits(text(left, "name"), &parsed))
+                        search::hits(db::string(right, "name"), &parsed)
+                            .cmp(&search::hits(db::string(left, "name"), &parsed))
                     })
-                    .then_with(|| search::compare(text(left, "name"), text(right, "name")))
                     .then_with(|| {
-                        search::compare(text(left, "variantNumber"), text(right, "variantNumber"))
+                        search::compare(db::string(left, "name"), db::string(right, "name"))
+                    })
+                    .then_with(|| {
+                        search::compare(
+                            db::string(left, "variantNumber"),
+                            db::string(right, "variantNumber"),
+                        )
                     });
             }
-            let diff = match text(query, "sortBy") {
+            let diff = match db::string(query, "sortBy") {
                 "energy" => number(left, "energy", 0).cmp(&number(right, "energy", 0)),
-                "variantNumber" => {
-                    search::compare(text(left, "variantNumber"), text(right, "variantNumber"))
-                }
-                _ => search::compare(text(left, "name"), text(right, "name")),
+                "variantNumber" => search::compare(
+                    db::string(left, "variantNumber"),
+                    db::string(right, "variantNumber"),
+                ),
+                _ => search::compare(db::string(left, "name"), db::string(right, "name")),
             };
             let diff = if sign == std::cmp::Ordering::Greater {
                 diff.reverse()
             } else {
                 diff
             };
-            diff.then_with(|| search::compare(text(left, "name"), text(right, "name")))
+            diff.then_with(|| search::compare(db::string(left, "name"), db::string(right, "name")))
         });
         let total = items.len() as i64;
         items = items
@@ -245,7 +250,7 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
     let (hash, price_hash) = store::hashes(state).await?;
     let key = super::hash(&json!({"query":query,"catalog":hash,"prices":price_hash}));
     let refresh = bool_value(query, "refresh");
-    let text_search = text(query, "q").trim().encode_utf16().count() >= 2;
+    let text_search = db::string(query, "q").trim().encode_utf16().count() >= 2;
     if !refresh
         && !text_search
         && let Some(value) = state.catalog.results.lock().await.get(&key)
@@ -260,7 +265,8 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
     let checked = state.catalog.checks.lock().await.contains(&check);
     let mut source = "cache";
     if refresh || empty || !checked && (text_search || number(query, "page", 1) == 1) {
-        let incomparable = query["colorMode"] == "within" && !text(query, "colors").is_empty()
+        let incomparable = query["colorMode"] == "within"
+            && !db::string(query, "colors").is_empty()
             || query["sortBy"] == "energy"
             || query.get("energyMin").is_some()
             || query.get("energyMax").is_some();
@@ -278,10 +284,7 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
                 }
             };
             upstream_total = number(&upstream["pagination"], "total", 0);
-            let entries = upstream["data"]
-                .as_array()
-                .map(Vec::as_slice)
-                .unwrap_or(&[]);
+            let entries = db::array(&upstream, "data");
             let numbers: Vec<String> = entries
                 .iter()
                 .filter_map(|item| item["variantNumber"].as_str().map(str::to_lowercase))
@@ -291,12 +294,13 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
                 .iter()
                 .filter(|item| {
                     !existing.iter().any(|row| {
-                        text(row, "number") == text(item, "variantNumber").to_lowercase()
+                        db::string(row, "number")
+                            == db::string(item, "variantNumber").to_lowercase()
                     })
                 })
                 .collect();
             for item in &missing {
-                if let Ok(card) = upstream::card(state, text(item, "variantNumber")).await
+                if let Ok(card) = upstream::card(state, db::string(item, "variantNumber")).await
                     && store::upsert(state, &card).await.is_ok()
                 {
                     changed += 1;

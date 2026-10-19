@@ -118,10 +118,7 @@ fn shortfalls(
     snapshot: &serde_json::Value,
     counts: &[serde_json::Value],
 ) -> Vec<serde_json::Value> {
-    snapshot["sets"]
-        .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+    db::array(snapshot, "sets")
         .iter()
         .filter_map(|set| {
             let code = set["code"]
@@ -146,7 +143,7 @@ fn shortfalls(
 }
 async fn publish(state: &AppState, count: i64, at: &str) -> Result<String> {
     let row=db::rows(&state.db,"SELECT encode(sha256(convert_to(string_agg(v.id||':'||v.card_id||':'||v.content_hash||':'||c.content_hash,',' ORDER BY v.id),'UTF8')),'hex') AS digest FROM variants v JOIN cards c ON c.id=v.card_id",vec![]).await?.into_iter().next().unwrap_or(json!({}));
-    let hash = crate::catalog::hash(&json!({"localCatalog":row["digest"].as_str().unwrap_or("")}));
+    let hash = crate::catalog::hash(&json!({"localCatalog":db::string(&row, "digest")}));
     complete(state, "catalog", &hash, count, at).await?;
     state.catalog.invalidate().await;
     Ok(hash)
@@ -164,7 +161,7 @@ pub async fn catalog_sync(state: &Arc<AppState>, force: bool) -> Result<serde_js
         if !force&&same&&shortfalls(&snapshot,&sets).is_empty()&&local>0&&(expected<=0||local>=expected){let count=local.max(expected).max(previous);let hash=publish(state,count,&at).await?;return Ok(json!({"changed":false,"pages":0,"variantCount":count,"hash":hash}));}
         let maximum=state.config.values.get("SYNC_MAX_PAGES").map(|value|crate::http::zod::js_number(value)).filter(|value|*value!=0.0&&value.is_finite());let mut page=1_i64;let mut pages=0_i64;let mut failures=0_i64;let mut seen=std::collections::HashSet::<String>::new();let mut cards=std::collections::HashSet::<String>::new();
         loop{let response=crate::upstream::list_cards(state,&json!({"limit":100,"page":page})).await?;pages+=1;
-            for item in response["data"].as_array().map(Vec::as_slice).unwrap_or(&[]){let number=db::string(item,"variantNumber");if seen.contains(&number.to_lowercase()){continue;}match crate::upstream::card(state,number).await{Ok(card)=>{if let Some(variants)=card["variants"].as_array(){for variant in variants{seen.insert(db::string(variant,"variantNumber").to_lowercase());}}let id=db::string(&card,"id");if cards.contains(id){continue;}
+            for item in db::array(&response, "data"){let number=db::string(item,"variantNumber");if seen.contains(&number.to_lowercase()){continue;}match crate::upstream::card(state,number).await{Ok(card)=>{if let Some(variants)=card["variants"].as_array(){for variant in variants{seen.insert(db::string(variant,"variantNumber").to_lowercase());}}let id=db::string(&card,"id");if cards.contains(id){continue;}
 if crate::catalog::store::upsert(state,&card).await.is_ok(){cards.insert(id.into());}else{failures+=1;}},Err(_)=>failures+=1}}
             if response["pagination"]["hasNext"]!=true||page>=response["pagination"]["totalPages"].as_i64().unwrap_or(page)||maximum.is_some_and(|max|pages as f64>=max){break;}page+=1;
         }
@@ -220,19 +217,8 @@ async fn prices(
 async fn price_sync(state: &Arc<AppState>) -> Result<serde_json::Value> {
     let _lock = state.price_sync.lock().await;
     let result = crate::cardmarket::guide::sync(state).await?;
-    let days = state
-        .config
-        .values
-        .get("PRICE_HISTORY_RETAIN_DAYS")
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(90);
-    let snapshots = state
-        .config
-        .values
-        .get("PRICE_HISTORY_RETAIN_SNAPSHOTS")
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(30);
-    if crate::cardmarket::guide::prune(state, days, snapshots, false)
+    let config = &state.config;
+    if crate::cardmarket::guide::prune(state, config.retain_days, config.retain_snapshots, false)
         .await
         .is_err()
     {

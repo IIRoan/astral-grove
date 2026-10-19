@@ -219,7 +219,7 @@ async fn batch(
 ) -> Result<Json<astral_grove_api_types::CollectionBatchSyncResponse>> {
     let input = http::value("CollectionBatchSyncRequest", &body)?;
     let collection = membership::ensure(&state, &session.user.id).await?;
-    let items = input["items"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+    let items = crate::db::array(&input, "items");
     for item in items {
         service::mutate(
             &state,

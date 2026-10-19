@@ -252,11 +252,7 @@ export async function fetchDeckAddListPage(
   page: number
 ) {
   const query = buildDeckAddListQuery(section, deck, userQuery, filters, page);
-  return api.listCards({
-    ...query,
-    // First page reconciles with PA so deck sections show current catalog cards.
-    ...(page === 1 ? { refresh: true } : {}),
-  });
+  return api.listCards(query);
 }
 
 export function filterDeckAddCatalogIndex(

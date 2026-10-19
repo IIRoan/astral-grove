@@ -371,25 +371,6 @@
       "required": ["password"]
     }
   },
-  "verifyEmail": {
-    "path": "/verify-email",
-    "method": "GET",
-    "query": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "type": "object",
-      "properties": {
-        "token": {
-          "type": "string",
-          "description": "The token to verify the email"
-        },
-        "callbackURL": {
-          "type": "string",
-          "description": "The URL to redirect to after email verification"
-        }
-      },
-      "required": ["token"]
-    }
-  },
   "sendVerificationEmail": {
     "path": "/send-verification-email",
     "method": "POST",
@@ -456,21 +437,6 @@
         }
       },
       "required": ["newPassword", "currentPassword"]
-    }
-  },
-  "setPassword": {
-    "method": "POST",
-    "bodyOptional": false,
-    "body": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "type": "object",
-      "properties": {
-        "newPassword": {
-          "type": "string",
-          "description": "The new password to set is required"
-        }
-      },
-      "required": ["newPassword"]
     }
   },
   "updateSession": {
@@ -903,47 +869,6 @@
         "type": {
           "type": "string",
           "enum": ["email-verification", "sign-in", "forget-password", "change-email"],
-          "description": "Type of the OTP"
-        }
-      },
-      "required": ["email", "type"]
-    }
-  },
-  "createVerificationOTP": {
-    "method": "POST",
-    "bodyOptional": false,
-    "body": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "type": "object",
-      "properties": {
-        "email": {
-          "type": "string",
-          "description": "Email address to send the OTP"
-        },
-        "type": {
-          "type": "string",
-          "enum": ["email-verification", "sign-in", "forget-password", "change-email"],
-          "required": true,
-          "description": "Type of the OTP"
-        }
-      },
-      "required": ["email", "type"]
-    }
-  },
-  "getVerificationOTP": {
-    "method": "GET",
-    "query": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "type": "object",
-      "properties": {
-        "email": {
-          "type": "string",
-          "description": "Email address the OTP was sent to"
-        },
-        "type": {
-          "type": "string",
-          "enum": ["email-verification", "sign-in", "forget-password", "change-email"],
-          "required": true,
           "description": "Type of the OTP"
         }
       },

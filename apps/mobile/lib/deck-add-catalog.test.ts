@@ -252,30 +252,7 @@ describe('deck-add-catalog', () => {
     expect(settKey).not.toBe(jinxKey);
   });
 
-  test('first deck-add page forces an upstream refresh', async () => {
-    const emptyPage: CardsListResponse = {
-      data: [],
-      meta: {
-        pagination: {
-          total: 0,
-          page: 1,
-          limit: 80,
-          totalPages: 1,
-          hasNext: false,
-          hasPrevious: false,
-        },
-        source: 'cache',
-        catalogHash: '',
-      },
-    };
-    const listCards = spyOn(api, 'listCards').mockResolvedValue(emptyPage);
-    const deck = createEmptyDeck();
-    await fetchDeckAddListPage('mainDeck', deck, '', DEFAULT_CATALOG_FILTERS, 1);
-    expect(listCards.mock.calls[0]?.[0]).toMatchObject({ page: 1, refresh: true });
-    listCards.mockRestore();
-  });
-
-  test('later deck-add pages do not force an upstream refresh', async () => {
+  test('deck-add pages never request an admin-only upstream refresh', async () => {
     const emptyPage: CardsListResponse = {
       data: [],
       meta: {

@@ -8,9 +8,6 @@ use crate::{
     upstream,
 };
 use serde_json::{Value, json};
-fn items(value: &Value) -> &[Value] {
-    value.as_array().map(Vec::as_slice).unwrap_or(&[])
-}
 pub async fn resolve(
     state: &AppState,
     input: Vec<Value>,
@@ -49,14 +46,18 @@ pub async fn resolve(
             false,
         )
         .await?;
-        for number in items(&result["data"])
+        for number in db::array(&result, "data")
             .iter()
             .filter_map(|item| item["variantNumber"].as_str())
-            .chain(items(&result["notFound"]).iter().filter_map(Value::as_str))
+            .chain(
+                db::array(&result, "notFound")
+                    .iter()
+                    .filter_map(Value::as_str),
+            )
         {
             if let Ok(card) = upstream::card(state, number).await {
                 catalog::store::upsert(state, &card).await?;
-                for variant in items(&card["variants"]) {
+                for variant in db::array(&card, "variants") {
                     let number = db::string(variant, "variantNumber");
                     known.insert(number.to_lowercase(), number.into());
                 }
@@ -97,7 +98,7 @@ pub async fn import(
         } else if let Some(tts) = input["tts"].as_str().filter(|value| !value.is_empty()) {
             let mut parsed = formats::tts(tts);
             parsed["errors"] = json!(
-                items(&parsed["errors"])
+                db::array(&parsed, "errors")
                     .iter()
                     .enumerate()
                     .map(|(index, error)| json!({"row":index+1,"message":error["message"]}))
@@ -120,12 +121,16 @@ pub async fn import(
     } else {
         mode.as_str()
     };
-    let (valid, mut errors, resolved) = if items(&parsed["items"]).is_empty() {
+    let (valid, mut errors, resolved) = if db::array(&parsed, "items").is_empty() {
         (Vec::new(), Vec::new(), 0)
     } else {
-        resolve(state, formats::aggregate(items(&parsed["items"]).to_vec())).await?
+        resolve(
+            state,
+            formats::aggregate(db::array(&parsed, "items").to_vec()),
+        )
+        .await?
     };
-    let mut prefix = items(&parsed["errors"]).to_vec();
+    let mut prefix = db::array(&parsed, "errors").to_vec();
     prefix.append(&mut errors);
     errors = prefix;
     let mut total = 0_i64;
@@ -157,14 +162,14 @@ pub async fn preview(state: &AppState, collection: &str, input: &Value) -> Resul
     let parsed = if let Some(tts) = input["tts"].as_str() {
         formats::tts(tts)
     } else {
-        json!({"items":input["items"],"errors":[],"totalTokens":items(&input["items"]).iter().filter_map(|item|item["quantity"].as_i64()).sum::<i64>()})
+        json!({"items":input["items"],"errors":[],"totalTokens":db::array(input, "items").iter().filter_map(|item|item["quantity"].as_i64()).sum::<i64>()})
     };
-    let (valid, errors, _) = if items(&parsed["items"]).is_empty() {
+    let (valid, errors, _) = if db::array(&parsed, "items").is_empty() {
         (Vec::new(), Vec::new(), 0)
     } else {
-        resolve(state, items(&parsed["items"]).to_vec()).await?
+        resolve(state, db::array(&parsed, "items").to_vec()).await?
     };
-    let mut unresolved = items(&parsed["errors"]).to_vec();
+    let mut unresolved = db::array(&parsed, "errors").to_vec();
     unresolved.extend(errors.into_iter().map(|error|json!({"token":db::string(&error,"message").strip_prefix("Could not resolve variant: ").unwrap_or(db::string(&error,"message")),"message":error["message"]})));
     let numbers: Vec<String> = valid
         .iter()

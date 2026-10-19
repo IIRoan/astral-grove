@@ -8,7 +8,6 @@ publish.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-stream.workspace = true
-futures-core.workspace = true
 futures-util.workspace = true
 jiff.workspace = true
 astral-grove-api-types.workspace = true

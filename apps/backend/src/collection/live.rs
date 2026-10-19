@@ -64,10 +64,10 @@ impl Hub {
         }
     }
 }
-pub fn stream(
+fn stream(
     mut subscription: Subscription,
     mut shutdown: tokio::sync::watch::Receiver<bool>,
-) -> impl futures_core::Stream<
+) -> impl futures_util::Stream<
     Item = std::result::Result<axum::response::sse::Event, std::convert::Infallible>,
 > + Send
 + 'static {
@@ -90,7 +90,7 @@ pub fn authenticated_stream(
     state: Arc<crate::AppState>,
     user_id: String,
     session_id: String,
-) -> impl futures_core::Stream<
+) -> impl futures_util::Stream<
     Item = std::result::Result<axum::response::sse::Event, std::convert::Infallible>,
 > + Send
 + 'static {

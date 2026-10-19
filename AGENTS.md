@@ -229,7 +229,7 @@ Rust owns backend wire DTOs and validators. Shared Zod owns frontend/upstream ru
 1. Update the Rust schema/DTO and shared Zod schema for a wire change.
 2. Use `http::parse` / `http::value` on requests and `http::respond` on responses.
 3. Run `cargo xtask openapi`, then `bun run --cwd packages/contracts build`.
-4. Keep the 135 bidirectional assertions in `rust-type-alignment.ts` passing.
+4. Keep the bidirectional assertions in `rust-type-alignment.ts` passing.
 5. Extend HTTP tests for coercion, defaults and boundaries.
 6. Mobile clients must keep parsing every response with the contract schema.
 

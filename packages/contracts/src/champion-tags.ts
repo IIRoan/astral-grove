@@ -22,12 +22,7 @@ function normalizeTag(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function tagsShareValue(left: string[], right: string[]): boolean {
-  const rightNormalized = new Set(right.map(normalizeTag));
-  return left.some((tag) => rightNormalized.has(normalizeTag(tag)));
-}
-
-/** Champion/signature shares legend identity via tags OR primary name token (not full title). */
+/** Champion/signature shares an exact (case-insensitive) champion tag with the Legend (CR 103.3.a.2). */
 export function sharesLegendChampionTag(
   legend: ChampionTagCard,
   candidate: ChampionTagCard
@@ -35,24 +30,10 @@ export function sharesLegendChampionTag(
   const legendTokens = legendChampionTags(legend);
   if (!legendTokens.length) return true;
 
-  const legendPrimary = cardPrimaryNameToken(legend);
-  const candidatePrimary = cardPrimaryNameToken(candidate);
-  if (
-    legendPrimary &&
-    candidatePrimary &&
-    normalizeTag(legendPrimary) === normalizeTag(candidatePrimary)
-  ) {
-    return true;
-  }
-
-  const candidateName = candidate.name.toLowerCase();
-  if (legendPrimary && candidateName.includes(normalizeTag(legendPrimary))) {
-    return true;
-  }
-
-  if (tagsShareValue(candidate.tags, legendTokens)) {
-    return true;
-  }
-
-  return legendTokens.some((tag) => candidateName.includes(normalizeTag(tag)));
+  const candidateTags = new Set(
+    [...candidate.tags, cardPrimaryNameToken(candidate)].map(normalizeTag)
+  );
+  return [...legendTokens, cardPrimaryNameToken(legend)].some((tag) =>
+    candidateTags.has(normalizeTag(tag))
+  );
 }

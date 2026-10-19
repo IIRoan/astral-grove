@@ -401,12 +401,6 @@ export type DeckListResponseAlignment = Assert<
     components['schemas']['DeckListResponse']
   >
 >;
-export type DeckRulesResponseAlignment = Assert<
-  Matches<
-    z.output<typeof C.DeckRulesResponse>,
-    components['schemas']['DeckRulesResponse']
-  >
->;
 export type DeckSortFieldAlignment = Assert<
   Matches<z.output<typeof C.DeckSortField>, components['schemas']['DeckSortField']>
 >;
@@ -417,24 +411,6 @@ export type DeckUpsertRequestAlignment = Assert<
   Matches<
     z.output<typeof C.DeckUpsertRequest>,
     components['schemas']['DeckUpsertRequest']
-  >
->;
-export type DeckValidateInputAlignment = Assert<
-  Matches<
-    z.output<typeof C.DeckValidateInput>,
-    components['schemas']['DeckValidateInput']
-  >
->;
-export type DeckValidateResponseAlignment = Assert<
-  Matches<
-    z.output<typeof C.DeckValidateResponse>,
-    components['schemas']['DeckValidateResponse']
-  >
->;
-export type DeckValidationMessageAlignment = Assert<
-  Matches<
-    z.output<typeof C.DeckValidationMessage>,
-    components['schemas']['DeckValidationMessage']
   >
 >;
 export type DeckVersionNameAlignment = Assert<

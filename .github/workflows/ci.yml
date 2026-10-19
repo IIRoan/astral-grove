@@ -117,7 +117,7 @@ jobs:
           if-no-files-found: ignore
       - name: Server diagnostics
         if: failure()
-        run: cat /tmp/astral-native-test-*.log 2>/dev/null || true
+        run: cat /tmp/astral-test-*.log 2>/dev/null || true
 
   image:
     name: Production image build and container smoke
@@ -131,7 +131,6 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
-      - run: bun run --cwd packages/contracts build
       - uses: docker/setup-buildx-action@v3
       - name: Build production Rust image without publishing
         uses: docker/build-push-action@v6
@@ -160,7 +159,7 @@ jobs:
           retention-days: 1
       - name: Container diagnostics
         if: failure()
-        run: cat /tmp/astral-native-test-*.log 2>/dev/null || true
+        run: cat /tmp/astral-test-*.log 2>/dev/null || true
 
   backend-release:
     name: Release binary · ${{ matrix.suite }}

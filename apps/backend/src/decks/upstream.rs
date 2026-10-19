@@ -5,26 +5,11 @@ use crate::{
 };
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
-fn list<'a>(value: &'a Value, key: &str) -> &'a [Value] {
-    value[key].as_array().map(Vec::as_slice).unwrap_or(&[])
-}
 fn checked(name: &str, value: &Value) -> Result<Value> {
-    let normalized = http::upstream_decks::schema(name)
+    http::upstream_decks::schema(name)
         .parse(Some(value))
         .map_err(|_| AppError::internal())?
-        .ok_or_else(AppError::internal)?;
-    match name {
-        "UpstreamDeckDetail" => {
-            let _: astral_grove_api_types::upstream_decks::UpstreamDeckDetail =
-                serde_json::from_value(normalized.clone())?;
-        }
-        "UpstreamDeckListResponse" => {
-            let _: astral_grove_api_types::upstream_decks::UpstreamDeckListResponse =
-                serde_json::from_value(normalized.clone())?;
-        }
-        _ => unreachable!(),
-    }
-    Ok(normalized)
+        .ok_or_else(AppError::internal)
 }
 pub fn millis(value: &Value) -> i64 {
     value
@@ -48,28 +33,33 @@ fn image(value: &Value) -> Value {
     json!(text)
 }
 fn legend_fallback(legend: &Value) -> Value {
-    json!({"cardId":legend["id"],"variantNumber":legend["variantNumber"],"name":legend["name"],"type":"Unit","super":"Champion","tags":legend.get("tags").cloned().unwrap_or(json!([])),"colors":list(legend,"colors").iter().filter_map(|color|color["name"].as_str()).filter(|name|!name.is_empty()).collect::<Vec<_>>(),"energy":0,"power":0,"setCode":db::string(legend,"variantNumber").split('-').next().unwrap_or(""),"rarity":"Rare","variantType":"Standard","isSignature":false,"imageUrl":image(&legend["imageUrl"])})
+    json!({"cardId":legend["id"],"variantNumber":legend["variantNumber"],"name":legend["name"],"type":"Legend","super":null,"tags":legend.get("tags").cloned().unwrap_or(json!([])),"colors":db::array(legend,"colors").iter().filter_map(|color|color["name"].as_str()).filter(|name|!name.is_empty()).collect::<Vec<_>>(),"energy":0,"power":0,"setCode":db::string(legend,"variantNumber").split('-').next().unwrap_or(""),"rarity":"Rare","variantType":"Standard","isSignature":false,"imageUrl":image(&legend["imageUrl"])})
 }
 fn placeholder(reference: &Value) -> Value {
     json!({"cardId":reference["cardId"],"variantNumber":format!("unknown:{}",db::string(reference,"variantId")),"name":"Card not in catalog","type":"Unit","super":null,"tags":[],"colors":[],"energy":0,"power":0,"setCode":"???","rarity":"Unknown","variantType":"Unknown","isSignature":false,"imageUrl":null})
 }
+// Catalog marks Signature cards via `super`; older printings only via rarity/variant text.
+fn is_signature(detail: &Value, variant: &Value) -> bool {
+    db::string(detail, "super").eq_ignore_ascii_case("signature")
+        || format!(
+            "{} {}",
+            db::string(variant, "rarity"),
+            db::string(variant, "variantType")
+        )
+        .to_lowercase()
+        .contains("signature")
+}
 pub async fn deck_card(state: &AppState, number: &str) -> Result<Value> {
     let response = catalog::store::detail(state, number, false).await?;
     let detail = &response["data"];
-    let variant = list(detail, "variants")
+    let variant = db::array(detail, "variants")
         .iter()
         .find(|variant| variant["variantNumber"] == number)
         .ok_or_else(AppError::internal)?;
-    let signature = format!(
-        "{} {}",
-        db::string(variant, "rarity"),
-        db::string(variant, "variantType")
-    )
-    .to_lowercase()
-    .contains("signature");
+    let signature = is_signature(detail, variant);
     http::value(
         "DeckCardInput",
-        &json!({"cardId":detail["id"],"variantNumber":number,"name":detail["name"],"type":detail["type"],"super":detail["super"],"tags":detail["tags"],"colors":list(detail,"colors").iter().map(|color|color["name"].clone()).collect::<Vec<_>>(),"energy":detail["energy"],"power":detail["power"],"setCode":number.split('-').next().unwrap_or(""),"rarity":variant["rarity"],"variantType":variant["variantType"],"isSignature":signature,"imageUrl":image(&variant["imageUrl"]),"banEffectiveDate":detail["banEffectiveDate"]}),
+        &json!({"cardId":detail["id"],"variantNumber":number,"name":detail["name"],"type":detail["type"],"super":detail["super"],"tags":detail["tags"],"colors":db::array(detail,"colors").iter().map(|color|color["name"].clone()).collect::<Vec<_>>(),"energy":detail["energy"],"power":detail["power"],"setCode":number.split('-').next().unwrap_or(""),"rarity":variant["rarity"],"variantType":variant["variantType"],"isSignature":signature,"imageUrl":image(&variant["imageUrl"]),"banEffectiveDate":detail["banEffectiveDate"]}),
     )
 }
 fn payload(detail: &Value) -> Value {
@@ -120,7 +110,7 @@ async fn resolve_refs(state: &AppState, refs: &[Value]) -> Result<HashMap<String
         .next();
         if let Some(card) = card {
             let raw = &card["raw"];
-            if let Some(variant) = list(raw, "variants")
+            if let Some(variant) = db::array(raw, "variants")
                 .iter()
                 .find(|variant| variant["id"] == id)
             {
@@ -128,10 +118,10 @@ async fn resolve_refs(state: &AppState, refs: &[Value]) -> Result<HashMap<String
                 resolved.insert(id.into(), db::string(variant, "variantNumber").into());
                 continue;
             }
-            if let Some(seed) = list(raw, "variants").first()
+            if let Some(seed) = db::array(raw, "variants").first()
                 && let Ok(detail) =
                     catalog::store::detail(state, db::string(seed, "variantNumber"), true).await
-                && let Some(variant) = list(&detail["data"], "variants")
+                && let Some(variant) = db::array(&detail["data"], "variants")
                     .iter()
                     .find(|variant| variant["id"] == id)
             {
@@ -147,7 +137,7 @@ async fn resolve_refs(state: &AppState, refs: &[Value]) -> Result<HashMap<String
         .await?
         .first()
             && let Ok(detail) = catalog::store::detail(state, db::string(row, "number"), true).await
-            && let Some(variant) = list(&detail["data"], "variants")
+            && let Some(variant) = db::array(&detail["data"], "variants")
                 .iter()
                 .find(|variant| variant["id"] == id)
         {
@@ -173,7 +163,7 @@ async fn resolve_refs(state: &AppState, refs: &[Value]) -> Result<HashMap<String
     if !pending.is_empty() {
         for page in 1..=500 {
             let response = upstream::list_cards(state, &json!({"page":page,"limit":100})).await?;
-            for item in list(&response, "data") {
+            for item in db::array(&response, "data") {
                 let id = db::string(item, "id");
                 let card_id = db::string(&item["card"], "id");
                 let wanted = pending.contains(id)
@@ -189,7 +179,7 @@ async fn resolve_refs(state: &AppState, refs: &[Value]) -> Result<HashMap<String
                     if pending.remove(id) {
                         resolved.insert(id.into(), db::string(item, "variantNumber").into());
                     }
-                    for variant in list(&card, "variants") {
+                    for variant in db::array(&card, "variants") {
                         let id = db::string(variant, "id");
                         if pending.remove(id) {
                             resolved.insert(id.into(), db::string(variant, "variantNumber").into());
@@ -220,7 +210,7 @@ pub async fn transform(state: &AppState, detail: &Value) -> Result<Value> {
         "sideboard",
     ]
     .iter()
-    .flat_map(|section| list(&detail, section).to_vec())
+    .flat_map(|section| db::array(&detail, section).to_vec())
     .collect();
     let resolved = resolve_refs(state, &refs).await?;
     let mut warnings = Vec::new();
@@ -246,7 +236,7 @@ pub async fn transform(state: &AppState, detail: &Value) -> Result<Value> {
         ("sideboard", "sideboard"),
     ] {
         let mut mapped = Vec::new();
-        for reference in list(&detail, from) {
+        for reference in db::array(&detail, from) {
             if from == "champions" && !mapped.is_empty() {
                 break;
             }
@@ -307,7 +297,7 @@ fn meta(detail: &Value, is_list: bool) -> Value {
             meta[key] = value.clone();
         }
     }
-    if !list(detail, "bannedCardNames").is_empty() {
+    if !db::array(detail, "bannedCardNames").is_empty() {
         meta["bannedCardNames"] = detail["bannedCardNames"].clone();
     }
     if is_list {
@@ -355,7 +345,7 @@ pub async fn get_item(state: &AppState, id: &str) -> Option<Value> {
     )
     .await
         && let Ok(response) = checked("UpstreamDeckListResponse", &response)
-        && let Some(entry) = list(&response, "data")
+        && let Some(entry) = db::array(&response, "data")
             .iter()
             .find(|entry| entry["id"] == id)
     {
@@ -417,7 +407,7 @@ pub async fn list_imported(
     let response = checked("UpstreamDeckListResponse", &response)?;
     let mut items = Vec::new();
     let mut legends = HashMap::<String, Value>::new();
-    for entry in list(&response, "data") {
+    for entry in db::array(&response, "data") {
         if skip.contains(db::string(entry, "id")) {
             continue;
         }
@@ -442,9 +432,9 @@ pub async fn list_imported(
         }
         item["source"] = json!("imported");
         item["readOnly"] = json!(true);
-        if !list(entry, "sets").is_empty() {
+        if !db::array(entry, "sets").is_empty() {
             item["setPrefixes"] = json!(
-                list(entry, "sets")
+                db::array(entry, "sets")
                     .iter()
                     .map(|set| set["prefix"].clone())
                     .collect::<Vec<_>>()
@@ -495,7 +485,7 @@ pub async fn sync_owned(state: &AppState, payload: &Value) -> Value {
         collect(&payload["legend"]);
         collect(&payload["champion"]);
         for section in ["mainDeck", "runes", "battlefields", "sideboard"] {
-            for entry in list(payload, section) {
+            for entry in db::array(payload, section) {
                 collect(&entry["card"]);
             }
         }
@@ -517,7 +507,7 @@ pub async fn sync_owned(state: &AppState, payload: &Value) -> Value {
             }
             value
         };
-        let mut body = json!({"name":payload["name"],"description":payload["description"].as_str().unwrap_or(""),"legend":if payload["legend"].is_null(){Value::Null}else{reference(&payload["legend"],None)},"champions":if payload["champion"].is_null(){vec![]}else{vec![reference(&payload["champion"],Some(&json!(1)))]}});
+        let mut body = json!({"name":payload["name"],"description":db::string(payload, "description"),"legend":if payload["legend"].is_null(){Value::Null}else{reference(&payload["legend"],None)},"champions":if payload["champion"].is_null(){vec![]}else{vec![reference(&payload["champion"],Some(&json!(1)))]}});
         for (from, to) in [
             ("mainDeck", "maindeck"),
             ("runes", "runes"),
@@ -525,7 +515,7 @@ pub async fn sync_owned(state: &AppState, payload: &Value) -> Value {
             ("sideboard", "sideboard"),
         ] {
             body[to] = json!(
-                list(payload, from)
+                db::array(payload, from)
                     .iter()
                     .map(|entry| reference(
                         &entry["card"],
@@ -580,4 +570,30 @@ pub async fn sync_owned(state: &AppState, payload: &Value) -> Value {
     write(state, payload)
         .await
         .unwrap_or_else(|_| payload.clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn signature_cards_are_detected_from_super() {
+        assert!(is_signature(
+            &json!({"super":"Signature"}),
+            &json!({"rarity":"Epic"})
+        ));
+        assert!(is_signature(
+            &json!({}),
+            &json!({"variantType":"Signature"})
+        ));
+        assert!(!is_signature(
+            &json!({"super":"Champion"}),
+            &json!({"rarity":"Epic"})
+        ));
+    }
+    #[test]
+    fn legend_fallback_is_typed_as_a_legend() {
+        let card = legend_fallback(&json!({"id":"c1","variantNumber":"OGN-001","name":"Jinx"}));
+        assert_eq!(card["type"], "Legend");
+        assert_eq!(card["super"], Value::Null);
+    }
 }

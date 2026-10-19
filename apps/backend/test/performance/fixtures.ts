@@ -1,7 +1,8 @@
 import sharp from 'sharp';
 import { startOfflineUpstream } from '../fixtures/offline';
-import { validS3Signature } from '../s3-fixture';
-import { barrier } from './metrics';
+import { startStorageFixture } from '../s3-fixture';
+
+type Barrier = ReturnType<typeof Promise.withResolvers<void>>;
 
 export async function startFixtures() {
   const pixels = new Uint8Array(768 * 1024 * 3);
@@ -16,13 +17,11 @@ export async function startFixtures() {
       .toBuffer()
   );
   const upstream = startOfflineUpstream();
-  const objects = new Map<string, { bytes: ArrayBuffer; type: string }>();
   const cdnReads = new Map<string, number>();
   const counters = { uploads: 0, activeUploads: 0, peakUploads: 0 };
-  let uploadBarrier: ReturnType<typeof barrier> | undefined;
+  let uploadBarrier: Barrier | undefined;
   let syncBarrier:
-    | (ReturnType<typeof barrier> & { started: { catalog: number; prices: number } })
-    | undefined;
+    (Barrier & { started: { catalog: number; prices: number } }) | undefined;
   const pa = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
@@ -42,40 +41,16 @@ export async function startFixtures() {
       return fetch(upstream.url + url.pathname + url.search);
     },
   });
-  const storage = Bun.serve({
-    hostname: '127.0.0.1',
-    port: 0,
-    async fetch(request) {
-      if (!validS3Signature(request, 'fixture-secret'))
-        return new Response(null, { status: 403 });
-      const key = new URL(request.url).pathname;
-      if (request.method === 'PUT') {
-        counters.uploads++;
-        counters.activeUploads++;
-        counters.peakUploads = Math.max(counters.peakUploads, counters.activeUploads);
-        try {
-          const bytes = await request.arrayBuffer();
-          if (uploadBarrier) await uploadBarrier.promise;
-          if (!key.includes('/memory-'))
-            objects.set(key, {
-              bytes,
-              type: request.headers.get('content-type') ?? '',
-            });
-          return new Response(null, { status: 200 });
-        } finally {
-          counters.activeUploads--;
-        }
-      }
-      const object = objects.get(key);
-      return object
-        ? new Response(request.method === 'HEAD' ? null : object.bytes, {
-            headers: {
-              'content-type': object.type,
-              'content-length': String(object.bytes.byteLength),
-            },
-          })
-        : new Response(null, { status: 404 });
-    },
+  const storage = startStorageFixture(async (key, store) => {
+    counters.uploads++;
+    counters.activeUploads++;
+    counters.peakUploads = Math.max(counters.peakUploads, counters.activeUploads);
+    try {
+      if (uploadBarrier) await uploadBarrier.promise;
+      if (!key.includes('/memory-')) store();
+    } finally {
+      counters.activeUploads--;
+    }
   });
   const cdn = Bun.serve({
     hostname: '127.0.0.1',
@@ -97,7 +72,7 @@ export async function startFixtures() {
       PA_BASE_URL: pa.url.origin,
       CARDMARKET_EXPORT_BASE_URL: pa.url.origin,
       IMAGE_CDN_BASE_URL: cdn.url.origin,
-      S3_ENDPOINT: storage.url.origin,
+      S3_ENDPOINT: storage.origin,
       S3_BUCKET: 'performance-fixture',
       S3_ACCESS_KEY_ID: 'fixture-access',
       S3_SECRET_ACCESS_KEY: 'fixture-secret',
@@ -105,22 +80,24 @@ export async function startFixtures() {
       DB_POOL_MAX: '4',
     },
     blockUploads() {
-      uploadBarrier = barrier();
+      uploadBarrier = Promise.withResolvers<void>();
       return uploadBarrier;
     },
     blockSync() {
-      syncBarrier = { ...barrier(), started: { catalog: 0, prices: 0 } };
+      syncBarrier = {
+        ...Promise.withResolvers<void>(),
+        started: { catalog: 0, prices: 0 },
+      };
       return syncBarrier;
     },
     release() {
-      uploadBarrier?.release();
-      syncBarrier?.release();
+      uploadBarrier?.resolve();
+      syncBarrier?.resolve();
     },
     stop() {
-      uploadBarrier?.release();
-      syncBarrier?.release();
+      this.release();
       pa.stop(true);
-      storage.stop(true);
+      storage.stop();
       cdn.stop(true);
       upstream.stop();
     },

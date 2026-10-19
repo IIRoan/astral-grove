@@ -1,5 +1,8 @@
 import { z } from 'zod';
+import { isCardBannedAt, isCardNameInBannedList } from './card-legality.js';
+import { cardHasAnyType } from './card-types.js';
 import { sharesLegendChampionTag } from './champion-tags.js';
+import { isTokenCard, isUnresolvedDeckVariant } from './variant-utils.js';
 
 export const DeckFormat = z.enum(['constructed', 'pre-rift']);
 export type DeckFormat = z.infer<typeof DeckFormat>;
@@ -76,7 +79,7 @@ export const RIFTBOUND_DECK_RULES = {
       target: 10,
       maximum: 10,
       required: false,
-      description: 'Up to 10 Main Deck cards. Signature cards cannot be sideboarded.',
+      description: 'Up to 10 cards that are legal in your Main Deck.',
     },
   },
   copyLimits: {
@@ -84,7 +87,7 @@ export const RIFTBOUND_DECK_RULES = {
     default: 3 as number | null,
     rune: 12,
     battlefieldPerName: 1,
-    /** Max Signature cards in Main Deck; null = unlimited. */
+    /** Max Signature cards across Main Deck + Sideboard; null = unlimited. */
     signatureTotal: 3 as number | null,
   },
   /** Max unique domains; null = restricted to Legend identity. */
@@ -109,11 +112,16 @@ export const RIFTBOUND_DECK_RULES = {
     {
       code: 'signature_cap',
       message:
-        'At most 3 Signature cards total in the Main Deck, matching Legend champion tags.',
+        'At most 3 Signature cards total across Main Deck and Sideboard, matching Legend champion tags.',
     },
     {
-      code: 'signature_sideboard',
-      message: 'Signature cards cannot be added to the sideboard.',
+      code: 'banned_card',
+      message: 'Banned cards cannot be played.',
+    },
+    {
+      code: 'card_type',
+      message:
+        'Main Deck and Sideboard exclude Legends, Battlefields, Runes and tokens; Rune Deck and Battlefields hold only their type.',
     },
     {
       code: 'battlefield_unique',
@@ -181,9 +189,8 @@ export const RIFTBOUND_PRE_RIFT_DECK_RULES = {
       key: 'sideboard',
       title: 'Sideboard',
       target: 8,
-      maximum: 8,
       required: false,
-      description: 'Up to 8 Main Deck cards. Signature cards cannot be sideboarded.',
+      description: 'The rest of your card pool. No size limit.',
     },
   },
   copyLimits: {
@@ -208,10 +215,6 @@ export const RIFTBOUND_PRE_RIFT_DECK_RULES = {
       message: 'Chosen Champion must be a Champion Unit (supertype: Champion).',
     },
     {
-      code: 'signature_sideboard',
-      message: 'Signature cards cannot be added to the sideboard.',
-    },
-    {
       code: 'copy_limit_none',
       message: 'No per-card copy limit — play as many copies as you opened.',
     },
@@ -232,6 +235,25 @@ export function getDeckRules(format: DeckFormat = 'constructed'): RiftboundDeckR
 
 export function deckFormatRestrictsPicker(format: DeckFormat): boolean {
   return getDeckRules(format).restrictPicker;
+}
+
+/** Max Sideboard size; null = uncapped (Pre-Rift sideboard is the rest of the pool, TR 602.4.a). */
+export function sideboardMaximum(rules: RiftboundDeckRules): number | null {
+  const { sideboard } = rules.sections;
+  return 'maximum' in sideboard ? sideboard.maximum : null;
+}
+
+/** Real catalog marks Signature cards via `super`; older decks only via rarity/variant text. */
+export function isSignatureCard(card: {
+  isSignature?: boolean;
+  super?: string | null;
+  rarity?: string;
+  variantType?: string;
+}): boolean {
+  if (card.isSignature) return true;
+  return `${card.super ?? ''} ${card.rarity ?? ''} ${card.variantType ?? ''}`
+    .toLowerCase()
+    .includes('signature');
 }
 
 /** Card names with no per-name copy limit (card text). Match is exact. */
@@ -290,55 +312,6 @@ export const DeckValidationMessage = z.object({
   message: z.string(),
 });
 
-const DeckRulesSectionSchema = z.object({
-  key: z.string(),
-  title: z.string(),
-  target: z.number().int(),
-  single: z.boolean().optional(),
-  minimum: z.number().int().optional(),
-  exact: z.boolean().optional(),
-  maximum: z.number().int().optional(),
-  required: z.boolean(),
-  uniqueNames: z.boolean().optional(),
-  description: z.string(),
-});
-
-export const DeckRulesResponse = z.object({
-  data: z.object({
-    version: z.string(),
-    rules: z.object({
-      version: z.string(),
-      game: z.string(),
-      format: z.string(),
-      sections: z.record(DeckRulesSectionSchema),
-      copyLimits: z.object({
-        default: z.number().int().nullable(),
-        rune: z.number().int(),
-        battlefieldPerName: z.number().int(),
-        signatureTotal: z.number().int().nullable(),
-      }),
-      maxDomains: z.number().int().nullable().optional(),
-      requireChampionTagMatch: z.boolean().optional(),
-      requireSignatureTagMatch: z.boolean().optional(),
-      restrictPicker: z.boolean().optional(),
-      constraints: z.array(
-        z.object({
-          code: z.string(),
-          message: z.string(),
-        })
-      ),
-    }),
-  }),
-});
-
-export const DeckValidateResponse = z.object({
-  data: z.object({
-    messages: z.array(DeckValidationMessage),
-    valid: z.boolean(),
-    hasErrors: z.boolean(),
-  }),
-});
-
 export type DeckCardInput = z.infer<typeof DeckCardInput>;
 export type DeckEntryInput = z.infer<typeof DeckEntryInput>;
 export type DeckValidateInput = z.infer<typeof DeckValidateInput>;
@@ -376,12 +349,23 @@ function collectDeckDomains(input: DeckValidateInput): Set<string> {
   for (const { card } of input.mainDeck) add(card.colors);
   for (const { card } of input.runes) add(card.colors);
   for (const { card } of input.battlefields) add(card.colors);
-  for (const { card } of input.sideboard) add(card.colors);
   return domains;
 }
 
+function isMainDeckCardType(card: DeckCardInput): boolean {
+  return (
+    !isTokenCard(card) && !cardHasAnyType(card.type, ['legend', 'battlefield', 'rune'])
+  );
+}
+
+export type DeckValidateOptions = {
+  /** Upstream per-deck banned names (Piltover Archive), on top of each card's ban date. */
+  bannedCardNames?: readonly string[];
+};
+
 export function validateRiftboundDeck(
-  input: DeckValidateInput
+  input: DeckValidateInput,
+  options: DeckValidateOptions = {}
 ): DeckValidationMessage[] {
   const messages: DeckValidationMessage[] = [];
   const format = input.format ?? 'constructed';
@@ -391,12 +375,24 @@ export function validateRiftboundDeck(
   const runeTotal = sectionCount(input.runes);
   const battlefieldTotal = sectionCount(input.battlefields);
   const sideboardTotal = sectionCount(input.sideboard);
+  const sideboardMax = sideboardMaximum(rules);
+  const sideboardIsPool = sideboardMax == null;
+  const deckbuiltCards = [
+    ...input.mainDeck,
+    ...(sideboardIsPool ? [] : input.sideboard),
+  ];
 
   if (!legend) {
     messages.push({
       type: rules.sections.legend.required ? 'error' : 'warning',
       code: 'missing_legend',
       message: 'No Champion Legend selected (need 1).',
+    });
+  } else if (!cardHasAnyType(legend.type, ['legend'])) {
+    messages.push({
+      type: 'error',
+      code: 'card_type',
+      message: `"${legend.name}" is not a Legend.`,
     });
   }
 
@@ -417,7 +413,13 @@ export function validateRiftboundDeck(
     }
   }
 
-  if (champion && (champion.super ?? '').toLowerCase() !== 'champion') {
+  if (
+    champion &&
+    !(
+      cardHasAnyType(champion.type, ['unit']) &&
+      (champion.super ?? '').toLowerCase() === 'champion'
+    )
+  ) {
     messages.push({
       type: 'error',
       code: 'champion_supertype',
@@ -437,7 +439,7 @@ export function validateRiftboundDeck(
   } else if (legend) {
     const legendDomains = new Set(normalizeDeckDomains(legend.colors));
 
-    for (const { card: entryCard } of input.mainDeck) {
+    for (const { card: entryCard } of deckbuiltCards) {
       if (!domainIdentityMatch(entryCard.colors, legendDomains)) {
         messages.push({
           type: 'error',
@@ -490,9 +492,61 @@ export function validateRiftboundDeck(
     }
   }
 
+  const sectionTypeChecks: [
+    DeckEntryInput[],
+    string,
+    (card: DeckCardInput) => boolean,
+  ][] = [
+    [input.mainDeck, 'Main Deck', isMainDeckCardType],
+    [sideboardIsPool ? [] : input.sideboard, 'Sideboard', isMainDeckCardType],
+    [input.runes, 'Rune Deck', (card) => cardHasAnyType(card.type, ['rune'])],
+    [
+      input.battlefields,
+      'Battlefields',
+      (card) => cardHasAnyType(card.type, ['battlefield']),
+    ],
+  ];
+  for (const [entries, title, allowed] of sectionTypeChecks) {
+    for (const { card } of entries) {
+      if (isUnresolvedDeckVariant(card.variantNumber) || allowed(card)) continue;
+      messages.push({
+        type: 'error',
+        code: 'card_type',
+        message: `"${card.name}" cannot be in the ${title}.`,
+      });
+    }
+  }
+
+  const bannedNames = new Set<string>();
+  for (const card of [
+    legend,
+    champion,
+    ...[
+      input.mainDeck,
+      input.runes,
+      input.battlefields,
+      sideboardIsPool ? [] : input.sideboard,
+    ].flatMap((entries) => entries.map((entry) => entry.card)),
+  ]) {
+    if (!card) continue;
+    if (
+      isCardBannedAt(card.banEffectiveDate) ||
+      isCardNameInBannedList(card.name, options.bannedCardNames)
+    ) {
+      bannedNames.add(card.name);
+    }
+  }
+  for (const name of bannedNames) {
+    messages.push({
+      type: 'error',
+      code: 'banned_card',
+      message: `"${name}" is banned.`,
+    });
+  }
+
   let signatureCount = 0;
-  for (const { card, count } of input.mainDeck) {
-    if (card.isSignature) signatureCount += count;
+  for (const { card, count } of deckbuiltCards) {
+    if (isSignatureCard(card)) signatureCount += count;
   }
   const signatureCap = rules.copyLimits.signatureTotal;
   if (signatureCap != null && signatureCount > signatureCap) {
@@ -504,8 +558,8 @@ export function validateRiftboundDeck(
   }
 
   if (legend && rules.requireSignatureTagMatch) {
-    for (const { card } of input.mainDeck) {
-      if (!card.isSignature) continue;
+    for (const { card } of deckbuiltCards) {
+      if (!isSignatureCard(card)) continue;
       const hasMatch = sharesLegendChampionTag(legend, card);
       if (!hasMatch) {
         messages.push({
@@ -568,25 +622,21 @@ export function validateRiftboundDeck(
     }
   }
 
-  if (sideboardTotal > rules.sections.sideboard.target) {
+  if (sideboardMax != null && sideboardTotal > sideboardMax) {
     messages.push({
       type: 'error',
       code: 'sideboard_count',
-      message: `Sideboard has ${sideboardTotal} cards (max ${rules.sections.sideboard.target}).`,
+      message: `Sideboard has ${sideboardTotal} cards (max ${sideboardMax}).`,
     });
   }
 
-  for (const { card } of input.sideboard) {
-    if (card.isSignature) {
-      messages.push({
-        type: 'error',
-        code: 'signature_sideboard',
-        message: `Signature card "${card.name}" cannot be in the sideboard.`,
-      });
-    }
-  }
-
-  if (messages.length === 0) {
+  // Missing optional Legend/Champion (Pre-Rift, TR 602.4.a.5) is advisory, not a blocker.
+  const blocking = messages.filter(
+    (message) =>
+      message.type === 'error' ||
+      (message.code !== 'missing_legend' && message.code !== 'missing_champion')
+  );
+  if (blocking.length === 0) {
     messages.push({ type: 'valid', code: 'deck_valid', message: 'Deck is valid!' });
   }
 

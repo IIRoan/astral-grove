@@ -1,30 +1,18 @@
 import { afterAll, beforeAll, expect, test, setDefaultTimeout } from 'bun:test';
-import { createHarness, json, cookie } from './support';
-const { startRust, stopRust, sql } = createHarness();
+import { createHarness, json } from './support';
+const { startServer, stopServer, signup, sql } = createHarness();
 import { CollectionShareInviteCreateResponse } from '@riftbound/contracts';
 setDefaultTimeout(60000);
-let app: Awaited<ReturnType<typeof startRust>>;
+let app: Awaited<ReturnType<typeof startServer>>;
 const users: Array<{ id: string; cookie: string }> = [];
-const stamp = crypto.randomUUID();
 beforeAll(async () => {
-  app = await startRust();
+  app = await startServer();
   for (let index = 0; index < 3; index++) {
-    const response = await app.fetch(
-      '/api/auth/sign-up/email',
-      json({
-        name: 'Concurrent test',
-        email: `native-race-${index}-${stamp}@test.riftbound.dev`,
-        password: 'concurrent-test-password-123',
-      })
-    );
-    expect(response.status).toBe(200);
-    users.push({ id: (await response.json()).user.id, cookie: cookie(response) });
+    const user = await signup(app, `race-${index}`);
+    users.push({ id: user.user.id, cookie: user.cookie });
   }
 });
-afterAll(async () => {
-  await sql`DELETE FROM "user" WHERE id=ANY(${users.map((u) => u.id)})`;
-  await stopRust();
-});
+afterAll(stopServer);
 test('simultaneous first collection requests create one membership and never abort a transaction', async () => {
   const user = users[0]!;
   const responses = await Promise.all(

@@ -25,9 +25,6 @@ fn now() -> i64 {
 fn id(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
-fn field<'a>(value: &'a Value, key: &str) -> &'a str {
-    db::string(value, key)
-}
 pub async fn row(db: &impl ConnectionTrait, user: &str, id: &str) -> Result<Option<Value>> {
     Ok(db::rows(
         db,
@@ -52,10 +49,10 @@ async fn detail(
     payload: Value,
     active: Option<&str>,
 ) -> Result<Value> {
-    let records = versions(db, user, field(&payload, "id")).await?;
+    let records = versions(db, user, db::string(&payload, "id")).await?;
     let active = records
         .iter()
-        .find(|row| Some(field(row, "id")) == active)
+        .find(|row| Some(db::string(row, "id")) == active)
         .or_else(|| records.first());
     let mut payload = owned(payload);
     if let Some(active) = active {
@@ -127,7 +124,7 @@ fn merge(family: &Value, version: &Value) -> Value {
 }
 pub async fn list(state: &AppState, user: &str, query: &Value) -> Result<Value> {
     let rows=db::rows(&state.db,"SELECT d.payload,d.active_version_id AS active,v.name AS \"versionName\" FROM user_decks d LEFT JOIN user_deck_versions v ON v.user_id=d.user_id AND v.id=d.active_version_id WHERE d.user_id=$1 ORDER BY d.updated_at DESC",vec![user.into()]).await?;
-    let needle = field(query, "q").trim().to_lowercase();
+    let needle = db::string(query, "q").trim().to_lowercase();
     let mut owned_items = Vec::new();
     let mut skip = HashSet::new();
     for row in &rows {
@@ -138,7 +135,7 @@ pub async fn list(state: &AppState, user: &str, query: &Value) -> Result<Value> 
         {
             skip.insert(upstream.into());
         }
-        let id = field(payload, "id");
+        let id = db::string(payload, "id");
         if !id.starts_with("deck_") {
             skip.insert(id.into());
         }
@@ -147,10 +144,10 @@ pub async fn list(state: &AppState, user: &str, query: &Value) -> Result<Value> 
         }
         let haystack = format!(
             "{} {} {} {}",
-            field(payload, "name"),
-            field(payload, "description"),
-            field(&payload["legend"], "name"),
-            field(&payload["champion"], "name")
+            db::string(payload, "name"),
+            db::string(payload, "description"),
+            db::string(&payload["legend"], "name"),
+            db::string(&payload["champion"], "name")
         )
         .to_lowercase();
         if !needle.is_empty() && !haystack.contains(&needle) {
@@ -168,12 +165,13 @@ pub async fn list(state: &AppState, user: &str, query: &Value) -> Result<Value> 
         }
         owned_items.push(item);
     }
-    let imported = if query["source"] == "owned" {
-        json!({"items":[]})
-    } else {
-        upstream::list_imported(state, query, &skip)
+    // A community-only browse surfaces a PA outage; mixed lists still show owned decks.
+    let imported = match query["source"].as_str() {
+        Some("owned") => json!({"items":[]}),
+        Some("imported") => upstream::list_imported(state, query, &skip).await?,
+        _ => upstream::list_imported(state, query, &skip)
             .await
-            .unwrap_or(json!({"items":[]}))
+            .unwrap_or(json!({"items":[]})),
     };
     let imported_items = imported["items"].as_array().cloned().unwrap_or_default();
     let owned_count = owned_items.len();
@@ -207,7 +205,7 @@ pub async fn upsert(
     skip_sync: bool,
     deduplicate: Option<&str>,
 ) -> Result<Value> {
-    let deck_id = field(&incoming, "id").to_owned();
+    let deck_id = db::string(&incoming, "id").to_owned();
     let initial = row(&state.db, user, &deck_id).await?;
     if initial.is_none() && upstream::get_stored(state, &deck_id).await.is_some() {
         return Err(readonly());
@@ -243,7 +241,7 @@ pub async fn upsert(
         .map(str::to_owned)
         .unwrap_or_else(|| id("dver"));
     let timestamp = now();
-    db::execute(&tx,"INSERT INTO user_decks(id,user_id,name,description,payload,active_version_id,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,to_timestamp($7::double precision/1000.0),to_timestamp($8::double precision/1000.0)) ON CONFLICT(user_id,id) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description,payload=EXCLUDED.payload,active_version_id=EXCLUDED.active_version_id,updated_at=EXCLUDED.updated_at",vec![deck_id.clone().into(),user.into(),field(&next,"name").into(),field(&next,"description").into(),next.clone().into(),version.clone().into(),next["createdAt"].as_i64().unwrap_or(0).into(),timestamp.into()]).await?;
+    db::execute(&tx,"INSERT INTO user_decks(id,user_id,name,description,payload,active_version_id,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,to_timestamp($7::double precision/1000.0),to_timestamp($8::double precision/1000.0)) ON CONFLICT(user_id,id) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description,payload=EXCLUDED.payload,active_version_id=EXCLUDED.active_version_id,updated_at=EXCLUDED.updated_at",vec![deck_id.clone().into(),user.into(),db::string(&next,"name").into(),db::string(&next,"description").into(),next.clone().into(),version.clone().into(),next["createdAt"].as_i64().unwrap_or(0).into(),timestamp.into()]).await?;
     if existing
         .as_ref()
         .and_then(|row| row["active"].as_str())
@@ -299,7 +297,7 @@ pub async fn version(
     let tx = lock(state, user).await?;
     let family = row(&tx, user, deck).await?.ok_or_else(|| missing(true))?;
     let mut records = versions(&tx, user, deck).await?;
-    let active = family["active"].as_str().unwrap_or("");
+    let active = db::string(&family, "active");
     let timestamp = now();
     let mut payload = family["payload"].clone();
     let mut active_id = active.to_owned();
@@ -323,7 +321,7 @@ pub async fn version(
             active_id = id("dver");
             db::execute(&tx,"INSERT INTO user_deck_versions(id,user_id,deck_id,name,payload,created_at,updated_at) VALUES($1,$2,$3,$4,$5,to_timestamp($6::double precision/1000.0),to_timestamp($6::double precision/1000.0))",vec![active_id.clone().into(),user.into(),deck.into(),name.into(),copy.clone().into(),timestamp.into()]).await?;
             payload = copy;
-            db::execute(&tx,"UPDATE user_decks SET name=$3,description=$4,payload=$5,active_version_id=$6,updated_at=to_timestamp($7::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),field(&payload,"name").into(),field(&payload,"description").into(),payload.clone().into(),active_id.clone().into(),timestamp.into()]).await?;
+            db::execute(&tx,"UPDATE user_decks SET name=$3,description=$4,payload=$5,active_version_id=$6,updated_at=to_timestamp($7::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),db::string(&payload,"name").into(),db::string(&payload,"description").into(),payload.clone().into(),active_id.clone().into(),timestamp.into()]).await?;
         }
         VersionAction::Rename(id, name) => {
             if !records.iter().any(|row| row["id"] == id) {
@@ -362,7 +360,7 @@ pub async fn version(
                     .or_else(|| records.first())
             }
             .ok_or_else(|| missing(true))?;
-            active_id = field(next, "id").into();
+            active_id = db::string(next, "id").into();
             if active == id {
                 payload = merge(&payload, &next["payload"]);
                 db::execute(&tx,"UPDATE user_decks SET payload=$3,active_version_id=$4,updated_at=to_timestamp($5::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),payload.clone().into(),active_id.clone().into(),timestamp.into()]).await?;
@@ -391,7 +389,7 @@ pub async fn version(
             }
             db::execute(&tx,"UPDATE user_deck_versions SET payload=$4,updated_at=to_timestamp($5::double precision/1000.0) WHERE user_id=$1 AND deck_id=$2 AND id=$3",vec![user.into(),deck.into(),id.clone().into(),next.clone().into(),timestamp.into()]).await?;
             if active == id {
-                db::execute(&tx,"UPDATE user_decks SET name=$3,description=$4,payload=$5,updated_at=to_timestamp($6::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),field(&next,"name").into(),field(&next,"description").into(),next.clone().into(),timestamp.into()]).await?;
+                db::execute(&tx,"UPDATE user_decks SET name=$3,description=$4,payload=$5,updated_at=to_timestamp($6::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),db::string(&next,"name").into(),db::string(&next,"description").into(),next.clone().into(),timestamp.into()]).await?;
                 next["updatedAt"] = json!(timestamp);
                 payload = next;
             }

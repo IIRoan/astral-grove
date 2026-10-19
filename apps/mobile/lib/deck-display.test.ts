@@ -47,6 +47,7 @@ describe('deckSectionProgress', () => {
     const deck = createEmptyDeck();
     deck.format = 'pre-rift';
     expect(deckSectionProgress(deck, 'sideboard').target).toBe(8);
+    expect(deckSectionProgress(deck, 'sideboard').hint).toBe('Card pool (no limit)');
   });
 });
 

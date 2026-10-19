@@ -100,28 +100,10 @@ impl Limits {
         }
     }
 }
-pub async fn apply(
-    State(state): State<Arc<AppState>>,
-    mut request: Request,
-    next: Next,
-) -> Response {
+pub async fn apply(State(state): State<Arc<AppState>>, request: Request, next: Next) -> Response {
     let origin = request.headers().get(header::ORIGIN).cloned();
     let path = request.uri().path().to_owned();
     let preflight = request.method() == axum::http::Method::OPTIONS;
-    if path.len() > 1 && path.ends_with('/') {
-        let mut parts = request.uri().clone().into_parts();
-        let query = request
-            .uri()
-            .query()
-            .map(|value| format!("?{value}"))
-            .unwrap_or_default();
-        if let Ok(path) = format!("{}{query}", path.trim_end_matches('/')).parse() {
-            parts.path_and_query = Some(path);
-            if let Ok(uri) = axum::http::Uri::from_parts(parts) {
-                *request.uri_mut() = uri;
-            }
-        }
-    }
     // Auth routes are limited per path by the auth pipeline instead.
     let exempt = preflight
         || path == "/api/v1/health"

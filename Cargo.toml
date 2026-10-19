@@ -10,7 +10,6 @@ publish = false
 [workspace.dependencies]
 anyhow = "1"
 async-stream = "0.3"
-futures-core = "0.3"
 futures-util = "0.3"
 jiff = "0.2"
 axum = { version = "0.8", features = ["macros"] }
@@ -36,7 +35,7 @@ thiserror = "2"
 time = { version = "0.3", features = ["formatting", "parsing", "macros", "serde"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "process", "signal", "net", "sync"] }
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.6", features = ["cors", "compression-gzip", "limit", "normalize-path"] }
+tower-http = { version = "0.6", features = ["compression-gzip", "normalize-path"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 unicode-normalization = "0.1"

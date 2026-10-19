@@ -53,6 +53,34 @@ describe('sharesLegendChampionTag', () => {
     expect(sharesLegendChampionTag(legend, champion)).toBe(true);
   });
 
+  test('matches the champion tag exactly, not as a name substring (CR 103.3.a.2)', () => {
+    const vi = { name: 'Vi, Piltover Enforcer', tags: ['Vi'] };
+    expect(
+      sharesLegendChampionTag(vi, { name: 'Vi, Destructive', tags: ['Vi', 'Piltover'] })
+    ).toBe(true);
+    expect(
+      sharesLegendChampionTag(vi, { name: 'Viktor, Leader', tags: ['Viktor', 'Zaun'] })
+    ).toBe(false);
+    expect(
+      sharesLegendChampionTag(vi, {
+        name: 'Fiora, Victorious',
+        tags: ['Fiora', 'Demacia'],
+      })
+    ).toBe(false);
+    expect(
+      sharesLegendChampionTag(vi, {
+        name: "Kai'Sa, Survivor",
+        tags: ["Kai'Sa", 'The Void'],
+      })
+    ).toBe(false);
+    expect(sharesLegendChampionTag(vi, { name: 'Viktor, Leader', tags: [] })).toBe(
+      false
+    );
+    expect(sharesLegendChampionTag(vi, { name: 'vi, destructive', tags: [] })).toBe(
+      true
+    );
+  });
+
   test('matches Sett when legend tags are wrong but names contain Sett', () => {
     const legend = { name: 'Sett, The Boss', tags: ['Body', 'Order'] };
     const champion = { name: 'Sett, Brawler', tags: ['Sett', 'Ionia'] };

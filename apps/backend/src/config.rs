@@ -18,6 +18,8 @@ pub struct Config {
     pub trusted_origins: Vec<String>,
     pub cookie_domain: Option<String>,
     pub secure_cookies: bool,
+    pub retain_days: i64,
+    pub retain_snapshots: i64,
 }
 
 impl Config {
@@ -129,6 +131,13 @@ impl Config {
                 );
             }
         }
+        let retain = |key: &str, default: i64| {
+            values
+                .get(key)
+                .map_or(default, |value| crate::http::zod::js_number(value) as i64)
+        };
+        let retain_days = retain("PRICE_HISTORY_RETAIN_DAYS", 90);
+        let retain_snapshots = retain("PRICE_HISTORY_RETAIN_SNAPSHOTS", 30);
         let auth_url = Url::parse(&get("BETTER_AUTH_URL", "http://localhost:7000"))?;
         let public = get("PUBLIC_APP_URL", "");
         anyhow::ensure!(
@@ -219,18 +228,13 @@ impl Config {
             .trim_end_matches('/')
             .to_owned();
         Url::parse(&pa_url)?;
-        for key in [
-            "CARDMARKET_GAME_ID",
-            "PRICE_HISTORY_RETAIN_DAYS",
-            "PRICE_HISTORY_RETAIN_SNAPSHOTS",
-        ] {
-            if let Some(value) = values.get(key) {
-                let normalized =
-                    crate::http::zod::js_number_string(crate::http::zod::js_number(value));
-                values.insert(key.into(), normalized);
-            }
+        if let Some(value) = values.get("CARDMARKET_GAME_ID") {
+            let normalized = crate::http::zod::js_number_string(crate::http::zod::js_number(value));
+            values.insert("CARDMARKET_GAME_ID".into(), normalized);
         }
         Ok(Self {
+            retain_days,
+            retain_snapshots,
             host,
             pa_url,
             values,
@@ -261,5 +265,37 @@ impl Config {
         self.trusted_origins
             .iter()
             .any(|pattern| crate::auth::pipeline::matches_origin(origin, pattern, false))
+    }
+    #[cfg(test)]
+    pub fn for_test(extra: &[(&str, &str)]) -> anyhow::Result<Self> {
+        let base = [
+            ("DATABASE_URL", "postgres://localhost/riftbound_test"),
+            ("BETTER_AUTH_SECRET", "test-secret-test-secret-test-secret"),
+            ("ADMIN_SYNC_TOKEN", "test-admin-token"),
+            ("PA_API_KEY", "ak_test"),
+        ];
+        Self::from_map(
+            base.iter()
+                .chain(extra)
+                .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+                .collect(),
+        )
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::Config;
+    #[test]
+    fn price_retention_defaults_and_rejects_values_that_would_prune_everything() {
+        let config = Config::for_test(&[]).unwrap();
+        assert_eq!((config.retain_days, config.retain_snapshots), (90, 30));
+        let config = Config::for_test(&[("PRICE_HISTORY_RETAIN_SNAPSHOTS", "12")]).unwrap();
+        assert_eq!(config.retain_snapshots, 12);
+        for bad in ["", "thirty", "30d", "0", "-1", "1.5"] {
+            assert!(Config::for_test(&[("PRICE_HISTORY_RETAIN_SNAPSHOTS", bad)]).is_err());
+            assert!(Config::for_test(&[("PRICE_HISTORY_RETAIN_DAYS", bad)]).is_err());
+        }
     }
 }

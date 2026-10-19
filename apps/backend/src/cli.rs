@@ -167,32 +167,11 @@ pub async fn run(state: &Arc<AppState>, command: &str, args: &[String]) -> anyho
                     "--retain-snapshots",
                 ],
             )?;
-            anyhow::ensure!(
-                parsed
-                    .get("--target")
-                    .is_some_and(|value| ["local", "test", "staging"].contains(&value.as_str())),
-                "Retention requires --target=local|test|staging"
-            );
-            anyhow::ensure!(
-                !state.config.production && !args.iter().any(|arg| arg == "--target=production"),
-                "Production retention needs a separately approved maintenance window"
-            );
             let dry_run = !args.iter().any(|arg| arg == "--apply")
                 || args.iter().any(|arg| arg == "--dry-run");
-            let days = state
-                .config
-                .values
-                .get("PRICE_HISTORY_RETAIN_DAYS")
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(90);
-            let snapshots = state
-                .config
-                .values
-                .get("PRICE_HISTORY_RETAIN_SNAPSHOTS")
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(30);
-            let days = integer(&parsed, "--retain-days", days, 3650)?;
-            let snapshots = integer(&parsed, "--retain-snapshots", snapshots, 1000)?;
+            let config = &state.config;
+            let days = integer(&parsed, "--retain-days", config.retain_days, 3650)?;
+            let snapshots = integer(&parsed, "--retain-snapshots", config.retain_snapshots, 1000)?;
             json!({"dryRun":dry_run,"rows":crate::cardmarket::guide::prune(state,days,snapshots,dry_run).await?})
         }
         "audit:cards" => {

@@ -1,8 +1,5 @@
 use crate::{AppState, db, prices, search};
 use serde_json::{Value, json};
-fn array<'a>(value: &'a Value, key: &str) -> &'a [Value] {
-    value[key].as_array().map(Vec::as_slice).unwrap_or(&[])
-}
 pub fn foil(variant: &Value) -> bool {
     ["variantNumber", "variantLabel", "variantType"]
         .iter()
@@ -100,7 +97,7 @@ pub fn item(state: &AppState, card: &Value, variant: &Value, prices: &prices::In
         vec![printing(variant, foil(variant), prices)]
     };
     let primary = &printings[0];
-    let mut result = json!({"cardId":card["id"],"variantNumber":primary["variantNumber"],"name":card["name"],"type":card["type"],"super":card["super"],"variantType":variant["variantType"],"energy":card["energy"],"might":card["might"],"power":card["power"],"rarity":variant["rarity"],"setCode":variant["set"]["prefix"],"colors":array(card,"colors").iter().map(|color|color["name"].clone()).collect::<Vec<_>>(),"imageUrl":variant["imageUrl"],"cardmarketId":variant["cardmarketId"],"priceEur":primary["priceEur"],"printings":printings,"isBanned":banned(&card["banEffectiveDate"])});
+    let mut result = json!({"cardId":card["id"],"variantNumber":primary["variantNumber"],"name":card["name"],"type":card["type"],"super":card["super"],"variantType":variant["variantType"],"energy":card["energy"],"might":card["might"],"power":card["power"],"rarity":variant["rarity"],"setCode":variant["set"]["prefix"],"colors":db::array(card,"colors").iter().map(|color|color["name"].clone()).collect::<Vec<_>>(),"imageUrl":variant["imageUrl"],"cardmarketId":variant["cardmarketId"],"priceEur":primary["priceEur"],"printings":printings,"isBanned":banned(&card["banEffectiveDate"])});
     crate::images::rewrite(state, &mut result["imageUrl"]);
     result
 }
@@ -108,7 +105,7 @@ pub fn row_item(state: &AppState, row: &Value, prices: &prices::Index) -> Value 
     let mut card = row.clone();
     card["id"] = row["cardId"].clone();
     card["colors"] = json!(
-        array(row, "colors")
+        db::array(row, "colors")
             .iter()
             .map(|name| json!({"name":name}))
             .collect::<Vec<_>>()
@@ -121,7 +118,7 @@ pub fn group(items: Vec<Value>) -> Vec<Value> {
     let mut grouped: Vec<(String, Value)> = Vec::new();
     let mut indexes = std::collections::HashMap::<String, usize>::new();
     for item in items {
-        for printing in array(&item, "printings") {
+        for printing in db::array(&item, "printings") {
             let key = format!("{}:{}", db::string(&item, "cardId"), group_key(printing));
             if let Some(index) = indexes.get(&key) {
                 let existing = &mut grouped[*index].1;
@@ -144,7 +141,7 @@ pub fn group(items: Vec<Value>) -> Vec<Value> {
     grouped
         .into_iter()
         .map(|(_, mut item)| {
-            let prints = array(&item, "printings");
+            let prints = db::array(&item, "printings");
             let sibling = prints.iter().any(|printing| {
                 printing["isFoil"] == true
                     && prints.iter().any(|other| {
@@ -195,13 +192,13 @@ pub fn group(items: Vec<Value>) -> Vec<Value> {
         .collect()
 }
 pub fn market_ids(card: &Value) -> Vec<i64> {
-    array(card, "variants")
+    db::array(card, "variants")
         .iter()
         .filter_map(|variant| variant["cardmarketId"].as_i64())
         .collect()
 }
 pub fn detail(state: &AppState, card: &Value, prices: &prices::Index) -> Value {
-    let variants = array(card, "variants");
+    let variants = db::array(card, "variants");
     let mut result = card.clone();
     result["super"] = card["super"].clone();
     result["banEffectiveDate"] = card["banEffectiveDate"].clone();

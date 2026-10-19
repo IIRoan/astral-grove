@@ -8,8 +8,6 @@ use axum::{
     http::{HeaderMap, Method, StatusCode, Uri},
     response::{IntoResponse, Response},
 };
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use hmac::{KeyInit, Mac};
 use sea_orm::TransactionTrait;
 use serde_json::{Value, json};
 
@@ -176,7 +174,7 @@ pub async fn dispatch(
     uri: &Uri,
     method: &Method,
 ) -> Result<Reply> {
-    let mut query = pipeline::query(uri.query());
+    let mut query = crate::http::query(uri.query());
     // Better Auth uses coerce.boolean for these query parameters.
     if name == "getSession" {
         for key in ["disableCookieCache", "disableRefresh"] {
@@ -601,7 +599,6 @@ pub async fn dispatch(
             }
             Reply::json(success())
         }
-        "verifyEmail" => verify_email(state, headers, &query).await?,
         "changeEmail" => {
             service::require_session(state, headers).await?;
             return Err(error(
@@ -696,158 +693,4 @@ pub async fn dispatch(
         _ => return Err(AppError::not_found("Not found")),
     };
     Ok(result)
-}
-async fn verify_email(state: &AppState, headers: &HeaderMap, query: &Value) -> Result<Reply> {
-    let callback = query["callbackURL"].as_str().filter(|v| !v.is_empty());
-    if callback.is_some_and(|v| !pipeline::trusted(state, v)) {
-        return Err(error(403, "INVALID_CALLBACK_URL", "Invalid callbackURL"));
-    }
-    let invalid = |code: &str, message: &str| -> Result<Reply> {
-        if let Some(callback) = callback {
-            Reply::redirect(&append_query(callback, "error", code))
-        } else {
-            Err(error(401, code, message))
-        }
-    };
-    let token = field(query, "token");
-    let parts = token.split('.').collect::<Vec<_>>();
-    if parts.len() != 3 {
-        return invalid("INVALID_TOKEN", "Invalid token");
-    }
-    let Some(payload) = URL_SAFE_NO_PAD
-        .decode(parts[1])
-        .ok()
-        .and_then(|v| serde_json::from_slice::<Value>(&v).ok())
-    else {
-        return invalid("INVALID_TOKEN", "Invalid token");
-    };
-    let Some(jwt_header) = URL_SAFE_NO_PAD
-        .decode(parts[0])
-        .ok()
-        .and_then(|v| serde_json::from_slice::<Value>(&v).ok())
-    else {
-        return invalid("INVALID_TOKEN", "Invalid token");
-    };
-    type Hmac = hmac::Hmac<sha2::Sha256>;
-    let mut mac = <Hmac as KeyInit>::new_from_slice(state.config.auth_secret.as_bytes())
-        .map_err(|_| AppError::internal())?;
-    mac.update(format!("{}.{}", parts[0], parts[1]).as_bytes());
-    if jwt_header["alg"] != "HS256"
-        || URL_SAFE_NO_PAD
-            .decode(parts[2])
-            .ok()
-            .is_none_or(|signature| mac.verify_slice(&signature).is_err())
-    {
-        return invalid("INVALID_TOKEN", "Invalid token");
-    }
-    let now = time::OffsetDateTime::now_utc().unix_timestamp() as f64;
-    for claim in ["exp", "nbf", "iat"] {
-        if payload
-            .get(claim)
-            .is_some_and(|value| value.as_f64().is_none())
-        {
-            return invalid("INVALID_TOKEN", "Invalid token");
-        }
-    }
-    if payload["exp"]
-        .as_f64()
-        .is_some_and(|expires| expires <= now)
-    {
-        return invalid("TOKEN_EXPIRED", "Token expired");
-    }
-    if payload["nbf"]
-        .as_f64()
-        .is_some_and(|not_before| not_before > now)
-        || jwt_header["crit"]
-            .as_array()
-            .is_some_and(|claims| !claims.is_empty())
-    {
-        return invalid("INVALID_TOKEN", "Invalid token");
-    }
-    let address = field(&payload, "email");
-    if !crate::http::is_zod_email(address) {
-        return invalid("INVALID_TOKEN", "Invalid token");
-    }
-    let Some(mut user) = service::find_user(state, address).await? else {
-        return invalid("USER_NOT_FOUND", "User not found");
-    };
-    let session = service::get_session(state, headers).await?;
-    let update = payload["updateTo"].as_str().filter(|v| !v.is_empty());
-    let mut issue_session = false;
-    if let Some(update) = update {
-        if session.as_ref().is_some_and(|s| s.user.email != address) {
-            return invalid("INVALID_USER", "Invalid user");
-        }
-        if payload["requestType"] == "change-email-confirmation" {
-            if state.config.email_enabled() {
-                otp::send(state, update, "email-verification", None).await?;
-            }
-            return if let Some(callback) = callback {
-                Reply::redirect(callback)
-            } else {
-                Ok(Reply::json(success()))
-            };
-        }
-        let verified = payload["requestType"] == "change-email-verification";
-        db::execute(&state.db,"UPDATE \"user\" SET email=$2,email_verified=$3,updated_at=date_trunc('milliseconds',now()) WHERE id=$1",vec![user.id.clone().into(),update.into(),verified.into()]).await?;
-        user = service::user_by_id(state, &user.id)
-            .await?
-            .ok_or_else(AppError::internal)?;
-        issue_session = true;
-        if !verified && state.config.email_enabled() {
-            otp::send(state, update, "email-verification", None).await?;
-        }
-    } else if !user.email_verified {
-        db::execute(&state.db,"UPDATE \"user\" SET email_verified=true,updated_at=date_trunc('milliseconds',now()) WHERE id=$1",vec![user.id.clone().into()]).await?;
-        user = service::user_by_id(state, &user.id)
-            .await?
-            .ok_or_else(AppError::internal)?;
-        issue_session = state.config.email_enabled();
-    }
-    let mut reply = if let Some(callback) = callback {
-        Reply::redirect(callback)?
-    } else {
-        Reply::json(
-            json!({"status":true,"user":if update.is_some(){serde_json::to_value(&user)?}else{Value::Null}}),
-        )
-    };
-    if issue_session {
-        let token = if let Some(session) = session.filter(|session| session.user.id == user.id) {
-            session.session.token
-        } else {
-            service::create_session(state, &user.id, headers, true).await?
-        };
-        reply
-            .headers
-            .extend(service::signed_headers(state, &token, true)?);
-        if let Some(callback) =
-            callback.filter(|v| !v.starts_with("http://") && !v.starts_with("https://"))
-        {
-            let cookie = reply
-                .headers
-                .get("set-cookie")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("");
-            reply.headers.insert(
-                "location",
-                with_query(callback, "cookie", cookie, state)?
-                    .parse()
-                    .map_err(|_| AppError::internal())?,
-            );
-        }
-    }
-    Ok(reply)
-}
-
-fn append_query(target: &str, name: &str, value: &str) -> String {
-    let (base, fragment) = target
-        .split_once('#')
-        .map(|(a, b)| (a, format!("#{b}")))
-        .unwrap_or((target, String::new()));
-    let separator = if base.contains('?') { "&" } else { "?" };
-    format!(
-        "{base}{separator}{}={}{fragment}",
-        cookies::encode(name),
-        cookies::encode(value)
-    )
 }

@@ -360,6 +360,54 @@ describe('deck-eligibility', () => {
     expect(eligible(deck, 'mainDeck', signatureWrongTag)).toBe(false);
   });
 
+  test('champion picker matches the Legend tag exactly (Vi is not Viktor)', () => {
+    const deck = createEmptyDeck();
+    deck.legend = mockCard({
+      name: 'Vi, Piltover Enforcer',
+      type: 'Legend',
+      tags: ['Vi'],
+      colors: ['Fury', 'Order'],
+    });
+    const champ = (name: string, tags: string[]) =>
+      mockCard({ name, type: 'Unit', super: 'Champion', tags, colors: ['Order'] });
+
+    expect(
+      eligible(deck, 'champion', champ('Vi, Destructive', ['Vi', 'Piltover']))
+    ).toBe(true);
+    expect(
+      eligible(deck, 'champion', champ('Viktor, Leader', ['Viktor', 'Zaun']))
+    ).toBe(false);
+    expect(
+      eligible(deck, 'champion', champ('Fiora, Victorious', ['Fiora', 'Demacia']))
+    ).toBe(false);
+  });
+
+  test('allows Signature cards in the sideboard and caps them across main + sideboard', () => {
+    const deck = createEmptyDeck();
+    deck.legend = legendFuryCalm;
+    deck.champion = championJinx;
+    const sig = { ...signatureJinx, isSignature: false, super: 'Signature' };
+
+    expect(eligible(deck, 'sideboard', sig)).toBe(true);
+
+    deck.mainDeck.set('Jinx Sig 1', { card: { ...sig, name: 'Jinx Sig 1' }, count: 2 });
+    deck.sideboard.set('Jinx Sig 2', {
+      card: { ...sig, name: 'Jinx Sig 2' },
+      count: 1,
+    });
+    expect(eligible(deck, 'mainDeck', sig)).toBe(false);
+    expect(eligible(deck, 'sideboard', sig)).toBe(false);
+  });
+
+  test('rejects token cards from main deck and sideboard', () => {
+    const deck = createEmptyDeck();
+    deck.legend = legendFuryCalm;
+    const recruit = mockCard({ name: 'Recruit', super: 'Token', colors: [] });
+
+    expect(eligible(deck, 'mainDeck', recruit)).toBe(false);
+    expect(eligible(deck, 'sideboard', recruit)).toBe(false);
+  });
+
   test('Pre-Rift allows three domains and duplicate battlefields', () => {
     const deck = createEmptyDeck();
     deck.format = 'pre-rift';

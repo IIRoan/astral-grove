@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { requireLocalTestApi, requireLocalTestDatabase } from './test-target';
+import { requireLocalTestDatabase } from './test-target';
 
 describe('test target guards', () => {
   test.each([
@@ -17,16 +17,5 @@ describe('test target guards', () => {
         'postgres://test:test@127.0.0.1:5433/riftbound_test_port'
       )
     ).toContain('riftbound_test_port');
-  });
-  test.each([
-    'https://riftapi.solace.onl',
-    'http://localhost:3000/api',
-    'http://user:pass@localhost:3000',
-    'http://localhost:3000/?token=x',
-  ])('refuses unsafe API %s', (value) => {
-    expect(() => requireLocalTestApi(value)).toThrow();
-  });
-  test('allows a loopback listener', () => {
-    expect(requireLocalTestApi('http://127.0.0.1:3099')).toBe('http://127.0.0.1:3099');
   });
 });

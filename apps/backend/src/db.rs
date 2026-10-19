@@ -107,6 +107,12 @@ pub async fn execute(db: &impl ConnectionTrait, sql: &str, values: Vec<Value>) -
 pub fn string<'a>(value: &'a JsonValue, key: &str) -> &'a str {
     value.get(key).and_then(JsonValue::as_str).unwrap_or("")
 }
+pub fn array<'a>(value: &'a JsonValue, key: &str) -> &'a [JsonValue] {
+    value
+        .get(key)
+        .and_then(JsonValue::as_array)
+        .map_or(&[], Vec::as_slice)
+}
 pub fn iso(value: time::OffsetDateTime) -> String {
     format!(
         "{}.{:03}Z",

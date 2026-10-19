@@ -71,13 +71,9 @@ pub fn schema(name: &str) -> z::Schema {
         "DeckFormat" => make_deck_format(),
         "DeckListItem" => make_deck_list_item(),
         "DeckListResponse" => make_deck_list_response(),
-        "DeckRulesResponse" => make_deck_rules_response(),
         "DeckSortField" => make_deck_sort_field(),
         "DeckSource" => make_deck_source(),
         "DeckUpsertRequest" => make_deck_upsert_request(),
-        "DeckValidateInput" => make_deck_validate_input(),
-        "DeckValidateResponse" => make_deck_validate_response(),
-        "DeckValidationMessage" => make_deck_validation_message(),
         "DeckVersionName" => make_deck_version_name(),
         "DeckVersionSummary" => make_deck_version_summary(),
         "DecksListQuery" => make_decks_list_query(),
@@ -1082,55 +1078,6 @@ fn make_deck_list_response() -> z::Schema {
     ])
 }
 
-fn make_deck_rules_response() -> z::Schema {
-    z::object([(
-        "data",
-        z::object([
-            ("version", z::string()),
-            (
-                "rules",
-                z::object([
-                    ("version", z::string()),
-                    ("game", z::string()),
-                    ("format", z::string()),
-                    (
-                        "sections",
-                        z::record_values(z::object([
-                            ("key", z::string()),
-                            ("title", z::string()),
-                            ("target", z::number().int()),
-                            ("single", z::boolean().optional()),
-                            ("minimum", z::number().int().optional()),
-                            ("exact", z::boolean().optional()),
-                            ("maximum", z::number().int().optional()),
-                            ("required", z::boolean()),
-                            ("uniqueNames", z::boolean().optional()),
-                            ("description", z::string()),
-                        ])),
-                    ),
-                    (
-                        "copyLimits",
-                        z::object([
-                            ("default", z::number().int().nullable()),
-                            ("rune", z::number().int()),
-                            ("battlefieldPerName", z::number().int()),
-                            ("signatureTotal", z::number().int().nullable()),
-                        ]),
-                    ),
-                    ("maxDomains", z::number().int().nullable().optional()),
-                    ("requireChampionTagMatch", z::boolean().optional()),
-                    ("requireSignatureTagMatch", z::boolean().optional()),
-                    ("restrictPicker", z::boolean().optional()),
-                    (
-                        "constraints",
-                        z::array(z::object([("code", z::string()), ("message", z::string())])),
-                    ),
-                ]),
-            ),
-        ]),
-    )])
-}
-
 fn make_deck_sort_field() -> z::Schema {
     z::enumeration(&["trending", "likes", "views", "createdAt", "editedAt"])
 }
@@ -1159,40 +1106,6 @@ fn make_deck_upsert_request() -> z::Schema {
         ("upstreamId", z::string().optional()),
         ("importedFromId", z::string().optional()),
         ("syncWarnings", z::array(z::string()).optional()),
-    ])
-}
-
-fn make_deck_validate_input() -> z::Schema {
-    z::object([
-        (
-            "format",
-            schema("DeckFormat").default(serde_json::json!("constructed")),
-        ),
-        ("legend", schema("DeckCardInput").nullable()),
-        ("champion", schema("DeckCardInput").nullable()),
-        ("mainDeck", z::array(schema("DeckEntryInput"))),
-        ("runes", z::array(schema("DeckEntryInput"))),
-        ("battlefields", z::array(schema("DeckEntryInput"))),
-        ("sideboard", z::array(schema("DeckEntryInput"))),
-    ])
-}
-
-fn make_deck_validate_response() -> z::Schema {
-    z::object([(
-        "data",
-        z::object([
-            ("messages", z::array(schema("DeckValidationMessage"))),
-            ("valid", z::boolean()),
-            ("hasErrors", z::boolean()),
-        ]),
-    )])
-}
-
-fn make_deck_validation_message() -> z::Schema {
-    z::object([
-        ("type", z::enumeration(&["error", "warning", "valid"])),
-        ("code", z::string()),
-        ("message", z::string()),
     ])
 }
 
@@ -2286,13 +2199,9 @@ pub const NAMES: &[&str] = &[
     "DeckFormat",
     "DeckListItem",
     "DeckListResponse",
-    "DeckRulesResponse",
     "DeckSortField",
     "DeckSource",
     "DeckUpsertRequest",
-    "DeckValidateInput",
-    "DeckValidateResponse",
-    "DeckValidationMessage",
     "DeckVersionName",
     "DeckVersionSummary",
     "DecksListQuery",
@@ -2353,15 +2262,3 @@ pub const NAMES: &[&str] = &[
     "WishlistListResponse",
     "WishlistUpsertRequest",
 ];
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn typed_record_values_are_validated() {
-        let mut value = serde_json::json!({"data":{"version":"x","rules":astral_grove_api_types::deck_validation::rules("constructed")}});
-        assert!(schema("DeckRulesResponse").parse(Some(&value)).is_ok());
-        value["data"]["rules"]["sections"]["legend"]["target"] = serde_json::json!("invalid");
-        assert!(schema("DeckRulesResponse").parse(Some(&value)).is_err());
-    }
-}

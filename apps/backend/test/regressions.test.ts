@@ -1,32 +1,30 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from 'bun:test';
 import {
+  CardDetailResponse,
   CardsListResponse,
   CollectionActivityHistoryResponse,
   CollectionRecentAddsResponse,
   SyncStatusResponse,
 } from '@riftbound/contracts';
 import sharp from 'sharp';
-import { validS3Signature } from './s3-fixture';
-import { cookie, createHarness, json } from './support';
+import { startStorageFixture } from './s3-fixture';
+import { createHarness, json, waitFor } from './support';
 
 setDefaultTimeout(60000);
 const harness = createHarness();
-const emails: string[] = [];
-let app: Awaited<ReturnType<typeof harness.startRust>>;
-function deferred() {
-  let resolve = () => {};
-  const promise = new Promise<void>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-}
+const cardIds: string[] = [];
+let app: Awaited<ReturnType<typeof harness.startServer>>;
+let upstreamCard: unknown = null;
 function gate() {
-  return { entered: deferred(), release: deferred(), completed: deferred() };
+  return {
+    entered: Promise.withResolvers<void>(),
+    release: Promise.withResolvers<void>(),
+    completed: Promise.withResolvers<void>(),
+  };
 }
 let syncGate: ReturnType<typeof gate> | undefined;
 let priceGate: ReturnType<typeof gate> | undefined;
 let uploadGate: ReturnType<typeof gate> | undefined;
-const objects = new Map<string, { body: ArrayBuffer; type: string }>();
 let uploads = 0;
 let cdnReads = 0;
 let source: Uint8Array<ArrayBuffer>;
@@ -54,6 +52,8 @@ const pa = Bun.serve({
         createdAt: '2026-10-18T00:00:00.000Z',
         products: [],
       });
+    if (url.pathname.startsWith('/v1/cards/') && upstreamCard)
+      return Response.json(upstreamCard);
     if (url.pathname !== '/v1/cards') return new Response(null, { status: 404 });
     if (url.searchParams.get('limit') === '100' && syncGate) {
       const current = syncGate;
@@ -74,39 +74,17 @@ const pa = Bun.serve({
     });
   },
 });
-const storage = Bun.serve({
-  hostname: '127.0.0.1',
-  port: 0,
-  async fetch(request) {
-    if (!validS3Signature(request, 'fixture-secret'))
-      return new Response(null, { status: 403 });
-    const key = new URL(request.url).pathname;
-    if (request.method === 'PUT') {
-      const body = await request.arrayBuffer();
-      uploads++;
-      const current = uploadGate;
-      if (current) {
-        current.entered.resolve();
-        await current.release.promise;
-      }
-      objects.set(key, {
-        body,
-        type: request.headers.get('content-type') ?? '',
-      });
-      current?.completed.resolve();
-      return new Response(null, { status: 200 });
-    }
-    const object = objects.get(key);
-    return object
-      ? new Response(request.method === 'HEAD' ? null : object.body, {
-          headers: {
-            'content-type': object.type,
-            'content-length': String(object.body.byteLength),
-          },
-        })
-      : new Response(null, { status: 404 });
-  },
+const storage = startStorageFixture(async (_key, store) => {
+  uploads++;
+  const current = uploadGate;
+  if (current) {
+    current.entered.resolve();
+    await current.release.promise;
+  }
+  store();
+  current?.completed.resolve();
 });
+const { objects } = storage;
 const cdn = Bun.serve({
   hostname: '127.0.0.1',
   port: 0,
@@ -121,7 +99,7 @@ const overrides = {
   PA_BASE_URL: pa.url.origin,
   CARDMARKET_EXPORT_BASE_URL: pa.url.origin,
   IMAGE_CDN_BASE_URL: cdn.url.origin,
-  S3_ENDPOINT: storage.url.origin,
+  S3_ENDPOINT: storage.origin,
   S3_BUCKET: 'regression-fixture',
   S3_ACCESS_KEY_ID: 'fixture-access',
   S3_SECRET_ACCESS_KEY: 'fixture-secret',
@@ -134,35 +112,20 @@ beforeAll(async () => {
       .png()
       .toBuffer()
   );
-  app = await harness.startRust(overrides);
+  app = await harness.startServer(overrides);
 });
 afterAll(async () => {
   syncGate?.release.resolve();
   priceGate?.release.resolve();
   uploadGate?.release.resolve();
-  await harness.sql`DELETE FROM "user" WHERE email=ANY(${emails})`;
-  await harness.stopRust();
+  await harness.sql`DELETE FROM card_colors WHERE card_id=ANY(${cardIds}::uuid[])`;
+  await harness.sql`DELETE FROM variants WHERE card_id=ANY(${cardIds}::uuid[])`;
+  await harness.sql`DELETE FROM cards WHERE id=ANY(${cardIds}::uuid[])`;
+  await harness.stopServer();
   pa.stop(true);
-  storage.stop(true);
+  storage.stop();
   cdn.stop(true);
 });
-async function signup(label: string) {
-  const email = `regression-${label}-${crypto.randomUUID()}@test.riftbound.dev`;
-  emails.push(email);
-  const response = await app.fetch(
-    '/api/auth/sign-up/email',
-    json({ name: label, email, password: 'regression-password-12345' })
-  );
-  expect(response.status).toBe(200);
-  return { cookie: cookie(response), email };
-}
-async function waitFor(check: () => boolean | Promise<boolean>) {
-  for (let attempt = 0; attempt < 100; attempt++) {
-    if (await check()) return;
-    await Bun.sleep(20);
-  }
-  throw new Error('Regression condition did not become true');
-}
 test.each(['unit', 'legend', 'champion', 'rune', 'battlefield'])(
   'a search for only the %s type matches its catalog filter',
   async (type) => {
@@ -184,7 +147,7 @@ test.each(['unit', 'legend', 'champion', 'rune', 'battlefield'])(
   }
 );
 test('activity endpoints retain a matching variant at the 5000th position', async () => {
-  const user = await signup('activity-limit');
+  const user = await harness.signup(app, 'activity-limit');
   expect(
     (await app.fetch('/api/v1/collection/OGN-001/add', json({}, user.cookie))).status
   ).toBe(200);
@@ -266,9 +229,9 @@ test.each(['catalog', 'prices'] as const)(
     const other = createHarness();
     const current = gate();
     try {
-      const server = await other.startRust(overrides);
+      const server = await other.startServer(overrides);
       await startInterruptedSync(server, key, current);
-      await other.stopRust();
+      await other.stopServer();
       const rows =
         await harness.sql`SELECT status,last_error FROM sync_state WHERE key=${key}`;
       expect(rows[0]?.status).toBe('failed');
@@ -277,7 +240,7 @@ test.each(['catalog', 'prices'] as const)(
       current.release.resolve();
       syncGate = undefined;
       priceGate = undefined;
-      await other.stopRust();
+      await other.stopServer();
     }
   }
 );
@@ -319,14 +282,14 @@ test.each(['original', 'thumbnail'] as const)(
       const reads = cdnReads;
       const other = createHarness();
       try {
-        const server = await other.startRust(overrides);
+        const server = await other.startServer(overrides);
         const persisted = await server.fetch(path);
         expect(persisted.status).toBe(200);
         expect(persisted.headers.get('x-image-source')).toBe('s3');
         expect(new Uint8Array(await persisted.arrayBuffer())).toEqual(bytes);
         expect(cdnReads).toBe(reads);
       } finally {
-        await other.stopRust();
+        await other.stopServer();
       }
     } finally {
       current.release.resolve();
@@ -367,7 +330,7 @@ test('a full upload queue still serves images and stalled uploads drain within s
   const initialUploads = uploads;
   const requests: Promise<Response>[] = [];
   try {
-    const server = await other.startRust(overrides);
+    const server = await other.startServer(overrides);
     for (let index = 0; index < 9; index++)
       requests.push(
         server.fetch(`/api/v1/images/cards/bounded-${crypto.randomUUID()}.png`)
@@ -378,12 +341,78 @@ test('a full upload queue still serves images and stalled uploads drain within s
     ]);
     expect(responses?.map((response) => response.status)).toEqual(Array(9).fill(200));
     await waitFor(() => uploads - initialUploads === 8);
-    await other.stopRust();
+    await other.stopServer();
     expect(uploads - initialUploads).toBe(8);
   } finally {
     current.release.resolve();
     uploadGate = undefined;
     await Promise.all(requests);
-    await other.stopRust();
+    await other.stopServer();
   }
+});
+
+test('a Piltover Archive renumber of an existing variant id updates the cached row', async () => {
+  const [seed] = await harness.sql<
+    { raw: { variants: Record<string, unknown>[] } & Record<string, unknown> }[]
+  >`SELECT upstream_raw AS raw FROM cards WHERE jsonb_array_length(upstream_raw->'variants')>0 LIMIT 1`;
+  if (!seed) throw new Error('Offline catalog has no cards');
+  const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 10);
+  const cardId = crypto.randomUUID();
+  const variantId = crypto.randomUUID();
+  cardIds.push(cardId);
+  const card = (variantNumber: string) => ({
+    ...seed.raw,
+    id: cardId,
+    name: `Renumber ${suffix}`,
+    variants: [
+      {
+        ...seed.raw.variants[0],
+        id: variantId,
+        variantNumber,
+        cardmarketId: null,
+        tcgplayerId: null,
+        parentVariantId: null,
+      },
+    ],
+  });
+  upstreamCard = card(`RVW-${suffix}`);
+  expect((await app.fetch(`/api/v1/cards/RVW-${suffix}`)).status).toBe(200);
+  upstreamCard = card(`RVW-${suffix}a`);
+  const refreshed = await app.fetch(`/api/v1/cards/RVW-${suffix}?refresh=true`, {
+    headers: { authorization: 'Bearer ' + app.config.ADMIN_SYNC_TOKEN },
+  });
+  expect(refreshed.status).toBe(200);
+  const detail = CardDetailResponse.parse(await refreshed.json());
+  expect(detail.data.variants.map((variant) => variant.variantNumber)).toEqual([
+    `RVW-${suffix}a`,
+  ]);
+  expect([
+    ...(await harness.sql`SELECT variant_number FROM variants WHERE card_id=${cardId}::uuid`),
+  ]).toEqual([{ variant_number: `RVW-${suffix}a` }]);
+});
+
+test('collection writes for a variant missing from the catalog return 404, not a foreign-key 500', async () => {
+  const session = (await harness.signup(app, 'missing')).cookie;
+  const missing = `ZZZ-${crypto.randomUUID().replaceAll('-', '').slice(0, 8)}`;
+  const set = await app.fetch(`/api/v1/collection/${missing}`, {
+    ...json({ quantity: 1 }, session),
+    method: 'PUT',
+  });
+  expect(set.status).toBe(404);
+  expect(await set.json()).toMatchObject({ message: `Variant ${missing} not found` });
+  for (const body of [{}, { isFoil: true }]) {
+    expect(
+      (await app.fetch(`/api/v1/collection/${missing}/add`, json(body, session))).status
+    ).toBe(404);
+  }
+});
+
+test('a Piltover Archive outage fails community deck browsing but keeps owned decks listed', async () => {
+  const session = (await harness.signup(app, 'deck-outage')).cookie;
+  const community = await app.fetch('/api/v1/decks?source=imported', {
+    headers: { cookie: session },
+  });
+  expect(community.status).toBeGreaterThanOrEqual(400);
+  const mixed = await app.fetch('/api/v1/decks', { headers: { cookie: session } });
+  expect(mixed.status).toBe(200);
 });

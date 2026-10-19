@@ -9,7 +9,6 @@ publish.workspace = true
 anyhow.workspace = true
 astral-grove-server.workspace = true
 serde_json.workspace = true
-tokio.workspace = true
 
 [lints]
 workspace = true

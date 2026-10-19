@@ -7,7 +7,7 @@ pub async fn list(
     viewer: &str,
     input: &Value,
 ) -> Result<Value> {
-    let mut sql = Sql::new();
+    let mut sql = Sql::default();
     let mut filters = Vec::new();
     if let Some(collection) = collection {
         let p = sql.bind(collection);
@@ -58,10 +58,7 @@ pub async fn list(
 }
 pub async fn activity(state: &AppState, collection: &str, input: &Value) -> Result<Value> {
     let mut numbers = Vec::<String>::new();
-    for number in input["variantNumbers"]
-        .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+    for number in db::array(input, "variantNumbers")
         .iter()
         .filter_map(Value::as_str)
         .map(str::trim)
@@ -76,7 +73,7 @@ pub async fn activity(state: &AppState, collection: &str, input: &Value) -> Resu
         return Ok(json!({"data":[],"meta":{"hasMore":false,"nextCursor":null}}));
     }
     let limit = input["limit"].as_i64().unwrap_or(20);
-    let mut sql = Sql::new();
+    let mut sql = Sql::default();
     let c = sql.bind(collection);
     let n = sql.bind(numbers);
     let mut filter = format!(

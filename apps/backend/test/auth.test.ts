@@ -9,40 +9,24 @@ import {
 import { z } from 'zod';
 import { createHmac, scryptSync } from 'node:crypto';
 import { startJmapFixture } from './fixtures/jmap';
-import { createHarness, json, cookie } from './support';
-const { startRust, stopRust, sql } = createHarness();
+import { createHarness, json, cookie, Login, password, waitFor } from './support';
+const harness = createHarness();
+const { startServer, stopServer, sql } = harness;
 setDefaultTimeout(60000);
 const stamp = crypto.randomUUID();
 const addresses: string[] = [];
-const password = 'native-password-12345';
 const betterAuthHash =
-  '66cc3e330c9d14d6765e69edfdc48b8e:70f972ba24b90e323af3f768fb61c958e36b6666219c50e7f16d6b357f440d58ec7f99924e22991ce1121097ad19628e2c82881cd1cc23ccdc9cca96bfde6c32';
-let app: Awaited<ReturnType<typeof startRust>>;
-const User = z.object({
-  id: z.string(),
-  name: z.string(),
-  email: z.string(),
-  emailVerified: z.boolean(),
-  image: z.string().nullable(),
-});
-const Login = z.object({ token: z.string().nullable(), user: User });
-async function signup(label: string, server = app) {
-  const email = `native-${label}-${stamp}@test.riftbound.dev`;
-  addresses.push(email);
-  const response = await server.fetch(
-    '/api/auth/sign-up/email',
-    json({ name: label, email, password })
-  );
-  expect(response.status).toBe(200);
-  return { ...Login.parse(await response.json()), email, cookie: cookie(response) };
-}
+  '66cc3e330c9d14d6765e69edfdc48b8e:a5b6c4dfb0ddd98b26910785d3fd548c97bd8b85a3273e6e7df884cf612935155533e9aa79ce65c4cc200b4181108e8320d6822306e0a07a6568958163ac2d19';
+let app: Awaited<ReturnType<typeof startServer>>;
+const signup = (label: string, server = app) =>
+  harness.signup(server, `${label}-${stamp}`);
 beforeAll(async () => {
-  app = await startRust();
+  app = await startServer();
 });
 afterAll(async () => {
   await sql`DELETE FROM "user" WHERE email=ANY(${addresses})`;
   await sql`DELETE FROM verification WHERE identifier LIKE ${`%${stamp}%`}`;
-  await stopRust();
+  await stopServer();
 });
 describe('authentication', () => {
   test('revoking a session closes its collection live stream before another event is delivered', async () => {
@@ -85,7 +69,7 @@ describe('authentication', () => {
   test('existing Better Auth hashes and signed cookies keep working', async () => {
     const sign = (token: string) =>
       `${token}.${createHmac('sha256', app.config.BETTER_AUTH_SECRET).update(token).digest('base64')}`;
-    const email = `native-legacy-${stamp}@test.riftbound.dev`;
+    const email = `test-legacy-${stamp}@test.riftbound.dev`;
     addresses.push(email);
     const userId = crypto.randomUUID();
     await sql`INSERT INTO "user"(id,name,email) VALUES(${userId},'Legacy account',${email})`;
@@ -102,10 +86,10 @@ describe('authentication', () => {
     });
     expect(session.status).toBe(200);
     expect((await session.json()).user.email).toBe(email);
-    const native = await signup('reverse');
+    const created = await signup('reverse');
     const [stored] = await sql<
       { password: string }[]
-    >`SELECT password FROM account WHERE user_id=${native.user.id} AND provider_id='credential'`;
+    >`SELECT password FROM account WHERE user_id=${created.user.id} AND provider_id='credential'`;
     const [salt, key] = stored!.password.split(':');
     expect(
       scryptSync(password.normalize('NFKC'), salt!, 64, {
@@ -115,9 +99,9 @@ describe('authentication', () => {
         maxmem: 128 * 16384 * 16 * 2,
       }).toString('hex')
     ).toBe(key!);
-    const [name, value] = native.cookie.split('; ')[0]!.split('=');
+    const [name, value] = created.cookie.split('; ')[0]!.split('=');
     expect(name).toBe('better-auth.session_token');
-    expect(decodeURIComponent(value!)).toBe(sign(native.token!));
+    expect(decodeURIComponent(value!)).toBe(sign(created.token!));
   });
   test('session refresh, disableRefresh and dont-remember retain the configured lifetimes', async () => {
     const user = await signup('renewal');
@@ -214,47 +198,36 @@ describe('authentication', () => {
   test('revocation during renewal cannot resurrect or authorize the deleted session', async () => {
     const user = await signup('revoked-renewal');
     await sql`UPDATE session SET expires_at=now()+interval '1 day' WHERE token=${user.token}`;
-    let release = () => {};
-    let locked = () => {};
-    const ready = new Promise<void>((resolve) => {
-      locked = resolve;
-    });
-    const unblock = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const locked = Promise.withResolvers<void>();
+    const unblock = Promise.withResolvers<void>();
     let blockerPid = 0;
     const revoke = sql.begin(async (transaction) => {
       const rows =
         await transaction`SELECT id,pg_backend_pid() AS pid FROM session WHERE token=${user.token} FOR UPDATE`;
       blockerPid = rows[0]!.pid;
-      locked();
-      await unblock;
+      locked.resolve();
+      await unblock.promise;
       await transaction`DELETE FROM session WHERE token=${user.token}`;
     });
-    await ready;
+    await locked.promise;
     const request = app.fetch('/api/v1/collection', {
       headers: { cookie: user.cookie },
     });
     try {
-      let waiting = false;
-      for (let attempt = 0; attempt < 100; attempt++) {
-        const rows =
-          await sql`SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND ${blockerPid}=ANY(pg_blocking_pids(pid))) AS waiting`;
-        if (rows[0]!.waiting) {
-          waiting = true;
-          break;
-        }
-        await Bun.sleep(20);
-      }
-      expect(waiting).toBe(true);
-      release();
+      await waitFor(
+        async () =>
+          (
+            await sql`SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND ${blockerPid}=ANY(pg_blocking_pids(pid))) AS waiting`
+          )[0]!.waiting
+      );
+      unblock.resolve();
       await revoke;
       expect((await request).status).toBe(401);
       expect(await sql`SELECT id FROM session WHERE token=${user.token}`).toHaveLength(
         0
       );
     } finally {
-      release();
+      unblock.resolve();
       await revoke;
       await request;
     }
@@ -292,7 +265,7 @@ describe('authentication', () => {
       json(
         {
           currentPassword: password,
-          newPassword: 'new-native-password-67890',
+          newPassword: 'new-test-password-67890',
           revokeOtherSessions: true,
         },
         user.cookie
@@ -331,7 +304,7 @@ describe('authentication', () => {
       (
         await app.fetch(
           '/api/auth/sign-in/email',
-          json({ email: user.email, password: 'new-native-password-67890' })
+          json({ email: user.email, password: 'new-test-password-67890' })
         )
       ).status
     ).toBe(200);
@@ -393,11 +366,11 @@ describe('authentication', () => {
         ).status
       ).toBe(404);
   });
-  test('JMAP signup, verify, password reset and email change work through Rust HTTP', async () => {
+  test('JMAP signup, verify, password reset and email change work through HTTP', async () => {
     const mail = startJmapFixture();
     mail.failDiscovery();
     try {
-      const server = await startRust({
+      const server = await startServer({
         STALWART_JMAP_URL: mail.url,
         STALWART_JMAP_USERNAME: 'fixture',
         STALWART_JMAP_PASSWORD: 'fixture',
@@ -469,7 +442,7 @@ describe('authentication', () => {
       );
       expect(login.status).toBe(200);
       const current = cookie(login);
-      const newEmail = `native-new-mail-${stamp}@test.riftbound.dev`;
+      const newEmail = `test-new-mail-${stamp}@test.riftbound.dev`;
       addresses.push(newEmail);
       expect(
         (
@@ -497,47 +470,6 @@ describe('authentication', () => {
           ).json()
         ).user.email
       ).toBe(newEmail);
-
-      const pending = await signup('jwt', server);
-      const sign = (payload: unknown) => {
-        const header = Buffer.from(
-            JSON.stringify({ alg: 'HS256', typ: 'JWT' })
-          ).toString('base64url'),
-          body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-        const signed = header + '.' + body;
-        return (
-          signed +
-          '.' +
-          createHmac('sha256', server.config.BETTER_AUTH_SECRET)
-            .update(signed)
-            .digest('base64url')
-        );
-      };
-      const token = sign({
-        email: pending.email,
-        exp: Math.floor(Date.now() / 1000) + 300,
-      });
-      const proof = await server.fetch('/api/auth/verify-email?token=' + token, {
-        headers: { cookie: current },
-      });
-      expect(proof.status).toBe(200);
-      expect(await proof.json()).toEqual({ status: true, user: null });
-      const switched = await (
-        await server.fetch('/api/auth/get-session', {
-          headers: { cookie: cookie(proof) },
-        })
-      ).json();
-      expect(switched.user.id).toBe(pending.user.id);
-      const expired = await server.fetch(
-        '/api/auth/verify-email?token=' + sign({ email: pending.email, exp: 1 })
-      );
-      expect(expired.status).toBe(401);
-      expect((await expired.json()).code).toBe('TOKEN_EXPIRED');
-      const future = await server.fetch(
-        '/api/auth/verify-email?token=' +
-          sign({ email: pending.email, nbf: Math.floor(Date.now() / 1000) + 3600 })
-      );
-      expect(future.status).toBe(401);
     } finally {
       mail.stop();
     }

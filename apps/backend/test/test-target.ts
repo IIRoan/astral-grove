@@ -13,19 +13,3 @@ export function requireLocalTestDatabase(value: string | undefined): string {
   }
   return value;
 }
-
-export function requireLocalTestApi(value: string): string {
-  const url = new URL(value);
-  if (
-    !['http:', 'https:'].includes(url.protocol) ||
-    !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) ||
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash ||
-    url.pathname !== '/'
-  ) {
-    throw new Error('Test API must be a loopback origin');
-  }
-  return url.origin;
-}
