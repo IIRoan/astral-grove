@@ -146,6 +146,22 @@ test.each(['unit', 'legend', 'champion', 'rune', 'battlefield'])(
     ).toBe(true);
   }
 );
+test('excludeBanned drops exactly the cards listed as isBanned', async () => {
+  const list = async (query: string) =>
+    CardsListResponse.parse(
+      await (await app.fetch(`/api/v1/cards?limit=100&${query}`)).json()
+    );
+  const all = await list('q=draven');
+  expect(all.data.some((card) => card.isBanned)).toBe(true);
+  const legal = await list('q=draven&excludeBanned=true');
+  expect(legal.data.some((card) => card.isBanned)).toBe(false);
+  expect(legal.meta.pagination.total).toBe(
+    all.meta.pagination.total - all.data.filter((card) => card.isBanned).length
+  );
+  // Unfiltered browse uses the direct-page path, so check the flag disables it too.
+  const browse = await list('excludeBanned=true');
+  expect(browse.data.some((card) => card.isBanned)).toBe(false);
+});
 test('activity endpoints retain a matching variant at the 5000th position', async () => {
   const user = await harness.signup(app, 'activity-limit');
   expect(

@@ -7,12 +7,14 @@ import {
   catalogFiltersActive,
   catalogFiltersHaveClearableExtras,
   catalogFiltersQueryKey,
+  catalogFiltersToQuery,
   clearCatalogFilters,
   countCatalogFilters,
   DEFAULT_CATALOG_FILTERS,
   matchesCatalogFilters,
   sanitizeCatalogFilters,
 } from '@/constants/catalogFilters';
+import type { CatalogFilters } from '@/constants/catalogFilters';
 
 const sampleCard = {
   cardId: '00000000-0000-4000-8000-000000000001',
@@ -217,6 +219,20 @@ describe('matchesCatalogFilters', () => {
         new Map()
       )
     ).toBe(true);
+  });
+
+  test('hide banned removes banned cards locally and asks the API to do the same', () => {
+    const filters = { ...DEFAULT_CATALOG_FILTERS, excludeBanned: true };
+    const banned = { ...sampleCard, isBanned: true };
+    expect(matchesCatalogFilters(banned, filters, new Map())).toBe(false);
+    expect(matchesCatalogFilters(sampleCard, filters, new Map())).toBe(true);
+    expect(catalogFiltersToQuery(filters)).toEqual({ excludeBanned: true });
+    expect(countCatalogFilters(filters)).toBe(1);
+    expect(catalogFilterChips(filters).map((chip) => chip.id)).toEqual([
+      'exclude-banned',
+    ]);
+    const { excludeBanned: _omitted, ...saved } = filters;
+    expect(sanitizeCatalogFilters(saved as CatalogFilters).excludeBanned).toBe(false);
   });
 
   test('token filters distinguish markers from playable cards', () => {

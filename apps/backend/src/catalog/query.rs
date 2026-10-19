@@ -62,6 +62,7 @@ fn paged(query: &Value) -> bool {
             .iter()
             .all(|key| db::string(query, key).is_empty())
         && !bool_value(query, "excludeTokens")
+        && !bool_value(query, "excludeBanned")
 }
 pub(crate) fn candidate_query(query: &Value) -> (String, Vec<sea_orm::Value>, bool) {
     let mut sql = search::Sql::default();

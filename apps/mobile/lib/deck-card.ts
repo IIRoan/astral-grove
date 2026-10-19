@@ -129,7 +129,7 @@ export function isLegendCard(card: Pick<DeckCard, 'type'>): boolean {
   return cardHasType(card, 'legend');
 }
 
-export function isChampionUnit(card: Pick<DeckCard, 'type' | 'super'>): boolean {
+export function isChampionUnit(card: { type: string; super?: string | null }): boolean {
   return cardHasType(card, 'unit') && (card.super ?? '').toLowerCase() === 'champion';
 }
 

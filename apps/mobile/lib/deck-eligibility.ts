@@ -5,8 +5,8 @@ import {
   deckFormatRestrictsPicker,
   domainIdentityMatch,
   getDeckRules,
+  isMainDeckCardType,
   isSignatureCard,
-  isTokenCard,
   legendChampionTags,
   normalizeDeckDomains,
   sharesLegendChampionTag,
@@ -210,11 +210,11 @@ export function isCardEligibleForSection(args: {
       return { eligible: false, reason: 'Not a Battlefield card.' };
     }
   } else if (section === 'mainDeck') {
-    if (candidateType !== 'mainDeck' || isTokenCard(candidateCard)) {
+    if (!isMainDeckCardType(candidateCard)) {
       return { eligible: false, reason: 'Not a Main Deck card.' };
     }
   } else if (section === 'sideboard') {
-    if (candidateType !== 'mainDeck' || isTokenCard(candidateCard)) {
+    if (!isMainDeckCardType(candidateCard)) {
       return { eligible: false, reason: 'Not a Main Deck card for sideboard.' };
     }
   }
@@ -235,6 +235,7 @@ export function isCardEligibleForSection(args: {
     }
   } else {
     const sectionsWithDomainFilter: DeckSectionKey[] = [
+      'champion',
       'mainDeck',
       'runes',
       'sideboard',

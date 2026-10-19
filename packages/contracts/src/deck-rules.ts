@@ -352,7 +352,10 @@ function collectDeckDomains(input: DeckValidateInput): Set<string> {
   return domains;
 }
 
-function isMainDeckCardType(card: DeckCardInput): boolean {
+/** Main Deck / Sideboard accept any non-token card that isn't a Legend, Battlefield or Rune. */
+export function isMainDeckCardType(
+  card: Pick<DeckCardInput, 'type' | 'super' | 'variantNumber'>
+): boolean {
   return (
     !isTokenCard(card) && !cardHasAnyType(card.type, ['legend', 'battlefield', 'rune'])
   );

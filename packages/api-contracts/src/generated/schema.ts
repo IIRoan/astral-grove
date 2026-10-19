@@ -1603,6 +1603,7 @@ export interface components {
       dir: 'asc' | 'desc';
       refresh?: boolean;
       excludeTokens?: boolean;
+      excludeBanned?: boolean;
     };
     /** @enum {string} */
     CardsListQueryColorMode: 'all' | 'within';
@@ -4510,6 +4511,7 @@ export interface components {
       dir: 'asc' | 'desc';
       refresh?: 'true' | 'false';
       excludeTokens?: 'true' | 'false';
+      excludeBanned?: 'true' | 'false';
     };
     CardsListResponseInput: {
       data: {
@@ -8459,6 +8461,7 @@ export interface operations {
         dir?: 'asc' | 'desc';
         refresh?: 'true' | 'false';
         excludeTokens?: 'true' | 'false';
+        excludeBanned?: 'true' | 'false';
       };
       header?: never;
       path?: never;

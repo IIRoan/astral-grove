@@ -386,9 +386,60 @@ pub fn filters(query: &Value, sql: &mut Sql) -> String {
     if query["excludeTokens"] == true {
         clauses.push("v.variant_number !~* '-T[0-9]+$'".into());
     }
+    // Same rule as `isBanned` on list items: a ban date that has already taken effect.
+    if query["excludeBanned"] == true {
+        clauses.push("(c.ban_effective_date IS NULL OR c.ban_effective_date>now())".into());
+    }
     if clauses.is_empty() {
         "true".into()
     } else {
         clauses.join(" AND ")
+    }
+}
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+pub(crate) mod tests {
+    use super::*;
+    // Same file is asserted by packages/contracts/src/search-rules-parity.test.ts.
+    pub(crate) fn fixture() -> Value {
+        serde_json::from_str(include_str!(
+            "../../../packages/contracts/fixtures/search-rules-parity.json"
+        ))
+        .unwrap()
+    }
+    #[test]
+    fn normalize_and_parse_match_the_shared_fixture() {
+        let fixture = fixture();
+        for case in fixture["normalize"].as_array().unwrap() {
+            assert_eq!(
+                normalize(case["input"].as_str().unwrap()),
+                case["expected"],
+                "{case}"
+            );
+        }
+        for case in fixture["parse"].as_array().unwrap() {
+            let query = parse(case["input"].as_str().unwrap());
+            assert_eq!(
+                serde_json::json!(query.identity),
+                case["identity"],
+                "{case}"
+            );
+            assert_eq!(serde_json::json!(query.intents), case["intents"], "{case}");
+        }
+    }
+    #[test]
+    fn score_tiers_match_the_shared_fixture() {
+        let fixture = fixture();
+        let cards = fixture["cards"].as_array().unwrap();
+        for case in fixture["score"].as_array().unwrap() {
+            let query = parse(case["query"].as_str().unwrap());
+            let tiers: Vec<u8> = cards.iter().map(|card| score(card, &query)).collect();
+            assert_eq!(
+                serde_json::json!(tiers),
+                case["tiers"],
+                "query {}",
+                case["query"]
+            );
+        }
     }
 }

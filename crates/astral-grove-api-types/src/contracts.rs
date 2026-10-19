@@ -188,6 +188,8 @@ pub struct CardsListQuery {
     pub refresh: Option<QueryBooleanString>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exclude_tokens: Option<QueryBooleanString>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exclude_banned: Option<QueryBooleanString>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]

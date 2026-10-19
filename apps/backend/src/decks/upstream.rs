@@ -40,14 +40,14 @@ fn placeholder(reference: &Value) -> Value {
 }
 // Catalog marks Signature cards via `super`; older printings only via rarity/variant text.
 fn is_signature(detail: &Value, variant: &Value) -> bool {
-    db::string(detail, "super").eq_ignore_ascii_case("signature")
-        || format!(
-            "{} {}",
-            db::string(variant, "rarity"),
-            db::string(variant, "variantType")
-        )
-        .to_lowercase()
-        .contains("signature")
+    format!(
+        "{} {} {}",
+        db::string(detail, "super"),
+        db::string(variant, "rarity"),
+        db::string(variant, "variantType")
+    )
+    .to_lowercase()
+    .contains("signature")
 }
 pub async fn deck_card(state: &AppState, number: &str) -> Result<Value> {
     let response = catalog::store::detail(state, number, false).await?;
@@ -573,6 +573,7 @@ pub async fn sync_owned(state: &AppState, payload: &Value) -> Value {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     #[test]
@@ -589,6 +590,17 @@ mod tests {
             &json!({"super":"Champion"}),
             &json!({"rarity":"Epic"})
         ));
+    }
+    #[test]
+    fn signature_detection_matches_the_shared_fixture() {
+        let fixture = crate::search::tests::fixture();
+        for case in fixture["signature"].as_array().unwrap() {
+            assert_eq!(
+                is_signature(case, case),
+                case["expected"].as_bool().unwrap(),
+                "{case}"
+            );
+        }
     }
     #[test]
     fn legend_fallback_is_typed_as_a_legend() {

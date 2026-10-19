@@ -188,7 +188,11 @@ export async function importFlatDeckList(
       if (section === 'legend') {
         deck = { ...deck, legend: card };
       } else if (section === 'champion') {
-        deck = { ...deck, champion: card };
+        // First copy fills the champion slot; extra copies live in the main deck (as deck codes do).
+        const extra = deck.champion ? count : count - 1;
+        if (!deck.champion) deck = { ...deck, champion: card };
+        if (extra > 0)
+          deck = addCardToDeck(deck, card, { section: 'mainDeck', count: extra });
       } else {
         deck = addCardToDeck(deck, card, { section, count });
       }

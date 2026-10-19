@@ -43,7 +43,7 @@ pub async fn run(state: &Arc<AppState>, args: &[String]) -> anyhow::Result<Value
     let mut service = Vec::new();
     for benchmark in benchmarks {
         let mut transport = benchmark["query"].clone();
-        for key in ["excludeTokens", "refresh"] {
+        for key in ["excludeTokens", "excludeBanned", "refresh"] {
             if let Some(value) = transport[key].as_bool() {
                 transport[key] = json!(value.to_string());
             }

@@ -297,6 +297,7 @@ fn make_cards_list_query() -> z::Schema {
         ),
         ("refresh", schema("QueryBooleanString").optional()),
         ("excludeTokens", schema("QueryBooleanString").optional()),
+        ("excludeBanned", schema("QueryBooleanString").optional()),
     ])
 }
 

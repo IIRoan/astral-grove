@@ -1551,6 +1551,17 @@
                 { "type": "string", "const": "false" }
               ]
             }
+          },
+          {
+            "in": "query",
+            "name": "excludeBanned",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "const": "true" },
+                { "type": "string", "const": "false" }
+              ]
+            }
           }
         ]
       }
@@ -3672,7 +3683,8 @@
           },
           "dir": { "type": "string", "enum": ["asc", "desc"], "default": "asc" },
           "refresh": { "type": "boolean" },
-          "excludeTokens": { "type": "boolean" }
+          "excludeTokens": { "type": "boolean" },
+          "excludeBanned": { "type": "boolean" }
         },
         "required": ["colorMode", "page", "limit", "sortBy", "dir"]
       },
@@ -9595,6 +9607,12 @@
             ]
           },
           "excludeTokens": {
+            "anyOf": [
+              { "type": "string", "enum": ["true"] },
+              { "type": "string", "enum": ["false"] }
+            ]
+          },
+          "excludeBanned": {
             "anyOf": [
               { "type": "string", "enum": ["true"] },
               { "type": "string", "enum": ["false"] }

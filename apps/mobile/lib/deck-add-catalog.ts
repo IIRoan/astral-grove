@@ -2,6 +2,7 @@ import type { CardDetail, CardListItem, CardsListQuery } from '@riftbound/contra
 import {
   cardPrimaryNameToken,
   deckFormatRestrictsPicker,
+  isMainDeckCardType,
   isTokenVariantNumber,
   legendChampionTags,
 } from '@riftbound/contracts';
@@ -328,20 +329,10 @@ function detailMapFromBatch(details: CardDetail[]): Map<string, CardDetail> {
 function matchesDeckAddSectionType(card: DeckCard, section: DeckSectionKey): boolean {
   if (section === 'champion') return isChampionUnit(card);
   if (section === 'legend') return isLegendCard(card);
-  // Sideboard uses the same type pool as main deck (units/gear/spells).
-  if (section === 'sideboard') return cardMatchesSectionType(card, 'mainDeck');
+  // Same type rule the validator uses, so champion units stay addable to Main Deck / Sideboard.
+  if (section === 'mainDeck' || section === 'sideboard')
+    return isMainDeckCardType(card);
   return cardMatchesSectionType(card, section);
-}
-
-function cardFromListItemForSection(
-  item: CardListItem,
-  section: DeckSectionKey
-): DeckCard {
-  const card = deckCardFromListItem(item);
-  if (section === 'champion') {
-    return { ...card, super: 'Champion' };
-  }
-  return card;
 }
 
 function matchesSectionFromListItem(
@@ -352,7 +343,7 @@ function matchesSectionFromListItem(
     case 'legend':
       return cardHasType(item, 'legend');
     case 'champion':
-      return cardHasType(item, 'unit');
+      return isChampionUnit(item);
     case 'runes':
       return cardHasType(item, 'rune');
     case 'battlefields':
@@ -372,7 +363,7 @@ export function buildDeckAddCandidates(args: {
   details: CardDetail[];
   deck?: DeckState;
 }): DeckCard[] {
-  const { section, listItems, details, deck } = args;
+  const { section, listItems, details } = args;
   if (!listItems.length) return [];
 
   const detailByKey = detailMapFromBatch(details);
@@ -389,15 +380,9 @@ export function buildDeckAddCandidates(args: {
     const detail = detailByKey.get(item.variantNumber) ?? detailByKey.get(item.cardId);
     const card = detail
       ? deckCardFromDetail(detail, item.variantNumber)
-      : cardFromListItemForSection(item, section);
+      : deckCardFromListItem(item);
 
     if (!matchesDeckAddSectionType(card, section)) continue;
-    if ((section === 'mainDeck' || section === 'sideboard') && isChampionUnit(card)) {
-      continue;
-    }
-    if (section === 'sideboard' && card.isSignature && deck?.format !== 'pre-rift') {
-      continue;
-    }
 
     seenVariants.add(card.variantNumber);
     candidates.push(card);

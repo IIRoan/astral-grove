@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import type { DeckCard, DeckSectionKey } from './deck-types';
-import { createEmptyDeck } from './deck-card';
+import { addCardToDeck, createEmptyDeck } from './deck-card';
 import { isCardEligibleForSection } from './deck-eligibility';
+import { validateDeck } from './deck-validation';
 
 function mockCard(overrides: Partial<DeckCard> & Pick<DeckCard, 'name'>): DeckCard {
   return {
@@ -118,6 +119,17 @@ describe('deck-eligibility', () => {
 
     expect(eligible(deck, 'champion', championJinx)).toBe(true);
     expect(eligible(deck, 'champion', championNotJinx)).toBe(false);
+  });
+
+  test('matches the validator: off-domain champions are blocked, champion units fit the Main Deck', () => {
+    const deck = createEmptyDeck();
+    deck.legend = legendFuryCalm;
+    deck.champion = championJinx;
+    const offDomain = { ...championJinx, name: 'Jinx - Rebel', colors: ['Order'] };
+
+    expect(eligible({ ...deck, champion: null }, 'champion', offDomain)).toBe(false);
+    expect(eligible(deck, 'mainDeck', championJinx)).toBe(true);
+    expect(eligible(deck, 'sideboard', championNotJinx)).toBe(true);
   });
 
   test('allows champion units regardless of legend domain colors', () => {
@@ -518,5 +530,73 @@ describe('deck-eligibility', () => {
         })
       )
     ).toBe(false);
+  });
+
+  // Per-card rules only: counts (main_deck_count, copy_limit, ...) are checked after building.
+  const PER_CARD_CODES = new Set([
+    'card_type',
+    'champion_supertype',
+    'champion_tag',
+    'champion_tag_mismatch',
+    'domain_cap',
+    'domain_identity',
+    'signature_tag',
+  ]);
+  const perCardErrors = (deck: ReturnType<typeof createEmptyDeck>) =>
+    validateDeck(deck)
+      .filter((m) => m.type === 'error' && PER_CARD_CODES.has(m.code))
+      .map((m) => m.message);
+
+  test('picker eligibility agrees with the shared validator for single cards', () => {
+    const offDomainChampion = {
+      ...championJinx,
+      name: 'Jinx - Rebel',
+      colors: ['Order'],
+    };
+    const token = mockCard({ name: 'Gold', type: 'Gear', variantNumber: 'SFD-T03' });
+    const pool = [
+      championJinx,
+      championNotJinx,
+      offDomainChampion,
+      mainUnitFury,
+      mainUnitMind,
+      furyRune,
+      battlefieldChaos,
+      signatureJinx,
+      signatureWrongTag,
+      token,
+      legendFuryCalm,
+    ];
+    const sections: DeckSectionKey[] = [
+      'champion',
+      'mainDeck',
+      'sideboard',
+      'runes',
+      'battlefields',
+    ];
+    const mismatches: string[] = [];
+    for (const format of ['constructed', 'pre-rift'] as const) {
+      for (const section of sections) {
+        for (const card of pool) {
+          const base = createEmptyDeck();
+          base.format = format;
+          base.legend = legendFuryCalm;
+          base.champion = section === 'champion' ? null : championJinx;
+          const before = new Set(perCardErrors(base));
+          const added = perCardErrors(addCardToDeck(base, card, { section }));
+          const validatorOk = added.every((message) => before.has(message));
+          const pickerOk = eligible(base, section, card);
+          // The validator skips the Pre-Rift pool; the picker still only offers Main Deck types there.
+          const poolOnly =
+            format === 'pre-rift' && section === 'sideboard' && !pickerOk;
+          if (pickerOk !== validatorOk && !poolOnly) {
+            mismatches.push(
+              `${format} ${section} ${card.name}: picker=${String(pickerOk)} validator=${String(validatorOk)}`
+            );
+          }
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
   });
 });

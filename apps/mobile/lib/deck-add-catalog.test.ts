@@ -93,6 +93,7 @@ const settListItems: CardListItem[] = [
     variantNumber: 'OGN-164',
     name: 'Sett, Brawler',
     type: 'Unit',
+    super: 'Champion',
     energy: 5,
     might: 4,
     power: 1,
@@ -116,6 +117,7 @@ const settListItems: CardListItem[] = [
     variantNumber: 'OGN-164a',
     name: 'Sett, Brawler',
     type: 'Unit',
+    super: 'Champion',
     energy: 5,
     might: 4,
     power: 1,
@@ -366,7 +368,7 @@ describe('deck-add-catalog', () => {
     expect(displayed).toHaveLength(1);
   });
 
-  test('sideboard accepts main-deck card types and skips signatures for Constructed', () => {
+  test('Constructed sideboard accepts signature cards, as the validator does', () => {
     const unitItem = {
       cardId: 'u1',
       variantNumber: 'OGN-010',
@@ -399,7 +401,10 @@ describe('deck-add-catalog', () => {
       details: [],
     });
 
-    expect(candidates.map((card) => card.name)).toEqual(['Apprentice Mage']);
+    expect(candidates.map((card) => card.name)).toEqual([
+      'Apprentice Mage',
+      'Signature Spell',
+    ]);
   });
 
   test('Pre-Rift sideboard includes signature cards', () => {
@@ -541,6 +546,32 @@ describe('deck-add-catalog', () => {
     const hits = searchLocalDeckAddCatalog(settListItems, 'champion', deck, 'brawler');
     expect(hits.length).toBeGreaterThan(0);
     expect(hits.every((item) => item.name === 'Sett, Brawler')).toBe(true);
+  });
+
+  test('local champion fallback skips units that are not champions', () => {
+    const deck = createEmptyDeck();
+    deck.format = 'pre-rift';
+    const poro = {
+      ...settListItems[0]!,
+      cardId: 'poro',
+      name: 'Poro Herder',
+      super: null,
+    };
+    expect(searchLocalDeckAddCatalog([poro], 'champion', deck, 'poro')).toEqual([]);
+    expect(
+      buildDeckAddCandidates({ section: 'champion', listItems: [poro], details: [] })
+    ).toEqual([]);
+  });
+
+  test('champion units are Main Deck and Sideboard candidates, as the validator allows', () => {
+    for (const section of ['mainDeck', 'sideboard'] as const) {
+      const candidates = buildDeckAddCandidates({
+        section,
+        listItems: settListItems,
+        details: [settBrawlerDetail],
+      });
+      expect(candidates.map((card) => card.name)).toContain('Sett, Brawler');
+    }
   });
 
   test('pickDeckAddDisplayListItems keeps local hits when the API page is empty', () => {
