@@ -56,12 +56,13 @@ pub async fn mutate(
         return Err(AppError::unauthorized());
     }
     let catalog = db::rows(&tx,"SELECT variant_number,foil_mode,variant_label,variant_type FROM variants WHERE variant_number=$1",vec![variant.into()]).await?;
-    let fallback = serde_json::json!({});
-    let card = catalog.first().unwrap_or(&fallback);
-    let foil = input
-        .get("isFoil")
-        .and_then(Value::as_bool)
-        .unwrap_or_else(|| {
+    let missing = || AppError::not_found(&format!("Variant {variant} not found"));
+    let foil = match (
+        input.get("isFoil").and_then(Value::as_bool),
+        catalog.first(),
+    ) {
+        (Some(foil), _) => foil,
+        (None, Some(card)) => {
             db::string(card, "foil_mode").eq_ignore_ascii_case("foil_only")
                 || [
                     variant,
@@ -70,7 +71,9 @@ pub async fn mutate(
                 ]
                 .iter()
                 .any(|text| text.to_lowercase().contains("foil"))
-        });
+        }
+        (None, None) => return Err(missing()),
+    };
     let condition = input
         .get("condition")
         .and_then(Value::as_str)
@@ -101,6 +104,9 @@ pub async fn mutate(
             .max(0),
         Mutation::Delete => 0,
     };
+    if after > 0 && catalog.is_empty() {
+        return Err(missing());
+    }
     if after <= 0 {
         db::execute(&tx,"DELETE FROM collection_items WHERE collection_id=$1::uuid AND variant_number=$2 AND condition=$3 AND language=$4 AND is_foil=$5",keys.clone()).await?;
     } else if matches!(mutation, Mutation::Set) {
@@ -158,26 +164,32 @@ pub async fn mutate(
     Ok(json!({"data":item}))
 }
 
+fn unique_numbers(numbers: Vec<String>) -> Vec<String> {
+    let mut seen = std::collections::HashSet::with_capacity(numbers.len());
+    numbers
+        .into_iter()
+        .filter(|number| seen.insert(number.clone()))
+        .collect()
+}
+
 pub async fn quantities(
     state: &AppState,
     collection_id: &str,
     numbers: Vec<String>,
 ) -> Result<Value> {
-    let mut unique = Vec::new();
-    for number in numbers {
-        if !unique.contains(&number) {
-            unique.push(number);
-        }
-    }
+    let unique = unique_numbers(numbers);
     let mut result = Vec::new();
-    for chunk in unique.chunks(200) {
+    for chunk in unique.chunks(1000) {
         let rows = db::rows(&state.db,"SELECT variant_number AS \"variantNumber\",is_foil AS \"isFoil\",sum(quantity)::bigint AS quantity FROM collection_items WHERE collection_id=$1::uuid AND variant_number=ANY($2::text[]) GROUP BY variant_number,is_foil",vec![collection_id.into(),chunk.to_vec().into()]).await?;
+        let mut grouped = std::collections::HashMap::<String, Vec<Value>>::new();
+        for row in rows {
+            grouped
+                .entry(db::string(&row, "variantNumber").into())
+                .or_default()
+                .push(row);
+        }
         for number in chunk {
-            let mut matching: Vec<_> = rows
-                .iter()
-                .filter(|row| row["variantNumber"] == *number)
-                .cloned()
-                .collect();
+            let mut matching = grouped.remove(number).unwrap_or_default();
             matching.sort_by_key(|row| row["isFoil"].as_bool().unwrap_or(false));
             if matching.is_empty() {
                 result.push(json!({"variantNumber":number,"isFoil":false,"quantity":0}));
@@ -187,4 +199,22 @@ pub async fn quantities(
         }
     }
     Ok(json!({"data":result}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quantity_deduplication_keeps_first_seen_order_and_exact_variant_names() {
+        let input = ["OGN-002", "OGN-001", "ogn-002", "OGN-002", "OGN-001"];
+        assert_eq!(
+            unique_numbers(input.into_iter().map(str::to_owned).collect()),
+            ["OGN-002", "OGN-001", "ogn-002"]
+        );
+        let expected: Vec<_> = (0..5000).map(|index| format!("variant-{index}")).collect();
+        let mut repeated = expected.clone();
+        repeated.extend(expected.iter().rev().cloned());
+        assert_eq!(unique_numbers(repeated), expected);
+    }
 }

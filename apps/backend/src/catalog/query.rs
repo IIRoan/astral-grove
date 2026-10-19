@@ -6,6 +6,7 @@ use tokio::sync::Mutex;
 pub struct Cache {
     checks: Mutex<crate::cache::TtlCache<bool>>,
     results: Mutex<crate::cache::TtlCache<Value>>,
+    hashes: std::sync::Mutex<(u64, Option<(String, String)>)>,
 }
 impl Default for Cache {
     fn default() -> Self {
@@ -20,12 +21,30 @@ impl Default for Cache {
                 100,
                 None,
             )),
+            hashes: Default::default(),
         }
     }
 }
 impl Cache {
     pub async fn invalidate(&self) {
+        if let Ok(mut hashes) = self.hashes.lock() {
+            *hashes = (hashes.0.wrapping_add(1), None);
+        }
         self.results.lock().await.clear();
+    }
+    pub fn hashes(&self) -> (u64, Option<(String, String)>) {
+        self.hashes
+            .lock()
+            .map(|hashes| hashes.clone())
+            .unwrap_or_default()
+    }
+    // A concurrent invalidate bumps the generation, so hashes read before it are not memoized.
+    pub fn remember_hashes(&self, generation: u64, value: (String, String)) {
+        if let Ok(mut hashes) = self.hashes.lock()
+            && hashes.0 == generation
+        {
+            hashes.1 = Some(value);
+        }
     }
 }
 const JOINS: &str = "FROM variants v JOIN cards c ON c.id=v.card_id JOIN sets s ON s.id=v.set_id";
@@ -87,14 +106,13 @@ async fn local(state: &AppState, query: &Value, hash: &str) -> Result<Value> {
     let mut sql = search::Sql::new();
     let filter = search::filters(query, &mut sql);
     let mut rows = db::rows(&state.db, &statement, values).await?;
-    let prices = crate::prices::all(state).await?;
     let null_card_ids: Vec<String> = rows
         .iter()
         .filter(|row| row["cardmarketId"].is_null())
         .filter_map(|row| row["cardId"].as_str().map(str::to_owned))
         .collect();
     if !null_card_ids.is_empty() {
-        let siblings=db::rows(&state.db,"SELECT card_id::text AS \"cardId\",variant_number AS \"variantNumber\",cardmarket_id AS \"cardmarketId\" FROM variants WHERE card_id::text=ANY($1::text[]) AND cardmarket_id IS NOT NULL",vec![null_card_ids.into()]).await?;
+        let siblings=db::rows(&state.db,"SELECT card_id::text AS \"cardId\",variant_number AS \"variantNumber\",cardmarket_id AS \"cardmarketId\" FROM variants WHERE card_id=ANY($1::text[]::uuid[]) AND cardmarket_id IS NOT NULL",vec![null_card_ids.into()]).await?;
         for row in &mut rows {
             if row["cardmarketId"].is_null() {
                 let siblings: Vec<_> = siblings
@@ -109,6 +127,11 @@ async fn local(state: &AppState, query: &Value, hash: &str) -> Result<Value> {
             }
         }
     }
+    let ids = rows
+        .iter()
+        .filter_map(|row| row["cardmarketId"].as_i64())
+        .collect();
+    let prices = crate::prices::index(state, Some(ids)).await?;
     let mut items = mapper::group(
         rows.iter()
             .map(|row| mapper::row_item(state, row, &prices))
@@ -331,7 +354,7 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
 }
 pub async fn index(state: &AppState) -> Result<Value> {
     let rows=db::rows(&state.db,&format!("SELECT c.upstream_raw AS card,v.upstream_raw AS variant,v.cardmarket_id AS \"cardmarketId\",v.tcgplayer_id AS \"tcgplayerId\" {JOINS} ORDER BY c.name,v.variant_number"),vec![]).await?;
-    let prices = crate::prices::all(state).await?;
+    let prices = crate::prices::index(state, None).await?;
     let items = mapper::group(
         rows.iter()
             .map(|row| {

@@ -5,6 +5,14 @@ use crate::{
 use sea_orm::TransactionTrait;
 
 pub async fn ensure(state: &AppState, user_id: &str) -> Result<String> {
+    const MEMBERSHIP: &str =
+        "SELECT collection_id::text AS id FROM collection_members WHERE user_id=$1";
+    if let Some(row) = db::rows(&state.db, MEMBERSHIP, vec![user_id.into()])
+        .await?
+        .first()
+    {
+        return Ok(db::string(row, "id").to_owned());
+    }
     let tx = state.db.begin().await?;
     let user = db::rows(
         &tx,
@@ -15,12 +23,7 @@ pub async fn ensure(state: &AppState, user_id: &str) -> Result<String> {
     if user.is_empty() {
         return Err(AppError::unauthorized());
     }
-    let existing = db::rows(
-        &tx,
-        "SELECT collection_id::text AS id FROM collection_members WHERE user_id=$1",
-        vec![user_id.into()],
-    )
-    .await?;
+    let existing = db::rows(&tx, MEMBERSHIP, vec![user_id.into()]).await?;
     let id = if let Some(row) = existing.first() {
         db::string(row, "id").to_owned()
     } else {

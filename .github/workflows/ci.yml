@@ -124,6 +124,17 @@ jobs:
         run: |
           bun --no-env-file scripts/rust-migration/auth-parity.ts
           bun --no-env-file scripts/rust-migration/http-boundary-parity.ts
+      - name: Packaged backend performance and load tests
+        env:
+          ASTRAL_PERF_REPORT: ${{ runner.temp }}/backend-performance.json
+        run: bun run --cwd apps/backend test:perf
+      - name: Upload backend performance report and SQL plans
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-performance
+          path: ${{ runner.temp }}/backend-performance*.json
+          if-no-files-found: ignore
       - name: Packaged server diagnostics
         if: failure()
         run: cat /tmp/astral-native-test-*.log /tmp/astral-auth-parity-server.log /tmp/astral-grove-rust-e2e-server.log 2>/dev/null || true

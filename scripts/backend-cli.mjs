@@ -38,6 +38,21 @@ if (process.env.ASTRAL_NATIVE_ENV_LOADED !== '1' && envFiles.length)
       { ...process.env, ASTRAL_NATIVE_ENV_LOADED: '1' }
     )
   );
+// Local .env files may hold production credentials; dev commands migrate on start, so only loopback is allowed by default.
+const command = process.argv[2] ?? 'serve';
+const selfGuarded = ['prune:prices', 'explain:search'].includes(command);
+if (!selfGuarded && process.env.ASTRAL_ALLOW_REMOTE_DATABASE !== '1') {
+  let host = '';
+  try {
+    host = new URL(process.env.DATABASE_URL ?? '').hostname;
+  } catch {}
+  if (!['localhost', '127.0.0.1', '[::1]', '::1'].includes(host)) {
+    console.error(
+      `Refusing \`${command}\`: DATABASE_URL host "${host || 'unset'}" is not loopback. Set ASTRAL_ALLOW_REMOTE_DATABASE=1 to override.`
+    );
+    process.exit(1);
+  }
+}
 const binary = resolve(root, 'target/debug/astral-grove-server');
 if (!existsSync(binary) || process.env.ASTRAL_SKIP_BUILD !== '1') {
   const code = await run('cargo', [

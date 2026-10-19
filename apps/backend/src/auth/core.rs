@@ -252,33 +252,22 @@ pub async fn dispatch(
                     "POST method requires deferSessionRefresh to be enabled in session config",
                 ));
             }
-            let mut session = service::get_session(state, headers).await?;
+            let (session, renewed) =
+                service::session_with_refresh(state, headers, query["disableRefresh"] != true)
+                    .await?;
             let mut response_headers = HeaderMap::new();
             response_headers.insert(
                 "cache-control",
                 axum::http::HeaderValue::from_static("no-store"),
             );
             response_headers.insert("pragma", axum::http::HeaderValue::from_static("no-cache"));
-            if let Some(current) = session.as_mut() {
-                let refresh = time::OffsetDateTime::parse(
-                    &current.session.expires_at,
-                    &time::format_description::well_known::Rfc3339,
-                )
-                .is_ok_and(|expires| {
-                    expires.unix_timestamp() - 604800 + 86400
-                        <= time::OffsetDateTime::now_utc().unix_timestamp()
-                });
-                if refresh
-                    && query["disableRefresh"] != true
-                    && !cookies::dont_remember(&state.config, headers)
-                {
-                    db::execute(&state.db,"UPDATE session SET expires_at=date_trunc('milliseconds',now())+interval '7 days',updated_at=date_trunc('milliseconds',now()) WHERE token=$1 AND expires_at>now()",vec![current.session.token.clone().into()]).await?;
+            if let Some(current) = &session {
+                if renewed {
                     response_headers.extend(service::signed_headers(
                         state,
                         &current.session.token,
                         true,
                     )?);
-                    session = service::get_session(state, headers).await?;
                 }
             } else if let Some(token) = cookies::token(&state.config, headers) {
                 db::execute(

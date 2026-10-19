@@ -60,7 +60,9 @@ async fn prepare(state: &AppState, request: Request) -> Result<Request> {
         .trim_start_matches("/api/auth")
         .to_owned();
     let ip = super::service::client_ip(state, request.headers());
-    if state.config.production && !ip.is_empty() {
+    if state.config.production {
+        // Better Auth falls back to one shared per-path bucket when no trusted IP is available.
+        let ip = if ip.is_empty() { "no-trusted-ip" } else { &ip };
         let (max, window) = if path.contains("email-otp")
             || [
                 "/request-password-reset",
@@ -80,7 +82,7 @@ async fn prepare(state: &AppState, request: Request) -> Result<Request> {
         {
             (3, 10)
         } else {
-            (100, 60)
+            (100, 10)
         };
         if let Some(retry) = state
             .limits

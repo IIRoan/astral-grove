@@ -52,6 +52,7 @@ export function createHarness() {
         }
         return {
           origin,
+          pid: process.pid,
           config,
           logPath: `/tmp/astral-native-test-${port}.log`,
           fetch: (path: string, options: RequestInit = {}) =>

@@ -300,8 +300,15 @@ async fn events(
 }
 
 fn mutation_response(mut value: Value) -> Result<Json<CollectionMutationResponse>> {
+    // The mutation is already committed, so an unparseable item degrades to data:null instead of an error.
     if !value["data"].is_null() {
-        value["data"] = http::value("CollectionItem", &value["data"])?;
+        value["data"] = http::value("CollectionItem", &value["data"]).unwrap_or_else(|_| {
+            tracing::warn!(
+                category = "collection",
+                "Mutated item failed response schema"
+            );
+            Value::Null
+        });
     }
     http::output(value)
 }

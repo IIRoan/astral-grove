@@ -40,8 +40,8 @@ pub fn group_key(variant: &Value) -> String {
     }
     number.into()
 }
-pub fn summaries(rows: &[Value], id: Option<i64>) -> Vec<Value> {
-    rows.iter().filter(|row|id.is_some()&&row["cardmarketId"].as_i64()==id).map(|row|json!({"currency":"EUR","low":row["lowPrice"],"market":row["marketPrice"],"avg7d":row["avg7Day"],"isFoil":row["isFoil"]})).collect()
+pub fn summaries(prices: &prices::Index, id: Option<i64>) -> Vec<Value> {
+    id.and_then(|id| prices.get(&id)).map(Vec::as_slice).unwrap_or(&[]).iter().map(|row|json!({"currency":"EUR","low":row["lowPrice"],"market":row["marketPrice"],"avg7d":row["avg7Day"],"isFoil":row["isFoil"]})).collect()
 }
 fn display(rows: &[Value], foil: bool) -> Value {
     let trend = rows
@@ -66,7 +66,7 @@ fn display(rows: &[Value], foil: bool) -> Value {
         .map(|row| (*row).clone())
         .unwrap_or(Value::Null)
 }
-fn printing(variant: &Value, foil: bool, rows: &[Value]) -> Value {
+fn printing(variant: &Value, foil: bool, prices: &prices::Index) -> Value {
     let label = db::string(variant, "variantLabel");
     let label = if foil {
         if !label.is_empty() && label != "Standard" && !label.to_lowercase().contains("foil") {
@@ -79,7 +79,7 @@ fn printing(variant: &Value, foil: bool, rows: &[Value]) -> Value {
     } else {
         label
     };
-    let price = display(&summaries(rows, variant["cardmarketId"].as_i64()), foil);
+    let price = display(&summaries(prices, variant["cardmarketId"].as_i64()), foil);
     json!({"variantNumber":variant["variantNumber"],"variantLabel":label,"isFoil":foil,"foilMode":variant["foilMode"],"priceEur":price})
 }
 pub fn banned(value: &Value) -> bool {
@@ -90,7 +90,7 @@ pub fn banned(value: &Value) -> bool {
         i128::from(date) <= time::OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000
     })
 }
-pub fn item(state: &AppState, card: &Value, variant: &Value, prices: &[Value]) -> Value {
+pub fn item(state: &AppState, card: &Value, variant: &Value, prices: &prices::Index) -> Value {
     let printings = if dual(variant) {
         vec![
             printing(variant, false, prices),
@@ -104,7 +104,7 @@ pub fn item(state: &AppState, card: &Value, variant: &Value, prices: &[Value]) -
     crate::images::rewrite(state, &mut result["imageUrl"]);
     result
 }
-pub fn row_item(state: &AppState, row: &Value, prices: &[Value]) -> Value {
+pub fn row_item(state: &AppState, row: &Value, prices: &prices::Index) -> Value {
     let mut card = row.clone();
     card["id"] = row["cardId"].clone();
     card["colors"] = json!(
@@ -194,7 +194,13 @@ pub fn group(items: Vec<Value>) -> Vec<Value> {
         })
         .collect()
 }
-pub fn detail(state: &AppState, card: &Value, rows: &[Value]) -> Value {
+pub fn market_ids(card: &Value) -> Vec<i64> {
+    array(card, "variants")
+        .iter()
+        .filter_map(|variant| variant["cardmarketId"].as_i64())
+        .collect()
+}
+pub fn detail(state: &AppState, card: &Value, prices: &prices::Index) -> Value {
     let variants = array(card, "variants");
     let mut result = card.clone();
     result["super"] = card["super"].clone();
@@ -209,7 +215,7 @@ pub fn detail(state: &AppState, card: &Value, rows: &[Value]) -> Value {
                     row[key] = variant[key].clone();
                 }
                 row["cardmarketId"] = json!(id);
-                row["prices"] = json!(summaries(rows, id));
+                row["prices"] = json!(summaries(prices, id));
                 row
             })
             .collect::<Vec<_>>()

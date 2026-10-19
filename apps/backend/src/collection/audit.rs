@@ -71,7 +71,7 @@ pub async fn activity(state: &AppState, collection: &str, input: &Value) -> Resu
             numbers.push(number.into());
         }
     }
-    numbers.truncate(2000);
+    numbers.truncate(5000);
     if numbers.is_empty() {
         return Ok(json!({"data":[],"meta":{"hasMore":false,"nextCursor":null}}));
     }

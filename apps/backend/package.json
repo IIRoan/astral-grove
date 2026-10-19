@@ -9,6 +9,7 @@
     "start": "../../target/release/astral-grove-server",
     "typecheck": "cargo check --workspace --locked && tsc --noEmit -p test/tsconfig.json",
     "test:unit": "cargo test --workspace --locked",
+    "test:perf": "bun --no-env-file test/performance/run.ts",
     "test:e2e": "cargo build --package astral-grove-server --bins --locked && bun run test:http",
     "test:http": "bun --no-env-file test --max-concurrency=1 test/*.test.ts",
     "test": "bun run test:unit && bun run test:e2e && bun run test:compat && bun run test:parity",

@@ -162,6 +162,11 @@ async fn resolve_refs(state: &AppState, refs: &[Value]) -> Result<HashMap<String
         .collect();
     let pending_cards: HashSet<_> = refs
         .iter()
+        .filter(|row| {
+            row["variantId"]
+                .as_str()
+                .is_some_and(|id| pending.contains(id))
+        })
         .filter_map(|row| row["cardId"].as_str())
         .collect();
     let mut fetched = HashSet::new();

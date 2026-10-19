@@ -11,8 +11,31 @@ use std::sync::Arc;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 pub const PRICE_FIELDS: &str = "cardmarket_id AS \"cardmarketId\",is_foil AS \"isFoil\",'cardmarket' AS provider,'EUR' AS currency,low_price AS \"lowPrice\",market_price AS \"marketPrice\",mid_price AS \"midPrice\",high_price AS \"highPrice\"";
-pub async fn all(state: &AppState) -> Result<Vec<Value>> {
-    db::rows(&state.db,&format!("SELECT id::text AS id,{PRICE_FIELDS},avg_1_day AS \"avg1Day\",avg_7_day AS \"avg7Day\",avg_30_day AS \"avg30Day\",to_char(upstream_last_updated AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"lastUpdated\" FROM prices"),vec![]).await
+pub async fn rows(state: &AppState, ids: Option<Vec<i64>>) -> Result<Vec<Value>> {
+    let select = format!(
+        "SELECT id::text AS id,{PRICE_FIELDS},avg_1_day AS \"avg1Day\",avg_7_day AS \"avg7Day\",avg_30_day AS \"avg30Day\",to_char(upstream_last_updated AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"lastUpdated\" FROM prices"
+    );
+    match ids {
+        Some(ids) => {
+            db::rows(
+                &state.db,
+                &format!("{select} WHERE cardmarket_id=ANY($1::bigint[])"),
+                vec![ids.into()],
+            )
+            .await
+        }
+        None => db::rows(&state.db, &select, vec![]).await,
+    }
+}
+pub type Index = std::collections::HashMap<i64, Vec<Value>>;
+pub async fn index(state: &AppState, ids: Option<Vec<i64>>) -> Result<Index> {
+    let mut index = Index::new();
+    for row in rows(state, ids).await? {
+        if let Some(id) = row["cardmarketId"].as_i64() {
+            index.entry(id).or_default().push(row);
+        }
+    }
+    Ok(index)
 }
 pub fn candidates(number: &str) -> Vec<String> {
     let trimmed = number.trim().to_lowercase();
@@ -77,11 +100,8 @@ async fn list(
     let input = http::value("PricesListQuery", &http::query(query.as_deref()))?;
     let id = market_id(&state, &input).await?;
     let foil = input["isFoil"].as_bool();
-    let mut rows = all(&state).await?;
-    rows.retain(|row| {
-        id.is_none_or(|id| row["cardmarketId"] == id)
-            && foil.is_none_or(|foil| row["isFoil"] == foil)
-    });
+    let mut rows = rows(&state, id.map(|id| vec![id])).await?;
+    rows.retain(|row| foil.is_none_or(|foil| row["isFoil"] == foil));
     let meta=db::rows(&state.db,"SELECT content_hash AS hash,to_char(last_success_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS synced FROM sync_state WHERE key='prices'",vec![]).await?.into_iter().next().unwrap_or(json!({}));
     http::respond(
         "PricesListResponse",
@@ -168,8 +188,8 @@ async fn stats(
         .iter()
         .filter_map(|row| row["cardmarketId"].as_i64())
         .collect();
+    let prices = rows(&state, Some(ids.clone())).await?;
     let daily = daily(&state, ids, days).await?;
-    let prices = all(&state).await?;
     let today = time::OffsetDateTime::now_utc().date().to_string();
     let mut data = Vec::new();
     for item in items {

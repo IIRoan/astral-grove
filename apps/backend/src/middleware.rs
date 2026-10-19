@@ -15,7 +15,12 @@ use std::{
 use subtle::ConstantTimeEq;
 use tokio::sync::Mutex;
 #[derive(Default)]
-pub struct Limits(Mutex<HashMap<String, (Instant, u32)>>);
+pub struct Limits(Mutex<Buckets>);
+#[derive(Default)]
+struct Buckets {
+    entries: HashMap<String, (Instant, u32)>,
+    swept: Option<Instant>,
+}
 pub fn admin(state: &AppState, headers: &HeaderMap) -> bool {
     let Some(value) = headers
         .get(header::AUTHORIZATION)
@@ -55,34 +60,29 @@ pub fn client_ip(headers: &HeaderMap) -> String {
 }
 impl Limits {
     pub async fn rolling(&self, key: String, max: u32, window: u64) -> Option<u64> {
-        let now = Instant::now();
-        let mut buckets = self.0.lock().await;
-        buckets.retain(|_, (expires, _)| *expires > now);
-        let entry = buckets
-            .entry(key)
-            .or_insert((now + Duration::from_secs(window), 0));
-        if entry.1 >= max {
-            Some(
-                entry
-                    .0
-                    .saturating_duration_since(now)
-                    .as_secs()
-                    .saturating_add(1),
-            )
-        } else {
-            entry.0 = now + Duration::from_secs(window);
-            entry.1 += 1;
-            None
-        }
+        self.hit(key, max, window, true).await
     }
 
     pub async fn check(&self, key: String, max: u32, window: u64) -> Option<u64> {
+        self.hit(key, max, window, false).await
+    }
+
+    async fn hit(&self, key: String, max: u32, window: u64, extend: bool) -> Option<u64> {
         let now = Instant::now();
+        let window = Duration::from_secs(window);
         let mut buckets = self.0.lock().await;
-        buckets.retain(|_, (expires, _)| *expires > now);
-        let entry = buckets
-            .entry(key)
-            .or_insert((now + Duration::from_secs(window), 0));
+        // Expired buckets are swept at most once a second instead of on every request.
+        if buckets
+            .swept
+            .is_none_or(|at| now.duration_since(at) >= Duration::from_secs(1))
+        {
+            buckets.entries.retain(|_, (expires, _)| *expires > now);
+            buckets.swept = Some(now);
+        }
+        let entry = buckets.entries.entry(key).or_insert((now + window, 0));
+        if entry.0 <= now {
+            *entry = (now + window, 0);
+        }
         if entry.1 >= max {
             Some(
                 entry
@@ -92,6 +92,9 @@ impl Limits {
                     .saturating_add(1),
             )
         } else {
+            if extend {
+                entry.0 = now + window;
+            }
             entry.1 += 1;
             None
         }
@@ -119,7 +122,11 @@ pub async fn apply(
             }
         }
     }
-    let exempt = preflight || path == "/api/v1/health" || path.starts_with("/api/v1/images/");
+    // Auth routes have their own Better Auth-compatible limiter, matching Elysia's mounted handler.
+    let exempt = preflight
+        || path == "/api/v1/health"
+        || path.starts_with("/api/v1/images/")
+        || path.starts_with("/api/auth/");
     let limited = if state.config.production && !exempt {
         state
             .limits
@@ -191,4 +198,20 @@ pub async fn apply(
         }
     }
     response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn limits_reset_expired_buckets_without_sweeping_every_request() {
+        let limits = Limits::default();
+        assert_eq!(limits.check("a".into(), 1, 1).await, None);
+        assert_eq!(limits.check("a".into(), 1, 1).await, Some(1));
+        tokio::time::sleep(Duration::from_millis(1100)).await;
+        assert_eq!(limits.check("a".into(), 1, 1).await, None);
+        assert_eq!(limits.rolling("b".into(), 2, 10).await, None);
+        assert_eq!(limits.rolling("b".into(), 2, 10).await, None);
+        assert!(limits.rolling("b".into(), 2, 10).await.is_some());
+    }
 }

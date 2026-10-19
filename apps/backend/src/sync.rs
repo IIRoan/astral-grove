@@ -7,6 +7,56 @@ use axum::{Json, extract::State, http::HeaderMap};
 use serde_json::json;
 use std::sync::Arc;
 use utoipa_axum::{router::OpenApiRouter, routes};
+
+async fn detached(
+    state: &Arc<AppState>,
+    key: &'static str,
+    work: impl std::future::Future<Output = Result<serde_json::Value>> + Send + 'static,
+) -> Result<serde_json::Value> {
+    let mut shutdown = state.shutdown.subscribe();
+    if *shutdown.borrow() {
+        return Err(AppError::new(503, "SYNC_BUSY", "Server is shutting down"));
+    }
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    let worker = state.clone();
+    if !state.tasks.spawn(async move {
+        let result = tokio::select! {
+            result = work => Some(result),
+            _ = shutdown.changed() => None,
+        };
+        let result = match result {
+            Some(result) => result,
+            None => {
+                // Release the sync transaction before recording its shutdown failure.
+                let status = set_status(
+                    &worker,
+                    key,
+                    "failed",
+                    None,
+                    None,
+                    Some("Synchronization interrupted by server shutdown"),
+                )
+                .await;
+                if status.is_err() {
+                    tracing::warn!(
+                        category = "sync-shutdown",
+                        "Failed to record interrupted synchronization"
+                    );
+                }
+                Err(AppError::new(503, "SYNC_BUSY", "Server is shutting down"))
+            }
+        };
+        let _ = sender.send(result);
+    }) {
+        return Err(AppError::new(
+            503,
+            "SYNC_BUSY",
+            "Synchronization queue is full",
+        ));
+    }
+    receiver.await.map_err(|_| AppError::internal())?
+}
+
 #[utoipa::path(get,path="/api/v1/sync/status",operation_id="getSyncStatus",responses((status=200,body=astral_grove_api_types::SyncStatusResponse)))]
 async fn status(
     State(state): State<Arc<AppState>>,
@@ -147,10 +197,12 @@ async fn catalog(
     }
     let query = http::query(query.as_deref());
     let force = matches!(query["force"].as_str(), Some("true" | "1"));
-    http::respond(
-        "SyncCatalogResponse",
-        json!({"data":catalog_sync(&state,force).await?}),
-    )
+    let worker = state.clone();
+    let result = detached(&state, "catalog", async move {
+        catalog_sync(&worker, force).await
+    })
+    .await?;
+    http::respond("SyncCatalogResponse", json!({"data":result}))
 }
 #[utoipa::path(post,path="/api/v1/sync/prices",operation_id="syncPrices",responses((status=200,body=astral_grove_api_types::SyncPricesResponse)))]
 async fn prices(
@@ -160,8 +212,14 @@ async fn prices(
     if !crate::middleware::admin(&state, &headers) {
         return Err(AppError::new(401, "UNAUTHORIZED", "Admin token required"));
     }
+    let worker = state.clone();
+    let result = detached(&state, "prices", async move { price_sync(&worker).await }).await?;
+    http::respond("SyncPricesResponse", json!({"data":result}))
+}
+
+async fn price_sync(state: &Arc<AppState>) -> Result<serde_json::Value> {
     let _lock = state.price_sync.lock().await;
-    let result = crate::cardmarket::guide::sync(&state).await?;
+    let result = crate::cardmarket::guide::sync(state).await?;
     let days = state
         .config
         .values
@@ -174,11 +232,11 @@ async fn prices(
         .get("PRICE_HISTORY_RETAIN_SNAPSHOTS")
         .and_then(|value| value.parse().ok())
         .unwrap_or(30);
-    if crate::cardmarket::guide::prune(&state, days, snapshots, false)
+    if crate::cardmarket::guide::prune(state, days, snapshots, false)
         .await
         .is_err()
     {
         tracing::warn!(category = "price-retention", "Price history prune failed");
     }
-    http::respond("SyncPricesResponse", json!({"data":result}))
+    Ok(result)
 }

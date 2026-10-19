@@ -88,6 +88,7 @@ bun run --cwd apps/backend test:unit
 bun run --cwd apps/backend test:e2e
 bun run --cwd apps/backend test:compat
 bun run --cwd apps/backend test:parity
+bun run --cwd apps/backend test:perf --output=/tmp/backend-performance.json
 cargo xtask baseline
 bun run check
 bun run test
@@ -106,6 +107,38 @@ Rust with the 219 original e2e cases; some cases also call frozen TypeScript
 services directly, as recorded in the case map. Retained reference unit cases
 are oracle evidence, not Rust unit-test coverage. Native corpus and integration
 tests provide separate implementation evidence.
+
+### Performance and load tests
+
+`test:perf` builds the optimized backend, then runs repeated HTTP workloads against
+the loopback `TEST_DB_URL` and local PA/Cardmarket, CDN and signed S3 fixtures. Set
+`ASTRAL_BACKEND_BIN` to exercise an existing artifact instead. CI runs this suite
+against the binary extracted from the production image and uploads its JSON
+report and SQL plans. This suite is separate from the ordinary HTTP tests so
+debug builds and unrelated concurrent tests do not distort the measurements.
+
+The default is 40 measured requests per workload after three warmups, with serial
+and eight-client profiles. `--samples=100` increases the sample count. The report
+includes p50/p95/p99 and raw timings, first-request latency, throughput, response
+bytes, status counts, assertion failures, binary SHA-256, host details and Linux
+RSS/PSS/CPU snapshots. RSS is sampled every 100ms. These are local measurements;
+database buffers stay warm and the load generator shares the backend's host.
+
+Workloads cover type/name/fuzzy search and pagination, 20/2,000/5,000-variant
+quantity and activity lookups, successive history cursors over at least 10,000
+audit events, a 500-item collection, concurrent session renewal, image stampedes
+and cache churn using 768x1024 PNGs, blocked object writes, and an eight-job sync
+queue. Health latency is checked during and after load. Sync tests abort the
+original clients, then verify every queued job completes and further work succeeds.
+All synthetic users and their collections are removed with scoped cleanup.
+
+Thresholds and their rationale live in `test/performance/budgets.json`. Existing
+compatibility ceilings and the 1.5 quantity-to-list ratio remain unchanged;
+the new comparison uses alternating request order and repeated medians. Concurrent
+database ceilings account for the client count and also guard against a throughput
+collapse. Image and RSS limits are provisional local regression guards, not
+production SLAs. Search diagnostics retain all 33 native EXPLAIN plans separately
+so SQL execution can be distinguished from HTTP, mapping and serialization costs.
 
 ## Production artifact
 

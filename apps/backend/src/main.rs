@@ -91,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
     let database = state.db.clone();
     tracing::info!("The Astral Grove API is listening");
     let shutdown = state.shutdown.clone();
-    axum::serve(listener, router(state))
+    let result = axum::serve(listener, router(state.clone()))
         .with_graceful_shutdown(async move {
             #[cfg(unix)]
             {
@@ -105,9 +105,11 @@ async fn main() -> anyhow::Result<()> {
             {
                 let _ = tokio::signal::ctrl_c().await;
             }
-            let _ = shutdown.send(true);
+            shutdown.send_replace(true);
         })
-        .await?;
+        .await;
+    state.drain().await;
     database.close().await?;
+    result?;
     Ok(())
 }

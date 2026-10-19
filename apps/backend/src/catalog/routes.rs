@@ -1,4 +1,4 @@
-use super::{mapper, query, store};
+use super::{query, store};
 use crate::{AppState, error::Result, http, upstream};
 use astral_grove_api_types::{
     CardDetailResponse, CardsBatchRequest, CardsBatchResponse, CardsListResponse,
@@ -86,10 +86,9 @@ async fn batch(
     let input: CardsBatchRequest = http::parse("CardsBatchRequest", &body)?;
     let mut found = Vec::new();
     let mut missing = Vec::new();
-    let prices = crate::prices::all(&state).await?;
     for number in &input.variant_numbers {
         if let Some((card, _)) = store::logical(&state, number).await? {
-            found.push(mapper::detail(&state, &card, &prices));
+            found.push(store::detail_value(&state, &card).await?);
         } else {
             missing.push(number.clone());
         }
@@ -110,7 +109,7 @@ async fn batch(
         for item in result["data"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
             let card = upstream::card(&state, crate::db::string(item, "variantNumber")).await?;
             store::upsert(&state, &card).await?;
-            found.push(mapper::detail(&state, &card, &prices));
+            found.push(store::detail_value(&state, &card).await?);
         }
         not_found = result["notFound"].as_array().cloned().unwrap_or_default();
         source = if found.len() == input.variant_numbers.len() {

@@ -215,6 +215,14 @@ test('native image derivatives persist to S3, validate decoding and use conditio
   const image = await sharp(Buffer.from(await response.arrayBuffer())).metadata();
   expect(image.width).toBe(96);
   expect(image.height).toBe(48);
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (
+      objects.has('/native-fixture/cards/native.png') &&
+      objects.has('/native-fixture/thumbs/w96/cards/native.png')
+    )
+      break;
+    await Bun.sleep(20);
+  }
   expect(objects.has('/native-fixture/cards/native.png')).toBe(true);
   expect(objects.has('/native-fixture/thumbs/w96/cards/native.png')).toBe(true);
   const cached = await app.fetch('/api/v1/images/cards/native.png?w=96', {

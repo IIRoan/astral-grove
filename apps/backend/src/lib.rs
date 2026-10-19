@@ -21,6 +21,7 @@ pub mod prices;
 pub mod releases;
 pub mod search;
 pub mod sync;
+mod tasks;
 pub mod upstream;
 pub mod user_data;
 
@@ -43,6 +44,7 @@ pub struct AppState {
     pub probe: Arc<tokio::sync::Mutex<()>>,
     pub catalog_sync: tokio::sync::Mutex<()>,
     pub price_sync: tokio::sync::Mutex<()>,
+    tasks: tasks::Tasks,
 }
 impl AppState {
     pub async fn connect(config: config::Config) -> anyhow::Result<Arc<Self>> {
@@ -94,7 +96,14 @@ impl AppState {
             probe: Default::default(),
             catalog_sync: Default::default(),
             price_sync: Default::default(),
+            tasks: tasks::Tasks::new(8),
         }))
+    }
+
+    pub async fn drain(&self) {
+        self.shutdown.send_replace(true);
+        self.tasks.drain().await;
+        self.images.drain().await;
     }
 }
 

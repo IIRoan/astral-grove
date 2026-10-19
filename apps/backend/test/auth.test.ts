@@ -162,6 +162,113 @@ describe('native authentication', () => {
       Date.parse((await shortSession.json()).session.expiresAt) - Date.now()
     ).toBeLessThan(86400000);
   });
+  test('protected routes renew aging cookie and bearer sessions while honoring dont-remember', async () => {
+    const user = await signup('protected-renewal');
+    const credentials: Record<string, string>[] = [
+      { cookie: user.cookie },
+      { authorization: `Bearer ${user.token}` },
+    ];
+    for (const headers of credentials) {
+      await sql`UPDATE session SET expires_at=now()+interval '1 day',updated_at=now()-interval '6 days' WHERE token=${user.token}`;
+      expect((await app.fetch('/api/v1/collection', { headers })).status).toBe(200);
+      const rows =
+        await sql`SELECT extract(epoch FROM expires_at-now())::integer AS remaining FROM session WHERE token=${user.token}`;
+      expect(rows[0]!.remaining).toBeGreaterThan(6 * 86400);
+    }
+    const short = await app.fetch(
+      '/api/auth/sign-in/email',
+      json({ email: user.email, password, rememberMe: false })
+    );
+    const headers = { cookie: cookie(short) };
+    const login = Login.parse(await short.json());
+    await sql`UPDATE session SET expires_at=now()+interval '12 hours' WHERE token=${login.token}`;
+    expect((await app.fetch('/api/v1/collection', { headers })).status).toBe(200);
+    const rows =
+      await sql`SELECT extract(epoch FROM expires_at-now())::integer AS remaining FROM session WHERE token=${login.token}`;
+    expect(rows[0]!.remaining).toBeLessThan(86400);
+  });
+  test('concurrent protected requests renew once and expired sessions stay expired', async () => {
+    const user = await signup('concurrent-renewal');
+    await sql`UPDATE session SET expires_at=now()+interval '1 day' WHERE token=${user.token}`;
+    const responses = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        app.fetch('/api/v1/collection', { headers: { cookie: user.cookie } })
+      )
+    );
+    expect(responses.map((response) => response.status)).toEqual([200, 200, 200, 200]);
+    const refreshed = (
+      await sql`SELECT expires_at,updated_at FROM session WHERE token=${user.token}`
+    )[0]!;
+    expect(new Date(refreshed.expires_at).getTime() - Date.now()).toBeGreaterThan(
+      6 * 86400000
+    );
+    expect(
+      (await app.fetch('/api/v1/collection', { headers: { cookie: user.cookie } }))
+        .status
+    ).toBe(200);
+    const unchanged = (
+      await sql`SELECT expires_at,updated_at FROM session WHERE token=${user.token}`
+    )[0]!;
+    expect(unchanged).toEqual(refreshed);
+    await sql`UPDATE session SET expires_at=now()-interval '1 second' WHERE token=${user.token}`;
+    expect(
+      (await app.fetch('/api/v1/collection', { headers: { cookie: user.cookie } }))
+        .status
+    ).toBe(401);
+    expect(
+      (
+        await sql`SELECT expires_at<now() AS expired FROM session WHERE token=${user.token}`
+      )[0]!.expired
+    ).toBe(true);
+  });
+  test('revocation during renewal cannot resurrect or authorize the deleted session', async () => {
+    const user = await signup('revoked-renewal');
+    await sql`UPDATE session SET expires_at=now()+interval '1 day' WHERE token=${user.token}`;
+    let release = () => {};
+    let locked = () => {};
+    const ready = new Promise<void>((resolve) => {
+      locked = resolve;
+    });
+    const unblock = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let blockerPid = 0;
+    const revoke = sql.begin(async (transaction) => {
+      const rows =
+        await transaction`SELECT id,pg_backend_pid() AS pid FROM session WHERE token=${user.token} FOR UPDATE`;
+      blockerPid = rows[0]!.pid;
+      locked();
+      await unblock;
+      await transaction`DELETE FROM session WHERE token=${user.token}`;
+    });
+    await ready;
+    const request = app.fetch('/api/v1/collection', {
+      headers: { cookie: user.cookie },
+    });
+    try {
+      let waiting = false;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const rows =
+          await sql`SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND ${blockerPid}=ANY(pg_blocking_pids(pid))) AS waiting`;
+        if (rows[0]!.waiting) {
+          waiting = true;
+          break;
+        }
+        await Bun.sleep(20);
+      }
+      expect(waiting).toBe(true);
+      release();
+      await revoke;
+      expect((await request).status).toBe(401);
+      expect(await sql`SELECT id FROM session WHERE token=${user.token}`).toHaveLength(
+        0
+      );
+    } finally {
+      release();
+      await revoke;
+      await request;
+    }
+  });
   test('session revocation and account access always use the authenticated owner', async () => {
     const a = await signup('owner-a'),
       b = await signup('owner-b');

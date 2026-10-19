@@ -158,7 +158,7 @@ async fn preview(
     .into_iter()
     .next()
     .ok_or_else(|| error("NOT_FOUND", "Inviter not found"))?;
-    let stats=db::rows(&state.db,"SELECT collection_id::text AS id,count(*)::bigint AS count,coalesce(sum(quantity),0)::bigint AS quantity FROM collection_items WHERE collection_id::text=ANY($1::text[]) GROUP BY collection_id",vec![vec![your_collection.clone(),their_collection.into()].into()]).await?;
+    let stats=db::rows(&state.db,"SELECT collection_id::text AS id,count(*)::bigint AS count,coalesce(sum(quantity),0)::bigint AS quantity FROM collection_items WHERE collection_id=ANY($1::text[]::uuid[]) GROUP BY collection_id",vec![vec![your_collection.clone(),their_collection.into()].into()]).await?;
     let their = stats.iter().find(|row| row["id"] == their_collection);
     let your = stats.iter().find(|row| row["id"] == your_collection);
     let reason = if session.user.id == inviter {
@@ -224,7 +224,7 @@ async fn accept(
     }
     db::rows(
         &tx,
-        "SELECT id FROM collections WHERE id::text=ANY($1::text[]) ORDER BY id FOR UPDATE",
+        "SELECT id FROM collections WHERE id=ANY($1::text[]::uuid[]) ORDER BY id FOR UPDATE",
         vec![vec![source.to_owned(), target.to_owned()].into()],
     )
     .await?;

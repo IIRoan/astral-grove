@@ -13,7 +13,7 @@ use axum::{
 use rusty_s3::{Bucket, Credentials, S3Action, UrlStyle};
 use serde_json::Value;
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -25,7 +25,7 @@ const MAX_MEMORY: usize = 128 * 1024 * 1024;
 const BODY_CACHE: &str = "public, max-age=604800, immutable";
 #[derive(Clone)]
 struct Cached {
-    bytes: Arc<Vec<u8>>,
+    bytes: axum::body::Bytes,
     content_type: String,
     etag: String,
     expires: Instant,
@@ -160,7 +160,7 @@ impl Storage {
             .to_owned();
         Some((capped(response, cap).await?, content_type))
     }
-    async fn write(&self, key: &str, bytes: Vec<u8>, content_type: &str) {
+    async fn write(&self, key: &str, bytes: Vec<u8>, content_type: &str) -> bool {
         let url = self
             .bucket
             .put_object(Some(&self.credentials), key)
@@ -173,8 +173,11 @@ impl Storage {
             .send()
             .await
         {
-            Ok(response) if response.status().is_success() => {}
-            _ => tracing::warn!(category = "image-storage", "Object write failed"),
+            Ok(response) if response.status().is_success() => true,
+            _ => {
+                tracing::warn!(category = "image-storage", "Object write failed");
+                false
+            }
         }
     }
 }
@@ -195,23 +198,41 @@ pub async fn capped(mut response: reqwest::Response, cap: usize) -> Option<Vec<u
     if bytes.is_empty() { None } else { Some(bytes) }
 }
 pub struct ImageStore {
-    pub storage: Option<Storage>,
+    pub storage: Option<Arc<Storage>>,
     client: reqwest::Client,
     cache: Mutex<Cache>,
-    misses: Mutex<HashMap<String, Instant>>,
+    misses: Arc<Mutex<HashMap<String, Instant>>>,
+    uploads: crate::tasks::Tasks,
+    pending_uploads: Arc<std::sync::Mutex<HashSet<String>>>,
     locks: Mutex<HashMap<String, std::sync::Weak<Mutex<()>>>>,
     rate: Mutex<HashMap<String, (Instant, u32)>>,
     resize: Arc<Semaphore>,
     resize_queue: Arc<Semaphore>,
     cdn: String,
 }
+
+struct PendingUpload {
+    key: String,
+    pending: Arc<std::sync::Mutex<HashSet<String>>>,
+}
+impl Drop for PendingUpload {
+    fn drop(&mut self) {
+        self.pending
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .remove(&self.key);
+    }
+}
+
 impl ImageStore {
     pub fn new(config: &Config, client: reqwest::Client) -> anyhow::Result<Self> {
         Ok(Self {
-            storage: Storage::new(config, client.clone())?,
+            storage: Storage::new(config, client.clone())?.map(Arc::new),
             client,
             cache: Mutex::new(Cache::default()),
-            misses: Mutex::new(HashMap::new()),
+            misses: Arc::new(Mutex::new(HashMap::new())),
+            uploads: crate::tasks::Tasks::new(8),
+            pending_uploads: Default::default(),
             locks: Mutex::new(HashMap::new()),
             rate: Mutex::new(HashMap::new()),
             resize: Arc::new(Semaphore::new(2)),
@@ -225,6 +246,37 @@ impl ImageStore {
                 .into(),
         })
     }
+
+    pub(crate) async fn drain(&self) {
+        self.uploads.drain().await;
+    }
+
+    fn store(&self, key: &str, bytes: &[u8], content_type: &str) {
+        let Some(storage) = self.storage.clone() else {
+            return;
+        };
+        if !self
+            .pending_uploads
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .insert(key.into())
+        {
+            return;
+        }
+        let pending = PendingUpload {
+            key: key.into(),
+            pending: self.pending_uploads.clone(),
+        };
+        let misses = self.misses.clone();
+        let content_type = content_type.to_owned();
+        let bytes = bytes.to_vec();
+        self.uploads.spawn(async move {
+            if storage.write(&pending.key, bytes, &content_type).await {
+                misses.lock().await.remove(&pending.key);
+            }
+        });
+    }
+
     async fn allow_cdn(&self, ip: &str) -> bool {
         let now = Instant::now();
         let mut buckets = self.rate.lock().await;
@@ -280,10 +332,7 @@ impl ImageStore {
             key,
         );
         let bytes = capped(response, MAX_IMAGE).await?;
-        if let Some(storage) = &self.storage {
-            storage.write(key, bytes.clone(), &content_type).await;
-            self.misses.lock().await.remove(key);
-        }
+        self.store(key, &bytes, &content_type);
         Some((bytes, content_type, "memory"))
     }
     async fn serve(
@@ -357,18 +406,14 @@ impl ImageStore {
                 bytes = encoded;
                 content_type = "image/webp".into();
                 source = "memory";
-                if let Some(storage) = &self.storage {
-                    storage
-                        .write(&storage_key, bytes.clone(), &content_type)
-                        .await;
-                }
+                self.store(&storage_key, &bytes, &content_type);
             } else {
                 actual_key = key.into();
             }
         }
         let cached = Cached {
             etag: format!("\"{}:{}\"", actual_key, bytes.len()),
-            bytes: Arc::new(bytes),
+            bytes: bytes.into(),
             content_type,
             expires: Instant::now() + Duration::from_secs(86400),
         };
@@ -493,7 +538,7 @@ async fn get_image(
         } else {
             (
                 [(header::CONTENT_TYPE, image.content_type)],
-                Body::from(image.bytes.as_ref().clone()),
+                Body::from(image.bytes.clone()),
             )
                 .into_response()
         };

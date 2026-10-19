@@ -33,6 +33,39 @@ pub async fn find_user(state: &AppState, email: &str) -> Result<Option<User>> {
         .map_err(AppError::from)
 }
 pub async fn get_session(state: &AppState, headers: &HeaderMap) -> Result<Option<SessionResponse>> {
+    Ok(session_with_refresh(state, headers, true).await?.0)
+}
+
+pub async fn session_with_refresh(
+    state: &AppState,
+    headers: &HeaderMap,
+    refresh: bool,
+) -> Result<(Option<SessionResponse>, bool)> {
+    let Some(mut session) = find_session(state, headers).await? else {
+        return Ok((None, false));
+    };
+    if !refresh
+        || cookies::dont_remember(&state.config, headers)
+        || !needs_refresh(&session.session.expires_at, time::OffsetDateTime::now_utc())
+    {
+        return Ok((Some(session), false));
+    }
+    let renewed = db::rows(&state.db,"UPDATE session SET expires_at=date_trunc('milliseconds',now())+interval '7 days',updated_at=date_trunc('milliseconds',now()) WHERE token=$1 AND expires_at>now() AND expires_at<=now()+interval '6 days' RETURNING to_char(expires_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS expires,to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS updated",vec![session.session.token.clone().into()]).await?;
+    if let Some(row) = renewed.first() {
+        session.session.expires_at = db::string(row, "expires").into();
+        session.session.updated_at = db::string(row, "updated").into();
+        Ok((Some(session), true))
+    } else {
+        Ok((find_session(state, headers).await?, false))
+    }
+}
+
+fn needs_refresh(expires: &str, now: time::OffsetDateTime) -> bool {
+    time::OffsetDateTime::parse(expires, &time::format_description::well_known::Rfc3339)
+        .is_ok_and(|expires| expires - time::Duration::days(6) <= now)
+}
+
+async fn find_session(state: &AppState, headers: &HeaderMap) -> Result<Option<SessionResponse>> {
     let Some(token) = cookies::token(&state.config, headers) else {
         return Ok(None);
     };
@@ -290,5 +323,20 @@ pub fn client_ip(state: &AppState, headers: &HeaderMap) -> String {
                 "127.0.0.1".into()
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn session_renewal_starts_at_the_daily_update_boundary() {
+        let now = time::macros::datetime!(2026-10-19 12:00 UTC);
+        assert!(!needs_refresh("2026-10-26T12:00:00.000Z", now));
+        assert!(!needs_refresh("2026-10-25T12:00:00.001Z", now));
+        assert!(needs_refresh("2026-10-25T12:00:00.000Z", now));
+        assert!(needs_refresh("2026-10-20T12:00:00.000Z", now));
+        assert!(!needs_refresh("invalid", now));
     }
 }

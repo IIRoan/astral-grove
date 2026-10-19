@@ -12,10 +12,7 @@ use crate::{
     error::{AppError, Result},
 };
 use astral_grove_api_types::auth::SessionResponse;
-use axum::{
-    extract::FromRequestParts,
-    http::{HeaderMap, request::Parts},
-};
+use axum::{extract::FromRequestParts, http::request::Parts};
 use std::sync::Arc;
 
 pub fn error(status: u16, code: &str, message: &str) -> AppError {
@@ -24,18 +21,6 @@ pub fn error(status: u16, code: &str, message: &str) -> AppError {
             .unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
         body: serde_json::json!({"code": code, "message": message}),
     }
-}
-
-pub fn origin(state: &AppState, headers: &HeaderMap) -> Result<()> {
-    if let Some(value) = headers.get("origin").or_else(|| headers.get("expo-origin")) {
-        let value = value
-            .to_str()
-            .map_err(|_| error(403, "INVALID_ORIGIN", "Invalid origin"))?;
-        if !state.config.origin_allowed(value) {
-            return Err(error(403, "INVALID_ORIGIN", "Invalid origin"));
-        }
-    }
-    Ok(())
 }
 
 pub struct RouteUser(pub SessionResponse);

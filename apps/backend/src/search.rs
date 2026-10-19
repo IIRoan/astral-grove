@@ -303,13 +303,13 @@ pub fn filters(query: &Value, sql: &mut Sql) -> String {
             let mut alternatives = Vec::new();
             if !gates.is_empty() {
                 alternatives.push(format!("({})", gates.join(" AND ")));
-            }
-            if !parsed.squashed.is_empty() {
-                let p = sql.bind(like(&parsed.squashed));
-                alternatives.push(format!("c.name_squashed LIKE {p}"));
-            }
-            if parsed.normalized.len() >= 4 {
-                alternatives.push(fuzzy(sql, &parsed.normalized, 0.35));
+                if !parsed.squashed.is_empty() {
+                    let p = sql.bind(like(&parsed.squashed));
+                    alternatives.push(format!("c.name_squashed LIKE {p}"));
+                }
+                if parsed.normalized.len() >= 4 {
+                    alternatives.push(fuzzy(sql, &parsed.normalized, 0.35));
+                }
             }
             let identity = if alternatives.is_empty() {
                 "true".into()

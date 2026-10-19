@@ -21,17 +21,20 @@ pub async fn upsert(state: &AppState, card: &Value) -> Result<bool> {
     )
     .await?;
     if exists.first().is_some_and(|row| row["hash"] == digest) {
+        let mut patched = 0;
         for variant in card["variants"]
             .as_array()
             .map(Vec::as_slice)
             .unwrap_or(&[])
         {
             if !variant["cardmarketId"].is_null() || !variant["tcgplayerId"].is_null() {
-                db::execute(&tx,"UPDATE variants SET cardmarket_id=coalesce(($1->>'cardmarketId')::integer,cardmarket_id),tcgplayer_id=coalesce(($1->>'tcgplayerId')::integer,tcgplayer_id),updated_at=now() WHERE variant_number=$1->>'variantNumber'",vec![variant.clone().into()]).await?;
+                patched += db::execute(&tx,"UPDATE variants SET cardmarket_id=coalesce(($1->>'cardmarketId')::integer,cardmarket_id),tcgplayer_id=coalesce(($1->>'tcgplayerId')::integer,tcgplayer_id),updated_at=now() WHERE variant_number=$1->>'variantNumber' AND (cardmarket_id IS DISTINCT FROM coalesce(($1->>'cardmarketId')::integer,cardmarket_id) OR tcgplayer_id IS DISTINCT FROM coalesce(($1->>'tcgplayerId')::integer,tcgplayer_id))",vec![variant.clone().into()]).await?;
             }
         }
         tx.commit().await?;
-        state.catalog.invalidate().await;
+        if patched > 0 {
+            state.catalog.invalidate().await;
+        }
         return Ok(false);
     }
     for color in card["colors"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
@@ -66,6 +69,10 @@ pub async fn upsert(state: &AppState, card: &Value) -> Result<bool> {
     Ok(true)
 }
 pub async fn hashes(state: &AppState) -> Result<(String, String)> {
+    let (generation, memo) = state.catalog.hashes();
+    if let Some(memo) = memo {
+        return Ok(memo);
+    }
     let rows = db::rows(
         &state.db,
         "SELECT key,content_hash AS hash FROM sync_state WHERE key=ANY(ARRAY['catalog','prices'])",
@@ -91,7 +98,9 @@ pub async fn hashes(state: &AppState) -> Result<(String, String)> {
     .first()
     .and_then(|row| row["total"].as_i64())
     .unwrap_or(0);
-    Ok((catalog, format!("{prices}:{count}")))
+    let value = (catalog, format!("{prices}:{count}"));
+    state.catalog.remember_hashes(generation, value.clone());
+    Ok(value)
 }
 pub async fn logical(state: &AppState, number: &str) -> Result<Option<(Value, String)>> {
     let Some(card)=db::rows(&state.db,"SELECT c.id::text AS id,c.upstream_raw AS raw,c.content_hash AS hash FROM variants v JOIN cards c ON c.id=v.card_id WHERE lower(v.variant_number)=lower($1) LIMIT 1",vec![number.into()]).await?.into_iter().next()else{return Ok(None)};
@@ -131,13 +140,17 @@ pub async fn logical(state: &AppState, number: &str) -> Result<Option<(Value, St
     }
     Ok(Some((logical, db::string(&card, "hash").into())))
 }
+pub async fn detail_value(state: &AppState, card: &Value) -> Result<Value> {
+    let prices = crate::prices::index(state, Some(mapper::market_ids(card))).await?;
+    Ok(mapper::detail(state, card, &prices))
+}
 pub async fn detail(state: &AppState, number: &str, refresh: bool) -> Result<Value> {
     let cached = logical(state, number).await?;
     if let Some((card, hash)) = &cached
         && !refresh
     {
         return Ok(
-            json!({"data":mapper::detail(state,card,&crate::prices::all(state).await?),"meta":{"source":"cache","contentHash":hash}}),
+            json!({"data":detail_value(state,card).await?,"meta":{"source":"cache","contentHash":hash}}),
         );
     }
     let card = match upstream::card(state, number).await {
@@ -148,7 +161,7 @@ pub async fn detail(state: &AppState, number: &str, refresh: bool) -> Result<Val
                 && let Some((card, hash)) = cached
             {
                 return Ok(
-                    json!({"data":mapper::detail(state,&card,&crate::prices::all(state).await?),"meta":{"source":"cache","contentHash":hash}}),
+                    json!({"data":detail_value(state,&card).await?,"meta":{"source":"cache","contentHash":hash}}),
                 );
             }
             return Err(error.into());
@@ -165,9 +178,7 @@ pub async fn detail(state: &AppState, number: &str, refresh: bool) -> Result<Val
     } else {
         "cache"
     };
-    Ok(
-        json!({"data":mapper::detail(state,&card,&crate::prices::all(state).await?),"meta":{"source":source,"contentHash":hash}}),
-    )
+    Ok(json!({"data":detail_value(state,&card).await?,"meta":{"source":source,"contentHash":hash}}))
 }
 
 pub async fn write_variant(
@@ -176,10 +187,20 @@ pub async fn write_variant(
     variant: &Value,
     ignore: bool,
 ) -> Result<u64> {
-    let suffix = if ignore {
-        " ON CONFLICT(variant_number) DO NOTHING"
-    } else {
-        " ON CONFLICT(variant_number) DO UPDATE SET card_id=EXCLUDED.card_id,rarity=EXCLUDED.rarity,variant_type=EXCLUDED.variant_type,foil_mode=EXCLUDED.foil_mode,variant_types=EXCLUDED.variant_types,image_url=EXCLUDED.image_url,flavor_text=EXCLUDED.flavor_text,artist=EXCLUDED.artist,release_date=EXCLUDED.release_date,variant_label=EXCLUDED.variant_label,show_in_library=EXCLUDED.show_in_library,is_collectible=EXCLUDED.is_collectible,cardmarket_id=coalesce(EXCLUDED.cardmarket_id,variants.cardmarket_id),tcgplayer_id=EXCLUDED.tcgplayer_id,parent_variant_id=EXCLUDED.parent_variant_id,set_id=EXCLUDED.set_id,content_hash=EXCLUDED.content_hash,upstream_raw=EXCLUDED.upstream_raw,fetched_at=now(),updated_at=now()"
-    };
-    db::execute(db,&format!("INSERT INTO variants(id,card_id,variant_number,rarity,variant_type,foil_mode,variant_types,image_url,flavor_text,artist,release_date,variant_label,show_in_library,is_collectible,cardmarket_id,tcgplayer_id,parent_variant_id,set_id,content_hash,upstream_raw,fetched_at) VALUES(($1->>'id')::uuid,$2::uuid,$1->>'variantNumber',$1->>'rarity',$1->>'variantType',$1->>'foilMode',$1->'variantTypes',$1->>'imageUrl',$1->>'flavorText',$1->>'artist',$1->>'releaseDate',$1->>'variantLabel',($1->>'showInLibrary')::boolean,($1->>'isCollectible')::boolean,($1->>'cardmarketId')::integer,($1->>'tcgplayerId')::integer,($1->>'parentVariantId')::uuid,($1->'set'->>'id')::uuid,$3,$1,now()){suffix}"),vec![variant.clone().into(),card_id.into(),hash(variant).into()]).await
+    const INSERT: &str = "INSERT INTO variants(id,card_id,variant_number,rarity,variant_type,foil_mode,variant_types,image_url,flavor_text,artist,release_date,variant_label,show_in_library,is_collectible,cardmarket_id,tcgplayer_id,parent_variant_id,set_id,content_hash,upstream_raw,fetched_at) VALUES(($1->>'id')::uuid,$2::uuid,$1->>'variantNumber',$1->>'rarity',$1->>'variantType',$1->>'foilMode',$1->'variantTypes',$1->>'imageUrl',$1->>'flavorText',$1->>'artist',$1->>'releaseDate',$1->>'variantLabel',($1->>'showInLibrary')::boolean,($1->>'isCollectible')::boolean,($1->>'cardmarketId')::integer,($1->>'tcgplayerId')::integer,($1->>'parentVariantId')::uuid,($1->'set'->>'id')::uuid,$3,$1,now())";
+    let params = || vec![variant.clone().into(), card_id.into(), hash(variant).into()];
+    if ignore {
+        return db::execute(
+            db,
+            &format!("{INSERT} ON CONFLICT(variant_number) DO NOTHING"),
+            params(),
+        )
+        .await;
+    }
+    // Rows matched by number keep their local PK (collection FKs); otherwise upsert by id so PA renumbers apply.
+    let updated = db::execute(db,"UPDATE variants SET card_id=$2::uuid,rarity=$1->>'rarity',variant_type=$1->>'variantType',foil_mode=$1->>'foilMode',variant_types=$1->'variantTypes',image_url=$1->>'imageUrl',flavor_text=$1->>'flavorText',artist=$1->>'artist',release_date=$1->>'releaseDate',variant_label=$1->>'variantLabel',show_in_library=($1->>'showInLibrary')::boolean,is_collectible=($1->>'isCollectible')::boolean,cardmarket_id=coalesce(($1->>'cardmarketId')::integer,cardmarket_id),tcgplayer_id=($1->>'tcgplayerId')::integer,parent_variant_id=($1->>'parentVariantId')::uuid,set_id=($1->'set'->>'id')::uuid,content_hash=$3,upstream_raw=$1,fetched_at=now(),updated_at=now() WHERE variant_number=$1->>'variantNumber'",params()).await?;
+    if updated > 0 {
+        return Ok(updated);
+    }
+    db::execute(db,&format!("{INSERT} ON CONFLICT(id) DO UPDATE SET card_id=EXCLUDED.card_id,variant_number=EXCLUDED.variant_number,rarity=EXCLUDED.rarity,variant_type=EXCLUDED.variant_type,foil_mode=EXCLUDED.foil_mode,variant_types=EXCLUDED.variant_types,image_url=EXCLUDED.image_url,flavor_text=EXCLUDED.flavor_text,artist=EXCLUDED.artist,release_date=EXCLUDED.release_date,variant_label=EXCLUDED.variant_label,show_in_library=EXCLUDED.show_in_library,is_collectible=EXCLUDED.is_collectible,cardmarket_id=coalesce(EXCLUDED.cardmarket_id,variants.cardmarket_id),tcgplayer_id=EXCLUDED.tcgplayer_id,parent_variant_id=EXCLUDED.parent_variant_id,set_id=EXCLUDED.set_id,content_hash=EXCLUDED.content_hash,upstream_raw=EXCLUDED.upstream_raw,fetched_at=now(),updated_at=now()"),params()).await
 }
