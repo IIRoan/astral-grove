@@ -12,6 +12,8 @@ concurrency:
 env:
   NODE_ENV: test
   TEST_DB_URL: postgres://riftbound:riftbound@127.0.0.1:5433/riftbound_test
+  # .cargo/config.toml caps local builds at 2 jobs; runners compile on every CPU.
+  CARGO_BUILD_JOBS: default
 jobs:
   lint:
     name: Lint, format and typecheck
@@ -166,6 +168,7 @@ jobs:
           file: Dockerfile.backend
           load: true
           tags: astral-grove-backend:ci
+          build-args: CARGO_BUILD_JOBS=default
           cache-from: type=gha,scope=astral-grove-backend
           cache-to: type=gha,scope=astral-grove-backend,mode=max
       - name: Verify native runtime and extract its binary
