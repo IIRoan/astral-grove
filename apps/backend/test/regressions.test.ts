@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, setDefaultTimeout, test } from 'bun:test';
 import {
   CardDetailResponse,
   CardsListResponse,
+  CatalogIndexResponse,
   CollectionActivityHistoryResponse,
   CollectionRecentAddsResponse,
   SyncStatusResponse,
@@ -52,6 +53,8 @@ const pa = Bun.serve({
         createdAt: '2026-10-18T00:00:00.000Z',
         products: [],
       });
+    if (url.pathname === '/v1/cards/E2E-MISSING-CARD')
+      return new Response(null, { status: 404 });
     if (url.pathname.startsWith('/v1/cards/') && upstreamCard)
       return Response.json(upstreamCard);
     if (url.pathname !== '/v1/cards') return new Response(null, { status: 404 });
@@ -367,6 +370,22 @@ test('a full upload queue still serves images and stalled uploads drain within s
   }
 });
 
+test('a warm catalog index stays available without querying locked catalog tables', async () => {
+  const initial = await app.fetch('/api/v1/cards/index');
+  expect(initial.status).toBe(200);
+  const body = await initial.text();
+  expect(CatalogIndexResponse.parse(JSON.parse(body)).data.length).toBeGreaterThan(0);
+  await harness.sql.begin(async (tx) => {
+    await tx`LOCK TABLE cards IN ACCESS EXCLUSIVE MODE`;
+    const cached = await app.fetch('/api/v1/cards/index', {
+      signal: AbortSignal.timeout(1500),
+    });
+    expect(cached.status).toBe(200);
+    expect(cached.headers.get('content-type')).toContain('application/json');
+    expect(await cached.text()).toBe(body);
+  });
+});
+
 test('a Piltover Archive renumber of an existing variant id updates the cached row', async () => {
   const [seed] = await harness.sql<
     { raw: { variants: Record<string, unknown>[] } & Record<string, unknown> }[]
@@ -393,6 +412,10 @@ test('a Piltover Archive renumber of an existing variant id updates the cached r
   });
   upstreamCard = card(`RVW-${suffix}`);
   expect((await app.fetch(`/api/v1/cards/RVW-${suffix}`)).status).toBe(200);
+  const before = CatalogIndexResponse.parse(
+    await (await app.fetch('/api/v1/cards/index')).json()
+  );
+  expect(before.data.some((item) => item.variantNumber === `RVW-${suffix}`)).toBe(true);
   upstreamCard = card(`RVW-${suffix}a`);
   const refreshed = await app.fetch(`/api/v1/cards/RVW-${suffix}?refresh=true`, {
     headers: { authorization: 'Bearer ' + app.config.ADMIN_SYNC_TOKEN },
@@ -405,6 +428,11 @@ test('a Piltover Archive renumber of an existing variant id updates the cached r
   expect([
     ...(await harness.sql`SELECT variant_number FROM variants WHERE card_id=${cardId}::uuid`),
   ]).toEqual([{ variant_number: `RVW-${suffix}a` }]);
+  const after = CatalogIndexResponse.parse(
+    await (await app.fetch('/api/v1/cards/index')).json()
+  );
+  expect(after.data.some((item) => item.variantNumber === `RVW-${suffix}`)).toBe(false);
+  expect(after.data.some((item) => item.variantNumber === `RVW-${suffix}a`)).toBe(true);
 });
 
 test('collection writes for a variant missing from the catalog return 404, not a foreign-key 500', async () => {
@@ -421,6 +449,25 @@ test('collection writes for a variant missing from the catalog return 404, not a
       (await app.fetch(`/api/v1/collection/${missing}/add`, json(body, session))).status
     ).toBe(404);
   }
+});
+
+test('card detail preserves an upstream not-found response', async () => {
+  const response = await app.fetch('/api/v1/cards/E2E-MISSING-CARD');
+  expect(response.status).toBe(404);
+});
+
+test('filtered name sorting keeps printing ties in variant-number order', async () => {
+  const response = await app.fetch('/api/v1/cards?types=legend&limit=100');
+  const result = CardsListResponse.parse(await response.json());
+  const sorted = [...result.data].sort(
+    (left, right) =>
+      left.name.localeCompare(right.name) ||
+      left.cardId.localeCompare(right.cardId) ||
+      left.variantNumber.localeCompare(right.variantNumber)
+  );
+  expect(result.data.map((item) => item.variantNumber)).toEqual(
+    sorted.map((item) => item.variantNumber)
+  );
 });
 
 test('a Piltover Archive outage fails community deck browsing but keeps owned decks listed', async () => {

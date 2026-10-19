@@ -156,6 +156,9 @@ pub async fn detail(state: &AppState, number: &str, refresh: bool) -> Result<Val
                     json!({"data":detail_value(state,&card).await?,"meta":{"source":"cache","contentHash":hash}}),
                 );
             }
+            if error.status == 404 {
+                return Err(crate::error::AppError::not_found("Card not found"));
+            }
             return Err(error.into());
         }
     };

@@ -145,10 +145,13 @@ jobs:
       - name: Verify runtime user and extract its binary
         run: |
           test "$(docker image inspect --format '{{.Config.User}}' astral-grove-backend:ci)" = '10001:10001'
-          docker run --rm --entrypoint /bin/sh astral-grove-backend:ci -ec 'if command -v bun || command -v node; then exit 1; fi'
           container_id=$(docker create astral-grove-backend:ci)
           docker cp "$container_id:/usr/local/bin/astral-grove-server" "$RUNNER_TEMP/astral-grove-server"
+          docker export "$container_id" --output "$RUNNER_TEMP/backend-rootfs.tar"
           docker rm "$container_id"
+          if tar -tf "$RUNNER_TEMP/backend-rootfs.tar" | grep -E '(^|/)(bun|node)$'; then
+            exit 1
+          fi
           sha256sum "$RUNNER_TEMP/astral-grove-server"
       - name: Production container health, secure auth, SSE and SIGTERM drain
         run: bun --no-env-file apps/backend/test/container-smoke.ts astral-grove-backend:ci

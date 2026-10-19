@@ -9,6 +9,7 @@ import {
   CollectionQuantitiesResponse,
   CollectionItemResponse,
   PaLogicalCard,
+  CatalogIndexResponse,
 } from '@riftbound/contracts';
 import { createHarness, json, runCommand, waitFor } from './support';
 const { startServer, stopServer, signup, sql } = createHarness();
@@ -153,6 +154,10 @@ test('maintenance selection, retention dry run and database-only search explain 
   expect(explain.output).not.toContain('fixture-secret');
 });
 test('price sync persists current and daily prices and skips unchanged exports', async () => {
+  await sql`UPDATE sync_state SET content_hash='synthetic-price-cache' WHERE key='prices'`;
+  const cached = CatalogIndexResponse.parse(
+    await (await app.fetch('/api/v1/cards/index')).json()
+  );
   const sync = () =>
     app.fetch('/api/v1/sync/prices', {
       method: 'POST',
@@ -161,6 +166,12 @@ test('price sync persists current and daily prices and skips unchanged exports',
   const response = await sync();
   expect(response.status).toBe(200);
   const result = SyncPricesResponse.parse(await response.json());
+  expect(result.data.changed).toBe(true);
+  const refreshed = CatalogIndexResponse.parse(
+    await (await app.fetch('/api/v1/cards/index')).json()
+  );
+  expect(refreshed.meta.pricesCatalogHash).toStartWith(result.data.hash + ':');
+  expect(refreshed.meta.pricesCatalogHash).not.toBe(cached.meta.pricesCatalogHash);
   expect(result.data.rowCount).toBeGreaterThan(1000);
   expect((await sql`SELECT count(*)::integer AS count FROM prices`)[0]!.count).toBe(
     result.data.rowCount

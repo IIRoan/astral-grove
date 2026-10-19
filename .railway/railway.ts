@@ -1,7 +1,6 @@
 import {
   defineRailway,
   github,
-  group,
   postgres,
   preserve,
   project,
@@ -9,47 +8,53 @@ import {
   volume,
 } from 'railway/iac';
 
-export default defineRailway(() => {
-  const astralGrove = github('IIRoan/astral-grove', { checkSuites: false });
+export default defineRailway((ctx) => {
+  if (!ctx.isEnvironment('riftbound')) {
+    throw new Error('This rehearsal targets only the riftbound environment.');
+  }
 
-  const testdb = postgres('testdb', { region: 'europe-west4-drams3a' });
-  const postgresProduction = postgres('Postgres-production', {
-    region: 'europe-west4-drams3a',
-  });
-  const postgresVolumeKjO = volume('postgres-volume-kjO-', {
+  const region = 'europe-west4-drams3a';
+  const domain = 'rust-api-riftbound.up.railway.app';
+  const webDomain = 'expo-web-riftbound.up.railway.app';
+  const apiUrl = 'https://${{rust-api.RAILWAY_PUBLIC_DOMAIN}}';
+  const webUrl = 'https://${{expo-web.RAILWAY_PUBLIC_DOMAIN}}';
+  const databaseVolume = volume('postgres-volume', {
     alerts: { usage: { '100': {}, '80': {}, '95': {} } },
     allowOnlineResize: true,
-    region: 'europe-west4-drams3a',
+    region,
     sizeMB: 5000,
   });
-  const postgresVolume = volume('postgres-volume', {
-    alerts: { usage: { '100': {}, '80': {}, '95': {} } },
-    allowOnlineResize: true,
-    region: 'europe-west4-drams3a',
-    sizeMB: 5000,
-  });
+  const database = postgres('Postgres', { region });
 
-  const backend = service('backend', {
-    source: astralGrove,
+  const backend = service('rust-api', {
+    source: github('IIRoan/astral-grove', {
+      branch: 'rust-backend-rewrite',
+      checkSuites: false,
+    }),
     build: { builder: 'DOCKERFILE', dockerfilePath: 'Dockerfile.backend' },
     healthcheck: '/api/v1/health',
     healthcheckTimeout: 300,
-    replicas: { 'europe-west4-drams3a': 1 },
-    deploy: { sleepApplication: true },
-    domains: ['riftapi.solace.onl'],
+    replicas: { [region]: 1 },
+    deploy: {
+      restartPolicyMaxRetries: 3,
+    },
+    networking: { serviceDomains: { [domain]: { port: 7000 } } },
     env: {
       ADMIN_SYNC_TOKEN: preserve(),
+      AUTH_COOKIE_DOMAIN: '${{expo-web.RAILWAY_PUBLIC_DOMAIN}}',
       BETTER_AUTH_SECRET: preserve(),
-      BETTER_AUTH_URL: preserve(),
-      DATABASE_URL: preserve(),
+      BETTER_AUTH_URL: webUrl,
+      CATALOG_PROBE_DISABLED: 'true',
+      CATALOG_WARMUP_ON_START: 'false',
+      DATABASE_URL: database.env.DATABASE_URL,
       EMAIL_FROM: preserve(),
       EMAIL_FROM_NAME: preserve(),
-      NODE_ENV: preserve(),
+      HOST: '::',
+      NODE_ENV: 'production',
       PA_API_KEY: preserve(),
       PA_BASE_URL: preserve(),
-      PUBLIC_APP_URL: 'https://rift.solace.onl',
-      RAILPACK_BUN_VERSION: '1.4.2',
-      RAILPACK_CONFIG_FILE: preserve(),
+      PORT: '7000',
+      PUBLIC_APP_URL: webUrl,
       S3_ACCESS_KEY_ID: preserve(),
       S3_BUCKET: preserve(),
       S3_ENDPOINT: preserve(),
@@ -58,32 +63,37 @@ export default defineRailway(() => {
       STALWART_JMAP_PASSWORD: preserve(),
       STALWART_JMAP_URL: preserve(),
       STALWART_JMAP_USERNAME: preserve(),
-      SYNC_CRON_ENABLED: preserve(),
-      TRUSTED_ORIGINS: preserve(),
+      SYNC_CRON_ENABLED: 'false',
+      TRUSTED_ORIGINS: `${apiUrl},${webUrl}`,
+      _RJEM_MALLOC_CONF:
+        'background_thread:true,narenas:2,dirty_decay_ms:1000,muzzy_decay_ms:1000',
     },
   });
 
   const expoWeb = service('expo-web', {
-    source: astralGrove,
-    replicas: { 'europe-west4-drams3a': 1 },
-    deploy: {
-      limitOverride: { containers: { cpu: 3, memoryBytes: 3_000_000_000 } },
-      sleepApplication: false,
-    },
-    domains: [{ domain: 'rift.solace.onl', port: 8080 }],
+    source: github('IIRoan/astral-grove', {
+      branch: 'rust-backend-rewrite',
+      checkSuites: false,
+    }),
+    build: { builder: 'DOCKERFILE', dockerfilePath: 'Dockerfile.web' },
+    healthcheck: '/health',
+    healthcheckTimeout: 300,
+    replicas: { [region]: 1 },
+    networking: { serviceDomains: { [webDomain]: { port: 8080 } } },
     env: {
-      EXPO_PUBLIC_API_URL: preserve(),
+      BACKEND_URL: 'http://${{rust-api.RAILWAY_PRIVATE_DOMAIN}}:${{rust-api.PORT}}',
+      EXPO_PUBLIC_API_URL: 'https://${{RAILWAY_PUBLIC_DOMAIN}}',
       EXPO_PUBLIC_SENTRY_DSN: preserve(),
-      RAILPACK_BUN_VERSION: '1.4.2',
+      PORT: '8080',
+      RAILPACK_BUN_VERSION: preserve(),
       RAILPACK_CONFIG_FILE: preserve(),
+      RAILPACK_NODE_VERSION: preserve(),
       RAILPACK_SPA_OUTPUT_DIR: preserve(),
     },
   });
 
-  const appServices = group('The Astral Grove', [backend, expoWeb]);
-  const databases = group('Databases', [testdb, postgresProduction]);
-
   return project('riftbound', {
-    resources: [databases, appServices, postgresVolumeKjO, postgresVolume],
+    environments: ['riftbound'],
+    resources: [database, databaseVolume, backend, expoWeb],
   });
 });

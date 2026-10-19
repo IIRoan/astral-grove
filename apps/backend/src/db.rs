@@ -48,7 +48,7 @@ pub async fn migrate(db: &DatabaseConnection) -> std::result::Result<(), DbErr> 
             .iter()
             .find(|row| row.try_get::<i64>("", "created_at").ok() == Some(*when));
         if let Some(row) = applied {
-            if row.try_get::<String>("", "hash")? != hash {
+            if !migration_checksum_matches(name, &hash, &row.try_get::<String>("", "hash")?) {
                 return Err(DbErr::Custom(format!(
                     "Migration checksum mismatch: {name}"
                 )));
@@ -75,6 +75,19 @@ pub async fn migrate(db: &DatabaseConnection) -> std::result::Result<(), DbErr> 
         .await?;
     }
     tx.commit().await
+}
+
+fn migration_checksum_matches(name: &str, current: &str, applied: &str) -> bool {
+    current == applied
+        // Preserve the observed production checksum without rewriting its historical ledger.
+        || matches!(
+            (name, current, applied),
+            (
+                "0013_graceful_speedball",
+                "b996aa55710fb04b8c04d4614c83681938993a0ffbf384cdc963e1fbb7326d5e",
+                "131e9b7202b99f05fbeec89c4ffe41acc22c334037df805c605d3eefe484fbc0"
+            )
+        )
 }
 
 pub async fn rows(
@@ -146,6 +159,32 @@ pub fn transient(error: &DbErr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legacy_checksum_acceptance_is_bound_to_the_exact_migration_contents() {
+        let current = "b996aa55710fb04b8c04d4614c83681938993a0ffbf384cdc963e1fbb7326d5e";
+        let legacy = "131e9b7202b99f05fbeec89c4ffe41acc22c334037df805c605d3eefe484fbc0";
+        assert!(migration_checksum_matches(
+            "0013_graceful_speedball",
+            current,
+            legacy
+        ));
+        assert!(!migration_checksum_matches(
+            "another_migration",
+            current,
+            legacy
+        ));
+        assert!(!migration_checksum_matches(
+            "0013_graceful_speedball",
+            "edited",
+            legacy
+        ));
+        assert!(!migration_checksum_matches(
+            "0013_graceful_speedball",
+            current,
+            "unknown"
+        ));
+    }
+
     #[test]
     fn migration_chain_is_complete_and_ordered() {
         assert_eq!(MIGRATIONS.len(), 16);

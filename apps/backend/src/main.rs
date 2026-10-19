@@ -1,5 +1,8 @@
 use astral_grove_server::{AppState, router};
 
+#[global_allocator]
+static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 #[tokio::main(worker_threads = 2)]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()

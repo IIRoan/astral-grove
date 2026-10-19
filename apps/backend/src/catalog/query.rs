@@ -7,6 +7,7 @@ pub struct Cache {
     checks: Mutex<crate::cache::TtlCache<bool>>,
     results: Mutex<crate::cache::TtlCache<Value>>,
     hashes: std::sync::Mutex<(u64, Option<(String, String)>)>,
+    index: Mutex<crate::cache::TtlCache<axum::body::Bytes>>,
 }
 impl Default for Cache {
     fn default() -> Self {
@@ -22,6 +23,11 @@ impl Default for Cache {
                 None,
             )),
             hashes: Default::default(),
+            index: Mutex::new(crate::cache::TtlCache::new(
+                Duration::from_secs(300),
+                1,
+                Some(4 * 1024 * 1024),
+            )),
         }
     }
 }
@@ -203,7 +209,21 @@ async fn local(state: &AppState, query: &Value, hash: &str) -> Result<Value> {
             } else {
                 diff
             };
-            diff.then_with(|| search::compare(db::string(left, "name"), db::string(right, "name")))
+            let diff = diff
+                .then_with(|| search::compare(db::string(left, "name"), db::string(right, "name")));
+            if query["sortBy"] == "name" {
+                diff.then_with(|| {
+                    search::compare(db::string(left, "cardId"), db::string(right, "cardId"))
+                })
+                .then_with(|| {
+                    search::compare(
+                        db::string(left, "variantNumber"),
+                        db::string(right, "variantNumber"),
+                    )
+                })
+            } else {
+                diff
+            }
         });
         let total = items.len() as i64;
         items = items
@@ -357,6 +377,23 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
     }
     Ok(result)
 }
+pub async fn index_response(state: &AppState) -> Result<axum::body::Bytes> {
+    let mut cache = state.catalog.index.lock().await;
+    let generation = state.catalog.hashes().0;
+    let key = generation.to_string();
+    if let Some(body) = cache.get(&key) {
+        return Ok(body.clone());
+    }
+    let response: axum::Json<astral_grove_api_types::CatalogIndexResponse> =
+        crate::http::respond("CatalogIndexResponse", index(state).await?)?;
+    let body = axum::body::Bytes::from(serde_json::to_vec(&response.0)?);
+    // A sync racing this read must not publish the old response into the new generation.
+    if state.catalog.hashes().0 == generation {
+        cache.insert(key, body.clone(), body.len());
+    }
+    Ok(body)
+}
+
 pub async fn index(state: &AppState) -> Result<Value> {
     let rows=db::rows(&state.db,&format!("SELECT c.upstream_raw AS card,v.upstream_raw AS variant,v.cardmarket_id AS \"cardmarketId\",v.tcgplayer_id AS \"tcgplayerId\" {JOINS} ORDER BY c.name,v.variant_number"),vec![]).await?;
     let prices = crate::prices::index(state, None).await?;

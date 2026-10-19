@@ -44,16 +44,16 @@ async fn list(
 #[utoipa::path(get,path="/api/v1/cards/index",operation_id="getCatalogIndex",responses((status=200,body=CatalogIndexResponse)))]
 async fn index(
     State(state): State<Arc<AppState>>,
-) -> Result<(
-    [(&'static str, &'static str); 1],
-    Json<CatalogIndexResponse>,
-)> {
+) -> Result<([(&'static str, &'static str); 2], axum::body::Bytes)> {
     Ok((
-        [(
-            "cache-control",
-            "public, max-age=300, stale-while-revalidate=60",
-        )],
-        http::respond("CatalogIndexResponse", query::index(&state).await?)?,
+        [
+            (
+                "cache-control",
+                "public, max-age=300, stale-while-revalidate=60",
+            ),
+            ("content-type", "application/json"),
+        ],
+        query::index_response(&state).await?,
     ))
 }
 #[utoipa::path(get,path="/api/v1/cards/{variantNumber}",operation_id="getCard",responses((status=200,body=CardDetailResponse)))]
