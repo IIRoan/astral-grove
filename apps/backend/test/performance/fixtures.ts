@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { startOfflineUpstream } from '../../../../tests/reference-api/test/e2e/offline';
+import { startOfflineUpstream } from '../fixtures/offline';
 import { validS3Signature } from '../s3-fixture';
 import { barrier } from './metrics';
 

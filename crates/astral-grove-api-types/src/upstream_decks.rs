@@ -1,5 +1,3 @@
-//! Wire DTOs initialized from the pinned API baseline; evolve Rust DTOs and regenerate OpenAPI together.
-
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
 pub struct UpstreamDeckDetail {
     #[serde(rename = "id")]

@@ -23,7 +23,6 @@ async function run(command, args, env = process.env) {
 }
 const envFiles = [
   resolve(root, '.env'),
-  resolve(root, 'apps/api/.env'),
   resolve(root, 'apps/backend/.env'),
 ].filter(existsSync);
 if (process.env.ASTRAL_NATIVE_ENV_LOADED !== '1' && envFiles.length)

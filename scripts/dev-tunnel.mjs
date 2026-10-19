@@ -22,9 +22,7 @@ const MOBILE_ENV = join(ROOT, 'apps/mobile/.env');
 const PUBLIC_HOST = 'https://riftbounddev.roan.dev';
 const CONFIG_PATH = join(ROOT, 'cloudflared/config.yml');
 const TUNNEL_NAME = 'riftbound-dev';
-const API_ENV = existsSync(join(ROOT, 'apps/backend/.env'))
-  ? join(ROOT, 'apps/backend/.env')
-  : join(ROOT, 'apps/api/.env');
+const API_ENV = join(ROOT, 'apps/backend/.env');
 
 function loadApiEnv() {
   if (!existsSync(API_ENV)) return;

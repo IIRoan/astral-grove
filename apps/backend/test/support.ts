@@ -1,8 +1,8 @@
 import postgres from 'postgres';
 import { openSync, closeSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { requireLocalTestDatabase } from '../../../scripts/rust-migration/test-target';
-import { seedOfflineCatalog } from '../../../tests/reference-api/test/e2e/offline';
+import { requireLocalTestDatabase } from './test-target';
+import { seedOfflineCatalog } from './fixtures/offline';
 process.env.NODE_ENV = 'test';
 export const testDatabase = requireLocalTestDatabase(process.env.TEST_DB_URL);
 let catalogReady = false;

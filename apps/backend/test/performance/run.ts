@@ -2,7 +2,7 @@ import { dirname, resolve } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { z } from 'zod';
-import { requireLocalTestDatabase } from '../../../../scripts/rust-migration/test-target';
+import { requireLocalTestDatabase } from '../test-target';
 import budgets from './budgets.json';
 
 const root = resolve(import.meta.dir, '../../../..');

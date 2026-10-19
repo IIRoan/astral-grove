@@ -437,7 +437,7 @@ test('concurrent renewal stays fast and fresh sessions avoid repeated database w
   ).toEqual(renewed);
 });
 
-test('native search diagnostics preserve SQL plans alongside HTTP measurements', async () => {
+test('search diagnostics preserve SQL plans alongside HTTP measurements', async () => {
   const command = await runNativeCommand(app.config, [
     'explain:search',
     '--target=test',

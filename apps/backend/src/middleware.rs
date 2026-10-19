@@ -122,7 +122,7 @@ pub async fn apply(
             }
         }
     }
-    // Auth routes have their own Better Auth-compatible limiter, matching Elysia's mounted handler.
+    // Auth routes are limited per path by the auth pipeline instead.
     let exempt = preflight
         || path == "/api/v1/health"
         || path.starts_with("/api/v1/images/")

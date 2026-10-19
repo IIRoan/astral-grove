@@ -45,8 +45,7 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*",
-    "tests/reference-api"
+    "packages/*"
   ],
   "overrides": {
     "expo": "57.0.23",

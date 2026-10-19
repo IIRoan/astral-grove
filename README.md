@@ -6,8 +6,8 @@ card data, prices, and community decks from Piltover Archive.
 ## Local database setup
 
 Install Bun 1.4.2, Rust (the pinned 1.98.1 toolchain is selected automatically),
-and Docker with Compose. The backend is a native Rust/Axum service; Expo remains
-TypeScript. Install workspace tooling from the repo root:
+and Docker with Compose. The backend is a Rust/Axum service; the app is Expo
+and TypeScript. Install workspace tooling from the repo root:
 
 ```bash
 bun install
@@ -19,9 +19,7 @@ For a new checkout, copy the API environment template:
 cp apps/backend/.env.example apps/backend/.env
 ```
 
-Existing `apps/api/.env` files remain supported by the native dev/CLI wrappers.
-For a new checkout use `apps/backend/.env`. Keep other settings and set its
-database settings with these local values:
+Keep other settings and set its database settings with these local values:
 
 ```dotenv
 NODE_ENV=development
@@ -86,29 +84,21 @@ all 135 shared schema outputs.
 ```bash
 bun run api:contracts          # regenerate after backend contract changes
 bun run check                  # generated contracts, TS, lint, format, Rust clippy
-bun run test                   # native unit/HTTP, compatibility, shared/mobile tests
-cargo xtask baseline           # frozen-source, route and case inventory checks
+bun run test                   # Rust unit, HTTP, shared and mobile tests
 ```
 
 Tests accept only loopback PostgreSQL databases named `riftbound_test` or
 `riftbound_test_*` through `TEST_DB_URL`; upstream, mail and S3 flows use local
 fixtures. `DATABASE_URL` is never the fallback test target. No reset is needed.
 
-See [backend development](apps/backend/README.md), the
-[Rocal migration map](plans/rust-migration/rocal-reference.md), and the
-[local validation report](plans/rust-migration/local-validation.md).
-Production builds use `Dockerfile.backend`; the runtime contains a native binary
-and no TypeScript server. `tests/reference-api` retains the original implementation
-solely for regression comparison and is excluded from the image.
+See [backend development](apps/backend/README.md). Production builds use
+`Dockerfile.backend`; the runtime image contains only the server binary.
 
-GitHub CI runs two parallel jobs on pull requests and pushes to `main`.
-**Checks and native tests** covers Rust/TypeScript checks, native units, runtime
-schema/rule parity, shared/mobile and retained oracle units, plus the complete
-HTTP/compatibility and auth/HTTP boundary suites against the development binary.
-**Production image tests** builds the Docker image, repeats the full HTTP suites
-against its release binary, and checks production-mode auth, SSE and shutdown
-inside the container. Builds are reused within each job; both binary modes keep
-their test coverage. CI uses synthetic credentials and local service fixtures.
+GitHub CI runs on pull requests and pushes to `main`, split across parallel jobs:
+lint/typecheck, Rust unit tests, shared and mobile unit tests, HTTP tests against
+the development binary, and a production image build whose release binary runs the
+HTTP and performance suites plus a container smoke test for production-mode auth,
+SSE and shutdown. CI uses synthetic credentials and local service fixtures.
 
 ## Internal mobile downloads
 

@@ -73,8 +73,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn typescript_hashes_verify() {
-        // Written by the TypeScript backend at sign-up for "solace-test-pw-123".
+    async fn better_auth_hashes_verify() {
         let stored = "dd9606626dae5b0a239158deba3bd517:f7ceb36210bb220f924c0085423c00d4fd9cfc3bc6c0bdf8d0907357c7610cbd52744f7c0016cade759d4a39954470e3c7ee2aad0761b3103637fdae72e4d86a";
         assert!(verify(stored, "solace-test-pw-123").await.unwrap());
         assert!(!verify(stored, "solace-test-pw-124").await.unwrap());

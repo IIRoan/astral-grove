@@ -49,7 +49,7 @@ pub async fn run(state: &Arc<AppState>, args: &[String]) -> anyhow::Result<Value
             }
         }
         let input = crate::http::value("CardsListQuery", &transport)
-            .map_err(|_| anyhow::anyhow!("Invalid native search benchmark {}", benchmark["id"]))?;
+            .map_err(|_| anyhow::anyhow!("Invalid search benchmark {}", benchmark["id"]))?;
         let (sql, values, direct) = query::candidate_query(&input);
         let tx = state.db.begin().await?;
         tx.execute_unprepared("SET TRANSACTION READ ONLY").await?;
@@ -87,7 +87,7 @@ pub async fn run(state: &Arc<AppState>, args: &[String]) -> anyhow::Result<Value
         }
     }
     let url = url::Url::parse(&state.config.database_url)?;
-    let report = json!({"generatedAt":db::iso(time::OffsetDateTime::now_utc()),"target":options.get("--target"),"host":url.host_str(),"database":url.path().trim_start_matches('/'),"envName":options.get("--use-env"),"catalog":{"postgresVersion":version.first().map(|v|&v["version"]),"collation":collation.first(),"extensions":extensions,"relations":relations,"indexes":indexes,"statsFreshness":stats},"cases":cases,"service":if options.contains_key("--with-local-service"){json!(service)}else{Value::Null},"notes":["Native database-only diagnostic; no PA requests or backfill. EXPLAIN uses the same candidate SQL as native HTTP search.","Statement timeout 30 seconds in read-only transactions; service timing reports measured native total time, not fabricated legacy phase timings.","First service sample is process-cold; subsequent samples use the same process. Database buffers are not flushed."]});
+    let report = json!({"generatedAt":db::iso(time::OffsetDateTime::now_utc()),"target":options.get("--target"),"host":url.host_str(),"database":url.path().trim_start_matches('/'),"envName":options.get("--use-env"),"catalog":{"postgresVersion":version.first().map(|v|&v["version"]),"collation":collation.first(),"extensions":extensions,"relations":relations,"indexes":indexes,"statsFreshness":stats},"cases":cases,"service":if options.contains_key("--with-local-service"){json!(service)}else{Value::Null},"notes":["Database-only diagnostic; no PA requests or backfill. EXPLAIN uses the same candidate SQL as HTTP search.","Statement timeout 30 seconds in read-only transactions; service timing reports measured total time.","First service sample is process-cold; subsequent samples use the same process. Database buffers are not flushed."]});
     if let Some(path) = options.get("--output") {
         let path = std::path::Path::new(path);
         if let Some(parent) = path.parent().filter(|path| !path.as_os_str().is_empty()) {

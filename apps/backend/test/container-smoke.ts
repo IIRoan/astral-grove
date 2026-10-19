@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import postgres from 'postgres';
 import { z } from 'zod';
-import { requireLocalTestDatabase } from '../../../scripts/rust-migration/test-target';
+import { requireLocalTestDatabase } from './test-target';
 
 const database = new URL(requireLocalTestDatabase(process.env.TEST_DB_URL));
 database.searchParams.set('sslmode', 'disable');

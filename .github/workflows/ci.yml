@@ -34,31 +34,15 @@ jobs:
       - run: bun run check
 
   rust:
-    name: Rust units, inventory and schema parity
+    name: Rust unit tests and development build
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      # The migration inventory reads the frozen reference commit from history.
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
       - uses: dtolnay/rust-toolchain@1.98.1
       - uses: Swatinem/rust-cache@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run --cwd packages/contracts build
-      - name: Native Rust units, probes and migration inventory
-        run: |
-          cargo test --workspace --locked
-          cargo build --package astral-grove-server --bins --locked
-          cargo xtask baseline
-      - name: Runtime schema and business rule parity
-        run: |
-          bun --no-env-file scripts/rust-migration/validation-corpus.mjs --check-rust
-          bun --no-env-file scripts/rust-migration/business-corpus.ts --check-rust
-          bun --no-env-file scripts/rust-migration/auth-validation-corpus.mjs --check-rust
+      - run: cargo test --workspace --locked
+      - run: cargo build --package astral-grove-server --bins --locked
       # Debug info makes the binary ~400 MB; tests only need the executable.
       - run: strip -o "$RUNNER_TEMP/astral-grove-server" target/debug/astral-grove-server
       - uses: actions/upload-artifact@v4
@@ -68,9 +52,29 @@ jobs:
           retention-days: 1
 
   js-units:
-    name: Shared, mobile and reference unit tests
+    name: Shared and mobile unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bun run --cwd packages/contracts build
+      - run: |
+          bun test scripts/lib/internal-release.test.ts
+          bun run --cwd packages/contracts test
+          bun run --cwd apps/mobile test
+
+  backend-dev:
+    name: Development binary · http
+    needs: rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        suite: [http]
     services:
       postgres: &postgres
         image: postgres:16-alpine
@@ -82,30 +86,6 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U riftbound -d riftbound_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-      - run: bun install --frozen-lockfile
-      - run: bun run --cwd packages/contracts build
-      - run: |
-          bun test scripts/lib/internal-release.test.ts scripts/rust-migration/test-target.test.ts
-          bun run --cwd packages/contracts test
-          bun run --cwd tests/reference-api test
-          bun run --cwd apps/mobile test
-
-  backend-dev:
-    name: Development binary · ${{ matrix.suite }}
-    needs: rust
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        suite: [http, compat, parity]
-    services:
-      postgres: *postgres
     env:
       ASTRAL_BACKEND_BIN: ${{ github.workspace }}/.ci/astral-grove-server
     steps: &backend-steps
@@ -120,17 +100,9 @@ jobs:
           name: ${{ env.BINARY_ARTIFACT || 'backend-debug' }}
           path: .ci
       - run: chmod +x .ci/astral-grove-server && sha256sum .ci/astral-grove-server
-      - name: Native HTTP suite
+      - name: HTTP suite
         if: matrix.suite == 'http'
         run: bun run --cwd apps/backend test:http
-      - name: Original compatibility suite
-        if: matrix.suite == 'compat'
-        run: bun run --cwd apps/backend test:compat
-      - name: Auth protocol and malformed input parity
-        if: matrix.suite == 'parity'
-        run: |
-          bun --no-env-file scripts/rust-migration/auth-parity.ts
-          bun --no-env-file scripts/rust-migration/http-boundary-parity.ts
       - name: Packaged backend performance and load tests
         if: matrix.suite == 'perf'
         env:
@@ -145,7 +117,7 @@ jobs:
           if-no-files-found: ignore
       - name: Server diagnostics
         if: failure()
-        run: cat /tmp/astral-native-test-*.log /tmp/astral-auth-parity-server.log /tmp/astral-grove-rust-e2e-server.log 2>/dev/null || true
+        run: cat /tmp/astral-native-test-*.log 2>/dev/null || true
 
   image:
     name: Production image build and container smoke
@@ -171,7 +143,7 @@ jobs:
           build-args: CARGO_BUILD_JOBS=default
           cache-from: type=gha,scope=astral-grove-backend
           cache-to: type=gha,scope=astral-grove-backend,mode=max
-      - name: Verify native runtime and extract its binary
+      - name: Verify runtime user and extract its binary
         run: |
           test "$(docker image inspect --format '{{.Config.User}}' astral-grove-backend:ci)" = '10001:10001'
           docker run --rm --entrypoint /bin/sh astral-grove-backend:ci -ec 'if command -v bun || command -v node; then exit 1; fi'
@@ -198,7 +170,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [http, compat, parity, perf]
+        suite: [http, perf]
     services:
       postgres: *postgres
     env:

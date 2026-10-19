@@ -3,7 +3,7 @@ import { createServer, connect, type Socket } from 'node:net';
 import { readFileSync } from 'node:fs';
 import { createHarness, testDatabase } from './support';
 setDefaultTimeout(60000);
-test('native startup retries a transient PostgreSQL error and drains gracefully after recovery', async () => {
+test('startup retries a transient PostgreSQL error and drains gracefully after recovery', async () => {
   const target = new URL(testDatabase);
   target.searchParams.set('sslmode', 'disable');
   const databasePort = Number(target.port || 5432);

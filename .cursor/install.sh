@@ -84,12 +84,12 @@ generate_expo_types
 # Local dev env file for the API. Real secrets (e.g. a valid PA_API_KEY) can be supplied via
 # Cursor Secrets, which land in process.env and take precedence over these dev defaults.
 ensure_api_env() {
-  local env_file="$ROOT/apps/api/.env"
+  local env_file="$ROOT/apps/backend/.env"
   if [ -f "$env_file" ]; then
-    log "apps/api/.env already exists — leaving untouched"
+    log "apps/backend/.env already exists — leaving untouched"
     return 0
   fi
-  log "writing apps/api/.env dev defaults"
+  log "writing apps/backend/.env dev defaults"
   cat >"$env_file" <<'ENV'
 NODE_ENV=development
 PORT=7000

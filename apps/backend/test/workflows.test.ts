@@ -12,10 +12,7 @@ import {
 } from '@riftbound/contracts';
 import { createHarness, json, cookie, runNativeCommand } from './support';
 const { startRust, stopRust, sql } = createHarness();
-import {
-  seedOfflineCatalog,
-  startOfflineUpstream,
-} from '../../../tests/reference-api/test/e2e/offline';
+import { seedOfflineCatalog, startOfflineUpstream } from './fixtures/offline';
 import { releaseAccessToken } from '../../../scripts/lib/internal-release-signing';
 setDefaultTimeout(180000);
 let app: Awaited<ReturnType<typeof startRust>>;
@@ -116,7 +113,7 @@ test('Rust catalog sync publishes partial progress and remains retryable', async
   expect(status.data.catalog.status).toBe('idle');
 });
 
-test('native card audit detects stale fields, stays read-only by default and verifies explicit repairs', async () => {
+test('card audit detects stale fields, stays read-only by default and verifies explicit repairs', async () => {
   const row = (
     await sql`SELECT c.id,c.name,c.content_hash AS hash,v.variant_number AS number FROM cards c JOIN variants v ON v.card_id=c.id ORDER BY v.variant_number LIMIT 1`
   )[0]!;
@@ -156,7 +153,7 @@ test('native card audit detects stale fields, stays read-only by default and ver
   }
 });
 
-test('native maintenance selection, retention dry run and database-only search explain work without PA', async () => {
+test('maintenance selection, retention dry run and database-only search explain work without PA', async () => {
   const config = { ...app.config, PA_BASE_URL: 'http://127.0.0.1:1' };
   const before = (await sql`SELECT count(*)::integer AS count FROM price_history`)[0]!
     .count;
@@ -191,7 +188,7 @@ test('native maintenance selection, retention dry run and database-only search e
   );
   expect(explain.output).not.toContain('fixture-secret');
 });
-test('native price sync persists current and daily prices and skips unchanged exports', async () => {
+test('price sync persists current and daily prices and skips unchanged exports', async () => {
   const sync = () =>
     app.fetch('/api/v1/sync/prices', {
       method: 'POST',
@@ -208,7 +205,7 @@ test('native price sync persists current and daily prices and skips unchanged ex
   expect(next.status).toBe(200);
   expect(SyncPricesResponse.parse(await next.json()).data.changed).toBe(false);
 });
-test('native image derivatives persist to S3, validate decoding and use conditional HTTP caching', async () => {
+test('image derivatives persist to S3, validate decoding and use conditional HTTP caching', async () => {
   const response = await app.fetch('/api/v1/images/cards/native.png?w=%2B96');
   expect(response.status).toBe(200);
   expect(response.headers.get('content-type')).toBe('image/webp');

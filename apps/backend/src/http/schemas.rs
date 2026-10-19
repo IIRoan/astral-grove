@@ -1,5 +1,3 @@
-//! Request normalizers initialized from the pinned Zod baseline; differential tests enforce parity.
-
 use super::zod as z;
 
 pub fn schema(name: &str) -> z::Schema {

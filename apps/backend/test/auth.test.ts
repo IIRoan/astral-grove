@@ -7,18 +7,16 @@ import {
   setDefaultTimeout,
 } from 'bun:test';
 import { z } from 'zod';
-import { createHmac } from 'node:crypto';
-import { createAuth } from '../../../tests/reference-api/src/auth';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import * as schema from '../../../tests/reference-api/src/db/schema';
-import * as authSchema from '../../../tests/reference-api/src/db/auth-schema';
-import { startJmapFixture } from '../../../tests/reference-api/test/fixtures/migration/jmap';
+import { createHmac, scryptSync } from 'node:crypto';
+import { startJmapFixture } from './fixtures/jmap';
 import { createHarness, json, cookie } from './support';
 const { startRust, stopRust, sql } = createHarness();
 setDefaultTimeout(60000);
 const stamp = crypto.randomUUID();
 const addresses: string[] = [];
 const password = 'native-password-12345';
+const betterAuthHash =
+  '66cc3e330c9d14d6765e69edfdc48b8e:70f972ba24b90e323af3f768fb61c958e36b6666219c50e7f16d6b357f440d58ec7f99924e22991ce1121097ad19628e2c82881cd1cc23ccdc9cca96bfde6c32';
 let app: Awaited<ReturnType<typeof startRust>>;
 const User = z.object({
   id: z.string(),
@@ -46,7 +44,7 @@ afterAll(async () => {
   await sql`DELETE FROM verification WHERE identifier LIKE ${`%${stamp}%`}`;
   await stopRust();
 });
-describe('native authentication', () => {
+describe('authentication', () => {
   test('revoking a session closes its collection live stream before another event is delivered', async () => {
     const user = await signup('live-revocation');
     const login = await app.fetch(
@@ -84,50 +82,42 @@ describe('native authentication', () => {
       await reader.cancel().catch(() => {});
     }
   });
-  test('existing Better Auth hashes and signed cookies work in both runtimes', async () => {
-    const old = createAuth(drizzle(sql, { schema: { ...schema, ...authSchema } }), {
-      ...app.config,
-      NODE_ENV: 'test',
-      PORT: Number(app.config.PORT),
-      DB_POOL_MAX: 2,
-      TRUSTED_ORIGINS: [],
-      CATALOG_WARMUP_ON_START: false,
-      CATALOG_PROBE_DISABLED: true,
-      CARDMARKET_GAME_ID: 22,
-      PRICE_HISTORY_RETAIN_DAYS: 90,
-      PRICE_HISTORY_RETAIN_SNAPSHOTS: 30,
-    });
+  test('existing Better Auth hashes and signed cookies keep working', async () => {
+    const sign = (token: string) =>
+      `${token}.${createHmac('sha256', app.config.BETTER_AUTH_SECRET).update(token).digest('base64')}`;
     const email = `native-legacy-${stamp}@test.riftbound.dev`;
     addresses.push(email);
-    const response = await old.handler(
-      new Request(
-        app.origin + '/api/auth/sign-up/email',
-        json({ email, name: 'Legacy account', password })
-      )
-    );
-    expect(response.status).toBe(200);
-    const oldCookie = cookie(response);
+    const userId = crypto.randomUUID();
+    await sql`INSERT INTO "user"(id,name,email) VALUES(${userId},'Legacy account',${email})`;
+    await sql`INSERT INTO account(id,account_id,provider_id,user_id,password) VALUES(${crypto.randomUUID()},${userId},'credential',${userId},${betterAuthHash})`;
+    const login = await app.fetch('/api/auth/sign-in/email', json({ email, password }));
+    expect(login.status).toBe(200);
+    expect(Login.parse(await login.json()).user.id).toBe(userId);
+    const token = crypto.randomUUID().replaceAll('-', '');
+    await sql`INSERT INTO session(id,token,user_id,expires_at) VALUES(${crypto.randomUUID()},${token},${userId},now()+interval '7 days')`;
     const session = await app.fetch('/api/auth/get-session', {
-      headers: { cookie: oldCookie },
+      headers: {
+        cookie: `better-auth.session_token=${encodeURIComponent(sign(token))}`,
+      },
     });
     expect(session.status).toBe(200);
     expect((await session.json()).user.email).toBe(email);
-    const login = await app.fetch('/api/auth/sign-in/email', json({ email, password }));
-    expect(login.status).toBe(200);
     const native = await signup('reverse');
-    const legacy = await old.handler(
-      new Request(
-        app.origin + '/api/auth/sign-in/email',
-        json({ email: native.email, password })
-      )
-    );
-    expect(legacy.status).toBe(200);
-    const nativeCookie = await old.handler(
-      new Request(app.origin + '/api/auth/get-session', {
-        headers: { cookie: native.cookie },
-      })
-    );
-    expect((await nativeCookie.json()).user.id).toBe(native.user.id);
+    const [stored] = await sql<
+      { password: string }[]
+    >`SELECT password FROM account WHERE user_id=${native.user.id} AND provider_id='credential'`;
+    const [salt, key] = stored!.password.split(':');
+    expect(
+      scryptSync(password.normalize('NFKC'), salt!, 64, {
+        N: 16384,
+        r: 16,
+        p: 1,
+        maxmem: 128 * 16384 * 16 * 2,
+      }).toString('hex')
+    ).toBe(key!);
+    const [name, value] = native.cookie.split('; ')[0]!.split('=');
+    expect(name).toBe('better-auth.session_token');
+    expect(decodeURIComponent(value!)).toBe(sign(native.token!));
   });
   test('session refresh, disableRefresh and dont-remember retain the configured lifetimes', async () => {
     const user = await signup('renewal');

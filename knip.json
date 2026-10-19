@@ -30,9 +30,6 @@
     "packages/contracts": {
       "entry": ["src/**/*.test.ts"]
     },
-    "tests/reference-api": {
-      "entry": ["scripts/*.ts", "test/**/*.ts"]
-    },
     "apps/backend": {
       "entry": ["test/**/*.ts"]
     }

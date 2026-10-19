@@ -1,5 +1,3 @@
-//! Millisecond parsing retained from the Rocal migration.
-
 /// JavaScript keeps three fraction digits and drops the rest, so `.1234567890` is 123 ms and `.9999` before 1970 is -1 ms.
 pub(crate) fn milliseconds_only(text: &str) -> std::borrow::Cow<'_, str> {
     let Some(dot) = text.find('.') else {

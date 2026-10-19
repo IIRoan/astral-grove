@@ -85,14 +85,12 @@ When writing user-facing copy, prefer **The Astral Grove**. When reading upstrea
 | Path                            | Package                        | Role                                                                                                        |
 | ------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | `apps/mobile`                   | `@riftbound/mobile`            | **The Astral Grove app** — Expo SDK 57 (iOS, Android, Web), Expo Router, TanStack Query, tetra-ui + Uniwind |
-| `apps/backend`                  | `@riftbound/api`               | Native Rust/Axum backend, PostgreSQL, Better Auth-compatible auth, PA sync                                  |
+| `apps/backend`                  | `@riftbound/api`               | Rust/Axum backend, PostgreSQL, Better Auth-compatible auth, PA sync                                         |
 | `crates/astral-grove-api-types` | Rust DTO crate                 | Serde and OpenAPI wire types, independent from the database                                                 |
 | `packages/api-contracts`        | `@riftbound/api-contracts`     | Generated OpenAPI and TypeScript wire types                                                                 |
-| `tests/reference-api`           | `@riftbound/reference-api`     | Frozen Elysia oracle for regression comparison; never a production target                                   |
 | `packages/contracts`            | `@riftbound/contracts`         | Shared Zod schemas + `z.infer` types for our API **and** PA payload shapes                                  |
 | `packages/typescript-config`    | `@riftbound/typescript-config` | Shared strict TS config                                                                                     |
 | `design/`                       | `astral-grove.com`             | Marketing / landing site (Next.js — not the mobile client)                                                  |
-| `SPEC.md`                       | —                              | Architecture spec (may lag implementation — trust the code)                                                 |
 
 **Data flow:** The Astral Grove mobile → our API → PostgreSQL → (sync) → Piltover Archive external API.
 
@@ -125,10 +123,10 @@ bun run --cwd apps/mobile typecheck
 bun run --cwd apps/mobile test
 bun run --cwd packages/contracts typecheck
 
-# API: native Rust unit tests (no DB server)
+# API: Rust unit tests (no DB server)
 bun run --cwd apps/backend test:unit
 
-# API: native HTTP/Postgres tests (local fixtures and ephemeral ports)
+# API: HTTP/Postgres tests (local fixtures and ephemeral ports)
 bun run --cwd apps/backend test:e2e
 
 # Mobile: one file
@@ -232,30 +230,25 @@ Rust owns backend wire DTOs and validators. Shared Zod owns frontend/upstream ru
 2. Use `http::parse` / `http::value` on requests and `http::respond` on responses.
 3. Run `cargo xtask openapi`, then `bun run --cwd packages/contracts build`.
 4. Keep the 135 bidirectional assertions in `rust-type-alignment.ts` passing.
-5. Extend runtime differential and HTTP tests for coercion, defaults and boundaries.
+5. Extend HTTP tests for coercion, defaults and boundaries.
 6. Mobile clients must keep parsing every response with the contract schema.
 
 Do not hand-edit generated `packages/api-contracts/src/schema.ts`, duplicate wire types, or bypass external JSON validation with casts. The generated checker must not edit files, read environment files, or connect to a database.
 
 ## Testing
 
-`bun run test` orchestrates local PostgreSQL and the workspace suites. Rust unit tests use `cargo test`; HTTP, compatibility, mobile and shared tests use Bun.
+`bun run test` orchestrates local PostgreSQL and the workspace suites. Rust unit tests use `cargo test`; HTTP, mobile and shared tests use Bun.
 
-| Tier          | Command                                                                   | Evidence                                                                          |
-| ------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Native unit   | `cargo test --workspace --locked`                                         | Pure Rust semantics, caches, validators, passwords, SSE                           |
-| Native HTTP   | `bun run --cwd apps/backend test:e2e`                                     | Rust process + local PostgreSQL, PA/Cardmarket, JMAP and S3 fixtures              |
-| Compatibility | `bun run --cwd apps/backend test:compat`                                  | Original 219 e2e cases targeting Rust; some retain direct reference-service calls |
-| Differential  | `bun run --cwd apps/backend test:parity`                                  | Shared/auth schemas, business rules and HTTP boundaries against the frozen oracle |
-| Oracle unit   | `bun run --cwd tests/reference-api test`                                  | Original 398 cases plus baseline probes; not native coverage                      |
-| Inventory     | `cargo xtask baseline`                                                    | Frozen source, all named functions, mounted routes and test dispositions          |
-| Shared/mobile | `bun run --cwd packages/contracts test`, `bun run --cwd apps/mobile test` | Frontend schema and pure app behavior                                             |
+| Tier          | Command                                                                   | Covers                                                               |
+| ------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Rust unit     | `cargo test --workspace --locked`                                         | Pure Rust semantics, caches, validators, passwords, SSE              |
+| HTTP          | `bun run --cwd apps/backend test:e2e`                                     | Rust process + local PostgreSQL, PA/Cardmarket, JMAP and S3 fixtures |
+| Performance   | `bun run --cwd apps/backend test:perf`                                    | Release binary latency/throughput budgets                            |
+| Shared/mobile | `bun run --cwd packages/contracts test`, `bun run --cwd apps/mobile test` | Frontend schema and pure app behavior                                |
 
-`TEST_DB_URL` must name a loopback `riftbound_test` or `riftbound_test_*` database. Test code must never fall back to `DATABASE_URL`, load backend secrets, or contact live PA, mail or object storage. Keep test network fixtures deterministic. Native integration tests can target a packaged binary via `ASTRAL_BACKEND_BIN`.
+`TEST_DB_URL` must name a loopback `riftbound_test` or `riftbound_test_*` database. Test code must never fall back to `DATABASE_URL`, load backend secrets, or contact live PA, mail or object storage. Keep test network fixtures deterministic. HTTP tests can target a packaged binary via `ASTRAL_BACKEND_BIN`.
 
-The byte-pinned oracle source is under `tests/reference-api/src`; do not edit it to make Rust comparisons pass. Keep all 617 original case identifiers accounted for in `plans/rust-migration/test-destinations.tsv`. Retained TypeScript service tests are oracle evidence and must be reported separately from native evidence.
-
-Add behavior tests for backend changes, preferably failing first. Native HTTP tests use unique synthetic emails and scoped cleanup. Mobile tests remain colocated Bun tests and should focus on behavior, not snapshots.
+Add behavior tests for backend changes, preferably failing first. HTTP tests use unique synthetic emails and scoped cleanup. Mobile tests remain colocated Bun tests and should focus on behavior, not snapshots.
 
 ## Database & migrations
 
@@ -267,11 +260,10 @@ bun run db:down
 
 **Agents must never run destructive database commands**, including on local or test databases. Forbidden: reset scripts, `DROP`, `TRUNCATE`, unscoped `DELETE`, or commands that wipe tables/databases. Use forward migrations and scoped test helpers. Ask before production data deletion.
 
-- Native SQL: `apps/backend/migrations/`; registration: `apps/backend/src/migrations.rs`.
-- The 16 original migrations and Drizzle ledger/checksums/timestamps remain compatible.
+- SQL: `apps/backend/migrations/`; registration: `apps/backend/src/migrations.rs`.
+- Applied migrations are tracked in the `drizzle.__drizzle_migrations` ledger; keep its checksums and timestamps compatible.
 - Never edit applied SQL, discard historical ledger rows, reset, or reduce timestamp precision.
 - For schema changes add a forward SQL file and increasing timestamp registration; apply locally and test fresh and repeated startup plus affected HTTP behavior.
-- The frozen Drizzle schema/migrations are reference evidence, not a schema generator for the new backend.
 
 ## API conventions (`apps/backend`)
 
@@ -287,7 +279,7 @@ See [`apps/backend/README.md`](apps/backend/README.md) for the complete source m
 - Production uses `Dockerfile.backend`; it must contain no TypeScript runtime/server.
 
 ```bash
-bun run dev:api      # native watch/rebuild on port 7000
+bun run dev:api      # watch/rebuild on port 7000
 bun run dev:mobile   # unchanged Expo on port 7001
 ```
 
@@ -369,7 +361,6 @@ flowchart LR
 
 ## Reference docs
 
-- [`SPEC.md`](SPEC.md) — product spec and architecture history
 - [`apps/mobile/AGENTS.md`](apps/mobile/AGENTS.md) — Expo, tetra-ui, Uniwind
 - [Expo SDK 57 docs](https://docs.expo.dev/versions/v57.0.0/)
 - [Axum docs](https://docs.rs/axum/)
