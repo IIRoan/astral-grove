@@ -34,7 +34,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `bunx expo start --web --port ${WEB_PORT}`,
+    command: `bunx --no-install expo start --web --localhost --port ${WEB_PORT}`,
     url: WEB_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

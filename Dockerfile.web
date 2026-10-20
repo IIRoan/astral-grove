@@ -1,0 +1,20 @@
+FROM oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS bun
+FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 AS build
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+WORKDIR /app
+COPY . .
+RUN bun install --frozen-lockfile
+ARG EXPO_PUBLIC_API_URL
+ARG EXPO_PUBLIC_SENTRY_DSN
+RUN bun run --filter @riftbound/contracts build && bun run --cwd apps/mobile build:web
+RUN find apps/mobile/dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.json' -o -name '*.svg' \) -exec gzip -k -9 {} +
+
+FROM nginxinc/nginx-unprivileged:stable-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03 AS runtime
+COPY --from=build /app/apps/mobile/dist /usr/share/nginx/html
+COPY deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
+# One worker is enough for static files and asynchronous API/SSE proxying.
+USER root
+RUN sed -i 's/worker_processes  auto;/worker_processes  1;/' /etc/nginx/nginx.conf
+USER 101:101
+ENV PORT=8080 NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1 NGINX_ENVSUBST_FILTER="^(BACKEND_URL|PORT|NGINX_LOCAL_RESOLVERS)$"
+EXPOSE 8080

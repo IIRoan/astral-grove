@@ -68,7 +68,7 @@ function InviteAcceptBody({ token }: { token: string }) {
             setSubmitting(null);
             const message =
               error instanceof RemoteApiError
-                ? error.body || error.message
+                ? error.message
                 : 'Could not accept invite';
             Alert.alert('Accept failed', message);
           },

@@ -5,6 +5,8 @@ import {
   deckFormatRestrictsPicker,
   domainIdentityMatch,
   getDeckRules,
+  isMainDeckCardType,
+  isSignatureCard,
   legendChampionTags,
   normalizeDeckDomains,
   sharesLegendChampionTag,
@@ -58,7 +60,6 @@ function collectDeckDomains(deck: DeckState): Set<string> {
   for (const [, entry] of deck.mainDeck) add(entry.card.colors);
   for (const [, entry] of deck.runes) add(entry.card.colors);
   for (const [, entry] of deck.battlefields) add(entry.card.colors);
-  for (const [, entry] of deck.sideboard) add(entry.card.colors);
   return domains;
 }
 
@@ -154,22 +155,11 @@ function maxCopiesForCandidate(deck: DeckState, candidate: DeckCard): number | n
   });
 }
 
-function signatureCountMatchingLegend(deck: DeckState): number {
-  if (!deck.legend) return 0;
-
+/** Signature cap spans Main Deck + Sideboard. */
+function signatureCount(deck: DeckState): number {
   let count = 0;
-  for (const [, entry] of deck.mainDeck) {
-    if (!entry.card.isSignature) continue;
-    if (!sharesLegendChampionTag(deck.legend, entry.card)) continue;
-    count += entry.count;
-  }
-  return count;
-}
-
-function signatureCountAll(deck: DeckState): number {
-  let count = 0;
-  for (const [, entry] of deck.mainDeck) {
-    if (entry.card.isSignature) count += entry.count;
+  for (const [, entry] of [...deck.mainDeck, ...deck.sideboard]) {
+    if (isSignatureCard(entry.card)) count += entry.count;
   }
   return count;
 }
@@ -220,18 +210,12 @@ export function isCardEligibleForSection(args: {
       return { eligible: false, reason: 'Not a Battlefield card.' };
     }
   } else if (section === 'mainDeck') {
-    if (candidateType !== 'mainDeck') {
+    if (!isMainDeckCardType(candidateCard)) {
       return { eligible: false, reason: 'Not a Main Deck card.' };
     }
   } else if (section === 'sideboard') {
-    if (candidateType !== 'mainDeck') {
+    if (!isMainDeckCardType(candidateCard)) {
       return { eligible: false, reason: 'Not a Main Deck card for sideboard.' };
-    }
-    if (candidateCard.isSignature && deckFormatRestrictsPicker(deck.format)) {
-      return {
-        eligible: false,
-        reason: 'Signature cards cannot be added to sideboard.',
-      };
     }
   }
 
@@ -251,6 +235,7 @@ export function isCardEligibleForSection(args: {
     }
   } else {
     const sectionsWithDomainFilter: DeckSectionKey[] = [
+      'champion',
       'mainDeck',
       'runes',
       'sideboard',
@@ -357,8 +342,8 @@ export function isCardEligibleForSection(args: {
         }
 
         if (rules.requireSignatureTagMatch) {
-          for (const [name, entry] of deck.mainDeck) {
-            if (!entry.card.isSignature) continue;
+          for (const [name, entry] of [...deck.mainDeck, ...deck.sideboard]) {
+            if (!isSignatureCard(entry.card)) continue;
             if (!matchesLegendChampionTag(entry.card, candidateCard)) {
               return {
                 eligible: false,
@@ -411,31 +396,24 @@ export function isCardEligibleForSection(args: {
     }
   }
 
-  // 5) Signature cap (main deck only).
-  if (section === 'mainDeck' && candidateCard.isSignature) {
+  // 5) Signature tag + cap (Main Deck + Sideboard).
+  if (
+    (section === 'mainDeck' || section === 'sideboard') &&
+    isSignatureCard(candidateCard)
+  ) {
+    if (
+      deck.legend &&
+      rules.requireSignatureTagMatch &&
+      !matchesLegendChampionTag(candidateCard, deck.legend)
+    ) {
+      return {
+        eligible: false,
+        reason: 'Signature cards must match the Legend champion tag.',
+      };
+    }
     const signatureCap = rules.copyLimits.signatureTotal;
-    if (deck.legend && rules.requireSignatureTagMatch) {
-      const matchesTag = matchesLegendChampionTag(candidateCard, deck.legend);
-      if (!matchesTag) {
-        return {
-          eligible: false,
-          reason: 'Signature cards must match the Legend champion tag.',
-        };
-      }
-      if (signatureCap != null) {
-        const existingMatching = signatureCountMatchingLegend(deck);
-        if (existingMatching + 1 > signatureCap) {
-          return {
-            eligible: false,
-            reason: 'Signature card cap reached for this Legend.',
-          };
-        }
-      }
-    } else if (signatureCap != null) {
-      const existing = signatureCountAll(deck);
-      if (existing + 1 > signatureCap) {
-        return { eligible: false, reason: 'Signature card cap reached.' };
-      }
+    if (signatureCap != null && signatureCount(deck) + 1 > signatureCap) {
+      return { eligible: false, reason: 'Signature card cap reached.' };
     }
   }
 

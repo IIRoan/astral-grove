@@ -121,6 +121,13 @@ describe('deckHasBannedCards', () => {
         })
       )
     ).toBe(true);
+
+    // The Pre-Rift sideboard is the card pool, so the validator doesn't ban-check it.
+    const pool = new Map([['Obelisk of Power', { card: banned, count: 1 }]]);
+    expect(
+      deckHasBannedCards(browseDeck({ format: 'pre-rift', sideboard: pool }))
+    ).toBe(false);
+    expect(deckHasBannedCards(browseDeck({ sideboard: pool }))).toBe(true);
   });
 });
 

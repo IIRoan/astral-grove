@@ -1,0 +1,26 @@
+{
+  "name": "@riftbound/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cargo build --package astral-grove-server --release --locked",
+    "dev": "bun ../../scripts/backend-dev.mjs",
+    "start": "../../target/release/astral-grove-server",
+    "typecheck": "cargo check --workspace --locked && tsc --noEmit -p test/tsconfig.json",
+    "test:unit": "cargo test --workspace --locked",
+    "test:perf": "bun --no-env-file test/performance/run.ts",
+    "test:e2e": "cargo build --package astral-grove-server --bins --locked && bun run test:http",
+    "test:http": "bun --no-env-file test --max-concurrency=1 test/*.test.ts",
+    "test": "bun run test:unit && bun run test:e2e",
+    "db:migrate": "bun ../../scripts/backend-cli.mjs migrate"
+  },
+  "devDependencies": {
+    "@riftbound/contracts": "workspace:*",
+    "@types/bun": "^1.4.2",
+    "postgres": "^3.4.7",
+    "zod": "3.25.76",
+    "sharp": "^0.35.5",
+    "typescript": "6.0.3"
+  }
+}

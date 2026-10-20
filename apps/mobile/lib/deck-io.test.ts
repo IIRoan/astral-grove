@@ -3,6 +3,7 @@ import { addCardToDeck, createEmptyDeck } from '@/lib/deck-card';
 import {
   detectDeckImportFormat,
   exportPiltoverArchive,
+  importFlatDeckList,
   importPiltoverArchive,
 } from '@/lib/deck-io';
 import type { DeckCard } from '@/lib/deck-types';
@@ -149,5 +150,28 @@ describe('deck-io', () => {
     expect(deck.mainDeck.get('Flame Chompers')?.count).toBe(3);
     expect(deck.battlefields.get('Zaun Warrens')?.count).toBe(1);
     expect(deck.runes.get('Fury Rune')?.count).toBe(12);
+  });
+
+  test('flat import keeps extra champion copies in the main deck', async () => {
+    const champion: DeckCard = {
+      cardId: '2',
+      variantNumber: 'OGN-077',
+      name: 'Jinx - Demolitionist',
+      type: 'Unit',
+      super: 'Champion',
+      tags: ['Jinx'],
+      colors: ['Fury'],
+      energy: 3,
+      setCode: 'OGN',
+      rarity: 'Rare',
+      variantType: 'Standard',
+      isSignature: false,
+    };
+    const { deck } = await importFlatDeckList(
+      '3 Jinx, Demolitionist (OGN-077)',
+      mockResolver({ [champion.name]: champion })
+    );
+    expect(deck.champion?.name).toBe('Jinx - Demolitionist');
+    expect(deck.mainDeck.get('Jinx - Demolitionist')?.count).toBe(2);
   });
 });

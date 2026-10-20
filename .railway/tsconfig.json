@@ -1,0 +1,9 @@
+{
+  "extends": "../packages/typescript-config/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "typeRoots": ["../apps/backend/node_modules/@types"],
+    "types": ["bun"]
+  },
+  "include": ["railway.ts"]
+}

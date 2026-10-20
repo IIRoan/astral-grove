@@ -46,6 +46,8 @@ export const CollectionAuditListQuery = z.object({
   limit: z.coerce.number().int().positive().max(200).default(50),
   /** Return events strictly older than this ISO timestamp. */
   before: z.string().datetime().optional(),
+  /** Return events after this event in list order; pass the previous page's last id. Takes precedence over `before`. */
+  beforeId: z.string().uuid().optional(),
   variantNumber: z.string().min(1).optional(),
   actorUserId: z.string().min(1).optional(),
   mine: z

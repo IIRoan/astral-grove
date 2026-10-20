@@ -1,0 +1,267 @@
+{
+  "$comment": "Shared Rust (apps/backend/src/search.rs, decks/upstream.rs) and TS (packages/contracts) expectations; both test suites read this file.",
+  "normalize": [
+    {
+      "input": "Kai'Sa",
+      "expected": "kai sa"
+    },
+    {
+      "input": "Ambéssa",
+      "expected": "ambessa"
+    },
+    {
+      "input": "Æther ﬁre",
+      "expected": "aether fire"
+    },
+    {
+      "input": "½ Moon",
+      "expected": "moon"
+    },
+    {
+      "input": "  Jinx -- Loose   Cannon ",
+      "expected": "jinx loose cannon"
+    },
+    {
+      "input": "Ｊinx",
+      "expected": "inx"
+    }
+  ],
+  "parse": [
+    {
+      "input": "the jinx legend legend",
+      "identity": ["jinx"],
+      "intents": ["legend"]
+    },
+    {
+      "input": "Vi of Piltover unit",
+      "identity": ["vi", "piltover"],
+      "intents": ["unit"]
+    },
+    {
+      "input": "a an",
+      "identity": [],
+      "intents": []
+    }
+  ],
+  "signature": [
+    {
+      "super": "Signature",
+      "rarity": "Epic",
+      "variantType": "Standard",
+      "expected": true
+    },
+    {
+      "super": " Signature",
+      "rarity": "Epic",
+      "variantType": "Standard",
+      "expected": true
+    },
+    {
+      "super": "Signature Spell",
+      "rarity": "Epic",
+      "variantType": "Standard",
+      "expected": true
+    },
+    {
+      "super": null,
+      "rarity": "Signature",
+      "variantType": "Standard",
+      "expected": true
+    },
+    {
+      "super": null,
+      "rarity": "Rare",
+      "variantType": "Signature",
+      "expected": true
+    },
+    {
+      "super": "Champion",
+      "rarity": "Epic",
+      "variantType": "Standard",
+      "expected": false
+    },
+    {
+      "super": null,
+      "rarity": "Common",
+      "variantType": "Standard",
+      "expected": false
+    }
+  ],
+  "cards": [
+    {
+      "name": "Jinx, Loose Cannon",
+      "type": "Legend",
+      "super": null,
+      "tags": ["Jinx"],
+      "variantNumber": "OGN-251",
+      "variantType": "Standard",
+      "variantLabel": "Standard",
+      "printings": []
+    },
+    {
+      "name": "Jinx, Demolitionist",
+      "type": "Unit",
+      "super": "Champion",
+      "tags": ["Jinx"],
+      "variantNumber": "OGN-077",
+      "variantType": "Standard",
+      "variantLabel": "Standard",
+      "printings": []
+    },
+    {
+      "name": "Vi, Destructive",
+      "type": "Unit",
+      "super": "Champion",
+      "tags": ["Vi"],
+      "variantNumber": "OGN-001",
+      "variantType": "Standard",
+      "variantLabel": "Standard",
+      "printings": []
+    },
+    {
+      "name": "Viktor, Innovator",
+      "type": "Unit",
+      "super": "Champion",
+      "tags": ["Viktor"],
+      "variantNumber": "OGN-001",
+      "variantType": "Standard",
+      "variantLabel": "Standard",
+      "printings": []
+    },
+    {
+      "name": "Sivir, Ambitious",
+      "type": "Unit",
+      "super": "Champion",
+      "tags": ["Sivir"],
+      "variantNumber": "OGN-001",
+      "variantType": "Standard",
+      "variantLabel": "Standard",
+      "printings": []
+    },
+    {
+      "name": "Star Dragon",
+      "type": "Unit",
+      "super": null,
+      "tags": [],
+      "variantNumber": "OGN-001",
+      "variantType": "Standard",
+      "variantLabel": "Standard",
+      "printings": []
+    },
+    {
+      "name": "Drake Starling",
+      "type": "Unit",
+      "super": null,
+      "tags": [],
+      "variantNumber": "OGN-001",
+      "variantType": "Standard",
+      "variantLabel": "Standard",
+      "printings": []
+    },
+    {
+      "name": "Flame Chompers",
+      "type": "Unit",
+      "super": null,
+      "tags": [],
+      "variantNumber": "OGN-006",
+      "variantType": "Standard",
+      "variantLabel": "Standard",
+      "printings": [
+        {
+          "variantNumber": "OGN-006a",
+          "variantLabel": "Alt Art"
+        }
+      ]
+    },
+    {
+      "name": "Fury Rune",
+      "type": "Rune",
+      "super": null,
+      "tags": [],
+      "variantNumber": "OGN-001",
+      "variantType": "Standard",
+      "variantLabel": "Standard",
+      "printings": []
+    },
+    {
+      "name": "Kai'Sa, Survivor",
+      "type": "Unit",
+      "super": "Champion",
+      "tags": [],
+      "variantNumber": "OGN-001",
+      "variantType": "Standard",
+      "variantLabel": "Standard",
+      "printings": []
+    }
+  ],
+  "score": [
+    {
+      "query": "jinx",
+      "tiers": [0, 1, 10, 10, 10, 10, 10, 10, 10, 10]
+    },
+    {
+      "query": "jinx legend",
+      "tiers": [0, 3, 10, 10, 10, 10, 10, 10, 10, 10]
+    },
+    {
+      "query": "jinx champion",
+      "tiers": [3, 1, 10, 10, 10, 10, 10, 10, 10, 10]
+    },
+    {
+      "query": "vi",
+      "tiers": [10, 10, 1, 4, 7, 10, 10, 10, 10, 7]
+    },
+    {
+      "query": "viktor",
+      "tiers": [10, 10, 10, 1, 10, 10, 10, 10, 10, 10]
+    },
+    {
+      "query": "dra star",
+      "tiers": [10, 10, 10, 10, 10, 5, 5, 10, 10, 10]
+    },
+    {
+      "query": "star",
+      "tiers": [10, 10, 10, 10, 10, 3, 5, 10, 10, 10]
+    },
+    {
+      "query": "chompers",
+      "tiers": [10, 10, 10, 10, 10, 10, 10, 3, 10, 10]
+    },
+    {
+      "query": "chomprs",
+      "tiers": [10, 10, 10, 10, 10, 10, 10, 4, 10, 10]
+    },
+    {
+      "query": "ogn-006a",
+      "tiers": [6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+    },
+    {
+      "query": "alt art",
+      "tiers": [10, 10, 10, 10, 10, 10, 10, 8, 10, 10]
+    },
+    {
+      "query": "rune",
+      "tiers": [7, 7, 7, 7, 7, 7, 7, 7, 7, 7]
+    },
+    {
+      "query": "kaisa",
+      "tiers": [10, 10, 10, 10, 10, 10, 10, 10, 10, 4]
+    },
+    {
+      "query": "kai sa",
+      "tiers": [10, 10, 10, 10, 10, 10, 10, 10, 10, 1]
+    },
+    {
+      "query": "unit",
+      "tiers": [7, 7, 7, 7, 7, 7, 7, 7, 7, 7]
+    },
+    {
+      "query": "the",
+      "tiers": [99, 99, 99, 99, 99, 99, 99, 99, 99, 99]
+    },
+    {
+      "query": "flame chomp",
+      "tiers": [10, 10, 10, 10, 10, 10, 10, 3, 10, 10]
+    }
+  ]
+}

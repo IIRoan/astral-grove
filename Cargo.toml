@@ -1,0 +1,69 @@
+[workspace]
+resolver = "3"
+members = ["apps/backend", "crates/astral-grove-api-types", "xtask"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.98"
+publish = false
+
+[workspace.dependencies]
+opentelemetry = { version = "0.33.1", default-features = false, features = ["trace"] }
+opentelemetry_sdk = { version = "0.33.1", default-features = false, features = ["trace"] }
+opentelemetry-otlp = { version = "0.33.1", default-features = false, features = ["trace", "http-proto", "reqwest-blocking-client", "reqwest-rustls"] }
+tracing-opentelemetry = { version = "0.34.0", default-features = false }
+opentelemetry-http = "0.33.1"
+async-trait = "0.1"
+reqwest-middleware = { version = "0.5.2", features = ["json", "query"] }
+anyhow = "1"
+async-stream = "0.3"
+futures-util = "0.3"
+jiff = "0.2"
+axum = { version = "0.8", features = ["macros"] }
+ipnet = "2.12.2"
+base64 = "0.22"
+hex = "0.4"
+hmac = "0.13"
+icu_collator = "2"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+webp = { version = "0.3", default-features = false }
+rusty-s3 = { version = "0.10", default-features = false, features = ["rustcrypto"] }
+percent-encoding = "2"
+rand = "0.10"
+regex-lite = "0.1"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "query", "stream", "gzip", "deflate", "brotli"] }
+scrypt = { version = "0.12", default-features = false }
+sea-orm = { version = "=2.0.4", default-features = false, features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-time", "with-json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+serde_with = { version = "3", default-features = false, features = ["macros"] }
+sha2 = "0.11"
+subtle = "2"
+thiserror = "2"
+tikv-jemallocator = "0.7"
+time = { version = "0.3", features = ["formatting", "parsing", "macros", "serde"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "process", "signal", "net", "sync"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["compression-gzip", "normalize-path"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+unicode-normalization = "0.1"
+url = "2"
+utoipa = "6"
+utoipa-axum = "0.3"
+uuid = { version = "1", features = ["v4", "serde"] }
+astral-grove-api-types = { path = "crates/astral-grove-api-types" }
+astral-grove-server = { path = "apps/backend" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+todo = "warn"
+dbg_macro = "warn"
+
+[profile.dev.package."*"]
+opt-level = 3

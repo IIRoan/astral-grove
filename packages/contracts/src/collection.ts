@@ -156,26 +156,23 @@ export const WishlistItemResponse = z.object({
 export const CollectionImportMode = z.enum(['set', 'add']);
 export type CollectionImportMode = z.infer<typeof CollectionImportMode>;
 
+export const CollectionImportItemInput = z.object({
+  variantNumber: z.string().min(1),
+  quantity: z.number().int().positive(),
+  condition: CardCondition.default('near_mint'),
+  language: z.string().max(16).default('en'),
+  isFoil: z.boolean().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+  isGraded: z.boolean().optional(),
+  gradeCompany: z.string().max(64).nullable().optional(),
+  gradeScore: z.string().max(32).nullable().optional(),
+});
+
 export const CollectionImportRequest = z.object({
   csv: z.string().min(1).max(512_000).optional(),
   tts: z.string().min(1).max(512_000).optional(),
   mode: CollectionImportMode.optional().default('set'),
-  items: z
-    .array(
-      z.object({
-        variantNumber: z.string().min(1),
-        quantity: z.number().int().positive(),
-        condition: CardCondition.default('near_mint'),
-        language: z.string().max(16).default('en'),
-        isFoil: z.boolean().optional(),
-        notes: z.string().max(2000).nullable().optional(),
-        isGraded: z.boolean().optional(),
-        gradeCompany: z.string().max(64).nullable().optional(),
-        gradeScore: z.string().max(32).nullable().optional(),
-      })
-    )
-    .max(2000)
-    .optional(),
+  items: z.array(CollectionImportItemInput).max(2000).optional(),
 });
 
 export type CollectionImportRequest = z.infer<typeof CollectionImportRequest>;

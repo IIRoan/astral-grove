@@ -1,17 +1,15 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Dev HTTPS tunnel for the local API.
  *
- * Modes (first match wins):
- * 1. PUBLIC_API_URL set → write that URL to mobile env (named Cloudflare tunnel / fixed hostname)
- * 2. CLOUDFLARE_TUNNEL_TOKEN set → run `cloudflared tunnel run --token …`
- * 3. cloudflared/config.yml exists → run `cloudflared tunnel --config … run <name>`
- * 4. Fallback → ephemeral trycloudflare.com quick tunnel
+ * Local named tunnels receive generated API-only ingress; otherwise use an
+ * explicitly configured API URL or an API-only quick tunnel.
  */
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { apiOnlyTunnelConfig, tunnelMode } from './lib/dev-tunnel.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const API_PORT = process.env.PORT ?? '7000';
@@ -21,8 +19,7 @@ const TUNNEL_URL_FILE = join(DEV_DIR, 'tunnel-url');
 const MOBILE_ENV = join(ROOT, 'apps/mobile/.env');
 const PUBLIC_HOST = 'https://riftbounddev.roan.dev';
 const CONFIG_PATH = join(ROOT, 'cloudflared/config.yml');
-const TUNNEL_NAME = 'riftbound-dev';
-const API_ENV = join(ROOT, 'apps/api/.env');
+const API_ENV = join(ROOT, 'apps/backend/.env');
 
 function loadApiEnv() {
   if (!existsSync(API_ENV)) return;
@@ -33,7 +30,10 @@ function loadApiEnv() {
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
     const value = trimmed.slice(eq + 1).trim();
-    if (!(key in process.env)) {
+    if (
+      ['PUBLIC_API_URL', 'CLOUDFLARE_TUNNEL_TOKEN'].includes(key) &&
+      !(key in process.env)
+    ) {
       process.env[key] = value;
     }
   }
@@ -88,7 +88,12 @@ function runCloudflared(args) {
   const child = spawn('cloudflared', args, {
     cwd: ROOT,
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: process.env,
+    env: Object.fromEntries(
+      Object.entries({
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+      }).filter(([, value]) => value !== undefined)
+    ),
   });
 
   child.stdout.on('data', (chunk) => {
@@ -114,28 +119,34 @@ async function main() {
   loadApiEnv();
 
   const publicUrl = (process.env.PUBLIC_API_URL ?? PUBLIC_HOST).replace(/\/$/, '');
-  const token = process.env.CLOUDFLARE_TUNNEL_TOKEN;
+  const mode = tunnelMode({
+    token: process.env.CLOUDFLARE_TUNNEL_TOKEN,
+    hasLocalConfig: existsSync(CONFIG_PATH),
+    publicApiUrl: process.env.PUBLIC_API_URL,
+  });
 
   log(`Waiting for API at ${API_HEALTH}…`);
   await waitForApi();
 
-  if (token) {
-    if (publicUrl) writeTunnelUrl(publicUrl);
-    log('Starting named Cloudflare tunnel (token auth)…');
-    runCloudflared(['tunnel', 'run', '--token', token]);
+  if (mode === 'local') {
+    const config = apiOnlyTunnelConfig(
+      Bun.YAML.parse(readFileSync(CONFIG_PATH, 'utf8')),
+      publicUrl,
+      Number(API_PORT)
+    );
+    writeTunnelUrl(publicUrl);
+    const generated = join(DEV_DIR, 'api-tunnel.yml');
+    writeFileSync(generated, Bun.YAML.stringify(config), { mode: 0o600 });
+    log(`Starting API tunnel → ${publicUrl}`);
+    runCloudflared(['tunnel', '--config', generated, 'run', config.tunnel]);
     return;
   }
 
-  if (existsSync(CONFIG_PATH)) {
+  if (mode === 'external') {
     writeTunnelUrl(publicUrl);
-    log(`Starting tunnel "${TUNNEL_NAME}" → ${publicUrl}`);
-    runCloudflared(['tunnel', '--config', CONFIG_PATH, 'run', TUNNEL_NAME]);
-    return;
-  }
-
-  if (publicUrl) {
-    writeTunnelUrl(publicUrl);
-    log('PUBLIC_API_URL set without a tunnel token — update DNS/ingress separately.');
+    log(
+      'PUBLIC_API_URL set without cloudflared/config.yml — update DNS/ingress separately.'
+    );
     return;
   }
 

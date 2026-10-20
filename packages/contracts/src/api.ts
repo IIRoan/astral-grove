@@ -49,6 +49,12 @@ export const SyncPricesResponse = dataResponse(
   })
 );
 
+export const ApiErrorResponse = z.object({
+  error: z.string(),
+  message: z.string().optional(),
+});
+
+export type ApiErrorResponse = z.infer<typeof ApiErrorResponse>;
 export type HealthResponse = z.infer<typeof HealthResponse>;
 export type SyncStatusResponse = z.infer<typeof SyncStatusResponse>;
 export type SyncCatalogResponse = z.infer<typeof SyncCatalogResponse>;

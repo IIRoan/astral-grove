@@ -112,6 +112,7 @@ export const CardsListQuery = z.object({
   dir: z.enum(['asc', 'desc']).default('asc'),
   refresh: QueryBooleanString.optional(),
   excludeTokens: QueryBooleanString.optional(),
+  excludeBanned: QueryBooleanString.optional(),
 });
 
 export const CardsDetailQuery = z.object({

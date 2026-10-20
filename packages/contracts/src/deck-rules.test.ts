@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test';
 import {
   RIFTBOUND_DECK_RULES,
   RIFTBOUND_PRE_RIFT_DECK_RULES,
-  DeckRulesResponse,
   DeckValidateInput,
   domainIdentityMatch,
   validateRiftboundDeck,
@@ -77,16 +76,6 @@ describe('RIFTBOUND_DECK_RULES', () => {
     expect(RIFTBOUND_DECK_RULES.sections.battlefields.target).toBe(3);
     expect(RIFTBOUND_DECK_RULES.sections.sideboard.target).toBe(10);
     expect(RIFTBOUND_PRE_RIFT_DECK_RULES.sections.sideboard.target).toBe(8);
-  });
-
-  test('DeckRulesResponse schema matches contract shape', () => {
-    const payload = {
-      data: {
-        version: RIFTBOUND_DECK_RULES.version,
-        rules: RIFTBOUND_DECK_RULES,
-      },
-    };
-    expect(() => DeckRulesResponse.parse(payload)).not.toThrow();
   });
 });
 
@@ -537,6 +526,208 @@ describe('Pre-Rift validation', () => {
       messages.some((m) => m.code === 'missing_legend' && m.type === 'warning')
     ).toBe(true);
     expect(messages.some((m) => m.type === 'error')).toBe(false);
+  });
+});
+
+describe('official deck-construction rules (CR/TR 2026-10-09)', () => {
+  const unit = (name: string, extra: Partial<typeof jinxChampion> = {}) => ({
+    ...jinxChampion,
+    cardId: name,
+    name,
+    super: null,
+    tags: [],
+    ...extra,
+  });
+  const legalDeck = () => ({
+    legend: { ...jinxLegend, name: 'Jinx, Loose Cannon' },
+    champion: { ...jinxChampion, name: 'Jinx, Demolitionist', tags: ['Jinx', 'Zaun'] },
+    mainDeck: Array.from({ length: 13 }, (_, i) => ({
+      card: unit(`Main Card ${String(i)}`),
+      count: 3,
+    })),
+    runes: [
+      { card: { ...furyRune, super: 'Basic' }, count: 6 },
+      { card: { ...furyRune, name: 'Chaos Rune', colors: ['Chaos'] }, count: 6 },
+    ],
+    battlefields: ['Zaun Warrens', 'Reaver Row', 'The Arena'].map((name) => ({
+      card: { ...battlefield, name },
+      count: 1,
+    })),
+    sideboard: [] as { card: ReturnType<typeof unit>; count: number }[],
+  });
+  const codes = (
+    deck: unknown,
+    options?: Parameters<typeof validateRiftboundDeck>[1]
+  ) => validateRiftboundDeck(DeckValidateInput.parse(deck), options).map((m) => m.code);
+  const viDeck = () => ({
+    ...legalDeck(),
+    legend: {
+      ...jinxLegend,
+      name: 'Vi, Piltover Enforcer',
+      tags: ['Vi'],
+      colors: ['Fury', 'Chaos'],
+    },
+  });
+  const jinxSignature = unit('Super Mega Death Rocket!', {
+    type: 'Spell',
+    super: 'Signature',
+    tags: ['Jinx'],
+    rarity: 'Epic',
+    colors: ['Fury', 'Chaos'],
+  });
+
+  test('baseline legal deck is valid, and 40+ main deck cards stay valid', () => {
+    expect(codes(legalDeck())).toEqual(['deck_valid']);
+    const big = legalDeck();
+    big.mainDeck.push({ card: unit('Extra Card'), count: 3 });
+    expect(codes(big)).toEqual(['deck_valid']);
+  });
+
+  test('C1: champion tag is matched exactly, not by name substring', () => {
+    for (const [name, tags] of [
+      ['Viktor, Leader', ['Viktor', 'Zaun']],
+      ['Fiora, Victorious', ['Fiora', 'Demacia']],
+      ["Kai'Sa, Survivor", ["Kai'Sa", 'The Void']],
+    ] as const) {
+      const deck = {
+        ...viDeck(),
+        champion: { ...jinxChampion, name, tags: [...tags] },
+      };
+      expect(codes(deck)).toContain('champion_tag_mismatch');
+    }
+    const ok = {
+      ...viDeck(),
+      champion: { ...jinxChampion, name: 'Vi, Destructive', tags: ['Vi', 'Piltover'] },
+    };
+    expect(codes(ok)).toEqual(['deck_valid']);
+  });
+
+  test('C2: super "Signature" counts as a Signature card even if isSignature is false', () => {
+    const deck = legalDeck();
+    deck.mainDeck = deck.mainDeck.slice(0, 12);
+    deck.mainDeck.push({ card: jinxSignature, count: 3 });
+    deck.mainDeck.push({
+      card: { ...jinxSignature, name: 'Other Jinx Sig' },
+      count: 1,
+    });
+    expect(codes(deck)).toContain('signature_cap');
+  });
+
+  test('C3: sideboard cards must match Domain Identity', () => {
+    const deck = legalDeck();
+    deck.sideboard = [{ card: unit('Calm Spell', { colors: ['Calm'] }), count: 1 }];
+    expect(codes(deck)).toContain('domain_identity');
+  });
+
+  test('C4: Signature cards may be sideboarded; cap counts main + sideboard', () => {
+    const deck = legalDeck();
+    deck.sideboard = [{ card: jinxSignature, count: 1 }];
+    expect(codes(deck)).toEqual(['deck_valid']);
+
+    deck.mainDeck = deck.mainDeck.slice(0, 12);
+    deck.mainDeck.push({ card: { ...jinxSignature, name: 'Jinx Sig B' }, count: 3 });
+    expect(codes(deck)).toContain('signature_cap');
+
+    const offTag = legalDeck();
+    offTag.sideboard = [
+      {
+        card: unit('Bullet Time', { super: 'Signature', tags: ['Miss Fortune'] }),
+        count: 1,
+      },
+    ];
+    expect(codes(offTag)).toContain('signature_tag');
+  });
+
+  test('C5: banned cards make the deck invalid', () => {
+    const deck = legalDeck();
+    deck.mainDeck = deck.mainDeck.slice(0, 12);
+    deck.mainDeck.push({
+      card: unit('Scrapheap', {
+        type: 'Gear',
+        colors: ['Chaos'],
+        banEffectiveDate: '2026-03-31T00:00:00.000Z',
+      }),
+      count: 3,
+    });
+    const messages = validateRiftboundDeck(DeckValidateInput.parse(deck));
+    expect(messages).toContainEqual({
+      type: 'error',
+      code: 'banned_card',
+      message: '"Scrapheap" is banned.',
+    });
+    expect(messages.some((m) => m.type === 'valid')).toBe(false);
+
+    expect(codes(legalDeck(), { bannedCardNames: ['main card 0'] })).toContain(
+      'banned_card'
+    );
+  });
+
+  test('C6: each section only accepts its card type', () => {
+    expect(
+      codes({ ...legalDeck(), legend: { ...jinxLegend, type: 'Unit' } })
+    ).toContain('card_type');
+    expect(
+      codes({ ...legalDeck(), champion: { ...jinxChampion, type: 'Spell' } })
+    ).toContain('champion_supertype');
+
+    for (const intruder of [
+      unit('Recruit', { super: 'Token', tags: ['Recruit'], colors: [] }),
+      unit('Sprite', { variantNumber: 'SFD-T03', colors: [] }),
+      unit('Other Legend', { type: 'Legend' }),
+      unit('Field', { type: 'Battlefield', colors: [] }),
+      unit('Chaos Rune', { type: 'Rune', super: 'Basic', colors: ['Chaos'] }),
+    ]) {
+      const main = legalDeck();
+      main.mainDeck.push({ card: intruder, count: 1 });
+      expect(codes(main)).toContain('card_type');
+      const side = legalDeck();
+      side.sideboard = [{ card: intruder, count: 1 }];
+      expect(codes(side)).toContain('card_type');
+    }
+
+    const runes = legalDeck();
+    runes.runes = [{ card: unit('Not A Rune'), count: 12 }];
+    expect(codes(runes)).toContain('card_type');
+
+    const fields = legalDeck();
+    fields.battlefields[0] = { card: unit('Not A Field'), count: 1 };
+    expect(codes(fields)).toContain('card_type');
+  });
+
+  test('C7: Pre-Rift sideboard is uncapped and a Legend is optional', () => {
+    const deck = {
+      ...legalDeck(),
+      format: 'pre-rift',
+      sideboard: Array.from({ length: 20 }, (_, i) => ({
+        card: unit(`Pool Card ${String(i)}`),
+        count: 1,
+      })),
+    };
+    expect(codes(deck)).toEqual(['deck_valid']);
+
+    const offDomainPool = {
+      ...deck,
+      sideboard: [
+        { card: unit('Calm Pool Card', { colors: ['Calm'] }), count: 1 },
+        { card: unit('Body Pool Card', { colors: ['Body'] }), count: 1 },
+      ],
+    };
+    expect(codes(offDomainPool)).toEqual(['deck_valid']);
+
+    const bannedInPool = {
+      ...deck,
+      sideboard: [
+        {
+          card: unit('Scrapheap', { banEffectiveDate: '2026-03-31T00:00:00.000Z' }),
+          count: 1,
+        },
+      ],
+    };
+    expect(codes(bannedInPool)).toEqual(['deck_valid']);
+
+    const noLegend = { ...deck, legend: null };
+    expect(codes(noLegend)).toContain('missing_legend');
+    expect(codes(noLegend)).toContain('deck_valid');
   });
 });
 

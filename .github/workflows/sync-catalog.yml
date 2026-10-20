@@ -14,6 +14,8 @@ on:
         type: boolean
         default: true
 
+permissions: {}
+
 concurrency:
   group: sync-catalog
   cancel-in-progress: false
@@ -25,8 +27,10 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Check for ADMIN_SYNC_TOKEN
+        env:
+          ADMIN_SYNC_TOKEN: ${{ secrets.ADMIN_SYNC_TOKEN }}
         run: |
-          if [ -z "${{ secrets.ADMIN_SYNC_TOKEN }}" ]; then
+          if [ -z "$ADMIN_SYNC_TOKEN" ]; then
             echo "Set repository secret ADMIN_SYNC_TOKEN to the same value as the API ADMIN_SYNC_TOKEN."
             exit 1
           fi

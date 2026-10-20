@@ -47,6 +47,22 @@ function resolveRuntimeVersion(profile: Profile, platform: Platform): string {
   return version.trim();
 }
 
+function writeOutputs(outputs: string[]): void {
+  const outputFile = process.env.GITHUB_OUTPUT;
+  if (outputFile) appendFileSync(outputFile, `${outputs.join('\n')}\n`);
+}
+
+// Runs the app toolchain, so it must not see storage credentials.
+function resolve(profile: Profile): void {
+  const outputs = PLATFORMS.map((platform) => {
+    const fingerprint = resolveRuntimeVersion(profile, platform);
+    console.log(`${platform}: ${fingerprint}`);
+    return `${platform}_fingerprint=${fingerprint}`;
+  });
+  writeOutputs(outputs);
+}
+
+// Reads stored fingerprints only; runs without installed dependencies.
 async function check(argv: string[], profile: Profile): Promise<void> {
   const force = argv.includes('--force');
   const client = createClient();
@@ -56,12 +72,13 @@ async function check(argv: string[], profile: Profile): Promise<void> {
     { current: string; previous: string | null }
   >;
   for (const platform of PLATFORMS) {
+    const current = getArg(argv, `--${platform}-fingerprint`)?.trim();
+    if (!current) {
+      throw new Error(`Missing --${platform}-fingerprint`);
+    }
     const stored = client.file(fingerprintKey(profile, platform));
     const previous = (await stored.exists()) ? (await stored.text()).trim() : null;
-    fingerprints[platform] = {
-      current: resolveRuntimeVersion(profile, platform),
-      previous: previous || null,
-    };
+    fingerprints[platform] = { current, previous: previous || null };
   }
 
   const plan = resolveBuildPlan(fingerprints, force);
@@ -71,12 +88,9 @@ async function check(argv: string[], profile: Profile): Promise<void> {
     console.log(
       `${decision.platform}: ${decision.fingerprint} (last build ${previous ?? 'none'}) → ${decision.build ? 'build' : 'skip'}`
     );
-    outputs.push(`${decision.platform}_fingerprint=${decision.fingerprint}`);
     outputs.push(`build_${decision.platform}=${String(decision.build)}`);
   }
-
-  const outputFile = process.env.GITHUB_OUTPUT;
-  if (outputFile) appendFileSync(outputFile, `${outputs.join('\n')}\n`);
+  writeOutputs(outputs);
 }
 
 async function record(argv: string[], profile: Profile): Promise<void> {
@@ -99,10 +113,11 @@ async function main(): Promise<void> {
   if (!isProfile(profile)) {
     throw new Error('--profile must be one of: development, preview');
   }
+  if (command === 'resolve') return resolve(profile);
   if (command === 'check') return check(argv, profile);
   if (command === 'record') return record(argv, profile);
   throw new Error(
-    'Usage: internal-build-fingerprint <check|record> --profile <profile>'
+    'Usage: internal-build-fingerprint <resolve|check|record> --profile <profile>'
   );
 }
 

@@ -4,14 +4,14 @@ import {
   type Profile,
   RELEASE_PREFIX,
   releaseAccessToken,
-} from '../../apps/api/src/lib/internal-release.ts';
+} from './internal-release-signing.ts';
 export {
   isProfile,
   PROFILES,
   type Profile,
   RELEASE_PREFIX,
   releaseKeys,
-} from '../../apps/api/src/lib/internal-release.ts';
+} from './internal-release-signing.ts';
 
 export const PLATFORMS = ['ios', 'android'] as const;
 export type Platform = (typeof PLATFORMS)[number];
@@ -190,7 +190,7 @@ export function resolveUrl(key: string): string {
   const url = new URL(objectUrl(publicBaseUrl(), key));
   url.searchParams.set(
     'token',
-    releaseAccessToken(requiredEnv('S3_SECRET_ACCESS_KEY'), key)
+    releaseAccessToken(requiredEnv('RELEASE_LINK_SECRET'), key)
   );
   return url.href;
 }

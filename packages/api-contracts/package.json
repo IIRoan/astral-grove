@@ -1,0 +1,20 @@
+{
+  "name": "@riftbound/api-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "bun scripts/generate.mjs",
+    "generate:check": "bun scripts/generate.mjs --check",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@riftbound/typescript-config": "workspace:*",
+    "typescript": "6.0.3",
+    "openapi-typescript": "7.13.0",
+    "prettier": "^3.5.3"
+  }
+}

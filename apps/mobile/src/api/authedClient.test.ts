@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+
+const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
 
 process.env.EXPO_PUBLIC_API_URL = 'http://localhost:7000';
 
@@ -19,10 +21,18 @@ const defaultFetch = mock(async (input: RequestInfo | URL, init?: RequestInit) =
 });
 
 beforeEach(() => {
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: undefined,
+  });
   requests.length = 0;
   getAuthCookieHeader.mockClear();
   globalThis.fetch = defaultFetch as typeof fetch;
   defaultFetch.mockClear();
+});
+afterAll(() => {
+  if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument);
+  else Reflect.deleteProperty(globalThis, 'document');
 });
 
 const { authedFetch, authedFetchText, RemoteApiError } =
@@ -59,4 +69,29 @@ describe('authedFetchText', () => {
     });
     expect(csv).toBe('a,b,c');
   });
+});
+
+test('native JSON and export requests identify the client alongside its stored cookie', async () => {
+  await authedFetch('/api/v1/collection', { method: 'POST', body: { quantity: 1 } });
+  await authedFetchText('/api/v1/collection/export');
+  for (const { init } of requests) {
+    expect(new Headers(init?.headers).get('x-astral-request')).toBe('1');
+    expect(new Headers(init?.headers).get('cookie')).toBe(
+      'better-auth.session_token=test-session'
+    );
+    expect(init?.credentials).toBe('include');
+  }
+  expect(getAuthCookieHeader).toHaveBeenCalledTimes(2);
+});
+
+test('browser requests use browser cookies and retain compatibility with existing CORS allowlists', async () => {
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: {} });
+  await authedFetch('/api/v1/collection', { method: 'POST', body: { quantity: 1 } });
+  await authedFetchText('/api/v1/collection/export');
+  for (const { init } of requests) {
+    expect(new Headers(init?.headers).has('x-astral-request')).toBe(false);
+    expect(new Headers(init?.headers).has('cookie')).toBe(false);
+    expect(init?.credentials).toBe('include');
+  }
+  expect(getAuthCookieHeader).not.toHaveBeenCalled();
 });

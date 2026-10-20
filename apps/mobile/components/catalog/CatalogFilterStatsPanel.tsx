@@ -91,6 +91,11 @@ export function CatalogFilterStatsPanel({
             active={filters.tokensOnly}
             onPress={() => onUpdate({ tokensOnly: !filters.tokensOnly })}
           />
+          <FilterOptionChip
+            label="Hide banned"
+            active={filters.excludeBanned}
+            onPress={() => onUpdate({ excludeBanned: !filters.excludeBanned })}
+          />
         </FilterChipGrid>
       ) : (
         <>
@@ -106,6 +111,13 @@ export function CatalogFilterStatsPanel({
             subtitle="Show only token markers (Buff, XP Tracker, etc.)"
             active={filters.tokensOnly}
             onPress={() => onUpdate({ tokensOnly: !filters.tokensOnly })}
+            compact={compact}
+          />
+          <FilterToggleRow
+            label="Hide banned"
+            subtitle="Remove cards that are banned from tournament play"
+            active={filters.excludeBanned}
+            onPress={() => onUpdate({ excludeBanned: !filters.excludeBanned })}
             compact={compact}
           />
         </>

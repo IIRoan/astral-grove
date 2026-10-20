@@ -35,12 +35,12 @@ export async function goToTab(
   }
 
   if (tab === 'Cards') {
-    await page.getByLabel('Cards', { exact: true }).click();
+    await page.getByRole('tab', { name: /^Cards(?:\.|$)/ }).click();
     await expect(
       page.getByPlaceholder('Search cards, artists, tags, or set numbers')
     ).toBeVisible({ timeout: 30_000 });
     return;
   }
 
-  await page.getByLabel(tab, { exact: true }).click();
+  await page.getByRole('tab', { name: new RegExp(`^${tab}(?:\\.|$)`) }).click();
 }

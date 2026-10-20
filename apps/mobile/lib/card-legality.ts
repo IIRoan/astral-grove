@@ -1,4 +1,9 @@
-import { isCardBannedAt, isCardNameInBannedList } from '@riftbound/contracts';
+import {
+  getDeckRules,
+  isCardBannedAt,
+  isCardNameInBannedList,
+  sideboardMaximum,
+} from '@riftbound/contracts';
 import type { DeckCard, DeckState } from '@/lib/deck-types';
 
 export function isCardTournamentIllegal(
@@ -24,7 +29,12 @@ function collectDeckCards(deck: DeckState): DeckCard[] {
   const cards: DeckCard[] = [];
   if (deck.legend) cards.push(deck.legend);
   if (deck.champion) cards.push(deck.champion);
-  for (const section of ['mainDeck', 'runes', 'battlefields', 'sideboard'] as const) {
+  // An uncapped sideboard is the Pre-Rift card pool, which the validator doesn't ban-check.
+  const sideboardIsPool = sideboardMaximum(getDeckRules(deck.format)) == null;
+  const sections = ['mainDeck', 'runes', 'battlefields', 'sideboard'] as const;
+  for (const section of sections.filter(
+    (key) => key !== 'sideboard' || !sideboardIsPool
+  )) {
     for (const [, entry] of deck[section]) {
       cards.push(entry.card);
     }

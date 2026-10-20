@@ -1,0 +1,20 @@
+FROM rust:1.98.1-bookworm AS build
+WORKDIR /app
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY .cargo .cargo
+COPY crates crates
+COPY apps/backend/Cargo.toml apps/backend/Cargo.toml
+COPY apps/backend/src apps/backend/src
+COPY apps/backend/migrations apps/backend/migrations
+COPY xtask xtask
+# Overrides .cargo/config.toml's jobs = 2; CI passes "default" to use every runner CPU.
+ARG CARGO_BUILD_JOBS=2
+# Railway requires cache IDs prefixed with the backend service's literal ID.
+RUN --mount=type=cache,id=s/b0e08ea8-2336-4df9-9007-06f4419b4301-registry,target=/usr/local/cargo/registry --mount=type=cache,id=s/b0e08ea8-2336-4df9-9007-06f4419b4301-target,target=/app/target cargo build --locked --release --package astral-grove-server --bin astral-grove-server && cp target/release/astral-grove-server /app/astral-grove-server
+
+FROM cgr.dev/chainguard/glibc-dynamic:latest@sha256:2a3f1ec8a825dfbb1211b5835a9b8b3fb8d76c7bd22a189b1f84157ed2028293 AS runtime
+COPY --from=build /app/astral-grove-server /usr/local/bin/astral-grove-server
+USER 10001:10001
+ENV NODE_ENV=production HOST=:: PORT=7000
+EXPOSE 7000
+ENTRYPOINT ["/usr/local/bin/astral-grove-server"]

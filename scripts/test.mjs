@@ -8,12 +8,24 @@ const root = join(import.meta.dirname, '..');
 const psql = (...args) =>
   spawnSync(
     'docker',
-    ['exec', 'riftbound-postgres', 'psql', '-U', 'riftbound', '-d', 'riftbound', ...args],
+    [
+      'exec',
+      'riftbound-postgres',
+      'psql',
+      '-U',
+      'riftbound',
+      '-d',
+      'riftbound',
+      ...args,
+    ],
     { encoding: 'utf8' }
   );
 
 if (existsSync(join(root, 'docker-compose.yml'))) {
-  spawnSync('docker', ['compose', 'up', '-d', 'postgres'], { cwd: root, stdio: 'inherit' });
+  spawnSync('docker', ['compose', 'up', '-d', 'postgres'], {
+    cwd: root,
+    stdio: 'inherit',
+  });
   const deadline = Date.now() + 60_000;
   while (psql('-c', 'select 1').status !== 0) {
     if (Date.now() > deadline) {
@@ -22,13 +34,27 @@ if (existsSync(join(root, 'docker-compose.yml'))) {
     }
     await Bun.sleep(1_000);
   }
-  if (psql('-tAc', "SELECT 1 FROM pg_database WHERE datname = 'riftbound_test'").stdout.trim() !== '1') {
+  if (
+    psql(
+      '-tAc',
+      "SELECT 1 FROM pg_database WHERE datname = 'riftbound_test'"
+    ).stdout.trim() !== '1'
+  ) {
     psql('-c', 'CREATE DATABASE riftbound_test');
   }
 }
 
 // Never let e2e fall through to DATABASE_URL, which may point at production.
-process.env.TEST_DB_URL ??= 'postgres://riftbound:riftbound@localhost:5433/riftbound_test';
+process.env.TEST_DB_URL ??=
+  'postgres://riftbound:riftbound@localhost:5433/riftbound_test';
 
-const result = spawnSync('bun', ['run', 'turbo', 'test'], { cwd: root, stdio: 'inherit' });
-process.exit(result.status ?? 1);
+const result = spawnSync('bun', ['run', 'turbo', 'test'], {
+  cwd: root,
+  stdio: 'inherit',
+});
+if (result.status !== 0) process.exit(result.status ?? 1);
+const scripts = spawnSync('bun', ['--no-env-file', 'test', 'scripts/lib'], {
+  cwd: root,
+  stdio: 'inherit',
+});
+process.exit(scripts.status ?? 1);

@@ -5,43 +5,46 @@
   "packageManager": "bun@1.4.2",
   "scripts": {
     "dev": "turbo dev",
-    "dev:api": "bun run --cwd apps/api dev",
+    "dev:api": "bun run --cwd apps/backend dev",
     "dev:mobile": "bun run --cwd apps/mobile dev",
     "cloudflared": "bun scripts/dev-tunnel.mjs",
     "build": "turbo build",
     "lint": "eslint \"apps/**/*.{ts,tsx,js,mjs}\" \"packages/**/*.{ts,tsx,js,mjs}\" \"design/**/*.{ts,tsx,js,mjs}\" --ignore-pattern \"**/dist/**\" --ignore-pattern \"**/.next/**\"",
     "lint:fix": "bun run lint --fix",
     "typecheck": "turbo typecheck",
+    "typecheck:iac": "tsc -p .railway/tsconfig.json",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
-    "check": "bun run typecheck && bun run lint && bun run format:check",
+    "check": "bun run api:contracts:check && bun run typecheck && bun run typecheck:iac && bun run lint && bun run format:check && cargo fmt --all -- --check && cargo clippy --workspace --all-targets --locked -- -D warnings",
     "unused": "knip",
     "unused:exports": "knip --exports --no-config-hints --no-exit-code",
     "dupes": "jscpd --config .jscpd.json .",
     "test": "bun scripts/test.mjs",
     "test:ui-e2e": "bun run --cwd apps/mobile test:ui-e2e",
+    "test:security-ui": "bun --no-env-file test scripts/security-ui.test.ts",
     "db": "exec bun scripts/db.mjs",
     "db:up": "bun run db -d",
     "db:down": "docker compose down",
-    "db:migrate": "bun run --filter @riftbound/api db:migrate",
-    "db:reset": "bun run --filter @riftbound/api db:reset",
-    "db:reset:full": "bun run --filter @riftbound/api db:reset:full",
-    "db:generate": "bun run --filter @riftbound/api db:generate",
-    "db:studio": "bun run --filter @riftbound/api db:studio",
+    "db:migrate": "bun run --cwd apps/backend db:migrate",
     "sync:catalog": "curl -s -X POST http://localhost:7000/api/v1/sync/catalog -H \"Authorization: Bearer ${ADMIN_SYNC_TOKEN:-dev-sync-token-change-me}\"",
-    "sync:prices": "curl -s -X POST http://localhost:7000/api/v1/sync/prices -H \"Authorization: Bearer ${ADMIN_SYNC_TOKEN:-dev-sync-token-change-me}\"",
-    "audit:cards": "bun run --cwd apps/api audit:cards"
+    "sync:prices": "bun scripts/backend-cli.mjs sync:prices",
+    "audit:cards": "bun scripts/backend-cli.mjs audit:cards",
+    "api:contracts": "cargo xtask openapi",
+    "api:contracts:check": "cargo xtask openapi --check"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
+    "@types/qrcode": "1.5.6",
     "eslint": "^9.28.0",
     "jscpd": "^5.0.16",
     "knip": "^6.33.0",
     "prettier": "^3.5.3",
-    "railway": "^3.11.0",
+    "qrcode": "1.5.4",
+    "railway": "^3.12.0",
     "turbo": "^2.5.4",
     "typescript": "6.0.3",
-    "typescript-eslint": "^8.66.0"
+    "typescript-eslint": "^8.66.0",
+    "zod": "3.25.76"
   },
   "workspaces": [
     "apps/*",
@@ -55,11 +58,11 @@
     "@xmldom/xmldom": "0.9.12",
     "uuid": "11.1.1",
     "minimatch@3": {
-      "brace-expansion": "1.1.18"
+      "brace-expansion": "1.1.21"
     },
     "minimatch@10": {
       ".": "10.2.6",
-      "brace-expansion": "5.0.9"
+      "brace-expansion": "5.0.12"
     },
     "browserslist": "4.28.9",
     "js-yaml@3": "3.15.2",
@@ -68,6 +71,9 @@
     "baseline-browser-mapping": "2.11.23",
     "decode-uri-component": "0.5.0",
     "compression": "1.8.2",
+    "shell-quote": "1.11.0",
+    "smol-toml": "1.9.0",
+    "source-map-js": "1.2.2",
     "@expo/plist": {
       "@xmldom/xmldom": "0.8.15"
     }

@@ -71,9 +71,7 @@ export function SharedCollectionSection({ className }: SharedCollectionSectionPr
       },
       onError: (error) => {
         const message =
-          error instanceof RemoteApiError
-            ? error.body || error.message
-            : 'Could not create invite';
+          error instanceof RemoteApiError ? error.message : 'Could not create invite';
         Alert.alert('Invite failed', message);
       },
     });
@@ -88,7 +86,7 @@ export function SharedCollectionSection({ className }: SharedCollectionSectionPr
           onError: (error) => {
             const message =
               error instanceof RemoteApiError
-                ? error.body || error.message
+                ? error.message
                 : 'Could not leave shared collection';
             Alert.alert('Leave failed', message);
           },

@@ -93,6 +93,7 @@ const settListItems: CardListItem[] = [
     variantNumber: 'OGN-164',
     name: 'Sett, Brawler',
     type: 'Unit',
+    super: 'Champion',
     energy: 5,
     might: 4,
     power: 1,
@@ -116,6 +117,7 @@ const settListItems: CardListItem[] = [
     variantNumber: 'OGN-164a',
     name: 'Sett, Brawler',
     type: 'Unit',
+    super: 'Champion',
     energy: 5,
     might: 4,
     power: 1,
@@ -252,30 +254,7 @@ describe('deck-add-catalog', () => {
     expect(settKey).not.toBe(jinxKey);
   });
 
-  test('first deck-add page forces an upstream refresh', async () => {
-    const emptyPage: CardsListResponse = {
-      data: [],
-      meta: {
-        pagination: {
-          total: 0,
-          page: 1,
-          limit: 80,
-          totalPages: 1,
-          hasNext: false,
-          hasPrevious: false,
-        },
-        source: 'cache',
-        catalogHash: '',
-      },
-    };
-    const listCards = spyOn(api, 'listCards').mockResolvedValue(emptyPage);
-    const deck = createEmptyDeck();
-    await fetchDeckAddListPage('mainDeck', deck, '', DEFAULT_CATALOG_FILTERS, 1);
-    expect(listCards.mock.calls[0]?.[0]).toMatchObject({ page: 1, refresh: true });
-    listCards.mockRestore();
-  });
-
-  test('later deck-add pages do not force an upstream refresh', async () => {
+  test('deck-add pages never request an admin-only upstream refresh', async () => {
     const emptyPage: CardsListResponse = {
       data: [],
       meta: {
@@ -389,7 +368,7 @@ describe('deck-add-catalog', () => {
     expect(displayed).toHaveLength(1);
   });
 
-  test('sideboard accepts main-deck card types and skips signatures for Constructed', () => {
+  test('Constructed sideboard accepts signature cards, as the validator does', () => {
     const unitItem = {
       cardId: 'u1',
       variantNumber: 'OGN-010',
@@ -422,7 +401,10 @@ describe('deck-add-catalog', () => {
       details: [],
     });
 
-    expect(candidates.map((card) => card.name)).toEqual(['Apprentice Mage']);
+    expect(candidates.map((card) => card.name)).toEqual([
+      'Apprentice Mage',
+      'Signature Spell',
+    ]);
   });
 
   test('Pre-Rift sideboard includes signature cards', () => {
@@ -564,6 +546,32 @@ describe('deck-add-catalog', () => {
     const hits = searchLocalDeckAddCatalog(settListItems, 'champion', deck, 'brawler');
     expect(hits.length).toBeGreaterThan(0);
     expect(hits.every((item) => item.name === 'Sett, Brawler')).toBe(true);
+  });
+
+  test('local champion fallback skips units that are not champions', () => {
+    const deck = createEmptyDeck();
+    deck.format = 'pre-rift';
+    const poro = {
+      ...settListItems[0]!,
+      cardId: 'poro',
+      name: 'Poro Herder',
+      super: null,
+    };
+    expect(searchLocalDeckAddCatalog([poro], 'champion', deck, 'poro')).toEqual([]);
+    expect(
+      buildDeckAddCandidates({ section: 'champion', listItems: [poro], details: [] })
+    ).toEqual([]);
+  });
+
+  test('champion units are Main Deck and Sideboard candidates, as the validator allows', () => {
+    for (const section of ['mainDeck', 'sideboard'] as const) {
+      const candidates = buildDeckAddCandidates({
+        section,
+        listItems: settListItems,
+        details: [settBrawlerDetail],
+      });
+      expect(candidates.map((card) => card.name)).toContain('Sett, Brawler');
+    }
   });
 
   test('pickDeckAddDisplayListItems keeps local hits when the API page is empty', () => {

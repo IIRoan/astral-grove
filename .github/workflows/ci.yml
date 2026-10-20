@@ -1,36 +1,85 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
-
+  workflow_dispatch:
+permissions:
+  contents: read
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
+env:
+  NODE_ENV: test
+  TEST_DB_URL: postgres://riftbound:riftbound@127.0.0.1:5433/riftbound_test
+  # .cargo/config.toml caps local builds at 2 jobs; runners compile on every CPU.
+  CARGO_BUILD_JOBS: default
 jobs:
-  check:
-    name: Typecheck, lint, unit tests
+  lint:
+    name: Lint, format and typecheck
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.2
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+
+  rust:
+    name: Rust unit tests and development build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: 1.98.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo test --workspace --locked
+      - run: cargo build --package astral-grove-server --bins --locked
+      # Debug info makes the binary ~400 MB; tests only need the executable.
+      - run: strip -o "$RUNNER_TEMP/astral-grove-server" target/debug/astral-grove-server
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-debug
+          path: ${{ runner.temp }}/astral-grove-server
+          retention-days: 1
+
+  js-units:
+    name: Shared and mobile unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
-      - run: bun run check
-      - run: bun test scripts/lib/internal-release.test.ts
-      - run: bun run --cwd packages/contracts test
-      - run: bun run --cwd apps/api test:unit
-      - run: bun run --cwd apps/mobile test
+      - run: bun run --cwd packages/contracts build
+      - run: |
+          bun --no-env-file test scripts/lib/*.test.ts
+          bun run --cwd packages/contracts test
+          bun run --cwd apps/mobile test
 
-  api-e2e:
-    name: API e2e
+  backend-dev:
+    name: Development binary · http
+    needs: rust
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        suite: [http]
     services:
-      postgres:
+      postgres: &postgres
         image: postgres:16-alpine
         env:
           POSTGRES_USER: riftbound
@@ -41,17 +90,110 @@ jobs:
           --health-cmd "pg_isready -U riftbound -d riftbound_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      NODE_ENV: test
-      TEST_DB_URL: postgres://riftbound:riftbound@localhost:5433/riftbound_test
-      PA_API_KEY: ${{ secrets.PA_API_KEY }}
-      ADMIN_SYNC_TOKEN: ci-admin-sync-token-not-secret
-      BETTER_AUTH_SECRET: ci-better-auth-secret-not-secret-32chars
-      BETTER_AUTH_URL: http://localhost:3099
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      ASTRAL_BACKEND_BIN: ${{ github.workspace }}/.ci/astral-grove-server
+    steps: &backend-steps
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/contracts build
-      - run: bun run --cwd apps/api test:e2e
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ env.BINARY_ARTIFACT || 'backend-debug' }}
+          path: .ci
+      - run: chmod +x .ci/astral-grove-server && sha256sum .ci/astral-grove-server
+      - name: HTTP suite
+        if: matrix.suite == 'http'
+        run: bun run --cwd apps/backend test:http
+      - name: Packaged backend performance and load tests
+        if: matrix.suite == 'perf'
+        env:
+          ASTRAL_PERF_REPORT: ${{ runner.temp }}/backend-performance.json
+        run: bun run --cwd apps/backend test:perf
+      - name: Install browser test runtime
+        if: matrix.suite == 'ui'
+        working-directory: apps/mobile
+        run: bun x --no-install playwright install --with-deps chromium
+      - name: Browser security and core flow regressions
+        if: matrix.suite == 'ui'
+        run: bun run test:security-ui
+      - name: Upload backend performance report and SQL plans
+        if: always() && matrix.suite == 'perf'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-performance
+          path: ${{ runner.temp }}/backend-performance*.json
+          if-no-files-found: ignore
+      - name: Upload browser failure diagnostics
+        if: failure() && matrix.suite == 'ui'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: browser-test-results
+          path: apps/mobile/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Server diagnostics
+        if: failure()
+        run: cat /tmp/astral-test-*.log 2>/dev/null || true
+
+  image:
+    name: Production image build and container smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres: *postgres
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Build production Rust image without publishing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.backend
+          load: true
+          tags: astral-grove-backend:ci
+          build-args: CARGO_BUILD_JOBS=default
+          cache-from: type=gha,scope=astral-grove-backend
+          cache-to: type=gha,scope=astral-grove-backend,mode=max
+      - name: Verify runtime user and extract its binary
+        run: |
+          test "$(docker image inspect --format '{{.Config.User}}' astral-grove-backend:ci)" = '10001:10001'
+          container_id=$(docker create astral-grove-backend:ci)
+          docker cp "$container_id:/usr/local/bin/astral-grove-server" "$RUNNER_TEMP/astral-grove-server"
+          docker export "$container_id" --output "$RUNNER_TEMP/backend-rootfs.tar"
+          docker rm "$container_id"
+          if tar -tf "$RUNNER_TEMP/backend-rootfs.tar" | grep -E '(^|/)(bun|node)$'; then
+            exit 1
+          fi
+          sha256sum "$RUNNER_TEMP/astral-grove-server"
+      - name: Production container health, secure auth, SSE and SIGTERM drain
+        run: bun --no-env-file apps/backend/test/container-smoke.ts astral-grove-backend:ci
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-release
+          path: ${{ runner.temp }}/astral-grove-server
+          retention-days: 1
+      - name: Container diagnostics
+        if: failure()
+        run: cat /tmp/astral-test-*.log 2>/dev/null || true
+
+  backend-release:
+    name: Release binary · ${{ matrix.suite }}
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [http, perf, ui]
+    services:
+      postgres: *postgres
+    env:
+      ASTRAL_BACKEND_BIN: ${{ github.workspace }}/.ci/astral-grove-server
+      BINARY_ARTIFACT: backend-release
+    steps: *backend-steps

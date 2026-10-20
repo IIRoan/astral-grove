@@ -2,7 +2,9 @@ import type { CardDetail, CardListItem, DeckFormat } from '@riftbound/contracts'
 import {
   cardHasAnyType,
   getDeckRules,
+  isSignatureCard,
   isUnresolvedDeckVariant,
+  sideboardMaximum,
 } from '@riftbound/contracts';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { findVariantByNumber } from '@/utils/variants';
@@ -19,11 +21,6 @@ import { getSectionCount } from '@/lib/deck-counts';
 export { getSectionCount } from '@/lib/deck-counts';
 
 const PILTOVER_CDN_HOST = 'cdn.piltoverarchive.com';
-
-function isSignatureVariant(rarity: string, variantType: string): boolean {
-  const combined = `${rarity} ${variantType}`.toLowerCase();
-  return combined.includes('signature');
-}
 
 export function deckCardFromDetail(card: CardDetail, variantNumber: string): DeckCard {
   const variant = findVariantByNumber(card.variants, variantNumber) ?? card.variants[0];
@@ -42,7 +39,11 @@ export function deckCardFromDetail(card: CardDetail, variantNumber: string): Dec
     setCode,
     rarity: variant.rarity,
     variantType: variant.variantType,
-    isSignature: isSignatureVariant(variant.rarity, variant.variantType),
+    isSignature: isSignatureCard({
+      super: card.super,
+      rarity: variant.rarity,
+      variantType: variant.variantType,
+    }),
     imageUrl: variant.imageUrl ?? null,
     banEffectiveDate: card.banEffectiveDate ?? null,
   };
@@ -55,7 +56,7 @@ export function deckCardFromListItem(card: CardListItem): DeckCard {
     variantNumber: card.variantNumber,
     name: card.name,
     type: card.type,
-    super: null,
+    super: card.super ?? null,
     tags: [],
     colors: card.colors,
     energy: card.energy,
@@ -63,7 +64,7 @@ export function deckCardFromListItem(card: CardListItem): DeckCard {
     setCode: card.setCode,
     rarity: card.rarity,
     variantType: 'Standard',
-    isSignature: isSignatureVariant(card.rarity, ''),
+    isSignature: isSignatureCard({ super: card.super ?? null, rarity: card.rarity }),
     imageUrl: card.imageUrl ?? null,
     banEffectiveDate: card.isBanned ? '1970-01-01T00:00:00.000Z' : null,
   };
@@ -128,7 +129,7 @@ export function isLegendCard(card: Pick<DeckCard, 'type'>): boolean {
   return cardHasType(card, 'legend');
 }
 
-export function isChampionUnit(card: Pick<DeckCard, 'type' | 'super'>): boolean {
+export function isChampionUnit(card: { type: string; super?: string | null }): boolean {
   return cardHasType(card, 'unit') && (card.super ?? '').toLowerCase() === 'champion';
 }
 
@@ -243,7 +244,7 @@ export function addCardToDeck(
 function resolveAddSection(deck: DeckState, card: DeckCard): DeckSectionKey {
   const inferred = sectionForCardType(card);
   if (inferred !== 'mainDeck') return inferred;
-  const sideboardMax = getDeckRules(deck.format).sections.sideboard.target;
+  const sideboardMax = sideboardMaximum(getDeckRules(deck.format)) ?? Infinity;
   if (deck.addToSideboard && getSectionCount(deck, 'sideboard') < sideboardMax) {
     return 'sideboard';
   }

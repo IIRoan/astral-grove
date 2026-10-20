@@ -39,6 +39,7 @@ export type CatalogFilters = {
   might?: number;
   excludeTokens: boolean;
   tokensOnly: boolean;
+  excludeBanned: boolean;
 };
 
 export const DEFAULT_CATALOG_FILTERS: CatalogFilters = {
@@ -52,6 +53,7 @@ export const DEFAULT_CATALOG_FILTERS: CatalogFilters = {
   rarities: [],
   excludeTokens: false,
   tokensOnly: false,
+  excludeBanned: false,
 };
 
 export function isCatalogBrowsableType(typeName: string): boolean {
@@ -75,6 +77,8 @@ export function sanitizeCatalogFilters(filters: CatalogFilters): CatalogFilters 
     types: filters.types.filter((type) => isCatalogBrowsableType(type)),
     excludeTokens: filters.tokensOnly ? false : filters.excludeTokens,
     tokensOnly: filters.excludeTokens ? false : filters.tokensOnly,
+    // Filters saved before this option existed have no value for it.
+    excludeBanned: Boolean(filters.excludeBanned),
   };
 }
 
@@ -112,7 +116,8 @@ export function catalogFiltersActive(filters: CatalogFilters): boolean {
     filters.power !== undefined ||
     filters.might !== undefined ||
     filters.excludeTokens ||
-    filters.tokensOnly
+    filters.tokensOnly ||
+    filters.excludeBanned
   );
 }
 
@@ -157,6 +162,7 @@ export function countCatalogFilters(filters: CatalogFilters): number {
   if (filters.might !== undefined) count += 1;
   if (filters.excludeTokens) count += 1;
   if (filters.tokensOnly) count += 1;
+  if (filters.excludeBanned) count += 1;
   return count;
 }
 
@@ -185,7 +191,8 @@ export function catalogFilterSegmentActive(
         filters.power !== undefined ||
         filters.might !== undefined ||
         filters.excludeTokens ||
-        filters.tokensOnly
+        filters.tokensOnly ||
+        filters.excludeBanned
       );
     default:
       return false;
@@ -221,6 +228,7 @@ export function catalogFilterSegmentSummary(
       if (filters.might !== undefined) parts.push(`M${filters.might}`);
       if (filters.excludeTokens) parts.push('No tokens');
       if (filters.tokensOnly) parts.push('Tokens');
+      if (filters.excludeBanned) parts.push('No banned');
       return parts.length > 0 ? parts.join(' · ') : undefined;
     }
     default:
@@ -276,6 +284,9 @@ export function catalogFiltersToQuery(
   }
   if (filters.excludeTokens) {
     query.excludeTokens = true;
+  }
+  if (filters.excludeBanned) {
+    query.excludeBanned = true;
   }
 
   return query;
@@ -384,6 +395,7 @@ export function matchesCatalogFilters(
   if (filters.might !== undefined && card.might !== filters.might) return false;
 
   if (filters.excludeTokens && isTokenCard(card)) return false;
+  if (filters.excludeBanned && card.isBanned) return false;
 
   return true;
 }
@@ -499,6 +511,14 @@ export function catalogFilterChips(filters: CatalogFilters): CatalogFilterChip[]
       label: 'Tokens only',
       keywordBase: 'VISION',
       clear: () => ({ ...filters, tokensOnly: false }),
+    });
+  }
+  if (filters.excludeBanned) {
+    chips.push({
+      id: 'exclude-banned',
+      label: 'Hide banned',
+      keywordBase: 'DEATHKNELL',
+      clear: () => ({ ...filters, excludeBanned: false }),
     });
   }
 

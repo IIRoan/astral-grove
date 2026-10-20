@@ -17,9 +17,6 @@
       "entry": ["scripts/*.{js,mjs,ts}", ".railway/railway.ts"],
       "project": ["scripts/**/*.{js,mjs,ts}", ".railway/**/*.ts"]
     },
-    "apps/api": {
-      "entry": ["scripts/*.ts", "test/**/*.ts"]
-    },
     "apps/mobile": {
       "ignore": ["**/*.{web,native}.{ts,tsx}"],
       "ignoreDependencies": [
@@ -32,6 +29,9 @@
     },
     "packages/contracts": {
       "entry": ["src/**/*.test.ts"]
+    },
+    "apps/backend": {
+      "entry": ["test/**/*.ts"]
     }
   }
 }

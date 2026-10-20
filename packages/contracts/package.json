@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@riftbound/typescript-config": "workspace:*",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "@riftbound/api-contracts": "workspace:*"
   }
 }

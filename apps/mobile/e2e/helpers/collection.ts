@@ -36,12 +36,10 @@ export async function switchToListView(page: Page): Promise<void> {
 
 /** Search-result tile (not the detail panel, which duplicates steppers). */
 export function cardTile(page: Page, cardName: string, variantNumber: string): Locator {
-  // Negative lookahead so OGN-253 does not also match OGN-253-Release / OGN-253-Foil.
-  return page.getByRole('button', {
-    name: new RegExp(
-      `${escapeRegExp(cardName)}.*${escapeRegExp(variantNumber)}(?![\\w-])`
-    ),
-  });
+  return page
+    .getByRole('button')
+    .filter({ has: page.getByText(cardName, { exact: true }) })
+    .filter({ has: page.getByText(variantNumber, { exact: true }) });
 }
 
 export function addToCollectionButton(
@@ -49,12 +47,11 @@ export function addToCollectionButton(
   cardName: string,
   variantNumber: string
 ): Locator {
-  return cardTile(page, cardName, variantNumber).getByLabel(
-    `Add ${cardName} to collection`,
-    {
+  return cardTile(page, cardName, variantNumber)
+    .locator('..')
+    .getByLabel(`Add ${cardName} to collection`, {
       exact: true,
-    }
-  );
+    });
 }
 
 export function addOneButton(
@@ -62,9 +59,11 @@ export function addOneButton(
   cardName: string,
   variantNumber: string
 ): Locator {
-  return cardTile(page, cardName, variantNumber).getByLabel(`Add one ${cardName}`, {
-    exact: true,
-  });
+  return cardTile(page, cardName, variantNumber)
+    .locator('..')
+    .getByLabel(`Add one ${cardName}`, {
+      exact: true,
+    });
 }
 
 export function removeOneButton(
@@ -72,9 +71,11 @@ export function removeOneButton(
   cardName: string,
   variantNumber: string
 ): Locator {
-  return cardTile(page, cardName, variantNumber).getByLabel(`Remove one ${cardName}`, {
-    exact: true,
-  });
+  return cardTile(page, cardName, variantNumber)
+    .locator('..')
+    .getByLabel(`Remove one ${cardName}`, {
+      exact: true,
+    });
 }
 
 /** Mirrors collectionFinishKey — picker testIDs use `VN::std` / `VN::foil`. */
@@ -105,8 +106,4 @@ export function detailWishlistButton(page: Page): Locator {
   return page.getByRole('button', {
     name: /Add to wishlist|Remove from wishlist|Wishlisted/,
   });
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

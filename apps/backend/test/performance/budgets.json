@@ -1,0 +1,24 @@
+{
+  "samples": 40,
+  "warmup": 3,
+  "concurrency": 8,
+  "searchP95Ms": 600,
+  "quantitiesP95Ms": 400,
+  "activityP95Ms": 400,
+  "collectionListP95Ms": 2500,
+  "healthP95Ms": 150,
+  "syncStatusP95Ms": 200,
+  "imageP95Ms": 1000,
+  "syncDrainMs": 60000,
+  "peakRssMiB": 512,
+  "quantitiesToListMedianRatio": 1.5,
+  "minimumConcurrentThroughputRatio": 0.5,
+  "notes": [
+    "Search, quantities, collection-list, health and sync-status ceilings are millisecond budgets applied to repeated p95 samples.",
+    "Activity uses the same 400ms single-client ceiling as collection quantity lookups. Image delivery has a 1000ms ceiling while object writes are held behind a fixture barrier.",
+    "Concurrent database request ceilings are the single-client ceiling times the number of clients. Concurrent throughput must also retain at least half of measured serial throughput.",
+    "The 1.5 targeted-quantities ratio compares interleaved sample medians rather than two isolated requests.",
+    "The 512MiB Linux RSS ceiling is a provisional load-test guard for the 128MiB image cache plus bounded uploads, decoded fixture images, runtime and allocator overhead; it is not a production memory SLO.",
+    "Sync completion is bounded at 60 seconds for eight queued jobs against a one-page catalog and the frozen Cardmarket export. These are local capacity guards, not live-service SLAs."
+  ]
+}

@@ -5,8 +5,9 @@ card data, prices, and community decks from Piltover Archive.
 
 ## Local database setup
 
-Install Bun 1.4.2 and Docker with Compose, then install dependencies from the repo
-root:
+Install Bun 1.4.2, Rust (the pinned 1.98.1 toolchain is selected automatically),
+and Docker with Compose. The backend is a Rust/Axum service; the app is Expo
+and TypeScript. Install workspace tooling from the repo root:
 
 ```bash
 bun install
@@ -15,11 +16,10 @@ bun install
 For a new checkout, copy the API environment template:
 
 ```bash
-cp apps/api/.env.example apps/api/.env
+cp apps/backend/.env.example apps/backend/.env
 ```
 
-If you already have `apps/api/.env`, keep your other settings and replace its
-database settings with these local values:
+Keep other settings and set its database settings with these local values:
 
 ```dotenv
 NODE_ENV=development
@@ -64,7 +64,7 @@ bun run sync:prices
 ```
 
 These commands use `ADMIN_SYNC_TOKEN` from your shell or the example's default
-token. If you changed it in `apps/api/.env`, set the same value in your shell first.
+token. If you changed it in your backend environment, set the same value in your shell first.
 
 Stop the database while keeping its data:
 
@@ -74,6 +74,31 @@ bun run db:down
 
 `Ctrl+C` also stops it when running attached. `bun run test` starts local Postgres
 and creates the separate `riftbound_test` database if needed.
+
+## Backend contracts and verification
+
+Rust request validators and DTOs generate OpenAPI and TypeScript types. Shared
+Zod schemas still validate every Expo response, with compile-time assertions for
+all 135 shared schema outputs.
+
+```bash
+bun run api:contracts          # regenerate after backend contract changes
+bun run check                  # generated contracts, TS, lint, format, Rust clippy
+bun run test                   # Rust unit, HTTP, shared and mobile tests
+```
+
+Tests accept only loopback PostgreSQL databases named `riftbound_test` or
+`riftbound_test_*` through `TEST_DB_URL`; upstream, mail and S3 flows use local
+fixtures. `DATABASE_URL` is never the fallback test target. No reset is needed.
+
+See [backend development](apps/backend/README.md). Production builds use
+`Dockerfile.backend`; the runtime image contains only the server binary.
+
+GitHub CI runs on pull requests and pushes to `main`, split across parallel jobs:
+lint/typecheck, Rust unit tests, shared and mobile unit tests, HTTP tests against
+the development binary, and a production image build whose release binary runs the
+HTTP and performance suites plus a container smoke test for production-mode auth,
+SSE and shutdown. CI uses synthetic credentials and local service fixtures.
 
 ## Internal mobile downloads
 

@@ -6,6 +6,7 @@ import {
   sectionForCardType,
   cloneDeck,
   createEmptyDeck,
+  deckCardFromListItem,
   deserializeDeck,
   serializeDeck,
 } from './deck-card';
@@ -53,5 +54,30 @@ describe('deck version serialize', () => {
     expect(copy.versionName).toBeUndefined();
     expect(copy.versions).toBeUndefined();
     expect(copy.id).not.toBe(deck.id);
+  });
+});
+
+describe('deckCardFromListItem', () => {
+  test('keeps super and detects Signature cards from it', () => {
+    const card = deckCardFromListItem({
+      cardId: '00000000-0000-4000-8000-000000000252',
+      variantNumber: 'OGN-252',
+      name: 'Super Mega Death Rocket!',
+      type: 'Spell',
+      super: 'Signature',
+      energy: 4,
+      might: 0,
+      power: 0,
+      rarity: 'Epic',
+      setCode: 'OGN',
+      colors: ['Fury', 'Chaos'],
+      imageUrl: 'https://example.com/card.webp',
+      cardmarketId: null,
+      priceEur: null,
+      printings: [],
+      isBanned: false,
+    });
+    expect(card.super).toBe('Signature');
+    expect(card.isSignature).toBe(true);
   });
 });

@@ -9,12 +9,10 @@ import { Button, ButtonText } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Text } from '@/components/ui/text';
 import { TextInput } from '@/components/ui/text-input';
-import { normalizeVerificationEmail } from '@/lib/email-verification';
 import { authClient } from '@/src/lib/auth-client';
 
 type ResetPasswordFormProps = {
   token: string;
-  email?: string | null;
   onSuccess: () => Promise<void> | void;
   onBackToSignIn?: () => void;
   className?: string;
@@ -23,7 +21,6 @@ type ResetPasswordFormProps = {
 
 export function ResetPasswordForm({
   token,
-  email,
   onSuccess,
   onBackToSignIn,
   className,
@@ -35,7 +32,6 @@ export function ResetPasswordForm({
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const normalizedEmail = email ? normalizeVerificationEmail(email) : null;
 
   const submit = async () => {
     Keyboard.dismiss();
@@ -60,20 +56,6 @@ export function ResetPasswordForm({
         return;
       }
 
-      if (normalizedEmail) {
-        const signIn = await authClient.signIn.email({
-          email: normalizedEmail,
-          password,
-        });
-        if (signIn.error) {
-          setError(
-            signIn.error.message ??
-              'Password updated, but sign-in failed. Try signing in with your new password.'
-          );
-          return;
-        }
-      }
-
       await onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not reset password');
@@ -89,19 +71,8 @@ export function ResetPasswordForm({
           Choose a new password
         </Text>
         <Text className="text-sm leading-5 text-muted-foreground">
-          {normalizedEmail ? (
-            <>
-              Resetting{' '}
-              <Text className="font-medium text-foreground">{normalizedEmail}</Text>.
-              Use at least {String(MIN_PASSWORD_LENGTH)} characters with lower, upper,
-              and a number.
-            </>
-          ) : (
-            <>
-              Use at least {String(MIN_PASSWORD_LENGTH)} characters with lower, upper,
-              and a number.
-            </>
-          )}
+          Use at least {String(MIN_PASSWORD_LENGTH)} characters with lower, upper, and a
+          number.
         </Text>
       </View>
 
