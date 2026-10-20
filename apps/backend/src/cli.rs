@@ -54,6 +54,32 @@ pub(crate) fn integer(
 pub fn config(command: &str, args: &[String]) -> anyhow::Result<crate::config::Config> {
     config_from_values(command, args, std::env::vars().collect())
 }
+fn maintenance_target(database: &str) -> anyhow::Result<(String, u16, String)> {
+    let url = url::Url::parse(database).map_err(|_| anyhow::anyhow!("Invalid database URL"))?;
+    anyhow::ensure!(
+        matches!(url.scheme(), "postgres" | "postgresql")
+            && !url.query_pairs().any(|(key, _)| matches!(
+                key.as_ref(),
+                "host" | "hostaddr" | "port" | "dbname" | "database"
+            )),
+        "Maintenance requires PostgreSQL without database routing query overrides"
+    );
+    let host = url
+        .host_str()
+        .ok_or_else(|| anyhow::anyhow!("Maintenance requires an explicit database host"))?
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+    let name = percent_encoding::percent_decode_str(url.path().trim_start_matches('/'))
+        .decode_utf8()
+        .map_err(|_| anyhow::anyhow!("Invalid database name"))?
+        .trim_end_matches('/')
+        .to_owned();
+    anyhow::ensure!(
+        !name.is_empty(),
+        "Maintenance requires an explicit database name"
+    );
+    Ok((host, url.port().unwrap_or(5432), name))
+}
 fn config_from_values(
     command: &str,
     args: &[String],
@@ -121,38 +147,32 @@ fn config_from_values(
                 .cloned()
                 .ok_or_else(|| anyhow::anyhow!("Selected database environment variable is unset"))?
         };
-        let url =
-            url::Url::parse(&database).map_err(|_| anyhow::anyhow!("Invalid database URL"))?;
+        let selected = maintenance_target(&database)?;
         let local = matches!(
-            url.host_str(),
-            Some("localhost" | "127.0.0.1" | "[::1]" | "::1")
+            selected.0.as_str(),
+            "localhost" | "127.0.0.1" | "[::1]" | "::1"
         );
         anyhow::ensure!(
             if target == "staging" { !local } else { local },
             "Database host does not match the explicit maintenance target"
         );
-        // Local .env files may point DATABASE_URL at production, so staging must be a different server or database.
-        let identity = |url: &url::Url| {
-            (
-                url.host_str().map(str::to_lowercase),
-                url.port().unwrap_or(5432),
-                url.path().trim_end_matches('/').to_owned(),
-            )
-        };
-        anyhow::ensure!(
-            target != "staging"
-                || (options
+        if target == "staging" {
+            // Compare decoded database names and canonical host spellings against the ambient production URL.
+            let ambient = values
+                .get("DATABASE_URL")
+                .map(|database| maintenance_target(database))
+                .transpose()?;
+            anyhow::ensure!(
+                options
                     .get("--use-env")
                     .is_none_or(|name| name != "DATABASE_URL")
-                    && values
-                        .get("DATABASE_URL")
-                        .and_then(|ambient| url::Url::parse(ambient).ok())
-                        .is_none_or(|ambient| identity(&ambient) != identity(&url))),
-            "Staging maintenance must not use DATABASE_URL; select STAGING_DATABASE_URL"
-        );
+                    && ambient.is_none_or(|ambient| ambient != selected),
+                "Staging maintenance must not use DATABASE_URL; select STAGING_DATABASE_URL"
+            );
+        }
         if target == "test" {
             anyhow::ensure!(
-                url.path() == "/riftbound_test" || url.path().starts_with("/riftbound_test_"),
+                selected.2 == "riftbound_test" || selected.2.starts_with("riftbound_test_"),
                 "Test target must select a named test database"
             );
         }
@@ -277,6 +297,28 @@ mod tests {
         );
     }
     #[test]
+    fn maintenance_rejects_database_routing_overrides_before_connecting() {
+        for database in [
+            "postgres://localhost/riftbound_test?host=production.example.test",
+            "postgres://localhost/riftbound_test?hostaddr=192.0.2.1",
+            "postgres://localhost/riftbound_test?port=6543",
+            "postgres://localhost/riftbound_test?dbname=production",
+            "postgres://localhost/riftbound_test?database=production",
+            "postgres://localhost/riftbound_test?%68ost=production.example.test",
+            "postgres://fixture@localhost",
+            "https://localhost/riftbound_test",
+        ] {
+            for command in ["prune:prices", "explain:search"] {
+                let selected = format!("--database-url={database}");
+                assert!(
+                    config_from_values(command, &args(&["--target=local", &selected]), values())
+                        .is_err(),
+                    "{command}: {database}"
+                );
+            }
+        }
+    }
+    #[test]
     fn staging_maintenance_never_targets_the_ambient_database_url() {
         let production = "postgres://fixture:fixture@production.example.test/railway";
         let mut config = values();
@@ -291,6 +333,14 @@ mod tests {
             vec!["--target=staging", "--use-env=DATABASE_URL", "--apply"],
             vec!["--target=staging", explicit.as_str()],
             vec!["--target=staging", respelled],
+            vec![
+                "--target=staging",
+                "--database-url=postgres://fixture:fixture@production.example.test/%72ailway",
+            ],
+            vec![
+                "--target=staging",
+                "--database-url=postgres://fixture:fixture@production.example.test./railway",
+            ],
         ] {
             assert!(config_from_values("prune:prices", &args(&input), config.clone()).is_err());
         }

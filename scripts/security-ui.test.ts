@@ -10,6 +10,8 @@ test('isolated browser regression suite', async () => {
   const harness = createHarness();
   const offline = startOfflineUpstream();
   const mail = startJmapFixture();
+  // Exercise delayed background delivery instead of relying on an instant mailbox.
+  mail.delay(100);
   const releaseObjects = new Map<string, { body: string; type: string }>();
   const storage = Bun.serve({
     hostname: '127.0.0.1',

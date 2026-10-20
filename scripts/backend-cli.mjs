@@ -41,13 +41,19 @@ if (process.env.ASTRAL_NATIVE_ENV_LOADED !== '1' && envFiles.length)
 const command = process.argv[2] ?? 'serve';
 const selfGuarded = ['prune:prices', 'explain:search'].includes(command);
 if (!selfGuarded && process.env.ASTRAL_ALLOW_REMOTE_DATABASE !== '1') {
-  let host = '';
+  let local = false;
   try {
-    host = new URL(process.env.DATABASE_URL ?? '').hostname;
+    const url = new URL(process.env.DATABASE_URL ?? '');
+    local =
+      ['postgres:', 'postgresql:'].includes(url.protocol) &&
+      ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname) &&
+      !['host', 'hostaddr', 'port', 'dbname', 'database'].some((key) =>
+        url.searchParams.has(key)
+      );
   } catch {}
-  if (!['localhost', '127.0.0.1', '[::1]', '::1'].includes(host)) {
+  if (!local) {
     console.error(
-      `Refusing \`${command}\`: DATABASE_URL host "${host || 'unset'}" is not loopback. Set ASTRAL_ALLOW_REMOTE_DATABASE=1 to override.`
+      `Refusing \`${command}\`: DATABASE_URL must select loopback PostgreSQL without database routing query overrides. Set ASTRAL_ALLOW_REMOTE_DATABASE=1 to override.`
     );
     process.exit(1);
   }

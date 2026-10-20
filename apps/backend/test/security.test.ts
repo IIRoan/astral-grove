@@ -872,6 +872,50 @@ async function holdCredentialLock(userId: string) {
   };
 }
 
+test('concurrent reset links for one account consume only one token without deadlocking', async () => {
+  const user = await signup('reset-links-race');
+  const tokens = Array.from({ length: 2 }, () => `security-${crypto.randomUUID()}`);
+  const identifiers = tokens.map((token) => `reset-password:${token}`);
+  for (const identifier of identifiers)
+    await sql`INSERT INTO verification(id,identifier,value,expires_at) VALUES(${crypto.randomUUID()},${identifier},${user.user.id},now()+interval '5 minutes')`;
+  const lock = await holdCredentialLock(user.user.id);
+  const requests = tokens.map((token, index) =>
+    app.fetch(
+      '/api/auth/reset-password',
+      json({ token, newPassword: `reset-winner-${index}-password` })
+    )
+  );
+  try {
+    await waitFor(async () => (await lock.waiting()) >= 2);
+    await lock.release();
+    const responses = await Promise.all(requests);
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 400]);
+    const winner = responses.findIndex((response) => response.status === 200);
+    expect(
+      await sql`SELECT id FROM verification WHERE identifier=ANY(${identifiers})`
+    ).toHaveLength(0);
+    expect(
+      await sql`SELECT id FROM session WHERE user_id=${user.user.id}`
+    ).toHaveLength(0);
+    for (let index = 0; index < tokens.length; index++)
+      expect(
+        (
+          await app.fetch(
+            '/api/auth/sign-in/email',
+            json({
+              email: user.email,
+              password: `reset-winner-${index}-password`,
+            })
+          )
+        ).status
+      ).toBe(index === winner ? 200 : 401);
+  } finally {
+    await lock.release();
+    await Promise.allSettled(requests);
+    await sql`DELETE FROM verification WHERE identifier=ANY(${identifiers})`;
+  }
+});
+
 test('a disconnected password reset commits or rolls back its token, password and sessions together', async () => {
   const user = await signup('reset-disconnect');
   const token = `security-${crypto.randomUUID()}`;

@@ -125,6 +125,14 @@ jobs:
           name: backend-performance
           path: ${{ runner.temp }}/backend-performance*.json
           if-no-files-found: ignore
+      - name: Upload browser failure diagnostics
+        if: failure() && matrix.suite == 'ui'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: browser-test-results
+          path: apps/mobile/test-results
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Server diagnostics
         if: failure()
         run: cat /tmp/astral-test-*.log 2>/dev/null || true

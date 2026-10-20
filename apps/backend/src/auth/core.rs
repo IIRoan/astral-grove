@@ -604,28 +604,26 @@ pub async fn dispatch(
                 .ok_or_else(|| error(400, "INVALID_TOKEN", "Invalid token"))?;
             service::check_password(field(input, "newPassword"))?;
             let identifier = format!("reset-password:{token}");
-            if db::rows(
+            let user = db::rows(
                 &state.db,
-                "SELECT id FROM verification WHERE identifier=$1 AND expires_at>=now()",
+                "SELECT value FROM verification WHERE identifier=$1 AND expires_at>=now()",
                 vec![identifier.clone().into()],
             )
             .await?
-            .is_empty()
-            {
-                return Err(error(400, "INVALID_TOKEN", "Invalid token"));
-            }
+            .first()
+            .and_then(|row| row["value"].as_str())
+            .ok_or_else(|| error(400, "INVALID_TOKEN", "Invalid token"))?
+            .to_owned();
             let hash = password::hash(field(input, "newPassword"))
                 .await
                 .map_err(|_| AppError::internal())?;
             let tx = state.db.begin().await?;
-            otp::lock(&tx, &identifier).await?;
-            let values=db::rows(&tx,"DELETE FROM verification WHERE identifier=$1 AND expires_at>=now() RETURNING value",vec![identifier.into()]).await?;
-            let user = values
-                .first()
-                .and_then(|r| r["value"].as_str())
-                .ok_or_else(|| error(400, "INVALID_TOKEN", "Invalid token"))?
-                .to_owned();
+            // Serialize the account before touching any of its reset rows, including sibling links.
             otp::lock(&tx, &format!("credential:{user}")).await?;
+            otp::lock(&tx, &identifier).await?;
+            if db::rows(&tx,"DELETE FROM verification WHERE identifier=$1 AND value=$2 AND expires_at>=now() RETURNING value",vec![identifier.into(),user.clone().into()]).await?.is_empty() {
+                return Err(error(400, "INVALID_TOKEN", "Invalid token"));
+            }
             write_password(&tx, &user, &hash).await?;
             // Other reset links already mailed must not reset the new password again.
             db::execute(

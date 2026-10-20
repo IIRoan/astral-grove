@@ -12,7 +12,10 @@ const mailApi = process.env.UI_E2E_AUTH_API_URL;
 const fixture = process.env.UI_E2E_FIXTURE_URL;
 const releasePage = process.env.UI_E2E_RELEASE_URL;
 const Messages = z.array(
-  z.object({ bodyValues: z.object({ text: z.object({ value: z.string() }) }) })
+  z.object({
+    subject: z.string(),
+    bodyValues: z.object({ text: z.object({ value: z.string() }) }),
+  })
 );
 const Signup = z.object({ user: z.object({ id: z.string(), email: z.string() }) });
 test.skip(
@@ -43,12 +46,21 @@ async function post(origin: string, path: string, body: unknown, cookie?: string
     body: JSON.stringify(body),
   });
 }
-async function latestMail(email: string) {
-  const messages = Messages.parse(
-    await (await fetch(fixture + '?email=' + encodeURIComponent(email))).json()
-  );
-  const text = messages.at(-1)?.bodyValues.text.value;
-  expect(text).toBeTruthy();
+async function latestMail(email: string, subject = 'Verify your Astral Grove email') {
+  let text: string | undefined;
+  await expect
+    .poll(
+      async () => {
+        const response = await fetch(fixture + '?email=' + encodeURIComponent(email));
+        expect(response.ok).toBe(true);
+        const messages = Messages.parse(await response.json());
+        text = messages.findLast((message) => message.subject === subject)?.bodyValues
+          .text.value;
+        return text;
+      },
+      { message: `Wait for "${subject}" delivery`, timeout: 10_000 }
+    )
+    .toBeTruthy();
   expect(text).not.toContain('astral-grove://');
   return text!;
 }
@@ -134,7 +146,9 @@ test('password reset stays in the browser and requires normal sign-in afterwards
       })
     ).status
   ).toBe(200);
-  const token = (await latestMail(user.email)).match(/[?&]token=([^&\s]+)/)?.[1];
+  const token = (
+    await latestMail(user.email, 'Reset your Astral Grove password')
+  ).match(/[?&]token=([^&\s]+)/)?.[1];
   expect(token).toBeTruthy();
   await mailOverride(context);
   const signIns: string[] = [];

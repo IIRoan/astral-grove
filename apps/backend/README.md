@@ -41,7 +41,9 @@ Price retention defaults to a dry run and requires an explicit target and URL se
 `--apply` authorizes its scoped retention deletions. A `--target=staging` run must
 select `STAGING_DATABASE_URL` (or an explicit URL) and is refused when it matches
 `DATABASE_URL`, which local `.env` files may point at production. Never reset a database as part
-of migrations or tests. The CLI uses the same validation and services as HTTP.
+of migrations or tests. Put the host, port and database in the URL itself; maintenance,
+local launchers and tests reject `host`, `hostaddr`, `port`, `dbname` and `database` query overrides.
+The CLI uses the same validation and services as HTTP.
 
 ## Source map
 
