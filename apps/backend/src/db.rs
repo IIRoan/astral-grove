@@ -21,16 +21,42 @@ pub async fn connect(url: &str, max: u32) -> std::result::Result<DatabaseConnect
         .max_lifetime(Duration::from_secs(1800))
         .test_before_acquire(false)
         .sqlx_logging(false);
-    Database::connect(options).await
+    let mut database = Database::connect(options).await?;
+    let namespace = namespace(url);
+    database.set_metric_callback(move |info| {
+        crate::telemetry::database_query(
+            &namespace,
+            &info.statement.sql,
+            info.elapsed,
+            info.failed,
+        );
+    });
+    Ok(database)
 }
 
-pub async fn migrate(db: &DatabaseConnection) -> std::result::Result<(), DbErr> {
+fn namespace(url: &str) -> String {
+    url::Url::parse(url)
+        .map(|url| url.path().trim_start_matches('/').to_owned())
+        .unwrap_or_default()
+}
+
+async fn unprepared(
+    db: &impl ConnectionTrait,
+    sql: &str,
+    namespace: &str,
+) -> std::result::Result<sea_orm::ExecResult, DbErr> {
+    let start = std::time::Instant::now();
+    let result = db.execute_unprepared(sql).await;
+    crate::telemetry::database_query(namespace, sql, start.elapsed(), result.is_err());
+    result
+}
+
+pub async fn migrate(db: &DatabaseConnection, url: &str) -> std::result::Result<(), DbErr> {
+    let namespace = namespace(url);
     let tx = db.begin().await?;
-    tx.execute_unprepared("SELECT pg_advisory_xact_lock(1280472985)")
-        .await?;
-    tx.execute_unprepared("CREATE SCHEMA IF NOT EXISTS drizzle")
-        .await?;
-    tx.execute_unprepared("CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint)").await?;
+    unprepared(&tx, "SELECT pg_advisory_xact_lock(1280472985)", &namespace).await?;
+    unprepared(&tx, "CREATE SCHEMA IF NOT EXISTS drizzle", &namespace).await?;
+    unprepared(&tx, "CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint)", &namespace).await?;
     let history = tx
         .query_all_raw(Statement::from_string(
             DbBackend::Postgres,
@@ -65,7 +91,7 @@ pub async fn migrate(db: &DatabaseConnection) -> std::result::Result<(), DbErr> 
             .map(str::trim)
             .filter(|statement| !statement.is_empty())
         {
-            tx.execute_unprepared(statement).await?;
+            unprepared(&tx, statement, &namespace).await?;
         }
         tx.execute_raw(Statement::from_sql_and_values(
             DbBackend::Postgres,

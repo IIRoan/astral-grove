@@ -27,6 +27,7 @@ export default defineRailway((ctx) => {
   const database = postgres('Postgres', { region });
 
   const backend = service('rust-api', {
+    tracing: { enabled: true, autoInstrumentation: false },
     source: github('IIRoan/astral-grove', {
       branch: 'rust-backend-rewrite',
       checkSuites: false,
@@ -54,6 +55,8 @@ export default defineRailway((ctx) => {
       PA_API_KEY: preserve(),
       PA_BASE_URL: preserve(),
       PORT: '7000',
+      OTEL_METRICS_EXPORTER: 'none',
+      OTEL_LOGS_EXPORTER: 'none',
       PUBLIC_APP_URL: webUrl,
       S3_ACCESS_KEY_ID: preserve(),
       S3_BUCKET: preserve(),
@@ -71,6 +74,7 @@ export default defineRailway((ctx) => {
   });
 
   const expoWeb = service('expo-web', {
+    tracing: { enabled: true, autoInstrumentation: true },
     source: github('IIRoan/astral-grove', {
       branch: 'rust-backend-rewrite',
       checkSuites: false,
@@ -85,6 +89,8 @@ export default defineRailway((ctx) => {
       EXPO_PUBLIC_API_URL: 'https://${{RAILWAY_PUBLIC_DOMAIN}}',
       EXPO_PUBLIC_SENTRY_DSN: preserve(),
       PORT: '8080',
+      OTEL_METRICS_EXPORTER: 'none',
+      OTEL_LOGS_EXPORTER: 'none',
       RAILPACK_BUN_VERSION: preserve(),
       RAILPACK_CONFIG_FILE: preserve(),
       RAILPACK_NODE_VERSION: preserve(),

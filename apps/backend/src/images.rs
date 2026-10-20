@@ -34,10 +34,13 @@ struct Cached {
 pub struct Storage {
     bucket: Bucket,
     credentials: Credentials,
-    client: reqwest::Client,
+    client: reqwest_middleware::ClientWithMiddleware,
 }
 impl Storage {
-    pub fn new(config: &Config, client: reqwest::Client) -> anyhow::Result<Option<Self>> {
+    pub fn new(
+        config: &Config,
+        client: reqwest_middleware::ClientWithMiddleware,
+    ) -> anyhow::Result<Option<Self>> {
         let keys = [
             "S3_ACCESS_KEY_ID",
             "S3_SECRET_ACCESS_KEY",
@@ -166,7 +169,7 @@ pub async fn capped(mut response: reqwest::Response, cap: usize) -> Option<Vec<u
 }
 pub struct ImageStore {
     pub storage: Option<Arc<Storage>>,
-    client: reqwest::Client,
+    client: reqwest_middleware::ClientWithMiddleware,
     cache: Mutex<TtlCache<Cached>>,
     misses: Arc<Mutex<HashMap<String, Instant>>>,
     uploads: crate::tasks::Tasks,
@@ -192,7 +195,10 @@ impl Drop for PendingUpload {
 }
 
 impl ImageStore {
-    pub fn new(config: &Config, client: reqwest::Client) -> anyhow::Result<Self> {
+    pub fn new(
+        config: &Config,
+        client: reqwest_middleware::ClientWithMiddleware,
+    ) -> anyhow::Result<Self> {
         Ok(Self {
             storage: Storage::new(config, client.clone())?.map(Arc::new),
             client,

@@ -21,12 +21,13 @@ pub mod releases;
 pub mod search;
 pub mod sync;
 mod tasks;
+pub mod telemetry;
 pub mod upstream;
 pub mod user_data;
 
 use astral_grove_api_types::{HealthResponse, HealthResponseData};
 use axum::{Json, extract::State};
-use sea_orm::{ConnectionTrait, DatabaseConnection};
+use sea_orm::DatabaseConnection;
 use std::sync::Arc;
 use utoipa::OpenApi;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -34,7 +35,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 pub struct AppState {
     pub config: config::Config,
     pub db: DatabaseConnection,
-    pub client: reqwest::Client,
+    pub client: reqwest_middleware::ClientWithMiddleware,
     pub images: images::ImageStore,
     pub release_storage: Option<images::Storage>,
     pub catalog: catalog::query::Cache,
@@ -63,7 +64,7 @@ impl AppState {
             attempt += 1;
             let result = async {
                 let database = db::connect(&config.database_url, config.pool_max).await?;
-                if migrate && let Err(error) = db::migrate(&database).await {
+                if migrate && let Err(error) = db::migrate(&database, &config.database_url).await {
                     let _ = database.close().await;
                     return Err(error);
                 }
@@ -86,6 +87,9 @@ impl AppState {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()?;
+        let client = reqwest_middleware::ClientBuilder::new(client)
+            .with(telemetry::HttpTracing)
+            .build();
         let images = images::ImageStore::new(&config, client.clone())?;
         let mut release_config = config.clone();
         for key in [
@@ -136,7 +140,7 @@ impl AppState {
 
 #[utoipa::path(get, path = "/api/v1/health", operation_id = "getHealth", responses((status = 200, body = HealthResponse)))]
 async fn health(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
-    let db_ok = state.db.execute_unprepared("SELECT 1").await.is_ok();
+    let db_ok = db::execute(&state.db, "SELECT 1", vec![]).await.is_ok();
     let last = db::rows(&state.db, "SELECT to_char(last_success_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS value FROM sync_state WHERE key='catalog'", vec![]).await.ok().and_then(|rows| rows.first().and_then(|row| row["value"].as_str().map(str::to_owned)));
     Json(HealthResponse {
         data: HealthResponseData {
@@ -184,6 +188,7 @@ pub fn router(state: Arc<AppState>) -> axum::Router {
             middleware::apply,
         ))
         .layer(tower_http::compression::CompressionLayer::new())
+        .layer(axum::middleware::from_fn(telemetry::incoming))
         .with_state(state);
     use tower::Layer;
     axum::Router::new().fallback_service(

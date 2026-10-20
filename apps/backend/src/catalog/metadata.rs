@@ -10,6 +10,7 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
+use tracing::Instrument;
 use utoipa_axum::{router::OpenApiRouter, routes};
 pub fn total(snapshot: &Value, synced: i64) -> i64 {
     let sets = db::array(snapshot, "sets");
@@ -86,12 +87,15 @@ pub async fn expanded(state: &Arc<AppState>, force: bool, blocking: bool) -> Res
     if let Ok(guard) = state.probe.clone().try_lock_owned() {
         let state = state.clone();
         let base = base.clone();
-        tokio::spawn(async move {
-            let _guard = guard;
-            if run_probe(&state, &base, &fingerprint).await.is_err() {
-                tracing::warn!(category = "catalog-probe", "Catalog metadata probe failed");
+        tokio::spawn(
+            async move {
+                let _guard = guard;
+                if run_probe(&state, &base, &fingerprint).await.is_err() {
+                    tracing::warn!(category = "catalog-probe", "Catalog metadata probe failed");
+                }
             }
-        });
+            .instrument(tracing::info_span!("catalog.probe")),
+        );
     }
     Ok(previous.map(|row| row["snapshot"].clone()).unwrap_or(base))
 }

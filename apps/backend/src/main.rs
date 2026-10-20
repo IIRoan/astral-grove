@@ -1,14 +1,23 @@
 use astral_grove_server::{AppState, router};
+use tracing::Instrument;
 
 #[global_allocator]
 static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-#[tokio::main(worker_threads = 2)]
-async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .json()
-        .with_env_filter("astral_grove_server=info")
-        .init();
+fn main() -> anyhow::Result<()> {
+    let telemetry = astral_grove_server::telemetry::init()?;
+    let result = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()?
+        .block_on(run());
+    if let Some(provider) = telemetry {
+        provider.shutdown_with_timeout(std::time::Duration::from_secs(5))?;
+    }
+    result
+}
+
+async fn run() -> anyhow::Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     let command = args.first().map(String::as_str).unwrap_or("serve");
     let command_args = args.get(1..).unwrap_or_default();
@@ -79,17 +88,20 @@ async fn main() -> anyhow::Result<()> {
             .is_some_and(|v| v == "true")
     {
         let state = state.clone();
-        tokio::spawn(async move {
-            if astral_grove_server::catalog::metadata::expanded(&state, false, true)
-                .await
-                .is_err()
-            {
-                tracing::warn!(
-                    category = "catalog-warmup",
-                    "Catalog metadata warmup failed"
-                )
+        tokio::spawn(
+            async move {
+                if astral_grove_server::catalog::metadata::expanded(&state, false, true)
+                    .await
+                    .is_err()
+                {
+                    tracing::warn!(
+                        category = "catalog-warmup",
+                        "Catalog metadata warmup failed"
+                    )
+                }
             }
-        });
+            .instrument(tracing::info_span!("catalog.warmup")),
+        );
     }
     if state.config.production && state.release_storage.is_none() {
         tracing::warn!(
