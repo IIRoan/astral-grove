@@ -65,6 +65,7 @@ export default defineRailway((ctx) => {
       STALWART_JMAP_USERNAME: preserve(),
       SYNC_CRON_ENABLED: 'false',
       TRUSTED_ORIGINS: `${apiUrl},${webUrl}`,
+      TRUSTED_PROXY_CIDRS: '100.64.0.0/10,fd12::/16',
       _RJEM_MALLOC_CONF:
         'background_thread:true,narenas:2,dirty_decay_ms:1000,muzzy_decay_ms:1000',
     },
