@@ -1,5 +1,6 @@
 use std::{future::Future, sync::Mutex, time::Duration};
 use tokio::task::JoinSet;
+use tracing::Instrument;
 
 #[derive(Default)]
 struct State {
@@ -30,7 +31,9 @@ impl Tasks {
         if state.closed || state.jobs.len() >= self.limit {
             return false;
         }
-        state.jobs.spawn(job);
+        state
+            .jobs
+            .spawn(job.instrument(tracing::info_span!("background.task")));
         true
     }
 
