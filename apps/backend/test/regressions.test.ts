@@ -8,6 +8,7 @@ import {
   SyncStatusResponse,
 } from '@riftbound/contracts';
 import sharp from 'sharp';
+import type { z } from 'zod';
 import { startStorageFixture } from './s3-fixture';
 import { createHarness, json, waitFor } from './support';
 
@@ -194,6 +195,47 @@ test('activity endpoints retain a matching variant at the 5000th position', asyn
   expect(recent.data[0]?.quantityDelta).toBe(1);
   expect(history.data).toEqual(recent.data);
   expect(history.meta).toEqual({ hasMore: false, nextCursor: null });
+});
+test('activity cursors retain microseconds and order events with equal timestamps', async () => {
+  const user = await harness.signup(app, 'activity-cursor');
+  expect(
+    (await app.fetch('/api/v1/collection', { headers: { cookie: user.cookie } })).status
+  ).toBe(200);
+  const tied = Array.from({ length: 4 }, () => crypto.randomUUID())
+    .sort()
+    .reverse();
+  const ids = [crypto.randomUUID(), ...tied, crypto.randomUUID()];
+  for (const [index, id] of ids.entries()) {
+    const at = `2026-10-20T00:00:00.${index === 0 ? '123457' : index === 5 ? '123455' : '123456'}Z`;
+    await harness.sql`INSERT INTO collection_audit_events(id,collection_id,actor_user_id,action,variant_number,quantity_before,quantity_after,quantity_delta,created_at)
+      SELECT ${id}::uuid,collection_id,${user.user.id},'add','OGN-001',0,1,1,${at}::text::timestamptz
+      FROM collection_members WHERE user_id=${user.user.id}`;
+  }
+  let cursor: z.infer<typeof CollectionActivityHistoryResponse>['meta']['nextCursor'] =
+    null;
+  const seen: string[] = [];
+  for (let page = 0; page < 3; page++) {
+    const response = await app.fetch(
+      '/api/v1/collection/activity-history',
+      json(
+        { variantNumbers: ['OGN-001'], limit: 2, ...(cursor ? { cursor } : {}) },
+        user.cookie
+      )
+    );
+    expect(response.status).toBe(200);
+    const history = CollectionActivityHistoryResponse.parse(await response.json());
+    seen.push(...history.data.map((event) => event.id));
+    expect(history.data.map((event) => event.id)).toEqual(
+      ids.slice(page * 2, page * 2 + 2)
+    );
+    expect(history.meta.hasMore).toBe(page < 2);
+    cursor = history.meta.nextCursor;
+    if (page < 2) {
+      expect(cursor?.id).toBe(ids[page * 2 + 1]);
+      expect(cursor?.at).toBe('2026-10-20T00:00:00.123456Z');
+    } else expect(cursor).toBeNull();
+  }
+  expect(seen).toEqual(ids);
 });
 async function startInterruptedSync(
   server: typeof app,
