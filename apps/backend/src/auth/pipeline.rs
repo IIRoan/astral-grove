@@ -58,9 +58,8 @@ async fn limited(state: &AppState, path: &str, headers: &HeaderMap) -> Option<u6
     {
         return None;
     }
+    // Like Better Auth, requests without a trusted IP share client_ip's "unknown" per-path bucket.
     let ip = crate::middleware::client_ip(headers);
-    // Better Auth falls back to one shared per-path bucket when no trusted IP is available.
-    let ip = if ip.is_empty() { "no-trusted-ip" } else { &ip };
     let (max, window) = if path.contains("email-otp")
         || [
             "/request-password-reset",

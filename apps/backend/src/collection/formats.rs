@@ -41,7 +41,8 @@ fn trim(raw: &str) -> &str {
     raw.trim_matches(|ch: char| ch.is_whitespace() || ch == '\u{feff}')
 }
 pub fn aggregate(items: Vec<Value>) -> Vec<Value> {
-    let mut merged: Vec<(String, Value)> = Vec::new();
+    let mut merged = Vec::<Value>::with_capacity(items.len());
+    let mut positions = std::collections::HashMap::<String, usize>::new();
     for item in items {
         let finish = match item["isFoil"].as_bool() {
             Some(true) => "foil",
@@ -54,7 +55,7 @@ pub fn aggregate(items: Vec<Value>) -> Vec<Value> {
             db::string(&item, "condition"),
             db::string(&item, "language")
         );
-        if let Some((_, existing)) = merged.iter_mut().find(|(stored, _)| *stored == key) {
+        if let Some(existing) = positions.get(&key).map(|index| &mut merged[*index]) {
             let quantity = existing["quantity"]
                 .as_i64()
                 .unwrap_or(0)
@@ -70,10 +71,11 @@ pub fn aggregate(items: Vec<Value>) -> Vec<Value> {
                     || !db::string(existing, "gradeScore").is_empty()
             );
         } else {
-            merged.push((key, item));
+            positions.insert(key, merged.len());
+            merged.push(item);
         }
     }
-    merged.into_iter().map(|(_, item)| item).collect()
+    merged
 }
 pub fn tts(text: &str) -> Value {
     static PATTERN: std::sync::LazyLock<regex_lite::Regex> = std::sync::LazyLock::new(|| {
@@ -303,6 +305,22 @@ pub fn export(rows: &[Value]) -> String {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[test]
+    fn aggregate_merges_stacks_in_first_seen_order_at_scale() {
+        let item = |number: String, quantity: i64, notes: Option<&str>| json!({"variantNumber":number,"condition":"near_mint","language":"en","quantity":quantity,"notes":notes});
+        let mut items: Vec<_> = (0..40_000)
+            .map(|index| item(format!("OGN-{index}"), 1, None))
+            .collect();
+        items.push(item("OGN-7".into(), 2, Some("second copy")));
+        items.push(json!({"variantNumber":"OGN-7","condition":"near_mint","language":"en","quantity":1,"isFoil":true}));
+        let merged = aggregate(items);
+        assert_eq!(merged.len(), 40_001);
+        assert_eq!(merged[7]["quantity"], 3);
+        assert_eq!(merged[7]["notes"], "second copy");
+        assert_eq!(merged[7]["isGraded"], false);
+        assert_eq!(merged[40_000]["isFoil"], true);
+        assert_eq!(merged[39_999]["variantNumber"], "OGN-39999");
+    }
     #[test]
     fn csv_items_use_the_same_limits_as_json_imports() {
         for (field, limit) in [

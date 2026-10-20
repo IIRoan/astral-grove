@@ -3,6 +3,7 @@ use crate::{AppState, db, error::Result};
 use rand::RngExt;
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde_json::{Value, json};
+use std::sync::Arc;
 use subtle::ConstantTimeEq;
 
 pub fn validate_email(email: &str) -> Result<String> {
@@ -100,25 +101,29 @@ pub async fn discard<C: ConnectionTrait>(connection: &C, identifier: &str) -> Re
     .await?;
     Ok(())
 }
-pub async fn send(state: &AppState, address: &str, kind: &str) -> Result<Value> {
+pub async fn send(state: &Arc<AppState>, address: &str, kind: &str) -> Result<Value> {
     let address = validate_email(address)?;
     public_kind(kind)?;
     let otp = format!("{:06}", rand::rng().random_range(0_u32..1_000_000));
     let identifier = format!("{kind}-otp-{address}");
     // Unknown addresses spend the same issuance budget so 429s do not reveal accounts.
     issuance_budget(state, &identifier).await?;
-    if service::find_user(state, &address).await?.is_none() {
-        return Ok(json!({"success":true}));
-    }
+    // Every address stores a code before success, so success means a code exists without revealing accounts.
     store(state, &identifier, &format!("{otp}:0"), 300).await?;
-    let link = service::random_token();
-    store(state, &link_identifier(&link), &address, 3600).await?;
-    email::send(
-        state,
-        &address,
-        email::verification(state, &address, &otp, &link),
-    )
-    .await?;
+    let worker = state.clone();
+    email::detach(state, async move {
+        if service::find_user(&worker, &address).await?.is_none() {
+            return Ok(());
+        }
+        let link = service::random_token();
+        store(&worker, &link_identifier(&link), &address, 3600).await?;
+        email::send(
+            &worker,
+            &address,
+            email::verification(&worker, &address, &otp, &link),
+        )
+        .await
+    })?;
     Ok(json!({"success":true}))
 }
 fn link_identifier(token: &str) -> String {
@@ -221,7 +226,7 @@ pub async fn verify_email(
     ))
 }
 pub async fn change(
-    state: &AppState,
+    state: &Arc<AppState>,
     body: &Value,
     headers: &axum::http::HeaderMap,
     request: bool,
@@ -236,16 +241,18 @@ pub async fn change(
         issuance_budget(state, &format!("change-email:{}", session.user.id)).await?;
         let otp = format!("{:06}", rand::rng().random_range(0_u32..1_000_000));
         store(state, &identifier, &format!("{otp}:0"), 300).await?;
-        if service::find_user(state, &email).await?.is_some() {
-            discard(&state.db, &identifier).await?;
-        } else {
+        let worker = state.clone();
+        email::detach(state, async move {
+            if service::find_user(&worker, &email).await?.is_some() {
+                return discard(&worker.db, &identifier).await;
+            }
             email::send(
-                state,
+                &worker,
                 &email,
                 email::change_email(&session.user.email, &otp),
             )
-            .await?;
-        }
+            .await
+        })?;
         return Ok(super::core::Reply::json(json!({"success":true})));
     }
     check(

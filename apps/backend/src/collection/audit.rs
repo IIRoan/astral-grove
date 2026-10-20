@@ -34,7 +34,21 @@ pub async fn list(
             filters.push(format!("{column}={p}"));
         }
     }
-    if let Some(before) = input["before"].as_str() {
+    // An event id cursor keeps events that share the previous page's last timestamp.
+    if let Some(id) = input["beforeId"].as_str() {
+        // A cursor outside the viewer's events would compare as NULL and silently end the history.
+        let visible = match collection {
+            Some(collection) => db::rows(&state.db, "SELECT 1 FROM collection_audit_events WHERE id=$1::uuid AND collection_id=$2::uuid", vec![id.into(), collection.into()]).await?,
+            None => db::rows(&state.db, "SELECT 1 FROM collection_audit_events WHERE id=$1::uuid AND actor_user_id=$2", vec![id.into(), viewer.into()]).await?,
+        };
+        if visible.is_empty() {
+            return Err(crate::error::AppError::not_found("Audit cursor not found"));
+        }
+        let p = sql.bind(id);
+        filters.push(format!(
+            "(e.created_at,e.id)<(SELECT c.created_at,c.id FROM collection_audit_events c WHERE c.id={p}::uuid)"
+        ));
+    } else if let Some(before) = input["before"].as_str() {
         let p = sql.bind(before);
         filters.push(format!(
             "e.created_at<date_trunc('milliseconds',{p}::timestamptz)"

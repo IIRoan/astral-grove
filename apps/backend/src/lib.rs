@@ -52,6 +52,8 @@ pub struct AppState {
     pub catalog_sync: tokio::sync::Mutex<()>,
     pub price_sync: tokio::sync::Mutex<()>,
     tasks: tasks::Tasks,
+    /// Separate from `tasks` so a long sync cannot block auth email delivery, or the reverse.
+    emails: tasks::Tasks,
 }
 impl AppState {
     pub async fn connect_with_migrations(
@@ -127,14 +129,20 @@ impl AppState {
             probe: Default::default(),
             catalog_sync: Default::default(),
             price_sync: Default::default(),
-            tasks: tasks::Tasks::new(8),
+            tasks: tasks::Tasks::new("sync", 8),
+            emails: tasks::Tasks::new("email", 64),
         }))
     }
 
     pub async fn drain(&self) {
         self.shutdown.send_replace(true);
-        self.tasks.drain().await;
-        self.images.drain().await;
+        // Emails were already promised to the client, so they get long enough for one slow JMAP send.
+        tokio::join!(
+            self.tasks.drain(),
+            self.emails
+                .drain_with_timeout(std::time::Duration::from_secs(20)),
+            self.images.drain(),
+        );
     }
 }
 

@@ -255,6 +255,13 @@ pub async fn import(state: &AppState, user: &str, source: &str) -> Result<Value>
     let mut payload = upstream::get_stored(state, source)
         .await
         .ok_or_else(|| missing(false))?;
+    if !db::array(&payload, "syncWarnings").is_empty() {
+        return Err(AppError::new(
+            503,
+            "DECK_CATALOG_INCOMPLETE",
+            "Some card details are unavailable. Please try importing this deck again later.",
+        ));
+    }
     let timestamp = now();
     payload["id"] = json!(id("deck"));
     payload["createdAt"] = json!(timestamp);

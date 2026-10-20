@@ -133,9 +133,10 @@ impl reqwest_middleware::Middleware for HttpTracing {
     }
 }
 
-pub fn database_query(namespace: &str, sql: &str, elapsed: Duration, failed: bool) {
-    // Only operation names leave the process; SQL, bind values and driver errors can contain secrets.
-    let operation = match sql
+// Only operation names leave the process; SQL, bind values and driver errors can contain secrets.
+fn operation(sql: &str) -> &'static str {
+    let sql = sql.strip_prefix(crate::db::ROWS_PREFIX).unwrap_or(sql);
+    match sql
         .split_ascii_whitespace()
         .next()
         .unwrap_or("")
@@ -151,7 +152,11 @@ pub fn database_query(namespace: &str, sql: &str, elapsed: Duration, failed: boo
         "ALTER" => "ALTER",
         "EXPLAIN" => "EXPLAIN",
         _ => "EXECUTE",
-    };
+    }
+}
+
+pub fn database_query(namespace: &str, sql: &str, elapsed: Duration, failed: bool) {
+    let operation = operation(sql);
     let end = SystemTime::now();
     let tracer = global::tracer("astral-grove.sea-orm");
     let mut span = tracer
@@ -169,4 +174,25 @@ pub fn database_query(namespace: &str, sql: &str, elapsed: Duration, failed: boo
         span.set_status(Status::error("Database query failed"));
     }
     span.end_with_timestamp(end);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::operation;
+    #[test]
+    fn wrapped_row_queries_report_their_inner_operation() {
+        for (sql, expected) in [
+            ("SELECT 1", "SELECT"),
+            ("insert into t values(1)", "INSERT"),
+            ("WITH x AS (SELECT 1) SELECT * FROM x", "WITH"),
+            ("SET LOCAL x=1", "EXECUTE"),
+        ] {
+            assert_eq!(operation(sql), expected);
+            let wrapped = format!(
+                "{}{sql}) SELECT to_jsonb(result) AS data FROM result",
+                crate::db::ROWS_PREFIX
+            );
+            assert_eq!(operation(&wrapped), expected);
+        }
+    }
 }

@@ -2,7 +2,11 @@ import { afterAll, beforeAll, expect, setDefaultTimeout, test } from 'bun:test';
 import { cookie, createHarness, json, password, waitFor } from './support';
 import { startJmapFixture } from './fixtures/jmap';
 import { startOfflineUpstream } from './fixtures/offline';
-import { DeckDetailResponse, DeckListResponse } from '@riftbound/contracts';
+import {
+  CollectionImportResponse,
+  DeckDetailResponse,
+  DeckListResponse,
+} from '@riftbound/contracts';
 import { readFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { startStorageFixture } from './s3-fixture';
@@ -162,6 +166,7 @@ test('resending verification is account limited and cannot clear failed guesses'
     const user = await harness.signup(server, 'resend');
     addresses.push(user.email);
     const identifier = `email-verification-otp-${user.email}`;
+    await mail.received(1);
     const old = (
       await sql`SELECT value FROM verification WHERE identifier=${identifier}`
     )[0]!.value;
@@ -191,6 +196,7 @@ test('resending verification is account limited and cannot clear failed guesses'
         )
       ).status
     ).toBe(429);
+    await mail.received(3);
     expect(mail.messages).toHaveLength(3);
     expect(
       (
@@ -708,7 +714,9 @@ test('owned decks remain local; legacy shared-key decks cannot be read or change
       ).status
     ).toBe(200);
     expect(writes).toEqual([]);
+    // Recreate a legacy mirror as migration 0016 leaves it: the payload plus its quarantine row.
     await sql`UPDATE user_decks SET payload=payload-'importedFromId' WHERE user_id=${owner.user.id} AND id=${deck.id}`;
+    await sql`INSERT INTO private_upstream_decks(upstream_id) VALUES(${source}) ON CONFLICT DO NOTHING`;
     for (const action of ['read', 'import']) {
       const result = await server.fetch(
         `/api/v1/decks/${source}${action === 'import' ? '/import' : ''}`,
@@ -833,9 +841,8 @@ function mailServer(mail: ReturnType<typeof startJmapFixture>) {
     EMAIL_FROM: 'noreply@test.riftbound.dev',
   });
 }
-function lastMail(mail: ReturnType<typeof startJmapFixture>) {
-  const message = mail.messages.at(-1) as { bodyValues: { text: { value: string } } };
-  return message.bodyValues.text.value;
+async function lastMail(mail: ReturnType<typeof startJmapFixture>, count: number) {
+  return (await mail.received(count)).bodyValues.text.value;
 }
 async function holdCredentialLock(userId: string) {
   const locked = Promise.withResolvers<void>(),
@@ -996,7 +1003,9 @@ test('emailed verification links survive guess exhaustion and later resends', as
     const server = await mailServer(mail);
     const user = await harness.signup(server, 'link');
     addresses.push(user.email);
-    const link = new URL(lastMail(mail).match(/Or open this link: (\S+)/)![1]!);
+    const link = new URL(
+      (await lastMail(mail, 1)).match(/Or open this link: (\S+)/)![1]!
+    );
     expect(link.searchParams.get('otp')).toBeNull();
     const token = link.searchParams.get('token')!;
     expect(token).toHaveLength(43);
@@ -1016,7 +1025,7 @@ test('emailed verification links survive guess exhaustion and later resends', as
         )
       ).status
     ).toBe(200);
-    const code = lastMail(mail).match(/Verification code: (\d{6})/)![1];
+    const code = (await lastMail(mail, 2)).match(/Verification code: (\d{6})/)![1];
     const verify = (otp: string | undefined) =>
       server.fetch(
         '/api/auth/email-otp/verify-email',
@@ -1066,6 +1075,7 @@ test('unknown addresses meet the same issuance and guessing limits as accounts',
           )
         ).status
       ).toBe(200);
+    await mail.received(3);
     expect(mail.messages).toHaveLength(3);
   } finally {
     mail.stop();
@@ -1134,23 +1144,20 @@ test('email change guesses share a target budget and void old reset links', asyn
   }
 });
 
-test('failed sign-ins are budgeted per address across client identities', async () => {
+test('failed sign-ins are budgeted per address and client, so others cannot lock the owner out', async () => {
   const user = await signup('account-budget');
+  const server = await harness.startServer({ TRUSTED_PROXY_CIDRS: '127.0.0.1/32' });
+  const from = (ip: string, secret: string) =>
+    server.fetch('/api/auth/sign-in/email', {
+      ...json({ email: user.email, password: secret }),
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+    });
   for (let attempt = 0; attempt < 20; attempt++)
-    expect(
-      (
-        await app.fetch(
-          '/api/auth/sign-in/email',
-          json({ email: user.email, password: 'incorrect-password-123' })
-        )
-      ).status
-    ).toBe(401);
-  const response = await app.fetch(
-    '/api/auth/sign-in/email',
-    json({ email: user.email, password })
-  );
-  expect(response.status).toBe(429);
-  expect(response.headers.get('set-cookie')).toBeNull();
+    expect((await from('198.51.100.7', 'incorrect-password-123')).status).toBe(401);
+  const blocked = await from('198.51.100.7', password);
+  expect(blocked.status).toBe(429);
+  expect(blocked.headers.get('set-cookie')).toBeNull();
+  expect((await from('198.51.100.8', password)).status).toBe(200);
 });
 
 test('release links signed with the storage key are rejected without a link secret', async () => {
@@ -1254,4 +1261,85 @@ test('legacy deck ids and version history are quarantined by a forward migration
   expect(
     await sql`SELECT hash FROM drizzle.__drizzle_migrations WHERE created_at=1792400100000`
   ).toHaveLength(1);
+});
+
+test('slow mail delivery neither delays nor distinguishes password reset responses', async () => {
+  const mail = startJmapFixture();
+  try {
+    const server = await mailServer(mail);
+    const user = await harness.signup(server, 'slow-mail');
+    const unknown = `security-unknown-${crypto.randomUUID()}@test.riftbound.dev`;
+    addresses.push(user.email, unknown);
+    await mail.received(1);
+    mail.delay(1200);
+    for (const email of [user.email, unknown]) {
+      const started = performance.now();
+      const response = await server.fetch(
+        '/api/auth/request-password-reset',
+        json({ email, redirectTo: 'http://localhost:7001/reset-password' })
+      );
+      expect(response.status).toBe(200);
+      expect(performance.now() - started).toBeLessThan(1000);
+    }
+    expect(await lastMail(mail, 2)).toContain('/api/auth/reset-password/');
+    expect(mail.messages).toHaveLength(2);
+  } finally {
+    mail.stop();
+  }
+});
+
+test('the Expo authorization proxy never redirects while no social provider exists', async () => {
+  const target = encodeURIComponent('https://evil.example/login?state=forged');
+  for (const query of [
+    `authorizationURL=${target}`,
+    `authorizationURL=${target}&oauthState=forged`,
+  ]) {
+    const response = await app.fetch(`/api/auth/expo-authorization-proxy?${query}`, {
+      redirect: 'manual',
+    });
+    expect(response.status).toBe(404);
+    expect(response.headers.get('location')).toBeNull();
+    expect(response.headers.get('set-cookie')).toBeNull();
+  }
+});
+
+test('an import that exhausts the upstream budget reports unresolved rows instead of failing', async () => {
+  let batches = 0;
+  const upstream = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    async fetch(request) {
+      if (new URL(request.url).pathname !== '/v1/cards/batch')
+        return new Response(null, { status: 404 });
+      batches++;
+      const { variantNumbers } = (await request.json()) as { variantNumbers: string[] };
+      return Response.json({ data: [], notFound: variantNumbers });
+    },
+  });
+  try {
+    const server = await harness.startServer({
+      PA_BASE_URL: upstream.url.origin,
+      UPSTREAM_REQUESTS_PER_MINUTE: '4',
+    });
+    const user = await harness.signup(server, 'import-budget');
+    addresses.push(user.email);
+    const items = [
+      { variantNumber: 'OGN-001', quantity: 1 },
+      ...Array.from({ length: 60 }, (_, index) => ({
+        variantNumber: `ZZB-${index}`,
+        quantity: 1,
+      })),
+    ];
+    const response = await server.fetch(
+      '/api/v1/collection/import',
+      json({ items, mode: 'add' }, user.cookie)
+    );
+    expect(response.status).toBe(200);
+    const { data } = CollectionImportResponse.parse(await response.json());
+    expect(data.imported).toBe(1);
+    expect(data.failedRows).toBe(60);
+    expect(batches).toBe(1);
+  } finally {
+    upstream.stop(true);
+  }
 });

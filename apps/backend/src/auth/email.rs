@@ -2,6 +2,26 @@ use super::error;
 use crate::{AppState, error::Result};
 use serde_json::{Value, json};
 
+/// Runs account-dependent lookups and delivery after responding, so timing does not reveal registered addresses.
+pub fn detach(
+    state: &AppState,
+    job: impl std::future::Future<Output = Result<()>> + Send + 'static,
+) -> Result<()> {
+    if state.emails.spawn(async move {
+        if let Err(failure) = job.await {
+            tracing::warn!(
+                category = "email",
+                status = failure.status.as_u16(),
+                "Account email delivery failed"
+            );
+        }
+    }) {
+        Ok(())
+    } else {
+        Err(error(503, "SERVICE_UNAVAILABLE", "Please retry shortly"))
+    }
+}
+
 pub struct Message {
     pub subject: String,
     pub text: String,

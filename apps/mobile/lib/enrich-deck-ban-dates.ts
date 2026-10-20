@@ -13,7 +13,7 @@ export async function fetchBanDatesByVariant(
   const detailsByVariant = await fetchCardDetailsByVariant(unique);
   for (const variantNumber of unique) {
     const card = detailsByVariant.get(variantNumber);
-    banByVariant.set(variantNumber, card?.banEffectiveDate ?? null);
+    if (card) banByVariant.set(variantNumber, card.banEffectiveDate ?? null);
   }
 
   return banByVariant;

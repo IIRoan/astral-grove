@@ -208,7 +208,7 @@ impl ImageStore {
                 Some(MAX_MEMORY),
             )),
             misses: Arc::new(Mutex::new(HashMap::new())),
-            uploads: crate::tasks::Tasks::new(8),
+            uploads: crate::tasks::Tasks::new("image-upload", 8),
             pending_uploads: Default::default(),
             locks: Mutex::new(HashMap::new()),
             rate: Limits::default(),

@@ -44,12 +44,7 @@ pub async fn request(
     if cacheable && let Some(value) = state.upstream_cache.lock().await.get(&cache_key).cloned() {
         return Ok(value);
     }
-    let maximum = state
-        .config
-        .values
-        .get("UPSTREAM_REQUESTS_PER_MINUTE")
-        .and_then(|value| value.parse::<u32>().ok())
-        .unwrap_or(600);
+    let maximum = state.config.upstream_per_minute;
     let client = CLIENT.try_with(Clone::clone).ok();
     // Each client gets a share and interactive work leaves a quarter for background sync.
     if let Some(client) = &client

@@ -107,8 +107,13 @@ fn config_from_values(
                 .get("--use-env")
                 .ok_or_else(|| anyhow::anyhow!("Missing database selection"))?;
             anyhow::ensure!(
-                ["DATABASE_URL", "TEST_DB_URL", "SEARCH_EXPLAIN_DATABASE_URL"]
-                    .contains(&name.as_str()),
+                [
+                    "DATABASE_URL",
+                    "TEST_DB_URL",
+                    "SEARCH_EXPLAIN_DATABASE_URL",
+                    "STAGING_DATABASE_URL"
+                ]
+                .contains(&name.as_str()),
                 "Unsupported database environment selector"
             );
             values
@@ -125,6 +130,25 @@ fn config_from_values(
         anyhow::ensure!(
             if target == "staging" { !local } else { local },
             "Database host does not match the explicit maintenance target"
+        );
+        // Local .env files may point DATABASE_URL at production, so staging must be a different server or database.
+        let identity = |url: &url::Url| {
+            (
+                url.host_str().map(str::to_lowercase),
+                url.port().unwrap_or(5432),
+                url.path().trim_end_matches('/').to_owned(),
+            )
+        };
+        anyhow::ensure!(
+            target != "staging"
+                || (options
+                    .get("--use-env")
+                    .is_none_or(|name| name != "DATABASE_URL")
+                    && values
+                        .get("DATABASE_URL")
+                        .and_then(|ambient| url::Url::parse(ambient).ok())
+                        .is_none_or(|ambient| identity(&ambient) != identity(&url))),
+            "Staging maintenance must not use DATABASE_URL; select STAGING_DATABASE_URL"
         );
         if target == "test" {
             anyhow::ensure!(
@@ -250,6 +274,33 @@ mod tests {
                 values()
             )
             .is_err()
+        );
+    }
+    #[test]
+    fn staging_maintenance_never_targets_the_ambient_database_url() {
+        let production = "postgres://fixture:fixture@production.example.test/railway";
+        let mut config = values();
+        config.insert("DATABASE_URL".into(), production.into());
+        config.insert(
+            "STAGING_DATABASE_URL".into(),
+            "postgres://fixture:fixture@staging.example.test/railway".into(),
+        );
+        let explicit = format!("--database-url={production}");
+        let respelled = "--database-url=postgres://other:creds@PRODUCTION.example.test:5432/railway/?sslmode=require";
+        for input in [
+            vec!["--target=staging", "--use-env=DATABASE_URL", "--apply"],
+            vec!["--target=staging", explicit.as_str()],
+            vec!["--target=staging", respelled],
+        ] {
+            assert!(config_from_values("prune:prices", &args(&input), config.clone()).is_err());
+        }
+        assert!(
+            config_from_values(
+                "prune:prices",
+                &args(&["--target=staging", "--use-env=STAGING_DATABASE_URL"]),
+                config
+            )
+            .is_ok()
         );
     }
     #[test]

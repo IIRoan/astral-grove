@@ -100,7 +100,12 @@ async fn list(
     let input = http::value("PricesListQuery", &http::query(query.as_deref()))?;
     let id = market_id(&state, &input).await?;
     let foil = input["isFoil"].as_bool();
-    let mut rows = rows(&state, id.map(|id| vec![id])).await?;
+    let mut rows = match id {
+        Some(id) => rows(&state, Some(vec![id])).await?,
+        // An unresolved variant has no prices; only an unfiltered request lists them all.
+        None if input["variantNumber"].is_string() => Vec::new(),
+        None => rows(&state, None).await?,
+    };
     rows.retain(|row| foil.is_none_or(|foil| row["isFoil"] == foil));
     let meta=db::rows(&state.db,"SELECT content_hash AS hash,to_char(last_success_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS synced FROM sync_state WHERE key='prices'",vec![]).await?.into_iter().next().unwrap_or(json!({}));
     http::respond(

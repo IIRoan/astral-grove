@@ -197,15 +197,20 @@ pub async fn sign_up(
         true,
     ))
 }
-pub async fn sign_in(state: &AppState, email: &str, plain: &str) -> Result<(User, String)> {
+pub async fn sign_in(
+    state: &AppState,
+    email: &str,
+    plain: &str,
+    ip: &str,
+) -> Result<(User, String)> {
     if !crate::http::is_zod_email(email) {
         return Err(error(400, "INVALID_EMAIL", "Invalid email"));
     }
     if plain.encode_utf16().count() > 128 {
         return Err(error(400, "PASSWORD_TOO_LONG", "Password too long"));
     }
-    // Failed sign-ins are budgeted per address as well as per IP, for known and unknown accounts alike.
-    let account = format!("sign-in:{}", email.to_lowercase());
+    // Failed sign-ins are budgeted per address and client, so an attacker elsewhere cannot lock the owner out.
+    let account = format!("sign-in:{ip}:{}", email.to_lowercase());
     if state.limits.exhausted(&account, 20).await {
         return Err(error(
             429,
@@ -286,17 +291,19 @@ pub fn signed_headers(state: &AppState, token: &str, remember: bool) -> Result<H
         .parse()
         .map_err(|_| AppError::internal())?,
     );
-    if !remember {
+    // A remembered login clears any dont_remember left by an earlier short session.
+    let dont_remember = if remember {
+        cookies::cookie_kind(&state.config, "dont_remember", "", Some(0))
+    } else {
         let value = cookies::encode(
             &cookies::sign(&state.config.auth_secret, "true").ok_or_else(AppError::internal)?,
         );
-        headers.append(
-            "set-cookie",
-            cookies::cookie_kind(&state.config, "dont_remember", &value, None)
-                .parse()
-                .map_err(|_| AppError::internal())?,
-        );
-    }
+        cookies::cookie_kind(&state.config, "dont_remember", &value, None)
+    };
+    headers.append(
+        "set-cookie",
+        dont_remember.parse().map_err(|_| AppError::internal())?,
+    );
     headers.insert(
         "set-auth-token",
         encoded.parse().map_err(|_| AppError::internal())?,

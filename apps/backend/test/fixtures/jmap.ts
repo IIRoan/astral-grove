@@ -1,14 +1,17 @@
 import { z } from 'zod';
+import { waitFor } from '../support';
 const Call = z.tuple([z.string(), z.record(z.unknown()), z.string()]);
 export function startJmapFixture() {
   const messages: Array<Record<string, unknown>> = [];
   let failDiscovery = false;
+  let delay = 0;
   const server = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
     async fetch(request): Promise<Response> {
       const path = new URL(request.url).pathname;
       if (request.method === 'HEAD') return new Response(null, { status: 204 });
+      if (delay) await Bun.sleep(delay);
       if (!['GET', 'POST'].includes(request.method))
         return new Response(null, { status: 405 });
       if (request.method === 'GET') {
@@ -71,6 +74,15 @@ export function startJmapFixture() {
     messages,
     failDiscovery() {
       failDiscovery = true;
+    },
+    /** Slows every JMAP call, like a mail server under load. */
+    delay(milliseconds: number) {
+      delay = milliseconds;
+    },
+    /** Account mail is delivered after the response, so wait for it to arrive. */
+    async received(count: number) {
+      await waitFor(() => messages.length >= count);
+      return messages.at(-1) as { bodyValues: { text: { value: string } } };
     },
     stop() {
       server.stop(true);

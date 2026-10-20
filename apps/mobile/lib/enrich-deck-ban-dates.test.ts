@@ -22,8 +22,12 @@ mock.module('@/src/api/client', () => ({
   api: { batchCards },
 }));
 
-const { fetchBanDatesByVariant, mergeBanDatesIntoDeck, syncDeckLegalityFields } =
-  await import('@/lib/enrich-deck-ban-dates');
+const {
+  fetchBanDatesByVariant,
+  mergeBanDatesIntoDeck,
+  refreshDeckLegality,
+  syncDeckLegalityFields,
+} = await import('@/lib/enrich-deck-ban-dates');
 
 function deckCard(name: string, banEffectiveDate: string | null = null): DeckCard {
   return {
@@ -68,6 +72,31 @@ describe('fetchBanDatesByVariant', () => {
     expect(map.get('OGN-001')).toBe('2020-01-01T00:00:00.000Z');
     expect(map.get('OGN-002')).toBeNull();
   });
+
+  test('leaves missing batch cards unresolved', async () => {
+    batchCards.mockResolvedValueOnce({ data: [] });
+    const map = await fetchBanDatesByVariant(['OGN-001']);
+    expect(map.has('OGN-001')).toBe(false);
+  });
+});
+
+describe('refreshDeckLegality', () => {
+  test('preserves known bans when a partial batch omits the card', async () => {
+    batchCards.mockResolvedValueOnce({ data: [] });
+    const deck = emptyDeck({
+      source: 'owned',
+      isLegal: false,
+      mainDeck: new Map([
+        ['Banned', { card: deckCard('Banned', '2020-01-01T00:00:00.000Z'), count: 1 }],
+      ]),
+    });
+    const refreshed = await refreshDeckLegality(deck);
+    expect(refreshed.mainDeck.get('Banned')?.card.banEffectiveDate).toBe(
+      '2020-01-01T00:00:00.000Z'
+    );
+    expect(refreshed.isLegal).toBe(false);
+    expect(refreshed.bannedCardNames).toEqual(['Banned']);
+  });
 });
 
 describe('mergeBanDatesIntoDeck', () => {
@@ -79,6 +108,16 @@ describe('mergeBanDatesIntoDeck', () => {
     const merged = mergeBanDatesIntoDeck(deck, banByVariant);
     const entry = merged.mainDeck.get('Banned');
     expect(entry?.card.banEffectiveDate).toBe('2020-01-01T00:00:00.000Z');
+  });
+
+  test('clears a stale ban only when the catalog returns a null ban date', () => {
+    const deck = emptyDeck({
+      mainDeck: new Map([
+        ['Banned', { card: deckCard('Banned', '2020-01-01T00:00:00.000Z'), count: 1 }],
+      ]),
+    });
+    const merged = mergeBanDatesIntoDeck(deck, new Map([['OGN-001', null]]));
+    expect(merged.mainDeck.get('Banned')?.card.banEffectiveDate).toBeNull();
   });
 });
 

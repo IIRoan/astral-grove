@@ -190,6 +190,22 @@ describe('authentication', () => {
       ).toEqual([renewed.token]);
     }
   );
+  test('a remembered sign-in clears the dont-remember cookie of an earlier short session', async () => {
+    const user = await signup('remember-upgrade');
+    const signIn = (rememberMe: boolean) =>
+      app.fetch(
+        '/api/auth/sign-in/email',
+        json({ email: user.email, password, rememberMe })
+      );
+    expect(cookie(await signIn(false))).toContain('better-auth.dont_remember=');
+    const remembered = (await signIn(true)).headers.getSetCookie();
+    expect(
+      remembered.find((value) => value.startsWith('better-auth.session_token='))
+    ).toContain('Max-Age=604800');
+    expect(
+      remembered.find((value) => value.startsWith('better-auth.dont_remember='))
+    ).toMatch(/^better-auth\.dont_remember=;.*Max-Age=0/);
+  });
   test('protected routes renew aging cookie and bearer sessions while honoring dont-remember', async () => {
     const user = await signup('protected-renewal');
     const credentials: Record<string, string>[] = [
@@ -436,15 +452,15 @@ describe('authentication', () => {
       const user = await signup('mail', server);
       expect(user.token).toBeNull();
       expect(user.cookie).toBe('');
-      expect(mail.messages).toHaveLength(1);
-      const text = () =>
+      const text = async (count: number) =>
         z
           .object({ bodyValues: z.object({ text: z.object({ value: z.string() }) }) })
-          .parse(mail.messages.at(-1)).bodyValues.text.value;
-      const otp = text().match(/Verification code: (\d{6})/)?.[1];
+          .parse(await mail.received(count)).bodyValues.text.value;
+      const otp = (await text(1)).match(/Verification code: (\d{6})/)?.[1];
+      expect(mail.messages).toHaveLength(1);
       expect(otp).toBeDefined();
-      expect(text()).toContain('http://localhost:7001/verify-email?');
-      expect(text()).not.toContain('astral-grove://');
+      expect(await text(1)).toContain('http://localhost:7001/verify-email?');
+      expect(await text(1)).not.toContain('astral-grove://');
       const verified = await server.fetch(
         '/api/auth/email-otp/verify-email',
         json({ email: user.email, otp })
@@ -482,8 +498,10 @@ describe('authentication', () => {
         json({ email: user.email, redirectTo: 'http://localhost:7001/reset-password' })
       );
       expect(requested.status).toBe(200);
-      const resetToken = text().match(/[?&]token=([^&\s]+)/)?.[1];
+      const resetToken = (await text(mails + 1)).match(/[?&]token=([^&\s]+)/)?.[1];
       expect(resetToken).toBeDefined();
+      const staleToken = `stale-${stamp}`;
+      await sql`INSERT INTO verification(id,identifier,value,expires_at) VALUES(${crypto.randomUUID()},${`reset-password:${staleToken}`},${user.user.id},now()+interval '1 hour')`;
       const reset = await server.fetch(
         '/api/auth/reset-password',
         json({ token: resetToken, newPassword: 'reset-password-12345' })
@@ -499,6 +517,14 @@ describe('authentication', () => {
           await server.fetch(
             '/api/auth/reset-password',
             json({ token: resetToken, newPassword: 'reset-password-12345' })
+          )
+        ).status
+      ).toBe(400);
+      expect(
+        (
+          await server.fetch(
+            '/api/auth/reset-password',
+            json({ token: staleToken, newPassword: 'stale-password-12345' })
           )
         ).status
       ).toBe(400);
@@ -518,7 +544,7 @@ describe('authentication', () => {
           )
         ).status
       ).toBe(200);
-      const change = text().match(/Verification code: (\d{6})/)?.[1];
+      const change = (await text(mails + 2)).match(/Verification code: (\d{6})/)?.[1];
       expect(
         (
           await server.fetch(

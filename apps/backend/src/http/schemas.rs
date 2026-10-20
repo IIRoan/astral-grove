@@ -490,6 +490,16 @@ fn make_collection_audit_list_query() -> z::Schema {
                 .default(serde_json::json!(50)),
         ),
         ("before", z::string().datetime().optional()),
+        (
+            "beforeId",
+            z::string()
+                .refine(
+                    |value| value.as_str().is_some_and(super::valid_uuid),
+                    "Invalid uuid",
+                    &[],
+                )
+                .optional(),
+        ),
         ("variantNumber", z::string().min(1).optional()),
         ("actorUserId", z::string().min(1).optional()),
         (

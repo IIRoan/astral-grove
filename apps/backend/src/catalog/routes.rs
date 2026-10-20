@@ -93,7 +93,8 @@ async fn batch(
     let mut not_found = Vec::new();
     let mut source = "cache";
     if !missing.is_empty() {
-        let result = upstream::request(
+        // Cards that fail to load are reported in notFound rather than failing the cached ones.
+        match upstream::request(
             &state,
             reqwest::Method::POST,
             "/v1/cards/batch",
@@ -101,13 +102,23 @@ async fn batch(
             Some(&json!({"variantNumbers":missing})),
             Some("PaCardsBatchResponse"),
         )
-        .await?;
-        for item in crate::db::array(&result, "data") {
-            let card = upstream::card(&state, crate::db::string(item, "variantNumber")).await?;
-            store::upsert(&state, &card).await?;
-            found.push(store::detail_value(&state, &card).await?);
+        .await
+        {
+            Ok(result) => {
+                not_found = result["notFound"].as_array().cloned().unwrap_or_default();
+                for item in crate::db::array(&result, "data") {
+                    let number = crate::db::string(item, "variantNumber");
+                    let Ok(card) = upstream::card(&state, number).await else {
+                        not_found.push(json!(number));
+                        continue;
+                    };
+                    store::upsert(&state, &card).await?;
+                    found.push(store::detail_value(&state, &card).await?);
+                }
+            }
+            Err(error) if found.is_empty() => return Err(error.into()),
+            Err(_) => not_found = missing.iter().map(|number| json!(number)).collect(),
         }
-        not_found = result["notFound"].as_array().cloned().unwrap_or_default();
         source = if found.len() == input.variant_numbers.len() {
             "upstream"
         } else {

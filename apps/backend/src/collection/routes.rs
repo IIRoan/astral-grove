@@ -220,19 +220,25 @@ async fn batch(
     let input = http::value("CollectionBatchSyncRequest", &body)?;
     let collection = membership::ensure(&state, &session.user.id).await?;
     let items = crate::db::array(&input, "items");
-    for item in items {
-        service::mutate(
-            &state,
-            &collection,
-            &session.user.id,
-            crate::db::string(item, "variantNumber"),
-            item,
-            Mutation::Set,
-            "batch",
-        )
-        .await?;
+    let result = async {
+        for item in items {
+            service::mutate(
+                &state,
+                &collection,
+                &session.user.id,
+                crate::db::string(item, "variantNumber"),
+                item,
+                Mutation::Set,
+                "batch",
+            )
+            .await?;
+        }
+        Ok::<_, crate::error::AppError>(())
     }
+    .await;
+    // Items commit one by one, so a failure part-way still leaves changes other devices must load.
     state.live.publish(&collection, "batch", &session.user.id);
+    result?;
     http::respond(
         "CollectionBatchSyncResponse",
         serde_json::json!({"data":{"synced":items.len()}}),
@@ -276,9 +282,10 @@ async fn import(
 ) -> Result<Json<astral_grove_api_types::CollectionImportResponse>> {
     let input = http::value("CollectionImportRequest", &body)?;
     let collection = membership::ensure(&state, &session.user.id).await?;
-    let result = super::imports::import(&state, &collection, &session.user.id, &input).await?;
+    let result = super::imports::import(&state, &collection, &session.user.id, &input).await;
+    // Rows commit one by one, so a failure part-way still leaves changes other devices must load.
     state.live.publish(&collection, "import", &session.user.id);
-    http::respond("CollectionImportResponse", result)
+    http::respond("CollectionImportResponse", result?)
 }
 #[utoipa::path(get,path="/api/v1/collection/events",operation_id="collectionEvents",responses((status=200,content_type="text/event-stream")))]
 async fn events(

@@ -10,6 +10,7 @@ use axum::{
 };
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde_json::{Value, json};
+use std::sync::Arc;
 
 pub struct Reply {
     pub status: StatusCode,
@@ -135,12 +136,14 @@ async fn write_password(
     }
     Ok(())
 }
-pub async fn set_password(
+async fn change_password(
     state: &AppState,
     user_id: &str,
     plain: &str,
     revoke: bool,
-    current: Option<(&str, &str, &HeaderMap)>,
+    verified: &str,
+    token: &str,
+    headers: &HeaderMap,
 ) -> Result<Option<String>> {
     let hash = password::hash(plain)
         .await
@@ -148,9 +151,7 @@ pub async fn set_password(
     let tx = state.db.begin().await?;
     otp::lock(&tx, &format!("credential:{user_id}")).await?;
     // A change verified against an old hash or a revoked session must not override a concurrent reset.
-    if let Some((verified, token, _)) = current
-        && db::rows(&tx,"SELECT 1 FROM account a JOIN session s ON s.user_id=a.user_id WHERE a.user_id=$1 AND a.provider_id='credential' AND a.password=$2 AND s.token=$3 AND s.expires_at>now()",vec![user_id.into(),verified.into(),token.into()]).await?.is_empty()
-    {
+    if db::rows(&tx,"SELECT 1 FROM account a JOIN session s ON s.user_id=a.user_id WHERE a.user_id=$1 AND a.provider_id='credential' AND a.password=$2 AND s.token=$3 AND s.expires_at>now()",vec![user_id.into(),verified.into(),token.into()]).await?.is_empty() {
         return Err(error(400, "INVALID_PASSWORD", "Invalid password"));
     }
     write_password(&tx, user_id, &hash).await?;
@@ -162,17 +163,15 @@ pub async fn set_password(
             vec![user_id.into()],
         )
         .await?;
-        if let Some((_, _, headers)) = current {
-            renewed = Some(
-                service::create_session_on(
-                    &tx,
-                    user_id,
-                    headers,
-                    !cookies::dont_remember(&state.config, headers),
-                )
-                .await?,
-            );
-        }
+        renewed = Some(
+            service::create_session_on(
+                &tx,
+                user_id,
+                headers,
+                !cookies::dont_remember(&state.config, headers),
+            )
+            .await?,
+        );
     }
     tx.commit().await?;
     Ok(renewed)
@@ -207,7 +206,7 @@ async fn verify_password(
 }
 pub async fn dispatch(
     name: &str,
-    state: &AppState,
+    state: &Arc<AppState>,
     headers: &HeaderMap,
     body: Option<&Value>,
     uri: &Uri,
@@ -261,6 +260,7 @@ pub async fn dispatch(
                 state,
                 field(input, "email"),
                 field(input, "password"),
+                &crate::middleware::client_ip(headers),
             )
             .await
             {
@@ -377,12 +377,14 @@ pub async fn dispatch(
                 true,
             )
             .await?;
-            let renewed = set_password(
+            let renewed = change_password(
                 state,
                 &session.user.id,
                 field(input, "newPassword"),
                 input["revokeOtherSessions"] == true,
-                Some((&verified, &session.session.token, headers)),
+                &verified,
+                &session.session.token,
+                headers,
             )
             .await?;
             let mut reply = Reply::json(json!({"token":null,"user":session.user}));
@@ -566,21 +568,29 @@ pub async fn dispatch(
                     "Reset password isn't enabled",
                 ));
             }
-            if let Some(user) = service::find_user(state, field(input, "email")).await? {
+            let (worker, address, redirect) = (
+                state.clone(),
+                field(input, "email").to_owned(),
+                redirect.to_owned(),
+            );
+            email::detach(state, async move {
+                let Some(user) = service::find_user(&worker, &address).await? else {
+                    return Ok(());
+                };
                 let token = service::random_token();
-                otp::store(state, &format!("reset-password:{token}"), &user.id, 3600).await?;
+                otp::store(&worker, &format!("reset-password:{token}"), &user.id, 3600).await?;
                 let callback = format!(
                     "{}/api/auth/reset-password/{token}?callbackURL={}",
-                    state.config.auth_url.as_str().trim_end_matches('/'),
-                    cookies::encode(field(input, "redirectTo"))
+                    worker.config.auth_url.as_str().trim_end_matches('/'),
+                    cookies::encode(&redirect)
                 );
                 email::send(
-                    state,
+                    &worker,
                     &user.email,
-                    email::reset(state, &user.email, &token, &callback),
+                    email::reset(&worker, &user.email, &token, &callback),
                 )
-                .await?;
-            }
+                .await
+            })?;
             Reply::json(
                 json!({"status":true,"message":"If this email exists in our system, check your email for the reset link"}),
             )
@@ -617,6 +627,13 @@ pub async fn dispatch(
                 .to_owned();
             otp::lock(&tx, &format!("credential:{user}")).await?;
             write_password(&tx, &user, &hash).await?;
+            // Other reset links already mailed must not reset the new password again.
+            db::execute(
+                &tx,
+                "DELETE FROM verification WHERE identifier LIKE 'reset-password:%' AND value=$1",
+                vec![user.clone().into()],
+            )
+            .await?;
             db::execute(
                 &tx,
                 "DELETE FROM session WHERE user_id=$1",
@@ -727,47 +744,9 @@ pub async fn dispatch(
                 Reply::redirect(&format!("{base}/error?error=state_not_found"))?
             }
         }
+        // No social provider is configured, so the Expo proxy has no legitimate target to redirect to.
         "expoAuthorizationProxy" => {
-            let target = field(&query, "authorizationURL");
-            let parsed = url::Url::parse(target)
-                .map_err(|_| pipeline::message(400, "Invalid authorizationURL"))?;
-            if target.contains('#')
-                || parsed.scheme() != "https"
-                || parsed.origin() == state.config.auth_url.origin()
-            {
-                return Err(pipeline::message(400, "Invalid authorizationURL"));
-            }
-            let mut reply = Reply::redirect(target)?;
-            if let Some(oauth) = query["oauthState"].as_str().filter(|v| !v.is_empty()) {
-                reply.headers.append(
-                    "set-cookie",
-                    cookies::cookie_kind(
-                        &state.config,
-                        "oauth_state",
-                        &cookies::encode(oauth),
-                        Some(600),
-                    )
-                    .parse()
-                    .map_err(|_| AppError::internal())?,
-                );
-            } else {
-                let value = parsed
-                    .query_pairs()
-                    .find(|(key, _)| key == "state")
-                    .map(|(_, v)| v.into_owned())
-                    .ok_or_else(|| pipeline::message(400, "Unexpected error"))?;
-                let value = cookies::encode(
-                    &cookies::sign(&state.config.auth_secret, &value)
-                        .ok_or_else(AppError::internal)?,
-                );
-                reply.headers.append(
-                    "set-cookie",
-                    cookies::cookie_kind(&state.config, "state", &value, Some(300))
-                        .parse()
-                        .map_err(|_| AppError::internal())?,
-                );
-            }
-            reply
+            return Err(error(404, "PROVIDER_NOT_FOUND", "Provider not found"));
         }
         "ok" => Reply::json(json!({"ok":true})),
         "error" => Reply::html(include_str!("error_page.html").into()),

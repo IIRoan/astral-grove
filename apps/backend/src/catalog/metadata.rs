@@ -39,6 +39,21 @@ pub fn total(snapshot: &Value, synced: i64) -> i64 {
 pub async fn latest(state: &AppState) -> Result<Option<Value>> {
     Ok(db::rows(&state.db,"SELECT snapshot,to_char(captured_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS at FROM filter_snapshots ORDER BY captured_at DESC LIMIT 1",vec![]).await?.into_iter().next())
 }
+async fn probed(state: &AppState) -> Result<Option<String>> {
+    Ok(db::rows(
+        &state.db,
+        "SELECT content_hash AS hash FROM sync_state WHERE key='catalog_probe'",
+        vec![],
+    )
+    .await?
+    .first()
+    .map(|row| db::string(row, "hash").to_owned()))
+}
+fn complete(row: &Value) -> bool {
+    db::array(&row["snapshot"], "sets")
+        .iter()
+        .any(|set| set["printCount"].as_i64().unwrap_or(0) > 0)
+}
 fn base(probe: &Value) -> Result<Value> {
     http::schemas::schema("FilterSnapshot").parse(Some(probe.get("meta").and_then(|meta|meta.get("filters")).unwrap_or(&json!({"colors":[],"sets":[],"types":[],"supertypes":[],"rarities":[],"variants":[]})))).map_err(|_|AppError::internal())?.ok_or_else(AppError::internal)
 }
@@ -63,25 +78,30 @@ pub async fn expanded(state: &Arc<AppState>, force: bool, blocking: bool) -> Res
         &json!({"total":probe["pagination"]["total"],"filters":probe["meta"].get("filters").cloned().unwrap_or(json!({}))}),
     );
     let base = base(&probe)?;
-    let old = db::rows(
-        &state.db,
-        "SELECT content_hash AS hash FROM sync_state WHERE key='catalog_probe'",
-        vec![],
-    )
-    .await?
-    .into_iter()
-    .next();
-    let complete = previous.as_ref().is_some_and(|row| {
-        db::array(&row["snapshot"], "sets")
-            .iter()
-            .any(|set| set["printCount"].as_i64().unwrap_or(0) > 0)
-    });
-    let needs = force || !complete || old.is_none_or(|old| old["hash"] != fingerprint);
+    let needs = force
+        || !previous.as_ref().is_some_and(complete)
+        || probed(state).await?.is_none_or(|hash| hash != fingerprint);
     if !needs {
         return Ok(previous.map(|row| row["snapshot"].clone()).unwrap_or(base));
     }
     if blocking {
-        let _lock = state.probe.lock().await;
+        let _lock = match state.probe.try_lock() {
+            Ok(lock) => lock,
+            // A probe that was already running is fresh enough, but only if it stored a new snapshot rather than failing.
+            Err(_) => {
+                let lock = state.probe.lock().await;
+                if probed(state).await?.as_deref() == Some(fingerprint.as_str())
+                    && let Some(row) = latest(state).await?.filter(|row| {
+                        previous
+                            .as_ref()
+                            .is_none_or(|previous| previous["at"] != row["at"])
+                    })
+                {
+                    return Ok(row["snapshot"].clone());
+                }
+                lock
+            }
+        };
         return run_probe(state, &base, &fingerprint).await;
     }
     if let Ok(guard) = state.probe.clone().try_lock_owned() {

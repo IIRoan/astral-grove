@@ -162,7 +162,11 @@ async fn resolve_refs(state: &AppState, refs: &[Value]) -> Result<HashMap<String
     let mut fetched = HashSet::new();
     if !pending.is_empty() {
         for page in 1..=500 {
-            let response = upstream::list_cards(state, &json!({"page":page,"limit":100})).await?;
+            // Unresolved references fall back to placeholders when upstream is busy or failing.
+            let Ok(response) = upstream::list_cards(state, &json!({"page":page,"limit":100})).await
+            else {
+                break;
+            };
             for item in db::array(&response, "data") {
                 let id = db::string(item, "id");
                 let card_id = db::string(&item["card"], "id");
@@ -275,7 +279,12 @@ async fn private(state: &AppState, id: &str) -> Result<bool> {
     Ok(private_ids(state, vec![id.to_owned()]).await?.contains(id))
 }
 async fn private_ids(state: &AppState, ids: Vec<String>) -> Result<HashSet<String>> {
-    let rows = db::rows(&state.db, "SELECT upstream_id AS id FROM private_upstream_decks WHERE upstream_id=ANY($1::text[]) UNION SELECT payload->>'upstreamId' AS id FROM user_decks WHERE payload->>'upstreamId'=ANY($1::text[]) AND (payload->>'importedFromId') IS DISTINCT FROM (payload->>'upstreamId')", vec![ids.into()]).await?;
+    let rows = db::rows(
+        &state.db,
+        "SELECT upstream_id AS id FROM private_upstream_decks WHERE upstream_id=ANY($1::text[])",
+        vec![ids.into()],
+    )
+    .await?;
     Ok(rows
         .iter()
         .map(|row| db::string(row, "id").to_owned())

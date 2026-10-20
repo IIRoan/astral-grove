@@ -11,13 +11,15 @@ struct State {
 pub(crate) struct Tasks {
     state: Mutex<State>,
     limit: usize,
+    name: &'static str,
 }
 
 impl Tasks {
-    pub(crate) fn new(limit: usize) -> Self {
+    pub(crate) fn new(name: &'static str, limit: usize) -> Self {
         Self {
             state: Mutex::new(State::default()),
             limit,
+            name,
         }
     }
 
@@ -41,7 +43,7 @@ impl Tasks {
         self.drain_with_timeout(Duration::from_secs(3)).await;
     }
 
-    async fn drain_with_timeout(&self, timeout: Duration) {
+    pub(crate) async fn drain_with_timeout(&self, timeout: Duration) {
         let mut jobs = {
             let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
             state.closed = true;
@@ -57,7 +59,12 @@ impl Tasks {
         .await
         .is_err()
         {
-            tracing::warn!(category = "background-task", "Background drain timed out");
+            tracing::warn!(
+                category = "background-task",
+                pool = self.name,
+                aborted = jobs.len(),
+                "Background drain timed out"
+            );
             jobs.abort_all();
             while jobs.join_next().await.is_some() {}
         }
@@ -75,7 +82,7 @@ mod tests {
 
     #[tokio::test]
     async fn work_survives_a_disconnected_caller_and_drains() {
-        let tasks = Tasks::new(1);
+        let tasks = Tasks::new("test", 1);
         let completed = Arc::new(AtomicBool::new(false));
         let (release, blocked) = oneshot::channel();
         let (response, caller) = oneshot::channel();
@@ -95,7 +102,7 @@ mod tests {
 
     #[tokio::test]
     async fn capacity_is_reusable_after_a_job_finishes() {
-        let tasks = Tasks::new(1);
+        let tasks = Tasks::new("test", 1);
         assert!(tasks.spawn(async {}));
         tokio::task::yield_now().await;
         assert!(tasks.spawn(async {}));
@@ -110,7 +117,7 @@ mod tests {
                 self.0.store(true, Ordering::SeqCst);
             }
         }
-        let tasks = Tasks::new(1);
+        let tasks = Tasks::new("test", 1);
         let released = Arc::new(AtomicBool::new(false));
         let guard = Guard(released.clone());
         let (ready, started) = oneshot::channel();

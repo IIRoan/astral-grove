@@ -88,6 +88,14 @@ fn forwarded_ip(
     current
 }
 pub const MAX_BUCKETS: usize = 65536;
+// Long keys (such as maximum-length emails) are hashed so they are still charged with bounded memory.
+fn bucket_key(key: String) -> String {
+    if key.len() > 256 {
+        hex::encode(Sha256::digest(key.as_bytes()))
+    } else {
+        key
+    }
+}
 pub fn body_deadline(path: &str) -> Duration {
     // Large imports need time on slow mobile uplinks; other bodies are small.
     Duration::from_secs(if path == "/api/v1/collection/import" {
@@ -154,13 +162,14 @@ impl Limits {
             .lock()
             .await
             .entries
-            .get(key)
+            .get(&bucket_key(key.into()))
             .is_some_and(|(expires, used)| *expires > now && *used >= max)
     }
 
     async fn hit(&self, key: String, max: u32, window: u64, extend: bool) -> Option<u64> {
         let now = Instant::now();
         let window = Duration::from_secs(window);
+        let key = bucket_key(key);
         let mut buckets = self.0.lock().await;
         // Expired buckets are swept at most once a second instead of on every request.
         if buckets
@@ -169,9 +178,6 @@ impl Limits {
         {
             buckets.entries.retain(|_, (expires, _)| *expires > now);
             buckets.swept = Some(now);
-        }
-        if key.len() > 256 {
-            return Some(1);
         }
         // Evict the soonest-expiring eighth in one pass; rolling auth buckets stay newest while attacked.
         if !buckets.entries.contains_key(&key) && buckets.entries.len() >= MAX_BUCKETS {
@@ -411,10 +417,30 @@ mod tests {
         assert_eq!(limits.check("new".into(), 1, 60).await, None);
         assert!(limits.rolling("attacked".into(), 1, 600).await.is_some());
         assert!(limits.check("new".into(), 1, 60).await.is_some());
-        assert!(limits.check("x".repeat(257), 1, 60).await.is_some());
         assert!(limits.0.lock().await.entries.len() < MAX_BUCKETS);
         assert!(limits.exhausted("attacked", 1).await);
         assert!(!limits.exhausted("missing", 1).await);
+    }
+    #[tokio::test]
+    async fn long_keys_are_charged_and_exhausted_like_short_ones() {
+        let limits = Limits::default();
+        let account = format!("sign-in:{}@example.com", "a".repeat(244));
+        assert!(account.len() > 256);
+        for _ in 0..2 {
+            assert_eq!(limits.rolling(account.clone(), 2, 900).await, None);
+        }
+        assert!(limits.exhausted(&account, 2).await);
+        assert!(limits.rolling(account.clone(), 2, 900).await.is_some());
+        assert!(!limits.exhausted(&format!("{account}x"), 2).await);
+        assert!(
+            limits
+                .0
+                .lock()
+                .await
+                .entries
+                .keys()
+                .all(|key| key.len() <= 256)
+        );
     }
     #[tokio::test]
     async fn limits_reset_expired_buckets_without_sweeping_every_request() {

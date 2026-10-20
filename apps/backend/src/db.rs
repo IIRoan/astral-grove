@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 
-pub async fn connect(url: &str, max: u32) -> std::result::Result<DatabaseConnection, DbErr> {
+fn options(url: &str, max: u32) -> ConnectOptions {
     let mut options = ConnectOptions::new(url);
     options
         .max_connections(max)
@@ -21,7 +21,11 @@ pub async fn connect(url: &str, max: u32) -> std::result::Result<DatabaseConnect
         .max_lifetime(Duration::from_secs(1800))
         .test_before_acquire(true)
         .sqlx_logging(false);
-    let mut database = Database::connect(options).await?;
+    options
+}
+
+pub async fn connect(url: &str, max: u32) -> std::result::Result<DatabaseConnection, DbErr> {
+    let mut database = Database::connect(options(url, max)).await?;
     let namespace = namespace(url);
     database.set_metric_callback(move |info| {
         crate::telemetry::database_query(
@@ -116,12 +120,15 @@ fn migration_checksum_matches(name: &str, current: &str, applied: &str) -> bool 
         )
 }
 
+/// Prefix `rows` wraps around every statement; telemetry strips it to name the inner operation.
+pub const ROWS_PREFIX: &str = "WITH result AS (";
+
 pub async fn rows(
     db: &impl ConnectionTrait,
     sql: &str,
     values: Vec<Value>,
 ) -> Result<Vec<JsonValue>> {
-    let query = format!("WITH result AS ({sql}) SELECT to_jsonb(result) AS data FROM result");
+    let query = format!("{ROWS_PREFIX}{sql}) SELECT to_jsonb(result) AS data FROM result");
     db.query_all_raw(Statement::from_sql_and_values(
         DbBackend::Postgres,
         query,
@@ -218,6 +225,13 @@ mod tests {
             assert!(pair[0].1 < pair[1].1);
         }
         assert!(MIGRATIONS.iter().all(|(_, _, sql)| !sql.trim().is_empty()));
+    }
+    #[test]
+    fn pool_checks_connections_on_every_acquisition() {
+        let options = options("postgres://localhost/riftbound_test", 10);
+        assert!(options.get_test_before_acquire());
+        assert_eq!(options.get_test_before_acquire_if_idle_for(), None);
+        assert_eq!(options.get_min_connections(), Some(2));
     }
     #[test]
     fn timestamps_render_javascript_milliseconds() {

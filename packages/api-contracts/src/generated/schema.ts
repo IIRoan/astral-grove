@@ -1832,6 +1832,7 @@ export interface components {
       limit: number;
       /** Format: date-time */
       before?: string;
+      beforeId?: string;
       variantNumber?: string;
       actorUserId?: string;
       mine?: boolean;
@@ -4714,6 +4715,7 @@ export interface components {
       limit: number;
       /** Format: date-time */
       before?: string;
+      beforeId?: string;
       variantNumber?: string;
       actorUserId?: string;
       mine?: boolean | ('true' | 'false' | '1' | '0');
@@ -8411,6 +8413,7 @@ export interface operations {
       query?: {
         limit?: number;
         before?: string;
+        beforeId?: string;
         variantNumber?: string;
         actorUserId?: string;
         mine?: boolean | ('true' | 'false' | '1' | '0');
@@ -8447,6 +8450,7 @@ export interface operations {
       query?: {
         limit?: number;
         before?: string;
+        beforeId?: string;
         variantNumber?: string;
         actorUserId?: string;
         mine?: boolean | ('true' | 'false' | '1' | '0');

@@ -21,6 +21,7 @@ pub struct Config {
     pub secure_cookies: bool,
     pub retain_days: i64,
     pub retain_snapshots: i64,
+    pub upstream_per_minute: u32,
 }
 
 impl Config {
@@ -148,13 +149,14 @@ impl Config {
                 );
             }
         }
-        let retain = |key: &str, default: i64| {
+        let number = |key: &str, default: i64| {
             values
                 .get(key)
                 .map_or(default, |value| crate::http::zod::js_number(value) as i64)
         };
-        let retain_days = retain("PRICE_HISTORY_RETAIN_DAYS", 90);
-        let retain_snapshots = retain("PRICE_HISTORY_RETAIN_SNAPSHOTS", 30);
+        let retain_days = number("PRICE_HISTORY_RETAIN_DAYS", 90);
+        let retain_snapshots = number("PRICE_HISTORY_RETAIN_SNAPSHOTS", 30);
+        let upstream_per_minute = number("UPSTREAM_REQUESTS_PER_MINUTE", 600) as u32;
         let auth_url = Url::parse(&get("BETTER_AUTH_URL", "http://localhost:7000"))?;
         let public = get("PUBLIC_APP_URL", "");
         anyhow::ensure!(
@@ -222,6 +224,7 @@ impl Config {
         Ok(Self {
             retain_days,
             retain_snapshots,
+            upstream_per_minute,
             host,
             pa_url,
             values,
@@ -322,6 +325,14 @@ mod tests {
         assert!(Config::for_test(&[("RELEASE_S3_BUCKET", "releases")]).is_err());
         for value in ["0", "-1", "1.5", "invalid", "60001"] {
             assert!(Config::for_test(&[("UPSTREAM_REQUESTS_PER_MINUTE", value)]).is_err());
+        }
+    }
+    #[test]
+    fn upstream_budget_uses_the_validated_number() {
+        assert_eq!(Config::for_test(&[]).unwrap().upstream_per_minute, 600);
+        for value in ["1e3", " 1000 ", "0x3E8", "1000"] {
+            let config = Config::for_test(&[("UPSTREAM_REQUESTS_PER_MINUTE", value)]).unwrap();
+            assert_eq!(config.upstream_per_minute, 1000, "{value}");
         }
     }
     #[test]

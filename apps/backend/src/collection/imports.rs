@@ -7,15 +7,20 @@ use crate::{
     error::{AppError, Result},
     upstream,
 };
+use sea_orm::TransactionTrait;
 use serde_json::{Value, json};
+use std::collections::{HashMap, HashSet};
+const UNRESOLVED: &str = "Could not resolve variant: ";
+const UNAVAILABLE: &str = "Card lookup unavailable, retry shortly: ";
 pub async fn resolve(
     state: &AppState,
     input: Vec<Value>,
 ) -> Result<(Vec<Value>, Vec<Value>, usize)> {
     let mut numbers = Vec::<String>::new();
+    let mut unique = HashSet::new();
     for item in &input {
         let number = db::string(item, "variantNumber").trim();
-        if !number.is_empty() && !numbers.iter().any(|stored| stored == number) {
+        if !number.is_empty() && unique.insert(number) {
             numbers.push(number.into());
         }
     }
@@ -25,18 +30,21 @@ pub async fn resolve(
         vec![numbers.clone().into()],
     )
     .await?;
-    let mut known = std::collections::HashMap::<String, String>::new();
+    let mut known = HashMap::<String, String>::new();
     for row in &before {
         let number = db::string(row, "number");
         known.insert(number.to_lowercase(), number.into());
     }
+    let local: HashSet<String> = known.keys().cloned().collect();
     let missing: Vec<_> = numbers
         .iter()
-        .filter(|number| !known.contains_key(&number.to_lowercase()))
+        .filter(|number| !local.contains(&number.to_lowercase()))
         .cloned()
         .collect();
-    for batch in missing.chunks(50) {
-        let result = upstream::request(
+    // A busy or failing upstream leaves the remaining rows unresolved instead of failing the import.
+    let mut settled = HashSet::<String>::new();
+    'batches: for batch in missing.chunks(50) {
+        let Ok(result) = upstream::request(
             state,
             reqwest::Method::POST,
             "/v1/cards/batch",
@@ -44,7 +52,11 @@ pub async fn resolve(
             Some(&json!({"variantNumbers":batch})),
             Some("PaCardsBatchResponse"),
         )
-        .await?;
+        .await
+        else {
+            break;
+        };
+        settled.extend(batch.iter().map(|number| number.to_lowercase()));
         for number in db::array(&result, "data")
             .iter()
             .filter_map(|item| item["variantNumber"].as_str())
@@ -54,11 +66,20 @@ pub async fn resolve(
                     .filter_map(Value::as_str),
             )
         {
-            if let Ok(card) = upstream::card(state, number).await {
-                catalog::store::upsert(state, &card).await?;
-                for variant in db::array(&card, "variants") {
-                    let number = db::string(variant, "variantNumber");
-                    known.insert(number.to_lowercase(), number.into());
+            match upstream::card(state, number).await {
+                Ok(card) => {
+                    catalog::store::upsert(state, &card).await?;
+                    for variant in db::array(&card, "variants") {
+                        let number = db::string(variant, "variantNumber");
+                        known.insert(number.to_lowercase(), number.into());
+                    }
+                }
+                Err(error) if error.status == 404 => {}
+                Err(error) => {
+                    settled.remove(&number.to_lowercase());
+                    if error.status == 429 {
+                        break 'batches;
+                    }
                 }
             }
         }
@@ -67,21 +88,25 @@ pub async fn resolve(
     let mut valid = Vec::new();
     for mut item in input {
         let number = db::string(&item, "variantNumber").trim();
-        if let Some(canonical) = known.get(&number.to_lowercase()) {
+        let key = number.to_lowercase();
+        if let Some(canonical) = known.get(&key) {
             item["variantNumber"] = json!(canonical);
             valid.push(item);
         } else {
-            errors.push(json!({"row":0,"message":format!("Could not resolve variant: {}",db::string(&item,"variantNumber"))}));
+            let reason = if settled.contains(&key) {
+                UNRESOLVED
+            } else {
+                UNAVAILABLE
+            };
+            errors.push(
+                json!({"row":0,"message":format!("{reason}{}",db::string(&item,"variantNumber"))}),
+            );
         }
     }
     let resolved = numbers
         .iter()
-        .filter(|number| {
-            !before
-                .iter()
-                .any(|row| db::string(row, "number").eq_ignore_ascii_case(number))
-                && known.contains_key(&number.to_lowercase())
-        })
+        .map(|number| number.to_lowercase())
+        .filter(|number| !local.contains(number) && known.contains_key(number))
         .count();
     Ok((formats::aggregate(valid), errors, resolved))
 }
@@ -133,10 +158,12 @@ pub async fn import(
     prefix.append(&mut errors);
     errors = prefix;
     let mut total = 0_i64;
+    // One transaction, so a failure part way through cannot leave a half-applied (and on retry, doubled) import.
+    let tx = state.db.begin().await?;
     for item in &valid {
         let quantity = item["quantity"].as_i64().unwrap_or(0);
-        service::mutate(
-            state,
+        service::mutate_in(
+            &tx,
             collection,
             user,
             db::string(item, "variantNumber"),
@@ -151,6 +178,7 @@ pub async fn import(
         .await?;
         total = total.saturating_add(quantity);
     }
+    tx.commit().await?;
     let mut response = json!({"data":{"imported":valid.len(),"totalCopies":total,"resolvedFromUpstream":resolved,"failedRows":errors.len(),"errors":errors}});
     if csv {
         response["data"]["rowsProcessed"] = parsed["rowsProcessed"].clone();
@@ -169,7 +197,14 @@ pub async fn preview(state: &AppState, collection: &str, input: &Value) -> Resul
         resolve(state, db::array(&parsed, "items").to_vec()).await?
     };
     let mut unresolved = db::array(&parsed, "errors").to_vec();
-    unresolved.extend(errors.into_iter().map(|error|json!({"token":db::string(&error,"message").strip_prefix("Could not resolve variant: ").unwrap_or(db::string(&error,"message")),"message":error["message"]})));
+    unresolved.extend(errors.into_iter().map(|error| {
+        let message = db::string(&error, "message");
+        let token = message
+            .strip_prefix(UNRESOLVED)
+            .or_else(|| message.strip_prefix(UNAVAILABLE))
+            .unwrap_or(message);
+        json!({"token":token,"message":error["message"]})
+    }));
     let numbers: Vec<String> = valid
         .iter()
         .map(|item| db::string(item, "variantNumber").into())

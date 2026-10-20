@@ -1,16 +1,24 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from 'bun:test';
 import {
   CardDetailResponse,
+  CardsBatchResponse,
   CardsListResponse,
   CatalogIndexResponse,
   CollectionActivityHistoryResponse,
+  CollectionAuditListResponse,
   CollectionRecentAddsResponse,
+  CollectionShareInviteCreateResponse,
+  CollectionShareStatusResponse,
+  DeckDetailResponse,
+  PaLogicalCard,
+  PricesListResponse,
   SyncStatusResponse,
 } from '@riftbound/contracts';
 import sharp from 'sharp';
 import type { z } from 'zod';
 import { startStorageFixture } from './s3-fixture';
 import { createHarness, json, waitFor } from './support';
+import { startOfflineUpstream } from './fixtures/offline';
 
 setDefaultTimeout(60000);
 const harness = createHarness();
@@ -520,4 +528,303 @@ test('a Piltover Archive outage fails community deck browsing but keeps owned de
   expect(community.status).toBeGreaterThanOrEqual(400);
   const mixed = await app.fetch('/api/v1/decks', { headers: { cookie: session } });
   expect(mixed.status).toBe(200);
+});
+
+test('incomplete community decks stay viewable but import waits for the catalog to recover', async () => {
+  const [seed] = await harness.sql<{ raw: unknown }[]>`
+    SELECT upstream_raw AS raw FROM cards WHERE jsonb_array_length(upstream_raw->'variants')>0 LIMIT 1`;
+  const original = PaLogicalCard.parse(seed?.raw);
+  const card = PaLogicalCard.parse({
+    ...original,
+    id: crypto.randomUUID(),
+    name: `Import recovery ${crypto.randomUUID()}`,
+    variants: [
+      {
+        ...original.variants[0],
+        id: crypto.randomUUID(),
+        variantNumber: `RFI-${crypto.randomUUID().slice(0, 8)}`,
+        cardmarketId: null,
+        tcgplayerId: null,
+        parentVariantId: null,
+      },
+    ],
+  });
+  const variant = card.variants[0]!;
+  cardIds.push(card.id);
+  const deckId = `import-recovery-${crypto.randomUUID()}`;
+  let available = false;
+  const upstream = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    fetch(request) {
+      const path = new URL(request.url).pathname;
+      if (path === `/v1/decks/${deckId}`)
+        return Response.json({
+          id: deckId,
+          name: 'Import recovery',
+          createdAt: '2026-10-01T00:00:00.000Z',
+          maindeck: [{ cardId: card.id, variantId: variant.id, quantity: 3 }],
+        });
+      if (!available) return new Response(null, { status: 503 });
+      if (path === '/v1/cards')
+        return Response.json({
+          data: [{ ...variant, card: { id: card.id, name: card.name } }],
+          pagination: { total: 1, page: 1, limit: 100, totalPages: 1, hasNext: false },
+        });
+      if (path === `/v1/cards/${variant.variantNumber}`) return Response.json(card);
+      return new Response(null, { status: 404 });
+    },
+  });
+  const other = createHarness();
+  try {
+    const server = await other.startServer({ PA_BASE_URL: upstream.url.origin });
+    const user = await other.signup(server, 'import-recovery');
+    const view = DeckDetailResponse.parse(
+      await (
+        await server.fetch(`/api/v1/decks/${deckId}`, {
+          headers: { cookie: user.cookie },
+        })
+      ).json()
+    );
+    expect(view.data.readOnly).toBe(true);
+    expect(view.data.mainDeck[0]?.card.variantNumber).toBe(`unknown:${variant.id}`);
+    const importDeck = () =>
+      server.fetch(`/api/v1/decks/${deckId}/import`, json({}, user.cookie));
+    const refused = await importDeck();
+    expect(refused.status).toBe(503);
+    expect(await refused.json()).toMatchObject({ error: 'DECK_CATALOG_INCOMPLETE' });
+    expect(
+      await other.sql`SELECT id FROM user_decks WHERE user_id=${user.user.id}`
+    ).toHaveLength(0);
+    available = true;
+    const response = await importDeck();
+    expect(response.status).toBe(200);
+    const imported = DeckDetailResponse.parse(await response.json());
+    expect(imported.data.source).toBe('owned');
+    expect(imported.data.mainDeck[0]?.card.variantNumber).toBe(variant.variantNumber);
+    expect(imported.data.mainDeck[0]?.count).toBe(3);
+    const repeated = DeckDetailResponse.parse(await (await importDeck()).json());
+    expect(repeated.data.id).toBe(imported.data.id);
+    expect(
+      await other.sql`SELECT id FROM user_decks WHERE user_id=${user.user.id}`
+    ).toHaveLength(1);
+  } finally {
+    await other.stopServer();
+    upstream.stop(true);
+  }
+});
+
+test('prices for an unresolved variant number are empty instead of the whole table', async () => {
+  const all = PricesListResponse.parse(
+    await (await app.fetch('/api/v1/prices')).json()
+  );
+  expect(all.data.length).toBeGreaterThan(0);
+  const unknown = PricesListResponse.parse(
+    await (await app.fetch('/api/v1/prices?variantNumber=ZZZ-NOT-A-CARD')).json()
+  );
+  expect(unknown.data).toEqual([]);
+  expect(unknown.meta.rowCount).toBe(0);
+});
+
+test('audit pages resume after events that share the previous page boundary timestamp', async () => {
+  const user = await harness.signup(app, 'audit-cursor');
+  expect(
+    (await app.fetch('/api/v1/collection', { headers: { cookie: user.cookie } })).status
+  ).toBe(200);
+  const ids = Array.from({ length: 3 }, () => crypto.randomUUID())
+    .sort()
+    .reverse();
+  for (const id of ids)
+    await harness.sql`INSERT INTO collection_audit_events(id,collection_id,actor_user_id,action,variant_number,quantity_before,quantity_after,quantity_delta,created_at)
+      SELECT ${id}::uuid,collection_id,${user.user.id},'add','OGN-001',0,1,1,'2026-10-20T00:00:00.123456Z'::timestamptz
+      FROM collection_members WHERE user_id=${user.user.id}`;
+  const page = async (query: string) =>
+    CollectionAuditListResponse.parse(
+      await (
+        await app.fetch(`/api/v1/collection/audit?limit=2${query}`, {
+          headers: { cookie: user.cookie },
+        })
+      ).json()
+    );
+  const first = await page('');
+  expect(first.data.map((event) => event.id)).toEqual(ids.slice(0, 2));
+  expect(first.meta.hasMore).toBe(true);
+  const second = await page(`&beforeId=${ids[1]}`);
+  expect(second.data.map((event) => event.id)).toEqual(ids.slice(2));
+  expect(second.meta.hasMore).toBe(false);
+  const unknown = await app.fetch(
+    `/api/v1/collection/audit?limit=2&beforeId=${crypto.randomUUID()}`,
+    { headers: { cookie: user.cookie } }
+  );
+  expect(unknown.status).toBe(404);
+});
+
+test('the remaining member owns the collection after its owner leaves', async () => {
+  const owner = await harness.signup(app, 'leave-owner');
+  const member = await harness.signup(app, 'leave-member');
+  const invitation = CollectionShareInviteCreateResponse.parse(
+    await (
+      await app.fetch('/api/v1/collection/share/invite', json({}, owner.cookie))
+    ).json()
+  );
+  expect(
+    (
+      await app.fetch(
+        `/api/v1/collection/share/invite/${invitation.data.token}/accept`,
+        json({ mode: 'use_theirs' }, member.cookie)
+      )
+    ).status
+  ).toBe(200);
+  expect(
+    (await app.fetch('/api/v1/collection/share/leave', json({}, owner.cookie))).status
+  ).toBe(200);
+  const status = CollectionShareStatusResponse.parse(
+    await (
+      await app.fetch('/api/v1/collection/share', {
+        headers: { cookie: member.cookie },
+      })
+    ).json()
+  );
+  expect(status.data.role).toBe('owner');
+  expect(status.data.shared).toBe(false);
+});
+
+test('a batch that fails part-way still notifies live clients of committed items', async () => {
+  const user = await harness.signup(app, 'batch-live');
+  const controller = new AbortController();
+  const events = await app.fetch('/api/v1/collection/events', {
+    headers: { cookie: user.cookie },
+    signal: controller.signal,
+  });
+  const reader = events.body!.getReader();
+  try {
+    expect(new TextDecoder().decode((await reader.read()).value)).toContain(
+      'event: ready'
+    );
+    const response = await app.fetch(
+      '/api/v1/collection/batch',
+      json(
+        {
+          items: [
+            { variantNumber: 'OGN-001', quantity: 2 },
+            { variantNumber: 'ZZZ-MISSING' },
+          ],
+        },
+        user.cookie
+      )
+    );
+    expect(response.status).toBe(404);
+    const next = await Promise.race([
+      reader.read(),
+      Bun.sleep(2000).then(() => {
+        throw new Error('Committed batch items were not announced');
+      }),
+    ]);
+    expect(new TextDecoder().decode(next.value)).toContain('"reason":"batch"');
+  } finally {
+    controller.abort();
+    await reader.cancel().catch(() => {});
+  }
+});
+
+test('a card that fails to load is left out of a batch instead of failing it', async () => {
+  const offline = startOfflineUpstream();
+  const upstream = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    async fetch(request) {
+      if (new URL(request.url).pathname !== '/v1/cards/batch')
+        return new Response(null, { status: 500 });
+      const { variantNumbers } = (await request.json()) as { variantNumbers: string[] };
+      const known = (await (
+        await fetch(offline.url + '/v1/cards/batch', {
+          method: 'POST',
+          body: JSON.stringify({ variantNumbers: ['OGN-001'] }),
+        })
+      ).json()) as { data: Array<Record<string, unknown>> };
+      return Response.json({
+        data: variantNumbers.map((variantNumber) => ({
+          ...known.data[0],
+          id: crypto.randomUUID(),
+          variantNumber,
+        })),
+        notFound: [],
+      });
+    },
+  });
+  const other = createHarness();
+  try {
+    const server = await other.startServer({ PA_BASE_URL: upstream.url.origin });
+    const response = await server.fetch(
+      '/api/v1/cards/batch',
+      json({ variantNumbers: ['OGN-001', `ZZF-${crypto.randomUUID().slice(0, 8)}`] })
+    );
+    expect(response.status).toBe(200);
+    const batch = CardsBatchResponse.parse(await response.json());
+    expect(batch.meta.found).toBe(1);
+    expect(batch.meta.source).toBe('mixed');
+  } finally {
+    await other.stopServer();
+    upstream.stop(true);
+    offline.stop();
+  }
+});
+
+test('a blocking catalog probe reuses the probe that was already running', async () => {
+  const total = 900_000 + Math.floor(Math.random() * 99_999);
+  const probe = gate();
+  const probes: string[] = [];
+  const upstream = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    async fetch(request) {
+      const url = new URL(request.url);
+      if (url.pathname !== '/v1/cards') return new Response(null, { status: 404 });
+      const limit = Number(url.searchParams.get('limit'));
+      probes.push(String(limit));
+      if (limit === 100 && probes.filter((value) => value === '100').length === 1) {
+        probe.entered.resolve();
+        await probe.release.promise;
+      }
+      return Response.json({
+        data: [],
+        pagination: { total, page: 1, limit, totalPages: 1, hasNext: false },
+      });
+    },
+  });
+  const before = (
+    await harness.sql`SELECT coalesce(max(id),0)::bigint AS id FROM filter_snapshots`
+  )[0]!.id;
+  const saved =
+    await harness.sql`SELECT content_hash,row_count,status FROM sync_state WHERE key='catalog_probe'`;
+  const other = createHarness();
+  try {
+    const server = await other.startServer({
+      PA_BASE_URL: upstream.url.origin,
+      CATALOG_PROBE_DISABLED: 'false',
+    });
+    expect((await server.fetch('/api/v1/filters')).status).toBe(200);
+    await probe.entered.promise;
+    const seen = probes.length;
+    const sync = server.fetch('/api/v1/sync/catalog', {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + server.config.ADMIN_SYNC_TOKEN },
+    });
+    // The sync's own fingerprint request arrives just before it waits on the running probe.
+    await waitFor(() => probes.length > seen);
+    await Bun.sleep(500);
+    probe.release.resolve();
+    expect((await sync).status).toBe(200);
+    expect(
+      await harness.sql`SELECT id FROM filter_snapshots WHERE id>${before}`
+    ).toHaveLength(1);
+  } finally {
+    probe.release.resolve();
+    await other.stopServer();
+    upstream.stop(true);
+    await harness.sql`DELETE FROM filter_snapshots WHERE id>${before}`;
+    if (saved[0])
+      await harness.sql`UPDATE sync_state SET content_hash=${saved[0].content_hash},row_count=${saved[0].row_count},status=${saved[0].status} WHERE key='catalog_probe'`;
+    else await harness.sql`DELETE FROM sync_state WHERE key='catalog_probe'`;
+  }
 });

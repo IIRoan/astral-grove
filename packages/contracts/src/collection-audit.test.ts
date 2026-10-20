@@ -60,6 +60,13 @@ describe('CollectionAuditListQuery', () => {
     });
     expect(CollectionAuditListQuery.parse({ mine: 'false' }).mine).toBe(false);
   });
+  test('accepts only an event uuid as the beforeId cursor', () => {
+    const beforeId = '11111111-1111-4111-8111-111111111111';
+    expect(CollectionAuditListQuery.parse({ beforeId }).beforeId).toBe(beforeId);
+    expect(CollectionAuditListQuery.safeParse({ beforeId: 'not-a-uuid' }).success).toBe(
+      false
+    );
+  });
 });
 
 describe('CollectionAuditEvent', () => {

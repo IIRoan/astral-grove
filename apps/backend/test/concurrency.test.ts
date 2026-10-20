@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test, setDefaultTimeout } from 'bun:test';
-import { createHarness, json } from './support';
+import { createHarness, json, waitFor } from './support';
 const { startServer, stopServer, signup, sql } = createHarness();
 import { CollectionShareInviteCreateResponse } from '@riftbound/contracts';
 setDefaultTimeout(60000);
@@ -86,4 +86,44 @@ test('a departed member stops receiving the former collection live events', asyn
     controller.abort();
     await reader.cancel().catch(() => {});
   }
+});
+
+test('an invite created while its owner leaves targets the collection they now belong to', async () => {
+  const a = await signup(app, 'invite-race-a'),
+    b = await signup(app, 'invite-race-b');
+  const shared = CollectionShareInviteCreateResponse.parse(
+    await (
+      await app.fetch('/api/v1/collection/share/invite', json({}, a.cookie))
+    ).json()
+  );
+  expect(
+    (
+      await app.fetch(
+        `/api/v1/collection/share/invite/${shared.data.token}/accept`,
+        json({ mode: 'use_theirs' }, b.cookie)
+      )
+    ).status
+  ).toBe(200);
+  const own = crypto.randomUUID();
+  const lock = await sql.reserve();
+  try {
+    await lock`SELECT pg_advisory_lock(1280472986)`;
+    const pending = app.fetch('/api/v1/collection/share/invite', json({}, a.cookie));
+    await waitFor(
+      async () =>
+        (
+          await sql`SELECT 1 FROM pg_locks WHERE locktype='advisory' AND objid::text::bigint=1280472986 AND NOT granted`
+        ).length > 0
+    );
+    // A leave commits while the invite waits on the share lock.
+    await sql`INSERT INTO collections(id) VALUES(${own}::uuid)`;
+    await sql`UPDATE collection_members SET collection_id=${own}::uuid,role='owner' WHERE user_id=${a.user.id}`;
+    await lock`SELECT pg_advisory_unlock(1280472986)`;
+    expect((await pending).status).toBe(200);
+  } finally {
+    lock.release();
+  }
+  const invites =
+    await sql`SELECT collection_id::text AS id FROM collection_invites WHERE inviter_user_id=${a.user.id} AND status='pending'`;
+  expect(invites.map((invite) => invite.id)).toEqual([own]);
 });

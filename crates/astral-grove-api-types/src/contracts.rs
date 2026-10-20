@@ -378,6 +378,8 @@ pub struct CollectionAuditListQuery {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub before: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variant_number: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actor_user_id: Option<String>,

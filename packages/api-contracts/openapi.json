@@ -1593,6 +1593,12 @@
           },
           {
             "in": "query",
+            "name": "beforeId",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "query",
             "name": "variantNumber",
             "required": false,
             "schema": { "type": "string", "minLength": 1 }
@@ -1667,6 +1673,12 @@
             "name": "before",
             "required": false,
             "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "in": "query",
+            "name": "beforeId",
+            "required": false,
+            "schema": { "type": "string" }
           },
           {
             "in": "query",
@@ -4133,6 +4145,7 @@
             "default": 50
           },
           "before": { "type": "string", "format": "date-time" },
+          "beforeId": { "type": "string" },
           "variantNumber": { "type": "string", "minLength": 1 },
           "actorUserId": { "type": "string", "minLength": 1 },
           "mine": { "type": "boolean" },
@@ -10023,6 +10036,7 @@
             "default": 50
           },
           "before": { "type": "string", "format": "date-time" },
+          "beforeId": { "type": "string" },
           "variantNumber": { "type": "string", "minLength": 1 },
           "actorUserId": { "type": "string", "minLength": 1 },
           "mine": {

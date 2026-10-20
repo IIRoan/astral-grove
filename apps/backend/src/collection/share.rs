@@ -47,6 +47,18 @@ async fn member_count(db: &impl ConnectionTrait, collection: &str) -> Result<usi
     .await?
     .len())
 }
+// Read under the share lock, so a concurrent leave or accept cannot leave a stale collection id.
+async fn current_collection(db: &impl ConnectionTrait, user: &str) -> Result<String> {
+    db::rows(
+        db,
+        "SELECT collection_id::text AS id FROM collection_members WHERE user_id=$1",
+        vec![user.into()],
+    )
+    .await?
+    .first()
+    .map(|row| db::string(row, "id").to_owned())
+    .ok_or_else(|| error("NOT_FOUND", "Collection membership not found"))
+}
 async fn status(db: &impl ConnectionTrait, user: &str, collection: &str) -> Result<Value> {
     let rows=db::rows(db,"SELECT m.user_id AS \"userId\",m.role,u.name,u.email FROM collection_members m JOIN \"user\" u ON u.id=m.user_id WHERE m.collection_id=$1::uuid",vec![collection.into()]).await?;
     let role = rows
@@ -100,9 +112,10 @@ async fn invite(
     RouteUser(session): RouteUser,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<astral_grove_api_types::CollectionShareInviteCreateResponse>> {
-    let collection = membership::ensure(&state, &session.user.id).await?;
+    membership::ensure(&state, &session.user.id).await?;
     let tx = state.db.begin().await?;
     db::execute(&tx, "SELECT pg_advisory_xact_lock(1280472986)", vec![]).await?;
+    let collection = current_collection(&tx, &session.user.id).await?;
     db::rows(
         &tx,
         "SELECT id FROM collections WHERE id=$1::uuid FOR UPDATE",
@@ -131,9 +144,10 @@ async fn revoke(
     RouteUser(session): RouteUser,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<astral_grove_api_types::OkResponse>> {
-    let collection = membership::ensure(&state, &session.user.id).await?;
+    membership::ensure(&state, &session.user.id).await?;
     let tx = state.db.begin().await?;
     db::execute(&tx, "SELECT pg_advisory_xact_lock(1280472986)", vec![]).await?;
+    let collection = current_collection(&tx, &session.user.id).await?;
     db::execute(&tx,"UPDATE collection_invites SET status='revoked' WHERE collection_id=$1::uuid AND status='pending'",vec![collection.into()]).await?;
     tx.commit().await?;
     http::respond("OkResponse", json!({"data":{"ok":true}}))
@@ -205,16 +219,8 @@ async fn accept(
     if invite["inviter"] == session.user.id {
         return Err(error("BAD_REQUEST", "You cannot accept your own invite"));
     }
-    let source = db::rows(
-        &tx,
-        "SELECT collection_id::text AS id FROM collection_members WHERE user_id=$1",
-        vec![session.user.id.clone().into()],
-    )
-    .await?
-    .into_iter()
-    .next()
-    .ok_or_else(|| error("NOT_FOUND", "Collection membership not found"))?;
-    let source = db::string(&source, "id");
+    let source = current_collection(&tx, &session.user.id).await?;
+    let source = source.as_str();
     let target = db::string(&invite, "collection");
     if source == target {
         return Err(error(
@@ -282,16 +288,8 @@ async fn leave(
     membership::ensure(&state, &session.user.id).await?;
     let tx = state.db.begin().await?;
     db::execute(&tx, "SELECT pg_advisory_xact_lock(1280472986)", vec![]).await?;
-    let membership = db::rows(
-        &tx,
-        "SELECT collection_id::text AS id FROM collection_members WHERE user_id=$1",
-        vec![session.user.id.clone().into()],
-    )
-    .await?
-    .into_iter()
-    .next()
-    .ok_or_else(|| error("NOT_FOUND", "Collection membership not found"))?;
-    let previous = db::string(&membership, "id");
+    let previous = current_collection(&tx, &session.user.id).await?;
+    let previous = previous.as_str();
     db::rows(
         &tx,
         "SELECT id FROM collections WHERE id=$1::uuid FOR UPDATE",
@@ -310,6 +308,8 @@ async fn leave(
     .await?;
     db::execute(&tx,"INSERT INTO collection_audit_events(collection_id,actor_user_id,action,metadata) VALUES($1::uuid,$2,'share_leave',jsonb_build_object('previousCollectionId',$3::text))",vec![collection.clone().into(),session.user.id.clone().into(),previous.into()]).await?;
     db::execute(&tx,"UPDATE collection_members SET collection_id=$2::uuid,role='owner',joined_at=now() WHERE user_id=$1",vec![session.user.id.clone().into(),collection.clone().into()]).await?;
+    // When the owner leaves, the longest-standing remaining member takes over the collection.
+    db::execute(&tx,"UPDATE collection_members SET role='owner' WHERE id=(SELECT id FROM collection_members WHERE collection_id=$1::uuid ORDER BY joined_at,id LIMIT 1) AND NOT EXISTS(SELECT 1 FROM collection_members WHERE collection_id=$1::uuid AND role='owner')",vec![previous.into()]).await?;
     db::execute(&tx,"UPDATE collection_invites SET status='revoked' WHERE collection_id=$1::uuid AND status='pending' AND inviter_user_id=$2",vec![previous.into(),session.user.id.clone().into()]).await?;
     let result = status(&tx, &session.user.id, &collection).await?;
     tx.commit().await?;
