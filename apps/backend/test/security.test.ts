@@ -856,6 +856,7 @@ async function holdCredentialLock(userId: string) {
       )[0]!.n
     );
   return {
+    pid,
     waiting,
     release: async () => {
       release.resolve();
@@ -863,6 +864,80 @@ async function holdCredentialLock(userId: string) {
     },
   };
 }
+
+test('a disconnected password reset commits or rolls back its token, password and sessions together', async () => {
+  const user = await signup('reset-disconnect');
+  const token = `security-${crypto.randomUUID()}`;
+  const identifier = `reset-password:${token}`;
+  const replacement = 'reset-after-disconnect-12345';
+  const [original] =
+    await sql`SELECT password FROM account WHERE user_id=${user.user.id} AND provider_id='credential'`;
+  await sql`INSERT INTO verification(id,identifier,value,expires_at) VALUES(${crypto.randomUUID()},${identifier},${user.user.id},now()+interval '5 minutes')`;
+  const lock = await holdCredentialLock(user.user.id);
+  const closed = Promise.withResolvers<void>();
+  const request = httpRequest(app.origin + '/api/auth/reset-password', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: app.origin },
+  });
+  request.on('error', () => {});
+  request.on('close', closed.resolve);
+  request.end(JSON.stringify({ token, newPassword: replacement }));
+  try {
+    await waitFor(async () => (await lock.waiting()) >= 1);
+    const [blocked] =
+      await sql`SELECT pid FROM pg_stat_activity WHERE datname=current_database() AND ${lock.pid}=ANY(pg_blocking_pids(pid))`;
+    expect(blocked).toBeDefined();
+    expect(
+      await sql`SELECT id FROM verification WHERE identifier=${identifier}`
+    ).toHaveLength(1);
+    request.destroy();
+    await closed.promise;
+    await lock.release();
+    await waitFor(
+      async () =>
+        (
+          await sql`SELECT pid FROM pg_stat_activity WHERE pid=${blocked!.pid} AND xact_start IS NOT NULL`
+        ).length === 0
+    );
+    const [account] =
+      await sql`SELECT password FROM account WHERE user_id=${user.user.id} AND provider_id='credential'`;
+    const committed = account!.password !== original!.password;
+    expect(
+      await sql`SELECT id FROM verification WHERE identifier=${identifier}`
+    ).toHaveLength(committed ? 0 : 1);
+    expect(
+      (await sql`SELECT token FROM session WHERE user_id=${user.user.id}`).map(
+        (session) => session.token
+      )
+    ).toEqual(committed ? [] : [user.token]);
+    const retry = await app.fetch(
+      '/api/auth/reset-password',
+      json({ token, newPassword: replacement })
+    );
+    expect(retry.status).toBe(committed ? 400 : 200);
+    expect(
+      (
+        await app.fetch(
+          '/api/auth/sign-in/email',
+          json({ email: user.email, password: replacement })
+        )
+      ).status
+    ).toBe(200);
+    expect(
+      (
+        await app.fetch(
+          '/api/auth/sign-in/email',
+          json({ email: user.email, password })
+        )
+      ).status
+    ).toBe(401);
+  } finally {
+    request.destroy();
+    await closed.promise;
+    await lock.release();
+    await sql`DELETE FROM verification WHERE identifier=${identifier}`;
+  }
+});
 
 test('a password change verified before a reset cannot override it', async () => {
   const user = await signup('change-race');
@@ -1005,10 +1080,15 @@ test('email change guesses share a target budget and void old reset links', asyn
       b = await harness.signup(server, 'change-b');
     addresses.push(a.email, b.email);
     await sql`UPDATE "user" SET email_verified=true WHERE id IN (${a.user.id},${b.user.id})`;
-    const signIn = async (email: string) =>
-      cookie(await server.fetch('/api/auth/sign-in/email', json({ email, password })));
+    const signIn = async (email: string, rememberMe = true) =>
+      cookie(
+        await server.fetch(
+          '/api/auth/sign-in/email',
+          json({ email, password, rememberMe })
+        )
+      );
     const ca = await signIn(a.email),
-      cb = await signIn(b.email);
+      cb = await signIn(b.email, false);
     const target = `security-target-${crypto.randomUUID()}@test.riftbound.dev`;
     addresses.push(target);
     for (const session of [ca, cb])
@@ -1034,7 +1114,10 @@ test('email change guesses share a target budget and void old reset links', asyn
     const code = (
       await sql`SELECT value FROM verification WHERE identifier=${`change-email-otp-${b.email}-${target}`}`
     )[0]!.value.split(':')[0];
-    expect((await change(cb, code)).status).toBe(200);
+    const changed = await change(cb, code);
+    expect(changed.status).toBe(200);
+    expect(cookie(changed)).toContain('better-auth.dont_remember=');
+    expect(changed.headers.getSetCookie().join(';')).not.toMatch(/Max-Age=|Expires=/i);
     expect(
       await sql`SELECT id FROM verification WHERE identifier=${`reset-password:${reset}`}`
     ).toHaveLength(0);

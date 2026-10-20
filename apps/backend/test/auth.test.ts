@@ -136,6 +136,60 @@ describe('authentication', () => {
       Date.parse((await shortSession.json()).session.expiresAt) - Date.now()
     ).toBeLessThan(86400000);
   });
+  test.each([false, true])(
+    'profile updates and password rotation preserve rememberMe=%s',
+    async (rememberMe) => {
+      const user = await signup('remember-preference');
+      const login = await app.fetch(
+        '/api/auth/sign-in/email',
+        json({ email: user.email, password, rememberMe })
+      );
+      expect(login.status).toBe(200);
+      const current = cookie(login);
+      const profile = await app.fetch(
+        '/api/auth/update-user',
+        json({ name: 'Updated profile' }, current)
+      );
+      const changed = await app.fetch(
+        '/api/auth/change-password',
+        json(
+          {
+            currentPassword: password,
+            newPassword: 'replacement-password-12345',
+            revokeOtherSessions: true,
+          },
+          current
+        )
+      );
+      for (const response of [profile, changed]) {
+        expect(response.status).toBe(200);
+        const sessionCookie = response.headers
+          .getSetCookie()
+          .find((value) => value.startsWith('better-auth.session_token='));
+        expect(sessionCookie).toBeDefined();
+        expect(sessionCookie!.includes('Max-Age=604800')).toBe(rememberMe);
+        if (!rememberMe) {
+          expect(sessionCookie).not.toMatch(/Max-Age=|Expires=/i);
+          expect(cookie(response)).toContain('better-auth.dont_remember=');
+        }
+      }
+      const renewed = Login.parse(await changed.json());
+      const session = await app.fetch('/api/auth/get-session', {
+        headers: { cookie: cookie(changed) },
+      });
+      expect(session.status).toBe(200);
+      const remaining =
+        Date.parse((await session.json()).session.expiresAt) - Date.now();
+      expect(remaining).toBeGreaterThan((rememberMe ? 6 : 0.9) * 86400000);
+      expect(remaining).toBeLessThanOrEqual((rememberMe ? 7 : 1) * 86400000);
+      expect(renewed.token).not.toBeNull();
+      expect(
+        (await sql`SELECT token FROM session WHERE user_id=${user.user.id}`).map(
+          (session) => session.token
+        )
+      ).toEqual([renewed.token]);
+    }
+  );
   test('protected routes renew aging cookie and bearer sessions while honoring dont-remember', async () => {
     const user = await signup('protected-renewal');
     const credentials: Record<string, string>[] = [

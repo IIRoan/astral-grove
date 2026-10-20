@@ -8,7 +8,7 @@ use axum::{
     http::{HeaderMap, Method, StatusCode, Uri},
     response::{IntoResponse, Response},
 };
-use sea_orm::TransactionTrait;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde_json::{Value, json};
 
 pub struct Reply {
@@ -117,6 +117,24 @@ async fn token_reply(
     }
     Ok(reply)
 }
+async fn write_password(
+    connection: &impl ConnectionTrait,
+    user_id: &str,
+    hash: &str,
+) -> Result<()> {
+    let rows = db::rows(
+        connection,
+        "SELECT id FROM account WHERE user_id=$1 AND provider_id='credential'",
+        vec![user_id.into()],
+    )
+    .await?;
+    if rows.is_empty() {
+        db::execute(connection,"INSERT INTO account(id,user_id,account_id,provider_id,password) VALUES($1,$2,$2,'credential',$3)",vec![service::id().into(),user_id.into(),hash.into()]).await?;
+    } else {
+        db::execute(connection,"UPDATE account SET password=$2,updated_at=date_trunc('milliseconds',now()) WHERE user_id=$1 AND provider_id='credential'",vec![user_id.into(),hash.into()]).await?;
+    }
+    Ok(())
+}
 pub async fn set_password(
     state: &AppState,
     user_id: &str,
@@ -135,17 +153,7 @@ pub async fn set_password(
     {
         return Err(error(400, "INVALID_PASSWORD", "Invalid password"));
     }
-    let rows = db::rows(
-        &tx,
-        "SELECT id FROM account WHERE user_id=$1 AND provider_id='credential'",
-        vec![user_id.into()],
-    )
-    .await?;
-    if rows.is_empty() {
-        db::execute(&tx,"INSERT INTO account(id,user_id,account_id,provider_id,password) VALUES($1,$2,$2,'credential',$3)",vec![service::id().into(),user_id.into(),hash.into()]).await?;
-    } else {
-        db::execute(&tx,"UPDATE account SET password=$2,updated_at=date_trunc('milliseconds',now()) WHERE user_id=$1 AND provider_id='credential'",vec![user_id.into(),hash.into()]).await?;
-    }
+    write_password(&tx, user_id, &hash).await?;
     let mut renewed = None;
     if revoke {
         db::execute(
@@ -155,7 +163,15 @@ pub async fn set_password(
         )
         .await?;
         if let Some((_, _, headers)) = current {
-            renewed = Some(service::create_session_on(&tx, user_id, headers, true).await?);
+            renewed = Some(
+                service::create_session_on(
+                    &tx,
+                    user_id,
+                    headers,
+                    !cookies::dont_remember(&state.config, headers),
+                )
+                .await?,
+            );
         }
     }
     tx.commit().await?;
@@ -371,7 +387,11 @@ pub async fn dispatch(
             .await?;
             let mut reply = Reply::json(json!({"token":null,"user":session.user}));
             if let Some(token) = renewed {
-                reply.headers = service::signed_headers(state, &token, true)?;
+                reply.headers = service::signed_headers(
+                    state,
+                    &token,
+                    !cookies::dont_remember(&state.config, headers),
+                )?;
                 reply.body["token"] = json!(token)
             }
             reply
@@ -408,7 +428,11 @@ pub async fn dispatch(
             }
             db::execute(&state.db,"UPDATE \"user\" SET name=CASE WHEN $2 THEN $3 ELSE name END,image=CASE WHEN $4 THEN $5 ELSE image END,updated_at=date_trunc('milliseconds',now()) WHERE id=$1",vec![session.user.id.into(),name.is_some().into(),name.map(str::to_owned).into(),image.is_some().into(),image.and_then(Value::as_str).map(str::to_owned).into()]).await?;
             let mut reply = Reply::json(success());
-            reply.headers = service::signed_headers(state, &session.session.token, true)?;
+            reply.headers = service::signed_headers(
+                state,
+                &session.session.token,
+                !cookies::dont_remember(&state.config, headers),
+            )?;
             reply
         }
         "listSessions" => {
@@ -570,6 +594,19 @@ pub async fn dispatch(
                 .ok_or_else(|| error(400, "INVALID_TOKEN", "Invalid token"))?;
             service::check_password(field(input, "newPassword"))?;
             let identifier = format!("reset-password:{token}");
+            if db::rows(
+                &state.db,
+                "SELECT id FROM verification WHERE identifier=$1 AND expires_at>=now()",
+                vec![identifier.clone().into()],
+            )
+            .await?
+            .is_empty()
+            {
+                return Err(error(400, "INVALID_TOKEN", "Invalid token"));
+            }
+            let hash = password::hash(field(input, "newPassword"))
+                .await
+                .map_err(|_| AppError::internal())?;
             let tx = state.db.begin().await?;
             otp::lock(&tx, &identifier).await?;
             let values=db::rows(&tx,"DELETE FROM verification WHERE identifier=$1 AND expires_at>=now() RETURNING value",vec![identifier.into()]).await?;
@@ -578,8 +615,15 @@ pub async fn dispatch(
                 .and_then(|r| r["value"].as_str())
                 .ok_or_else(|| error(400, "INVALID_TOKEN", "Invalid token"))?
                 .to_owned();
+            otp::lock(&tx, &format!("credential:{user}")).await?;
+            write_password(&tx, &user, &hash).await?;
+            db::execute(
+                &tx,
+                "DELETE FROM session WHERE user_id=$1",
+                vec![user.into()],
+            )
+            .await?;
             tx.commit().await?;
-            set_password(state, &user, field(input, "newPassword"), true, None).await?;
             Reply::json(success())
         }
         "requestPasswordResetCallback" => {

@@ -19,7 +19,7 @@ pub async fn connect(url: &str, max: u32) -> std::result::Result<DatabaseConnect
         .connect_timeout(Duration::from_secs(30))
         .idle_timeout(Duration::from_secs(300))
         .max_lifetime(Duration::from_secs(1800))
-        .test_before_acquire(false)
+        .test_before_acquire(true)
         .sqlx_logging(false);
     let mut database = Database::connect(options).await?;
     let namespace = namespace(url);

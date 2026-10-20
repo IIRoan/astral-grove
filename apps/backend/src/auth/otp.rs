@@ -1,4 +1,4 @@
-use super::{email, error, pipeline, service};
+use super::{cookies, email, error, pipeline, service};
 use crate::{AppState, db, error::Result};
 use rand::RngExt;
 use sea_orm::{ConnectionTrait, TransactionTrait};
@@ -281,6 +281,10 @@ pub async fn change(
     .await?;
     tx.commit().await?;
     let mut reply = super::core::Reply::json(json!({"success":true}));
-    reply.headers = service::signed_headers(state, &session.session.token, true)?;
+    reply.headers = service::signed_headers(
+        state,
+        &session.session.token,
+        !cookies::dont_remember(&state.config, headers),
+    )?;
     Ok(reply)
 }
