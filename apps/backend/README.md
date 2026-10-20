@@ -22,6 +22,10 @@ values take precedence over `apps/backend/.env`. The Rust binary itself reads
 environment variables only and never reads the environment file. Startup applies forward migrations and
 retries transient PostgreSQL failures before listening on port 7000.
 
+Each backend process keeps two PostgreSQL connections warm, capped by `DB_POOL_MAX`
+when configured lower. Surplus idle connections expire after five minutes.
+`DB_POOL_MAX` defaults to 10 in production and 20 otherwise.
+
 ```bash
 cargo build --package astral-grove-server --release --locked
 ./target/release/astral-grove-server --help

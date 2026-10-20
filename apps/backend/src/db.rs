@@ -14,10 +14,10 @@ pub async fn connect(url: &str, max: u32) -> std::result::Result<DatabaseConnect
     let mut options = ConnectOptions::new(url);
     options
         .max_connections(max)
-        .min_connections(0)
+        .min_connections(max.min(2))
         .acquire_timeout(Duration::from_secs(30))
         .connect_timeout(Duration::from_secs(30))
-        .idle_timeout(Duration::from_secs(20))
+        .idle_timeout(Duration::from_secs(300))
         .max_lifetime(Duration::from_secs(1800))
         .test_before_acquire(false)
         .sqlx_logging(false);

@@ -276,6 +276,16 @@ impl Config {
 mod tests {
     use super::Config;
     #[test]
+    fn pool_limits_allow_small_pools_and_reject_unbounded_values() {
+        for max in ["1", "2", "10", "50"] {
+            let config = Config::for_test(&[("DB_POOL_MAX", max)]).unwrap();
+            assert_eq!(config.pool_max.to_string(), max);
+        }
+        for invalid in ["", "0", "-1", "1.5", "51", "NaN", "Infinity"] {
+            assert!(Config::for_test(&[("DB_POOL_MAX", invalid)]).is_err());
+        }
+    }
+    #[test]
     fn cookie_and_proxy_scope_require_explicit_configuration() {
         let config = Config::for_test(&[
             ("BETTER_AUTH_URL", "https://api.example.com"),
