@@ -50,15 +50,11 @@ func meanLuminance(of image: CIImage) -> Float? {
   return (0.2126 * Float(pixel[0]) + 0.7152 * Float(pixel[1]) + 0.0722 * Float(pixel[2])) / 255
 }
 
-/** Where a lit card's mean luminance lands; the lift aims here. */
 private let targetLuminance: Float = 0.45
-/** Below this a crop is dark enough to be worth lifting. */
 private let darkLuminance: Float = 0.3
 /** Past two stops only the sensor noise gets brighter. */
 private let maxExposureLift: Float = 2
-// ponytail: target and cutoff are guesses from typical exposures, not this camera — tune on device.
 
-/** Stops of exposure that bring a dark crop up to a lit card's brightness; zero if it is there. */
 func exposureLift(forLuminance luminance: Float?) -> Float {
   guard let luminance, luminance > 0, luminance < darkLuminance else { return 0 }
   return min(maxExposureLift, log2(targetLuminance / luminance))
@@ -82,7 +78,6 @@ func cropGuide(_ image: CIImage, region: CGRect, width: CGFloat) -> CIImage? {
   return crop.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
 }
 
-/** Locate the most prominent card-shaped quadrilateral, if there is one. */
 func detectCard(in image: CIImage) -> VNRectangleObservation? {
   let request = VNDetectRectanglesRequest()
   request.minimumAspectRatio = minCardAspect

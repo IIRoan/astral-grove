@@ -56,7 +56,6 @@ pub async fn resolve(
         else {
             break;
         };
-        settled.extend(batch.iter().map(|number| number.to_lowercase()));
         for number in db::array(&result, "data")
             .iter()
             .filter_map(|item| item["variantNumber"].as_str())
@@ -76,12 +75,13 @@ pub async fn resolve(
                 }
                 Err(error) if error.status == 404 => {}
                 Err(error) => {
-                    settled.remove(&number.to_lowercase());
                     if error.status == 429 {
                         break 'batches;
                     }
+                    continue;
                 }
             }
+            settled.insert(number.to_lowercase());
         }
     }
     let mut errors = Vec::new();

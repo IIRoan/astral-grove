@@ -1363,7 +1363,7 @@ test('an import that exhausts the upstream budget reports unresolved rows instea
   try {
     const server = await harness.startServer({
       PA_BASE_URL: upstream.url.origin,
-      UPSTREAM_REQUESTS_PER_MINUTE: '4',
+      UPSTREAM_REQUESTS_PER_MINUTE: '8',
     });
     const user = await harness.signup(server, 'import-budget');
     addresses.push(user.email);
@@ -1383,6 +1383,15 @@ test('an import that exhausts the upstream budget reports unresolved rows instea
     expect(data.imported).toBe(1);
     expect(data.failedRows).toBe(60);
     expect(batches).toBe(1);
+    expect(data.errors.map((error) => error.message)).toEqual(
+      items
+        .slice(1)
+        .map((item, index) =>
+          index === 0
+            ? `Could not resolve variant: ${item.variantNumber}`
+            : `Card lookup unavailable, retry shortly: ${item.variantNumber}`
+        )
+    );
   } finally {
     upstream.stop(true);
   }

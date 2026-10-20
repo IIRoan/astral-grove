@@ -57,7 +57,6 @@ pub async fn mutate(
     Ok(json!({"data":item}))
 }
 
-/// Applies one mutation inside the caller's transaction and returns the raw item row (or null).
 pub async fn mutate_in<C: ConnectionTrait>(
     tx: &C,
     collection_id: &str,

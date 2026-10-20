@@ -10,6 +10,7 @@ import {
   CollectionShareInviteCreateResponse,
   CollectionShareStatusResponse,
   DeckDetailResponse,
+  DeckListResponse,
   PaLogicalCard,
   PricesListResponse,
   SyncStatusResponse,
@@ -529,6 +530,81 @@ test('a Piltover Archive outage fails community deck browsing but keeps owned de
   const mixed = await app.fetch('/api/v1/decks', { headers: { cookie: session } });
   expect(mixed.status).toBe(200);
 });
+
+test.each(['save', 'save-active', 'save-inactive', 'activate', 'delete-active'])(
+  'deck timestamps survive reload after %s',
+  async (action) => {
+    const user = await harness.signup(app, `deck-${action}`);
+    const id = `deck_${crypto.randomUUID()}`;
+    const path = `/api/v1/decks/${id}`;
+    const input = {
+      id,
+      name: 'Timestamp regression',
+      createdAt: 1,
+      updatedAt: 1,
+      legend: null,
+      champion: null,
+      mainDeck: [],
+      runes: [],
+      battlefields: [],
+      sideboard: [],
+      upstreamId: 'untrusted-upstream',
+      importedFromId: 'untrusted-import',
+    };
+    const write = async (suffix: string, body: unknown, method = 'POST') => {
+      const response = await app.fetch(path + suffix, {
+        ...json(body, user.cookie),
+        method,
+      });
+      expect(response.status).toBe(200);
+      return DeckDetailResponse.parse(await response.json()).data;
+    };
+    const original = await write('', input, 'PUT');
+    const version = original.versionId!;
+    let saved = original;
+    if (['save-inactive', 'activate', 'delete-active'].includes(action)) {
+      saved = await write('/versions', { name: 'Second version' });
+    }
+    switch (action) {
+      case 'save':
+        saved = await write('', input, 'PUT');
+        break;
+      case 'save-active':
+      case 'save-inactive':
+        saved = await write(`/versions/${version}`, input, 'PUT');
+        break;
+      case 'activate':
+        saved = await write(`/versions/${version}/activate`, {});
+        break;
+      case 'delete-active':
+        saved = await write(`/versions/${saved.versionId}`, {}, 'DELETE');
+        break;
+    }
+    expect(saved.updatedAt).toBeGreaterThan(1);
+    expect(saved.upstreamId).toBeUndefined();
+    expect(saved.importedFromId).toBeUndefined();
+    const reloaded = DeckDetailResponse.parse(
+      await (await app.fetch(path, { headers: { cookie: user.cookie } })).json()
+    ).data;
+    expect(reloaded).toEqual(saved);
+    const list = DeckListResponse.parse(
+      await (
+        await app.fetch('/api/v1/decks?source=owned', {
+          headers: { cookie: user.cookie },
+        })
+      ).json()
+    );
+    expect(list.data.find((deck) => deck.id === id)?.updatedAt).toBe(saved.updatedAt);
+    if (action.startsWith('save')) {
+      const stored = await harness.sql`
+        SELECT payload FROM user_deck_versions
+        WHERE user_id=${user.user.id} AND deck_id=${id} AND id=${version}`;
+      expect(stored[0]!.payload.updatedAt).toBe(
+        saved.versions?.find((entry) => entry.id === version)?.updatedAt
+      );
+    }
+  }
+);
 
 test('incomplete community decks stay viewable but import waits for the catalog to recover', async () => {
   const [seed] = await harness.sql<{ raw: unknown }[]>`

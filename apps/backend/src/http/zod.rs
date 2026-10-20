@@ -5,7 +5,6 @@ use std::sync::Arc;
 use regex_lite::Regex;
 use serde_json::{Map, Value};
 
-/// One issue: its path, Zod 3's message (app routes) and Zod 4's (Better Auth routes).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Issue {
     pub path: Vec<String>,
@@ -472,7 +471,6 @@ impl Schema {
         }
     }
 
-    /// `.refine(check, { message, path })`.
     pub fn refine(
         self,
         check: impl Fn(&Value) -> bool + Send + Sync + 'static,
@@ -797,7 +795,6 @@ fn coerce_to_number(input: Option<&Value>) -> f64 {
     }
 }
 
-/// How JavaScript prints a number inside a message.
 pub fn js_number_string(value: f64) -> String {
     if value.fract() == 0.0 && value.abs() < 1e21 {
         format!("{}", value as i64)

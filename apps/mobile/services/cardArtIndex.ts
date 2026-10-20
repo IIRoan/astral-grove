@@ -3,18 +3,7 @@ import type { CardListItem } from '@riftbound/contracts';
 import { cardOcrFrame } from '@/modules/card-ocr-frame/src';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 
-/**
- * The artwork index the scanner matches camera frames against: one embedding per
- * distinct catalog image, built on this device.
- *
- * On-device rather than served by the API because the embedding is Apple's, and its
- * vectors are only comparable with others from the same revision. Building here means
- * the reference side and the camera side always come out of the same model, and a new
- * card is one more image to embed rather than a server job to re-run.
- *
- * The scanner works without it — text recognition alone, as before — so the build runs
- * alongside scanning and only ever adds accuracy.
- */
+// Build locally so reference and camera embeddings use the same Vision model revision.
 
 /** Matches the confirm screen's art, so most of these are already cached upstream. */
 const EMBED_WIDTH = 320;
@@ -24,11 +13,7 @@ const CONCURRENCY = 2;
 const SAVE_EVERY = 150;
 /** Progress is published in steps; per-image updates would re-render the camera. */
 const PUBLISH_EVERY = 10;
-/**
- * A partial index is worse than none: the nearest neighbour of a card that is not in it
- * is some other card, and a sibling printing's art would win by default. A few dead
- * images must not block the feature forever, though, hence not 100%.
- */
+// Incomplete indexes can favor the wrong printing; tolerate a few failed downloads.
 const MIN_COVERAGE = 0.95;
 
 export type CardArtIndexState = {
@@ -130,14 +115,6 @@ function save(version: string) {
   }
 }
 
-/**
- * Bring the index up to date with the catalog and install it. Cheap to call again:
- * only images that have no vector yet are fetched, so a catalog sync costs a handful of
- * downloads and a failed image is simply retried on the next call.
- *
- * ponytail: runs to completion once started, even if the scanner closes (~25MB, once).
- * Make it cancellable if that download ever shows up as a complaint.
- */
 export async function ensureCardArtIndex(
   items: readonly CardListItem[]
 ): Promise<void> {

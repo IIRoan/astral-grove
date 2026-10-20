@@ -205,36 +205,27 @@ pub async fn upsert(
     deduplicate: Option<&str>,
 ) -> Result<Value> {
     let deck_id = db::string(&incoming, "id").to_owned();
-    let initial = row(&state.db, user, &deck_id).await?;
-    if initial.is_none() && upstream::get_stored(state, &deck_id).await.is_some() {
+    if row(&state.db, user, &deck_id).await?.is_none()
+        && upstream::get_stored(state, &deck_id).await.is_some()
+    {
         return Err(readonly());
     }
-    let candidate = persist(
-        incoming.clone(),
-        initial.as_ref().map(|row| &row["payload"]),
-        trusted,
-    );
     let tx = lock(state, user).await?;
     if let Some(source) = deduplicate
         && let Some(existing)=db::rows(&tx,"SELECT payload FROM user_decks WHERE user_id=$1 AND (payload->>'importedFromId'=$2 OR payload->>'upstreamId'=$2 OR id=$2) LIMIT 1",vec![user.into(),source.into()]).await?.first(){return Ok(owned(existing["payload"].clone()));}
     let existing = row(&tx, user, &deck_id).await?;
     let mut next = persist(
-        candidate.clone(),
+        incoming,
         existing.as_ref().map(|row| &row["payload"]),
         trusted,
     );
-    if let Some(id) = candidate.get("upstreamId")
-        && existing.as_ref().map(|row| &row["payload"]["upstreamId"])
-            == initial.as_ref().map(|row| &row["payload"]["upstreamId"])
-    {
-        next["upstreamId"] = id.clone();
-    }
     let version = existing
         .as_ref()
         .and_then(|row| row["active"].as_str())
         .map(str::to_owned)
         .unwrap_or_else(|| id("dver"));
     let timestamp = now();
+    next["updatedAt"] = json!(timestamp);
     db::execute(&tx,"INSERT INTO user_decks(id,user_id,name,description,payload,active_version_id,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,to_timestamp($7::double precision/1000.0),to_timestamp($8::double precision/1000.0)) ON CONFLICT(user_id,id) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description,payload=EXCLUDED.payload,active_version_id=EXCLUDED.active_version_id,updated_at=EXCLUDED.updated_at",vec![deck_id.clone().into(),user.into(),db::string(&next,"name").into(),db::string(&next,"description").into(),next.clone().into(),version.clone().into(),next["createdAt"].as_i64().unwrap_or(0).into(),timestamp.into()]).await?;
     if existing
         .as_ref()
@@ -245,7 +236,6 @@ pub async fn upsert(
     } else {
         db::execute(&tx,"UPDATE user_deck_versions SET payload=$3,updated_at=to_timestamp($4::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),version.clone().into(),next.clone().into(),timestamp.into()]).await?;
     }
-    next["updatedAt"] = json!(timestamp);
     let result = detail(&tx, user, next, Some(&version)).await?;
     tx.commit().await?;
     Ok(result)
@@ -283,14 +273,7 @@ pub async fn version(
     deck: &str,
     action: VersionAction,
 ) -> Result<Value> {
-    let initial = assert_editable(state, user, deck, true).await?;
-    let prepared = match &action {
-        VersionAction::Save(_, incoming) => {
-            let next = persist(incoming.clone(), Some(&initial["payload"]), false);
-            Some(next)
-        }
-        _ => None,
-    };
+    assert_editable(state, user, deck, true).await?;
     let tx = lock(state, user).await?;
     let family = row(&tx, user, deck).await?.ok_or_else(|| missing(true))?;
     let mut records = versions(&tx, user, deck).await?;
@@ -332,9 +315,9 @@ pub async fn version(
                 .find(|row| row["id"] == id)
                 .ok_or_else(|| missing(true))?;
             payload = merge(&payload, &record["payload"]);
+            payload["updatedAt"] = json!(timestamp);
             active_id = id;
             db::execute(&tx,"UPDATE user_decks SET payload=$3,active_version_id=$4,updated_at=to_timestamp($5::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),payload.clone().into(),active_id.clone().into(),timestamp.into()]).await?;
-            payload["updatedAt"] = json!(timestamp);
         }
         VersionAction::Delete(id) => {
             if !records.iter().any(|row| row["id"] == id) {
@@ -360,8 +343,8 @@ pub async fn version(
             active_id = db::string(next, "id").into();
             if active == id {
                 payload = merge(&payload, &next["payload"]);
-                db::execute(&tx,"UPDATE user_decks SET payload=$3,active_version_id=$4,updated_at=to_timestamp($5::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),payload.clone().into(),active_id.clone().into(),timestamp.into()]).await?;
                 payload["updatedAt"] = json!(timestamp);
+                db::execute(&tx,"UPDATE user_decks SET payload=$3,active_version_id=$4,updated_at=to_timestamp($5::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),payload.clone().into(),active_id.clone().into(),timestamp.into()]).await?;
             }
             db::execute(
                 &tx,
@@ -370,24 +353,15 @@ pub async fn version(
             )
             .await?;
         }
-        VersionAction::Save(id, _) => {
+        VersionAction::Save(id, incoming) => {
             if !records.iter().any(|row| row["id"] == id) {
                 return Err(missing(true));
             }
-            let mut next = prepared.ok_or_else(AppError::internal)?;
-            for key in ["upstreamId", "importedFromId"] {
-                if family["payload"][key] != initial["payload"][key] {
-                    if let Some(value) = family["payload"].get(key) {
-                        next[key] = value.clone();
-                    } else {
-                        next.as_object_mut().map(|object| object.remove(key));
-                    }
-                }
-            }
+            let mut next = persist(incoming, Some(&family["payload"]), false);
+            next["updatedAt"] = json!(timestamp);
             db::execute(&tx,"UPDATE user_deck_versions SET payload=$4,updated_at=to_timestamp($5::double precision/1000.0) WHERE user_id=$1 AND deck_id=$2 AND id=$3",vec![user.into(),deck.into(),id.clone().into(),next.clone().into(),timestamp.into()]).await?;
             if active == id {
                 db::execute(&tx,"UPDATE user_decks SET name=$3,description=$4,payload=$5,updated_at=to_timestamp($6::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),deck.into(),db::string(&next,"name").into(),db::string(&next,"description").into(),next.clone().into(),timestamp.into()]).await?;
-                next["updatedAt"] = json!(timestamp);
                 payload = next;
             }
         }
@@ -422,4 +396,28 @@ pub async fn delete(state: &AppState, user: &str, id: &str) -> Result<Value> {
         return Err(missing(false));
     }
     Ok(json!({"data":{"id":id}}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn persistence_preserves_stored_provenance_and_only_trusts_server_imports() {
+        let incoming = json!({"name":"Edited","upstreamId":"incoming","importedFromId":"incoming"});
+        let stored = json!({"upstreamId":"stored","importedFromId":"stored"});
+        for trusted in [false, true] {
+            let saved = persist(incoming.clone(), Some(&stored), trusted);
+            assert_eq!(saved["name"], "Edited");
+            assert_eq!(saved["description"], "");
+            assert_eq!(saved["upstreamId"], "stored");
+            assert_eq!(saved["importedFromId"], "stored");
+        }
+        let untrusted = persist(incoming.clone(), None, false);
+        assert!(untrusted.get("upstreamId").is_none());
+        assert!(untrusted.get("importedFromId").is_none());
+        let imported = persist(incoming, None, true);
+        assert_eq!(imported["upstreamId"], "incoming");
+        assert_eq!(imported["importedFromId"], "incoming");
+    }
 }
