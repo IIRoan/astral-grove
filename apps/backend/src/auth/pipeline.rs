@@ -19,11 +19,7 @@ pub struct AuthBody(pub Option<Value>);
 impl FromRequestParts<Arc<AppState>> for AuthBody {
     type Rejection = AppError;
     async fn from_request_parts(parts: &mut Parts, _state: &Arc<AppState>) -> Result<Self> {
-        Ok(parts
-            .extensions
-            .get::<Self>()
-            .cloned()
-            .unwrap_or(Self(None)))
+        Ok(parts.extensions.remove::<Self>().unwrap_or(Self(None)))
     }
 }
 pub fn message(status: u16, message: &str) -> AppError {
@@ -34,8 +30,9 @@ pub fn truthy(value: &Value) -> bool {
 }
 pub async fn apply(State(state): State<Arc<AppState>>, request: Request, next: Next) -> Response {
     let path = request
-        .uri()
-        .path()
+        .extensions()
+        .get::<axum::extract::MatchedPath>()
+        .map_or("/api/auth/unknown", |path| path.as_str())
         .trim_start_matches("/api/auth")
         .to_owned();
     if let Some(retry) = limited(&state, &path, request.headers()).await {
@@ -53,10 +50,15 @@ pub async fn apply(State(state): State<Arc<AppState>>, request: Request, next: N
     }
 }
 async fn limited(state: &AppState, path: &str, headers: &HeaderMap) -> Option<u64> {
-    if !state.config.production {
+    if state
+        .config
+        .values
+        .get("NODE_ENV")
+        .is_some_and(|mode| mode == "test")
+    {
         return None;
     }
-    let ip = super::service::client_ip(state, headers);
+    let ip = crate::middleware::client_ip(headers);
     // Better Auth falls back to one shared per-path bucket when no trusted IP is available.
     let ip = if ip.is_empty() { "no-trusted-ip" } else { &ip };
     let (max, window) = if path.contains("email-otp")
@@ -95,9 +97,13 @@ async fn prepare(state: &AppState, path: &str, request: Request) -> Result<Reque
     let mut bytes = axum::body::Bytes::new();
     let mut value = None;
     if !matches!(parts.method, Method::GET | Method::HEAD | Method::OPTIONS) {
-        bytes = axum::body::to_bytes(body, 128 * 1024 * 1024)
-            .await
-            .map_err(|_| error(413, "BAD_REQUEST", "Request body too large"))?;
+        bytes = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            axum::body::to_bytes(body, crate::middleware::body_limit("/api/auth/")),
+        )
+        .await
+        .map_err(|_| error(408, "REQUEST_TIMEOUT", "Request body timed out"))?
+        .map_err(|_| error(413, "BAD_REQUEST", "Request body too large"))?;
         if !bytes.is_empty() {
             let media = parts
                 .headers
@@ -173,6 +179,16 @@ pub fn trusted(state: &AppState, target: &str) -> bool {
         .trusted_origins
         .iter()
         .any(|pattern| matches_origin(target, pattern, true))
+}
+pub fn trusted_web(state: &AppState, target: &str) -> bool {
+    let Ok(url) = state.config.auth_url.join(target) else {
+        return false;
+    };
+    let web = url.scheme() == "https"
+        || (!state.config.production
+            && url.scheme() == "http"
+            && matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]")));
+    web && trusted(state, target)
 }
 fn check_origin(
     state: &AppState,
@@ -355,6 +371,25 @@ pub fn schema(name: &str, kind: &str) -> Option<&'static Value> {
     definitions().get(name).and_then(|v| v.get(kind))
 }
 pub fn validate(name: &str, body: Option<&Value>, query: &Value) -> Result<()> {
+    if let Some(body) = body {
+        for (field, max) in [
+            ("name", 256),
+            ("image", 2048),
+            ("email", 254),
+            ("newEmail", 254),
+        ] {
+            if body[field]
+                .as_str()
+                .is_some_and(|value| value.encode_utf16().count() > max)
+            {
+                return Err(error(
+                    400,
+                    "VALIDATION_ERROR",
+                    &format!("{field} is too long"),
+                ));
+            }
+        }
+    }
     validate_kind(name, "body", body)?;
     validate_kind(name, "query", Some(query))
 }

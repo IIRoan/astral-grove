@@ -315,6 +315,7 @@ export function AuthPanel({
 
   const emailRef = useRef<RNTextInput>(null);
   const passwordRef = useRef<RNTextInput>(null);
+  const pendingCredential = useRef<{ email: string; password: string } | null>(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -325,6 +326,10 @@ export function AuthPanel({
   // Better Auth already sent OTP on sign-up/sign-in — skip sendOnMount (would invalidate it).
   const [otpSentWithAuth, setOtpSentWithAuth] = useState(false);
   const [internalPendingEmail, setInternalPendingEmail] = useState<string | null>(null);
+  const [signInNotice, setSignInNotice] = useState<{
+    email: string;
+    message: string;
+  } | null>(null);
   const pendingVerificationEmail =
     controlledPendingEmail !== undefined
       ? controlledPendingEmail
@@ -348,8 +353,9 @@ export function AuthPanel({
   // Clear credentials on mode change (incl. controlledMode); keep in-progress email verification.
   const modeChanged = useValueChangeFlag(mode);
   if (modeChanged && !verificationEmail) {
-    setError(null);
-    setEmail('');
+    setError(signInNotice?.message ?? null);
+    setEmail(signInNotice?.email ?? '');
+    setSignInNotice(null);
     setPassword('');
     setForgotPassword(false);
     setResetSent(false);
@@ -363,11 +369,33 @@ export function AuthPanel({
   };
 
   const finishAuthenticated = async () => {
+    pendingCredential.current = null;
+    setPassword('');
     setOtpSentWithAuth(false);
     setPendingVerificationEmail(null);
     await sessionQuery.refetch();
     await migrateLocalCollectionToRemote();
     await invalidateUserDataQueries(queryClient);
+  };
+
+  const awaitVerification = (emailValue: string, passwordValue: string) => {
+    const normalized = normalizeVerificationEmail(emailValue);
+    setOtpSentWithAuth(true);
+    setPendingVerificationEmail(normalized);
+    pendingCredential.current = { email: normalized, password: passwordValue };
+    setPassword('');
+  };
+
+  const returnToSignIn = (emailValue: string, message: string) => {
+    pendingCredential.current = null;
+    setOtpSentWithAuth(false);
+    setPendingVerificationEmail(null);
+    setEmail(emailValue);
+    setError(message);
+    if (mode !== 'sign-in') {
+      setSignInNotice({ email: emailValue, message });
+      setMode('sign-in');
+    }
   };
 
   const handleSubmit = async () => {
@@ -403,9 +431,7 @@ export function AuthPanel({
         }
         // token=null when requireEmailVerification is on — stay on the playmat for OTP.
         if (!result.data?.token) {
-          setOtpSentWithAuth(true);
-          setPendingVerificationEmail(normalizeVerificationEmail(emailValue));
-          setPassword('');
+          awaitVerification(emailValue, passwordValue);
           return;
         }
       } else {
@@ -419,9 +445,7 @@ export function AuthPanel({
             result.error.status === 403 ||
             /email.*verif|verif.*email|not verified/i.test(message);
           if (needsVerification) {
-            setOtpSentWithAuth(true);
-            setPendingVerificationEmail(normalizeVerificationEmail(emailValue));
-            setPassword('');
+            awaitVerification(emailValue, passwordValue);
             setError(null);
             return;
           }
@@ -429,9 +453,7 @@ export function AuthPanel({
           return;
         }
         if (result.data?.user?.emailVerified === false) {
-          setOtpSentWithAuth(true);
-          setPendingVerificationEmail(normalizeVerificationEmail(emailValue));
-          setPassword('');
+          awaitVerification(emailValue, passwordValue);
           return;
         }
       }
@@ -565,8 +587,20 @@ export function AuthPanel({
       email={verificationEmail}
       // Restore/AuthGate: request OTP; fresh sign-up/sign-in already sent by Better Auth.
       autoSendOnMount={!otpSentWithAuth}
-      onVerified={finishAuthenticated}
+      onVerified={async () => {
+        const credential = pendingCredential.current;
+        const result =
+          credential?.email === verificationEmail
+            ? await authClient.signIn.email(credential)
+            : null;
+        if (result?.error || (!result && !session?.user)) {
+          returnToSignIn(verificationEmail, 'Email verified. Sign in to continue.');
+          return;
+        }
+        await finishAuthenticated();
+      }}
       onChangeEmail={() => {
+        pendingCredential.current = null;
         setOtpSentWithAuth(false);
         setPendingVerificationEmail(null);
         setError(null);

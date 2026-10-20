@@ -17,6 +17,7 @@ pub struct Config {
     pub pa_url: String,
     pub trusted_origins: Vec<String>,
     pub cookie_domain: Option<String>,
+    pub trusted_proxies: Vec<ipnet::IpNet>,
     pub secure_cookies: bool,
     pub retain_days: i64,
     pub retain_snapshots: i64,
@@ -35,6 +36,21 @@ impl Config {
             "Invalid NODE_ENV"
         );
         let production = mode == "production";
+        let release_keys = [
+            "RELEASE_S3_ENDPOINT",
+            "RELEASE_S3_BUCKET",
+            "RELEASE_S3_ACCESS_KEY_ID",
+            "RELEASE_S3_SECRET_ACCESS_KEY",
+        ];
+        if release_keys.iter().any(|key| values.contains_key(*key)) {
+            anyhow::ensure!(
+                release_keys
+                    .iter()
+                    .all(|key| values.get(*key).is_some_and(|value| !value.is_empty())),
+                "All RELEASE_S3 settings are required together"
+            );
+            Url::parse(&values["RELEASE_S3_ENDPOINT"])?;
+        }
         let mut database_url = get("DATABASE_URL", "");
         if production && let Ok(mut parsed) = Url::parse(&database_url) {
             let mode = parsed
@@ -87,13 +103,13 @@ impl Config {
         let pa_key = get("PA_API_KEY", "");
         anyhow::ensure!(pa_key.starts_with("ak_"), "Invalid PA_API_KEY");
         for key in [
-            "UPSTREAM_DECK_WRITE_EXTRA_HEADER_NAME",
-            "UPSTREAM_DECK_WRITE_EXTRA_HEADER_VALUE",
             "AUTH_COOKIE_DOMAIN",
             "S3_ACCESS_KEY_ID",
             "S3_SECRET_ACCESS_KEY",
             "S3_BUCKET",
             "S3_REGION",
+            "RELEASE_LINK_SECRET",
+            "RELEASE_LINK_LEGACY_SECRET",
             "STALWART_JMAP_USERNAME",
             "STALWART_JMAP_PASSWORD",
             "EMAIL_FROM_NAME",
@@ -117,6 +133,7 @@ impl Config {
         }
         for (key, maximum) in [
             ("CARDMARKET_GAME_ID", None),
+            ("UPSTREAM_REQUESTS_PER_MINUTE", Some(60000.0)),
             ("PRICE_HISTORY_RETAIN_DAYS", Some(3650.0)),
             ("PRICE_HISTORY_RETAIN_SNAPSHOTS", Some(1000.0)),
         ] {
@@ -158,47 +175,17 @@ impl Config {
             .filter(|value| !value.is_empty())
             .map(str::to_owned)
             .collect();
-        let cookie_domain = values.get("AUTH_COOKIE_DOMAIN").cloned().or_else(|| {
-            if !production {
-                return None;
-            }
-            let api = auth_url.host_str()?;
-            let mut hosts = vec![api.to_owned()];
-            hosts.extend(
-                trusted
-                    .iter()
-                    .filter_map(|value| Url::parse(value).ok()?.host_str().map(str::to_owned)),
-            );
-            let parts: Vec<Vec<&str>> = hosts
-                .iter()
-                .map(|host| host.split('.').collect::<Vec<_>>())
-                .filter(|parts| parts.len() >= 3)
-                .collect();
-            let mut shared = None;
-            if trusted.is_empty() {
-                return (api.split('.').count() >= 3).then(|| {
-                    api.split('.')
-                        .rev()
-                        .take(2)
-                        .collect::<Vec<_>>()
-                        .into_iter()
-                        .rev()
-                        .collect::<Vec<_>>()
-                        .join(".")
-                });
-            }
-            let first = parts.first()?;
-            for depth in 2..=parts.iter().map(Vec::len).min()? {
-                let suffix = &first[first.len() - depth..];
-                if parts
-                    .iter()
-                    .all(|part| &part[part.len() - depth..] == suffix)
-                {
-                    shared = Some(suffix.join("."));
-                }
-            }
-            shared
-        });
+        let cookie_domain = values.get("AUTH_COOKIE_DOMAIN").cloned();
+        let trusted_proxies = get("TRUSTED_PROXY_CIDRS", "")
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::parse)
+            .collect::<std::result::Result<Vec<ipnet::IpNet>, _>>()?;
+        anyhow::ensure!(
+            !production || !trusted_proxies.is_empty(),
+            "TRUSTED_PROXY_CIDRS is required in production"
+        );
         let mut trusted_origins = trusted;
         trusted_origins.extend([
             auth_url.origin().ascii_serialization(),
@@ -249,6 +236,7 @@ impl Config {
             pa_key,
             trusted_origins,
             cookie_domain,
+            trusted_proxies,
             secure_cookies,
         })
     }
@@ -287,6 +275,45 @@ impl Config {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::Config;
+    #[test]
+    fn cookie_and_proxy_scope_require_explicit_configuration() {
+        let config = Config::for_test(&[
+            ("BETTER_AUTH_URL", "https://api.example.com"),
+            ("PUBLIC_APP_URL", "https://app.example.com"),
+        ])
+        .unwrap();
+        assert!(config.cookie_domain.is_none());
+        assert!(config.trusted_proxies.is_empty());
+        assert!(!config.origin_allowed("https://other.example.com"));
+        let explicit = Config::for_test(&[
+            ("AUTH_COOKIE_DOMAIN", "example.com"),
+            ("TRUSTED_PROXY_CIDRS", "127.0.0.1/32, ::1/128"),
+        ])
+        .unwrap();
+        assert_eq!(explicit.cookie_domain.as_deref(), Some("example.com"));
+        assert_eq!(explicit.trusted_proxies.len(), 2);
+        assert!(Config::for_test(&[("TRUSTED_PROXY_CIDRS", "not-a-network")]).is_err());
+        let production = [
+            ("NODE_ENV", "production"),
+            ("PUBLIC_APP_URL", "https://app.example.com"),
+        ];
+        assert!(Config::for_test(&production).is_err());
+        assert!(
+            Config::for_test(&[
+                production[0],
+                production[1],
+                ("TRUSTED_PROXY_CIDRS", "10.0.0.0/8")
+            ])
+            .is_ok()
+        );
+    }
+    #[test]
+    fn partial_release_storage_and_invalid_upstream_budgets_fail_startup() {
+        assert!(Config::for_test(&[("RELEASE_S3_BUCKET", "releases")]).is_err());
+        for value in ["0", "-1", "1.5", "invalid", "60001"] {
+            assert!(Config::for_test(&[("UPSTREAM_REQUESTS_PER_MINUTE", value)]).is_err());
+        }
+    }
     #[test]
     fn price_retention_defaults_and_rejects_values_that_would_prune_everything() {
         let config = Config::for_test(&[]).unwrap();

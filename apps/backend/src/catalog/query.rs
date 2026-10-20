@@ -271,12 +271,11 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
     let (hash, price_hash) = store::hashes(state).await?;
     let key = super::hash(&json!({"query":query,"catalog":hash,"prices":price_hash}));
     let refresh = bool_value(query, "refresh");
+    if refresh {
+        state.upstream_cache.lock().await.clear();
+    }
     let text_search = db::string(query, "q").trim().encode_utf16().count() >= 2;
-    if !refresh
-        && !text_search
-        && let Some(value) = state.catalog.results.lock().await.get(&key)
-        && number(value, "total", 0) > 0
-    {
+    if !refresh && let Some(value) = state.catalog.results.lock().await.get(&key) {
         return Ok(value.clone());
     }
     let mut result = local(state, query, &hash).await?;
@@ -285,7 +284,7 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
     let check = super::hash(query);
     let checked = state.catalog.checks.lock().await.contains(&check);
     let mut source = "cache";
-    if refresh || empty || !checked && (text_search || number(query, "page", 1) == 1) {
+    if refresh || !checked && (empty || text_search || number(query, "page", 1) == 1) {
         let incomparable = query["colorMode"] == "within"
             && !db::string(query, "colors").is_empty()
             || query["sortBy"] == "energy"
@@ -296,7 +295,8 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
         let mut clean = 0;
         let mut upstream_total = 0;
         let mut failed = false;
-        for page in (first_page..).take(if text_search { 20 } else { 100 }) {
+        let mut remaining_cards = if refresh { usize::MAX } else { 20 };
+        for page in (first_page..).take(if refresh { 100 } else { 2 }) {
             let upstream = match upstream::list_cards(state, &upstream_params(query, page)).await {
                 Ok(value) => value,
                 Err(_) => {
@@ -320,13 +320,14 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
                     })
                 })
                 .collect();
-            for item in &missing {
+            for item in missing.iter().take(remaining_cards) {
                 if let Ok(card) = upstream::card(state, db::string(item, "variantNumber")).await
                     && store::upsert(state, &card).await.is_ok()
                 {
                     changed += 1;
                 }
             }
+            remaining_cards = remaining_cards.saturating_sub(missing.len());
             if missing.is_empty() {
                 clean += 1;
             } else {
@@ -347,6 +348,7 @@ pub async fn search(state: &AppState, query: &Value) -> Result<Value> {
                 local_total >= upstream_total
             };
             if caught
+                || remaining_cards == 0
                 || upstream["pagination"]["hasNext"] != true
                 || page >= number(&upstream["pagination"], "totalPages", page)
             {

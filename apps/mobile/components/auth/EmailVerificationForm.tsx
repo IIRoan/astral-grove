@@ -18,7 +18,6 @@ type EmailVerificationFormProps = {
   onChangeEmail?: () => void;
   className?: string;
   initialOtp?: string;
-  autoSubmit?: boolean;
   /** Send OTP on mount for settings/restore only — not after sign-up/sign-in (already sent). */
   autoSendOnMount?: boolean;
   compact?: boolean;
@@ -31,7 +30,6 @@ export function EmailVerificationForm({
   onChangeEmail,
   className,
   initialOtp = '',
-  autoSubmit = false,
   autoSendOnMount = false,
   compact = false,
   submitLabel = 'Verify and continue',
@@ -43,10 +41,11 @@ export function EmailVerificationForm({
   const [busy, setBusy] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
   const [resendNote, setResendNote] = useState<string | null>(null);
-  const autoTriedRef = useRef(false);
   const autoSentRef = useRef(false);
+  const submitting = useRef(false);
 
   const verify = async (nextOtp: string) => {
+    if (submitting.current) return;
     const code = normalizeVerificationOtp(nextOtp);
     if (!isCompleteVerificationOtp(code)) {
       setError(
@@ -56,6 +55,7 @@ export function EmailVerificationForm({
     }
     Keyboard.dismiss();
     setError(null);
+    submitting.current = true;
     setBusy(true);
     try {
       const result = await authClient.emailOtp.verifyEmail({
@@ -70,6 +70,7 @@ export function EmailVerificationForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
@@ -98,13 +99,6 @@ export function EmailVerificationForm({
       setResendBusy(false);
     }
   };
-
-  useEffect(() => {
-    if (!autoSubmit || autoTriedRef.current) return;
-    if (!isCompleteVerificationOtp(initialOtp)) return;
-    autoTriedRef.current = true;
-    void verify(initialOtp);
-  }, [autoSubmit, initialOtp]);
 
   useEffect(() => {
     if (!autoSendOnMount || autoSentRef.current || !normalizedEmail) return;

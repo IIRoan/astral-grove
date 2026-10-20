@@ -7,8 +7,6 @@ import { logActionFailure } from '@/lib/logger';
 
 export const API_URL = getApiUrl();
 
-const isBrowserRuntime = typeof document !== 'undefined';
-
 export class RemoteApiError extends Error {
   constructor(
     readonly status: number,
@@ -28,7 +26,8 @@ async function authHeaders(
     ...extra,
   };
 
-  if (!isBrowserRuntime) {
+  if (typeof document === 'undefined') {
+    headers['X-Astral-Request'] = '1';
     const cookie = await getAuthCookieHeader();
     if (cookie) headers.cookie = cookie;
   }

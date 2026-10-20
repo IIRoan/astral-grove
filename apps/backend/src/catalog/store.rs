@@ -137,6 +137,9 @@ pub async fn detail_value(state: &AppState, card: &Value) -> Result<Value> {
     Ok(mapper::detail(state, card, &prices))
 }
 pub async fn detail(state: &AppState, number: &str, refresh: bool) -> Result<Value> {
+    if refresh {
+        state.upstream_cache.lock().await.clear();
+    }
     let cached = logical(state, number).await?;
     if let Some((card, hash)) = &cached
         && !refresh

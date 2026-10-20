@@ -365,56 +365,6 @@
         "parameters": []
       }
     },
-    "/api/auth/email-otp/request-password-reset": {
-      "post": {
-        "operationId": "requestPasswordResetEmailOTP",
-        "responses": { "200": { "content": { "application/json": { "schema": {} } } } },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "required": ["email"],
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "description": "Email address to send the OTP"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "parameters": []
-      }
-    },
-    "/api/auth/email-otp/reset-password": {
-      "post": {
-        "operationId": "resetPasswordEmailOTP",
-        "responses": { "200": { "content": { "application/json": { "schema": {} } } } },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "required": ["email", "otp", "password"],
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "description": "Email address to reset the password"
-                  },
-                  "otp": { "type": "string", "description": "OTP sent to the email" },
-                  "password": { "type": "string", "description": "New password" }
-                }
-              }
-            }
-          }
-        },
-        "parameters": []
-      }
-    },
     "/api/auth/email-otp/send-verification-otp": {
       "post": {
         "operationId": "sendVerificationOTP",
@@ -503,30 +453,6 @@
             "schema": { "type": "string" }
           }
         ]
-      }
-    },
-    "/api/auth/forget-password/email-otp": {
-      "post": {
-        "operationId": "forgetPasswordEmailOTP",
-        "responses": { "200": { "content": { "application/json": { "schema": {} } } } },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "required": ["email"],
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "description": "Email address to send the OTP"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "parameters": []
       }
     },
     "/api/auth/get-access-token": {
@@ -1033,52 +959,6 @@
                     "description": "If this is false, the session will not be remembered. Default is `true`."
                   }
                 }
-              }
-            }
-          }
-        },
-        "parameters": []
-      }
-    },
-    "/api/auth/sign-in/email-otp": {
-      "post": {
-        "operationId": "signInEmailOTP",
-        "responses": { "200": { "content": { "application/json": { "schema": {} } } } },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "email": {
-                        "type": "string",
-                        "description": "Email address to sign in"
-                      },
-                      "otp": {
-                        "type": "string",
-                        "required": true,
-                        "description": "OTP sent to the email"
-                      },
-                      "name": {
-                        "type": "string",
-                        "description": "User display name. Only used if the user is registering for the first time. Eg: \"my-name\""
-                      },
-                      "image": {
-                        "type": "string",
-                        "description": "User profile image URL. Only used if the user is registering for the first time."
-                      }
-                    },
-                    "required": ["email", "otp"]
-                  },
-                  {
-                    "type": "object",
-                    "propertyNames": { "type": "string" },
-                    "additionalProperties": {}
-                  }
-                ]
               }
             }
           }

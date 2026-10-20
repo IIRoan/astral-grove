@@ -153,9 +153,9 @@ describe('permanent release URLs', () => {
 
   test('uses the same permanent URL for the page, manifest, and APK', () => {
     const previous = process.env.S3_PUBLIC_BASE_URL;
-    const previousSecret = process.env.S3_SECRET_ACCESS_KEY;
+    const previousSecret = process.env.RELEASE_LINK_SECRET;
     process.env.S3_PUBLIC_BASE_URL = 'https://riftapi.solace.onl/api/v1/';
-    process.env.S3_SECRET_ACCESS_KEY = 'test-internal-release-secret';
+    process.env.RELEASE_LINK_SECRET = 'test-internal-release-secret';
     try {
       for (const key of Object.values(releaseKeys('preview'))) {
         const url = resolveUrl(key);
@@ -168,8 +168,8 @@ describe('permanent release URLs', () => {
     } finally {
       if (previous === undefined) delete process.env.S3_PUBLIC_BASE_URL;
       else process.env.S3_PUBLIC_BASE_URL = previous;
-      if (previousSecret === undefined) delete process.env.S3_SECRET_ACCESS_KEY;
-      else process.env.S3_SECRET_ACCESS_KEY = previousSecret;
+      if (previousSecret === undefined) delete process.env.RELEASE_LINK_SECRET;
+      else process.env.RELEASE_LINK_SECRET = previousSecret;
     }
   });
 

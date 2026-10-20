@@ -18,7 +18,22 @@ describe('email verification helpers', () => {
         email: 'User@Example.com',
         otp: '654321',
       })
-    ).toEqual({ email: 'user@example.com', otp: '654321' });
+    ).toEqual({ email: 'user@example.com', otp: '654321', token: '' });
     expect(parseVerificationSearchParams({ email: 'a@b.com' })).toBeNull();
+  });
+
+  test('parses emailed link tokens and rejects malformed ones', () => {
+    const token = 'a'.repeat(42) + '_';
+    expect(parseVerificationSearchParams({ email: 'a@b.com', token })).toEqual({
+      email: 'a@b.com',
+      otp: '',
+      token,
+    });
+    expect(
+      parseVerificationSearchParams({ email: 'a@b.com', token: 'short' })
+    ).toBeNull();
+    expect(
+      parseVerificationSearchParams({ email: 'a@b.com', token: 'a'.repeat(42) + '/' })
+    ).toBeNull();
   });
 });

@@ -12,20 +12,22 @@ fn params(pairs: &[(&str, &str)]) -> String {
         .extend_pairs(pairs.iter().copied())
         .finish()
 }
-pub fn verification(state: &AppState, email: &str, otp: &str) -> Message {
-    let query = params(&[("email", &email.trim().to_lowercase()), ("otp", otp.trim())]);
+pub fn verification(state: &AppState, email: &str, otp: &str, token: &str) -> Message {
+    let query = params(&[
+        ("email", &email.trim().to_lowercase()),
+        ("token", token.trim()),
+    ]);
     let link = format!(
         "{}/verify-email?{query}",
         state.config.public_url.trim_end_matches('/')
     );
-    let deep = format!("astral-grove://verify-email?{query}");
     Message {
         subject: "Verify your Astral Grove email".into(),
         text: format!(
-            "Confirm your email to finish setting up The Astral Grove.\n\nVerification code: {otp}\n\nOr open this link: {link}\n\nOn a phone with the app installed: {deep}\n"
+            "Confirm your email to finish setting up The Astral Grove.\n\nVerification code: {otp}\n\nOr open this link: {link}\n"
         ),
         html: format!(
-            "<p>Confirm your email to finish setting up The Astral Grove.</p><p>Your verification code is <strong style=\"font-size:1.25em;letter-spacing:0.08em\">{otp}</strong></p><p><a href=\"{link}\">Verify email with this link</a></p><p style=\"color:#666;font-size:0.9em\">Prefer the app? <a href=\"{deep}\">Open in The Astral Grove</a></p>"
+            "<p>Confirm your email to finish setting up The Astral Grove.</p><p>Your verification code is <strong style=\"font-size:1.25em;letter-spacing:0.08em\">{otp}</strong></p><p><a href=\"{link}\">Verify email with this link</a></p>"
         ),
     }
 }
@@ -50,14 +52,13 @@ pub fn reset(state: &AppState, email: &str, token: &str, callback: &str) -> Mess
         "{}/reset-password?{query}",
         state.config.public_url.trim_end_matches('/')
     );
-    let deep = format!("astral-grove://reset-password?{query}");
     Message {
         subject: "Reset your Astral Grove password".into(),
         text: format!(
-            "Choose a new password for The Astral Grove.\n\nOpen this link: {link}\n\nOn a phone with the app installed: {deep}\n\nIf the links above do not work, use this fallback:\n{callback}\n\nIf you did not ask for this, you can ignore the email.\n"
+            "Choose a new password for The Astral Grove.\n\nOpen this link: {link}\n\nIf the links above do not work, use this fallback:\n{callback}\n\nIf you did not ask for this, you can ignore the email.\n"
         ),
         html: format!(
-            "<p>Choose a new password for The Astral Grove.</p><p><a href=\"{link}\">Choose a new password</a></p><p style=\"color:#666;font-size:0.9em\">Prefer the app? <a href=\"{deep}\">Open in The Astral Grove</a></p><p style=\"color:#666;font-size:0.85em\"><a href=\"{callback}\">Fallback reset link</a></p><p style=\"color:#666;font-size:0.9em\">If you did not ask for this, you can ignore the email.</p>"
+            "<p>Choose a new password for The Astral Grove.</p><p><a href=\"{link}\">Choose a new password</a></p><p style=\"color:#666;font-size:0.85em\"><a href=\"{callback}\">Fallback reset link</a></p><p style=\"color:#666;font-size:0.9em\">If you did not ask for this, you can ignore the email.</p>"
         ),
     }
 }

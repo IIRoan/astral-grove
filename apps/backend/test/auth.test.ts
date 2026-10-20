@@ -326,7 +326,9 @@ describe('authentication', () => {
       '/api/auth/email-otp/verify-email',
       json({ email: user.email, otp: '123456' })
     );
-    expect(exhausted.status).toBe(403);
+    expect(exhausted.status).toBe(400);
+    expect((await exhausted.json()).code).toBe('INVALID_OTP');
+    await sql`DELETE FROM verification WHERE identifier=${`otp-attempts:${identifier}`}`;
     await sql`INSERT INTO verification(id,identifier,value,expires_at) VALUES(${crypto.randomUUID()},${identifier},'654321:0',now()+interval '5 minutes')`;
     const results = await Promise.all(
       Array.from({ length: 8 }, () =>
@@ -338,12 +340,13 @@ describe('authentication', () => {
     );
     expect(results.filter((r) => r.status === 200)).toHaveLength(1);
     expect(results.filter((r) => r.status === 400)).toHaveLength(7);
+    await sql`DELETE FROM verification WHERE identifier=${`otp-attempts:${identifier}`}`;
     await sql`INSERT INTO verification(id,identifier,value,expires_at) VALUES(${crypto.randomUUID()},${identifier},'654321:0',now()-interval '1 minute')`;
     const expired = await app.fetch(
       '/api/auth/email-otp/verify-email',
       json({ email: user.email, otp: '654321' })
     );
-    expect((await expired.json()).code).toBe('OTP_EXPIRED');
+    expect((await expired.json()).code).toBe('INVALID_OTP');
   });
   test('fresh-session guards reject old sessions and reset tokens remain server-only', async () => {
     const user = await signup('fresh');
@@ -386,14 +389,23 @@ describe('authentication', () => {
           .parse(mail.messages.at(-1)).bodyValues.text.value;
       const otp = text().match(/Verification code: (\d{6})/)?.[1];
       expect(otp).toBeDefined();
-      expect(text()).toContain('astral-grove://verify-email?');
+      expect(text()).toContain('http://localhost:7001/verify-email?');
+      expect(text()).not.toContain('astral-grove://');
       const verified = await server.fetch(
         '/api/auth/email-otp/verify-email',
         json({ email: user.email, otp })
       );
       expect(verified.status).toBe(200);
-      const signed = cookie(verified);
-      expect(Login.parse(await verified.json()).user.emailVerified).toBe(true);
+      expect(cookie(verified)).toBe('');
+      const verifiedBody = Login.parse(await verified.json());
+      expect(verifiedBody.user.emailVerified).toBe(true);
+      expect(verifiedBody.token).toBeNull();
+      const signedIn = await server.fetch(
+        '/api/auth/sign-in/email',
+        json({ email: user.email, password })
+      );
+      expect(signedIn.status).toBe(200);
+      const signed = cookie(signedIn);
       const mails = mail.messages.length;
       const duplicate = await server.fetch(
         '/api/auth/sign-up/email',

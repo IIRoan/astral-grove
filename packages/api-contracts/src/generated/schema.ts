@@ -159,38 +159,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/auth/email-otp/request-password-reset': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations['requestPasswordResetEmailOTP'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/auth/email-otp/reset-password': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations['resetPasswordEmailOTP'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/auth/email-otp/send-verification-otp': {
     parameters: {
       query?: never;
@@ -249,22 +217,6 @@ export interface paths {
     get: operations['expoAuthorizationProxy'];
     put?: never;
     post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/auth/forget-password/email-otp': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations['forgetPasswordEmailOTP'];
     delete?: never;
     options?: never;
     head?: never;
@@ -505,22 +457,6 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations['signInEmail'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/auth/sign-in/email-otp': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations['signInEmailOTP'];
     delete?: never;
     options?: never;
     head?: never;
@@ -7470,62 +7406,6 @@ export interface operations {
       };
     };
   };
-  requestPasswordResetEmailOTP: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** @description Email address to send the OTP */
-          email: string;
-        };
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': unknown;
-        };
-      };
-    };
-  };
-  resetPasswordEmailOTP: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** @description Email address to reset the password */
-          email: string;
-          /** @description OTP sent to the email */
-          otp: string;
-          /** @description New password */
-          password: string;
-        };
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': unknown;
-        };
-      };
-    };
-  };
   sendVerificationOTP: {
     parameters: {
       query?: never;
@@ -7615,32 +7495,6 @@ export interface operations {
       cookie?: never;
     };
     requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': unknown;
-        };
-      };
-    };
-  };
-  forgetPasswordEmailOTP: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** @description Email address to send the OTP */
-          email: string;
-        };
-      };
-    };
     responses: {
       200: {
         headers: {
@@ -8130,40 +7984,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['SignInResponse'];
-        };
-      };
-    };
-  };
-  signInEmailOTP: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** @description Email address to sign in */
-          email: string;
-          /** @description OTP sent to the email */
-          otp: string;
-          /** @description User display name. Only used if the user is registering for the first time. Eg: "my-name" */
-          name?: string;
-          /** @description User profile image URL. Only used if the user is registering for the first time. */
-          image?: string;
-        } & {
-          [key: string]: unknown;
-        };
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': unknown;
         };
       };
     };

@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn migration_chain_is_complete_and_ordered() {
-        assert_eq!(MIGRATIONS.len(), 16);
+        assert_eq!(MIGRATIONS.len(), 18);
         for pair in MIGRATIONS.windows(2) {
             assert!(pair[0].1 < pair[1].1);
         }

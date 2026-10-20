@@ -120,8 +120,7 @@ impl<S: Send + Sync> axum::extract::FromRequestParts<S> for BodyJson {
     ) -> crate::error::Result<Self> {
         Ok(parts
             .extensions
-            .get::<Self>()
-            .cloned()
+            .remove::<Self>()
             .unwrap_or(Self(serde_json::Value::Null)))
     }
 }
@@ -138,13 +137,26 @@ pub async fn input_layer(
     {
         return next.run(request).await;
     }
+    let limit = crate::middleware::body_limit(request.uri().path());
+    let deadline = crate::middleware::body_deadline(request.uri().path());
     let (mut parts, body) = request.into_parts();
-    let bytes = match axum::body::to_bytes(body, 128 * 1024 * 1024).await {
-        Ok(bytes) => bytes,
+    let received = tokio::time::timeout(deadline, axum::body::to_bytes(body, limit)).await;
+    let bytes = match received {
         Err(_) => {
-            return crate::error::AppError::new(413, "PAYLOAD_TOO_LARGE", "Request body too large")
+            return crate::error::AppError::new(408, "REQUEST_TIMEOUT", "Request body timed out")
                 .into_response();
         }
+        Ok(result) => match result {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return crate::error::AppError::new(
+                    413,
+                    "PAYLOAD_TOO_LARGE",
+                    "Request body too large",
+                )
+                .into_response();
+            }
+        },
     };
     let media = parts
         .headers
@@ -159,9 +171,9 @@ pub async fn input_layer(
     let value = if bytes.is_empty() {
         serde_json::Value::Null
     } else if media == "application/json" || media.ends_with("+json") {
-        match serde_json::from_slice(&bytes) {
-            Ok(value) => value,
-            Err(_) => {
+        match tokio::task::spawn_blocking(move || serde_json::from_slice(&bytes)).await {
+            Ok(Ok(value)) => value,
+            _ => {
                 return crate::error::AppError::new(
                     400,
                     "VALIDATION_ERROR",
@@ -170,12 +182,13 @@ pub async fn input_layer(
                 .into_response();
             }
         }
-    } else if media == "application/x-www-form-urlencoded" {
-        query(std::str::from_utf8(&bytes).ok())
-    } else if media.starts_with("text/") {
-        serde_json::Value::String(String::from_utf8_lossy(&bytes).into_owned())
     } else {
-        serde_json::Value::Null
+        return crate::error::AppError::new(
+            415,
+            "UNSUPPORTED_MEDIA_TYPE",
+            "Expected application/json",
+        )
+        .into_response();
     };
     parts.extensions.insert(BodyJson(value));
     next.run(axum::extract::Request::from_parts(

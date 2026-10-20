@@ -12,6 +12,63 @@ pub fn validate_email(email: &str) -> Result<String> {
     }
     Ok(email)
 }
+pub fn public_kind(kind: &str) -> Result<()> {
+    if kind != "email-verification" {
+        return Err(pipeline::message(400, "Invalid OTP type"));
+    }
+    Ok(())
+}
+
+async fn budget<C: ConnectionTrait>(
+    connection: &C,
+    identifier: &str,
+    max: u64,
+    seconds: i64,
+    charge: bool,
+) -> Result<()> {
+    let rows = db::rows(connection, "SELECT id,value,expires_at>now() AS active FROM verification WHERE identifier=$1 FOR UPDATE", vec![identifier.into()]).await?;
+    let used = rows
+        .first()
+        .filter(|row| row["active"] == true)
+        .and_then(|row| row["value"].as_str())
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(0);
+    if used >= max {
+        return Err(error(
+            429,
+            "TOO_MANY_ATTEMPTS",
+            "Too many attempts. Try again later.",
+        ));
+    }
+    if !charge {
+        return Ok(());
+    }
+    if used == 0 {
+        db::execute(
+            connection,
+            "DELETE FROM verification WHERE identifier=$1",
+            vec![identifier.into()],
+        )
+        .await?;
+        db::execute(connection, "INSERT INTO verification(id,identifier,value,expires_at) VALUES($1,$2,'1',now()+($3::text||' seconds')::interval)", vec![service::id().into(),identifier.into(),seconds.into()]).await?;
+    } else {
+        db::execute(
+            connection,
+            "UPDATE verification SET value=$2 WHERE identifier=$1",
+            vec![identifier.into(), (used + 1).to_string().into()],
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+pub async fn issuance_budget(state: &AppState, identifier: &str) -> Result<()> {
+    let tx = state.db.begin().await?;
+    lock(&tx, identifier).await?;
+    budget(&tx, &format!("otp-send:{identifier}"), 3, 60, true).await?;
+    tx.commit().await?;
+    Ok(())
+}
 pub async fn lock<C: ConnectionTrait>(connection: &C, identifier: &str) -> Result<()> {
     db::rows(
         connection,
@@ -34,108 +91,93 @@ pub async fn store(state: &AppState, identifier: &str, value: &str, seconds: i64
     tx.commit().await?;
     Ok(())
 }
-pub async fn discard(state: &AppState, identifier: &str) -> Result<()> {
+pub async fn discard<C: ConnectionTrait>(connection: &C, identifier: &str) -> Result<()> {
     db::execute(
-        &state.db,
+        connection,
         "DELETE FROM verification WHERE identifier=$1",
         vec![identifier.into()],
     )
     .await?;
     Ok(())
 }
-pub async fn send(
-    state: &AppState,
-    address: &str,
-    kind: &str,
-    current: Option<&str>,
-) -> Result<Value> {
+pub async fn send(state: &AppState, address: &str, kind: &str) -> Result<Value> {
     let address = validate_email(address)?;
-    if kind == "change-email" {
-        return Err(pipeline::message(400, "Invalid OTP type"));
-    }
+    public_kind(kind)?;
     let otp = format!("{:06}", rand::rng().random_range(0_u32..1_000_000));
     let identifier = format!("{kind}-otp-{address}");
-    store(state, &identifier, &format!("{otp}:0"), 300).await?;
-    if kind != "sign-in" && service::find_user(state, &address).await?.is_none() {
-        discard(state, &identifier).await?;
+    // Unknown addresses spend the same issuance budget so 429s do not reveal accounts.
+    issuance_budget(state, &identifier).await?;
+    if service::find_user(state, &address).await?.is_none() {
         return Ok(json!({"success":true}));
     }
-    send_message(state, &address, &otp, kind, current).await?;
+    store(state, &identifier, &format!("{otp}:0"), 300).await?;
+    let link = service::random_token();
+    store(state, &link_identifier(&link), &address, 3600).await?;
+    email::send(
+        state,
+        &address,
+        email::verification(state, &address, &otp, &link),
+    )
+    .await?;
     Ok(json!({"success":true}))
 }
-pub async fn send_message(
-    state: &AppState,
-    address: &str,
-    otp: &str,
-    kind: &str,
-    current: Option<&str>,
-) -> Result<()> {
-    match kind {
-        "email-verification" => {
-            email::send(state, address, email::verification(state, address, otp)).await
-        }
-        "change-email" => {
-            email::send(
-                state,
-                address,
-                email::change_email(current.unwrap_or(""), otp),
-            )
-            .await
-        }
-        _ => Ok(()),
-    }
+fn link_identifier(token: &str) -> String {
+    format!("email-verification-link:{token}")
 }
 pub async fn check(
     state: &AppState,
     identifier: &str,
     candidate: &str,
     consume: bool,
+    target: Option<&str>,
 ) -> Result<()> {
+    let mut budgets = vec![format!("otp-attempts:{identifier}")];
+    budgets.extend(target.map(|target| format!("otp-attempts:target:{target}")));
     let tx = state.db.begin().await?;
+    for key in &budgets {
+        lock(&tx, key).await?;
+    }
     lock(&tx, identifier).await?;
+    for key in &budgets {
+        budget(&tx, key, 10, 600, false).await?;
+    }
     let values=db::rows(&tx,"SELECT id,value,expires_at<now() AS expired FROM verification WHERE identifier=$1 ORDER BY created_at DESC LIMIT 1 FOR UPDATE",vec![identifier.into()]).await?;
-    let outcome = if let Some(value) = values.first() {
-        let remove = || vec![identifier.into()];
-        if value["expired"] == true {
-            db::execute(
-                &tx,
-                "DELETE FROM verification WHERE identifier=$1",
-                remove(),
-            )
-            .await?;
-            Err(error(400, "OTP_EXPIRED", "OTP expired"))
-        } else {
-            let raw = value["value"].as_str().unwrap_or("");
-            let (otp, attempts) = raw.rsplit_once(':').unwrap_or((raw, "0"));
-            let attempts = attempts.parse::<u32>().unwrap_or(0);
-            if attempts >= 3 {
-                db::execute(
-                    &tx,
-                    "DELETE FROM verification WHERE identifier=$1",
-                    remove(),
-                )
-                .await?;
-                Err(error(403, "TOO_MANY_ATTEMPTS", "Too many attempts"))
-            } else if !bool::from(otp.as_bytes().ct_eq(candidate.as_bytes())) {
-                db::execute(&tx,"UPDATE verification SET value=$2,updated_at=date_trunc('milliseconds',now()) WHERE identifier=$1",vec![identifier.into(),format!("{otp}:{}",attempts+1).into()]).await?;
-                Err(error(400, "INVALID_OTP", "Invalid OTP"))
-            } else {
-                if consume {
-                    db::execute(
-                        &tx,
-                        "DELETE FROM verification WHERE identifier=$1",
-                        remove(),
-                    )
-                    .await?;
-                }
-                Ok(())
-            }
+    let current = values.first().filter(|value| value["expired"] != true);
+    let raw = current
+        .and_then(|value| value["value"].as_str())
+        .unwrap_or("");
+    let (otp, attempts) = raw.rsplit_once(':').unwrap_or((raw, "0"));
+    let attempts = attempts.parse::<u32>().unwrap_or(0);
+    // Missing, expired and exhausted codes answer like wrong ones so accounts stay indistinguishable.
+    if current.is_some() && attempts < 3 && bool::from(otp.as_bytes().ct_eq(candidate.as_bytes())) {
+        if consume {
+            discard(&tx, identifier).await?;
         }
-    } else {
-        Err(error(400, "INVALID_OTP", "Invalid OTP"))
-    };
+        tx.commit().await?;
+        return Ok(());
+    }
+    for key in &budgets {
+        budget(&tx, key, 10, 600, true).await?;
+    }
+    if current.is_some() && attempts < 2 {
+        db::execute(&tx,"UPDATE verification SET value=$2,updated_at=date_trunc('milliseconds',now()) WHERE identifier=$1",vec![identifier.into(),format!("{otp}:{}",attempts+1).into()]).await?;
+    } else if !values.is_empty() {
+        discard(&tx, identifier).await?;
+    }
     tx.commit().await?;
-    outcome
+    Err(error(400, "INVALID_OTP", "Invalid OTP"))
+}
+async fn consume_link(state: &AppState, address: &str, token: &str) -> Result<()> {
+    let identifier = link_identifier(token);
+    let tx = state.db.begin().await?;
+    lock(&tx, &identifier).await?;
+    let consumed = db::rows(&tx,"DELETE FROM verification WHERE identifier=$1 AND value=$2 AND expires_at>now() RETURNING id",vec![identifier.into(),address.into()]).await?;
+    if consumed.is_empty() {
+        return Err(error(400, "INVALID_OTP", "Invalid OTP"));
+    }
+    discard(&tx, &format!("email-verification-otp-{address}")).await?;
+    tx.commit().await?;
+    Ok(())
 }
 pub async fn verify_email(
     state: &AppState,
@@ -144,105 +186,39 @@ pub async fn verify_email(
     headers: &axum::http::HeaderMap,
 ) -> Result<super::core::Reply> {
     let address = validate_email(address)?;
-    check(
-        state,
-        &format!("email-verification-otp-{address}"),
-        otp,
-        true,
-    )
-    .await?;
-    let user = service::find_user(state, &address)
+    if service::get_session(state, headers)
         .await?
-        .ok_or_else(|| error(400, "USER_NOT_FOUND", "User not found"))?;
-    db::execute(&state.db,"UPDATE \"user\" SET email_verified=true,updated_at=date_trunc('milliseconds',now()) WHERE id=$1",vec![user.id.into()]).await?;
-    let user = service::find_user(state, &address)
-        .await?
-        .ok_or_else(|| error(400, "USER_NOT_FOUND", "User not found"))?;
-    let mut reply = super::core::Reply::json(json!({"status":true,"token":null,"user":user}));
-    if state.config.email_enabled() {
-        let token = service::create_session(state, &user.id, headers, true).await?;
-        reply.headers = service::signed_headers(state, &token, true)?;
-        reply.body["token"] = json!(token)
+        .is_some_and(|session| session.user.email != address)
+    {
+        return Err(error(
+            403,
+            "ACCOUNT_MISMATCH",
+            "Sign out before verifying another account",
+        ));
     }
-    Ok(reply)
-}
-pub async fn sign_in(
-    state: &AppState,
-    body: &Value,
-    headers: &axum::http::HeaderMap,
-) -> Result<super::core::Reply> {
-    let email = validate_email(body["email"].as_str().unwrap_or(""))?;
-    check(
-        state,
-        &format!("sign-in-otp-{email}"),
-        body["otp"].as_str().unwrap_or(""),
-        true,
-    )
-    .await?;
-    let tx = state.db.begin().await?;
-    lock(&tx, &format!("user-email:{email}")).await?;
-    let user = db::rows(
-        &tx,
-        "SELECT id,email_verified FROM \"user\" WHERE email=$1 FOR UPDATE",
-        vec![email.clone().into()],
-    )
-    .await?;
-    if let Some(user) = user.first() {
-        if user["email_verified"] == false {
-            let user = user["id"].as_str().unwrap_or("");
-            db::execute(
-                &tx,
-                "DELETE FROM account WHERE user_id=$1",
-                vec![user.into()],
-            )
-            .await?;
-            db::execute(
-                &tx,
-                "DELETE FROM session WHERE user_id=$1",
-                vec![user.into()],
-            )
-            .await?;
-            db::execute(&tx,"UPDATE \"user\" SET email_verified=true,updated_at=date_trunc('milliseconds',now()) WHERE id=$1",vec![user.into()]).await?;
-        }
+    // Emailed links carry a 256-bit token, so they bypass the guessing budget an attacker can exhaust.
+    if otp.len() == 43 {
+        consume_link(state, &address, otp).await?;
     } else {
-        db::execute(
-            &tx,
-            "INSERT INTO \"user\"(id,email,name,image,email_verified) VALUES($1,$2,$3,$4,true)",
-            vec![
-                service::id().into(),
-                email.clone().into(),
-                body["name"].as_str().unwrap_or("").into(),
-                body["image"].as_str().map(str::to_owned).into(),
-            ],
+        check(
+            state,
+            &format!("email-verification-otp-{address}"),
+            otp,
+            true,
+            None,
         )
         .await?;
     }
-    tx.commit().await?;
-    let user = service::find_user(state, &email)
-        .await?
-        .ok_or_else(|| error(500, "FAILED_TO_CREATE_USER", "Failed to create user"))?;
-    let token = service::create_session(state, &user.id, headers, true).await?;
-    let mut reply = super::core::Reply::json(json!({"token":token,"user":user}));
-    reply.headers = service::signed_headers(state, &token, true)?;
-    Ok(reply)
-}
-pub async fn reset(state: &AppState, body: &Value) -> Result<Value> {
-    let email = validate_email(body["email"].as_str().unwrap_or(""))?;
-    let plain = body["password"].as_str().unwrap_or("");
-    service::check_password(plain)?;
-    check(
-        state,
-        &format!("forget-password-otp-{email}"),
-        body["otp"].as_str().unwrap_or(""),
-        true,
-    )
-    .await?;
-    let user = service::find_user(state, &email)
+    let user = service::find_user(state, &address)
         .await?
         .ok_or_else(|| error(400, "USER_NOT_FOUND", "User not found"))?;
-    super::core::set_password(state, &user.id, plain, true).await?;
     db::execute(&state.db,"UPDATE \"user\" SET email_verified=true,updated_at=date_trunc('milliseconds',now()) WHERE id=$1",vec![user.id.into()]).await?;
-    Ok(json!({"success":true}))
+    let user = service::find_user(state, &address)
+        .await?
+        .ok_or_else(|| error(400, "USER_NOT_FOUND", "User not found"))?;
+    Ok(super::core::Reply::json(
+        json!({"status":true,"token":null,"user":user}),
+    ))
 }
 pub async fn change(
     state: &AppState,
@@ -257,23 +233,29 @@ pub async fn change(
     }
     let identifier = format!("change-email-otp-{}-{email}", session.user.email);
     if request {
+        issuance_budget(state, &format!("change-email:{}", session.user.id)).await?;
         let otp = format!("{:06}", rand::rng().random_range(0_u32..1_000_000));
         store(state, &identifier, &format!("{otp}:0"), 300).await?;
         if service::find_user(state, &email).await?.is_some() {
-            discard(state, &identifier).await?;
+            discard(&state.db, &identifier).await?;
         } else {
-            send_message(
+            email::send(
                 state,
                 &email,
-                &otp,
-                "change-email",
-                Some(&session.user.email),
+                email::change_email(&session.user.email, &otp),
             )
             .await?;
         }
         return Ok(super::core::Reply::json(json!({"success":true})));
     }
-    check(state, &identifier, body["otp"].as_str().unwrap_or(""), true).await?;
+    check(
+        state,
+        &identifier,
+        body["otp"].as_str().unwrap_or(""),
+        true,
+        Some(&format!("change-email:{email}")),
+    )
+    .await?;
     let tx = state.db.begin().await?;
     lock(&tx, &format!("user-email:{email}")).await?;
     if !db::rows(
@@ -286,10 +268,17 @@ pub async fn change(
     {
         return Err(pipeline::message(400, "Email already in use"));
     }
-    let updated=db::execute(&tx,"UPDATE \"user\" SET email=$2,email_verified=true,updated_at=date_trunc('milliseconds',now()) WHERE id=$1",vec![session.user.id.into(),email.into()]).await?;
+    let updated=db::execute(&tx,"UPDATE \"user\" SET email=$2,email_verified=true,updated_at=date_trunc('milliseconds',now()) WHERE id=$1",vec![session.user.id.clone().into(),email.into()]).await?;
     if updated == 0 {
         return Err(error(400, "USER_NOT_FOUND", "User not found"));
     }
+    // Reset links mailed to the previous address must not outlive the change.
+    db::execute(
+        &tx,
+        "DELETE FROM verification WHERE identifier LIKE 'reset-password:%' AND value=$1",
+        vec![session.user.id.into()],
+    )
+    .await?;
     tx.commit().await?;
     let mut reply = super::core::Reply::json(json!({"success":true}));
     reply.headers = service::signed_headers(state, &session.session.token, true)?;

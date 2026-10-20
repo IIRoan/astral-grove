@@ -645,25 +645,7 @@ fn make_collection_import_request() -> z::Schema {
         ),
         (
             "items",
-            z::array(z::object([
-                ("variantNumber", z::string().min(1)),
-                ("quantity", z::number().int().gt(0.0)),
-                (
-                    "condition",
-                    schema("CardCondition").default(serde_json::json!("near_mint")),
-                ),
-                (
-                    "language",
-                    z::string().max(16).default(serde_json::json!("en")),
-                ),
-                ("isFoil", z::boolean().optional()),
-                ("notes", z::string().max(2000).nullable().optional()),
-                ("isGraded", z::boolean().optional()),
-                ("gradeCompany", z::string().max(64).nullable().optional()),
-                ("gradeScore", z::string().max(32).nullable().optional()),
-            ]))
-            .max(2000)
-            .optional(),
+            z::array(collection_import_item()).max(2000).optional(),
         ),
     ])
 }
@@ -2263,3 +2245,23 @@ pub const NAMES: &[&str] = &[
     "WishlistListResponse",
     "WishlistUpsertRequest",
 ];
+
+pub fn collection_import_item() -> z::Schema {
+    z::object([
+        ("variantNumber", z::string().min(1)),
+        ("quantity", z::number().int().gt(0.0)),
+        (
+            "condition",
+            schema("CardCondition").default(serde_json::json!("near_mint")),
+        ),
+        (
+            "language",
+            z::string().max(16).default(serde_json::json!("en")),
+        ),
+        ("isFoil", z::boolean().optional()),
+        ("notes", z::string().max(2000).nullable().optional()),
+        ("isGraded", z::boolean().optional()),
+        ("gradeCompany", z::string().max(64).nullable().optional()),
+        ("gradeScore", z::string().max(32).nullable().optional()),
+    ])
+}

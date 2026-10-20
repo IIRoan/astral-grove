@@ -7,7 +7,7 @@ use astral_grove_api_types::auth::{SessionResponse, User};
 use axum::http::HeaderMap;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::RngExt;
-use sea_orm::TransactionTrait;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 
 pub const USER_COLUMNS: &str = "id, name, email, email_verified AS \"emailVerified\", image, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"";
 
@@ -81,14 +81,53 @@ pub async fn create_session(
     headers: &HeaderMap,
     remember: bool,
 ) -> Result<String> {
+    create_session_on(&state.db, user_id, headers, remember).await
+}
+pub async fn create_session_on<C: ConnectionTrait>(
+    connection: &C,
+    user_id: &str,
+    headers: &HeaderMap,
+    remember: bool,
+) -> Result<String> {
     let token = random_token();
-    let ip = client_ip(state, headers);
+    let ip = crate::middleware::client_ip(headers);
     let agent = headers
         .get("user-agent")
         .and_then(|value| value.to_str().ok())
         .unwrap_or("")
-        .to_owned();
-    db::execute(&state.db, "INSERT INTO session(id,user_id,token,expires_at,ip_address,user_agent) VALUES($1,$2,$3,now()+($4::text||' seconds')::interval,$5,$6)", vec![id().into(), user_id.into(), token.clone().into(), (if remember { 604800_i64 } else { 86400_i64 }).into(), ip.into(), agent.into()]).await?;
+        .chars()
+        .take(1024)
+        .collect::<String>();
+    db::execute(connection, "INSERT INTO session(id,user_id,token,expires_at,ip_address,user_agent) VALUES($1,$2,$3,now()+($4::text||' seconds')::interval,$5,$6)", vec![id().into(), user_id.into(), token.clone().into(), (if remember { 604800_i64 } else { 86400_i64 }).into(), ip.into(), agent.into()]).await?;
+    Ok(token)
+}
+pub async fn password_session(
+    state: &AppState,
+    user_id: &str,
+    verified_hash: &str,
+    headers: &HeaderMap,
+    remember: bool,
+) -> Result<String> {
+    let tx = state.db.begin().await?;
+    super::otp::lock(&tx, &format!("credential:{user_id}")).await?;
+    let rows = db::rows(
+        &tx,
+        "SELECT password FROM account WHERE user_id=$1 AND provider_id='credential'",
+        vec![user_id.into()],
+    )
+    .await?;
+    if !rows
+        .iter()
+        .any(|row| row["password"].as_str() == Some(verified_hash))
+    {
+        return Err(error(
+            401,
+            "INVALID_EMAIL_OR_PASSWORD",
+            "Invalid email or password",
+        ));
+    }
+    let token = create_session_on(&tx, user_id, headers, remember).await?;
+    tx.commit().await?;
     Ok(token)
 }
 pub async fn sign_up(
@@ -158,14 +197,24 @@ pub async fn sign_up(
         true,
     ))
 }
-pub async fn sign_in(state: &AppState, email: &str, plain: &str) -> Result<User> {
+pub async fn sign_in(state: &AppState, email: &str, plain: &str) -> Result<(User, String)> {
     if !crate::http::is_zod_email(email) {
         return Err(error(400, "INVALID_EMAIL", "Invalid email"));
     }
     if plain.encode_utf16().count() > 128 {
         return Err(error(400, "PASSWORD_TOO_LONG", "Password too long"));
     }
-    let invalid = || {
+    // Failed sign-ins are budgeted per address as well as per IP, for known and unknown accounts alike.
+    let account = format!("sign-in:{}", email.to_lowercase());
+    if state.limits.exhausted(&account, 20).await {
+        return Err(error(
+            429,
+            "TOO_MANY_ATTEMPTS",
+            "Too many attempts. Try again later.",
+        ));
+    }
+    let invalid = || async {
+        state.limits.rolling(account.clone(), 20, 900).await;
         error(
             401,
             "INVALID_EMAIL_OR_PASSWORD",
@@ -174,7 +223,7 @@ pub async fn sign_in(state: &AppState, email: &str, plain: &str) -> Result<User>
     };
     let Some(user) = find_user(state, email).await? else {
         let _ = password::hash(plain).await;
-        return Err(invalid());
+        return Err(invalid().await);
     };
     let rows = db::rows(
         &state.db,
@@ -188,18 +237,18 @@ pub async fn sign_in(state: &AppState, email: &str, plain: &str) -> Result<User>
         .unwrap_or("");
     if hash.is_empty() {
         let _ = password::hash(plain).await;
-        return Err(invalid());
+        return Err(invalid().await);
     }
     if !password::verify(hash, plain)
         .await
         .map_err(|_| AppError::internal())?
     {
-        return Err(invalid());
+        return Err(invalid().await);
     }
     if state.config.email_enabled() && !user.email_verified {
         return Err(error(403, "EMAIL_NOT_VERIFIED", "Email not verified"));
     }
-    Ok(user)
+    Ok((user, hash.into()))
 }
 pub fn check_password(value: &str) -> Result<()> {
     let length = value.encode_utf16().count();
@@ -290,37 +339,6 @@ pub async fn require_fresh(state: &AppState, headers: &HeaderMap) -> Result<Sess
         return Err(error(403, "SESSION_NOT_FRESH", "Session is not fresh"));
     }
     Ok(session)
-}
-
-pub fn client_ip(state: &AppState, headers: &HeaderMap) -> String {
-    use std::net::IpAddr;
-    let ip = headers
-        .get("x-real-ip")
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .and_then(|value| value.parse::<IpAddr>().ok());
-    match ip {
-        Some(IpAddr::V4(ip)) => ip.to_string(),
-        Some(IpAddr::V6(ip)) => {
-            if let Some(mapped) = ip.to_ipv4_mapped() {
-                return mapped.to_string();
-            }
-            let mut groups = ip.segments();
-            groups[4..].fill(0);
-            groups
-                .iter()
-                .map(|group| format!("{group:04x}"))
-                .collect::<Vec<_>>()
-                .join(":")
-        }
-        None => {
-            if state.config.production {
-                String::new()
-            } else {
-                "127.0.0.1".into()
-            }
-        }
-    }
 }
 
 #[cfg(test)]

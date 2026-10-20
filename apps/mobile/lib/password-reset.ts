@@ -11,10 +11,19 @@ function isLoopbackOrigin(origin: string): boolean {
 }
 
 function resolveResetOrigin(webOrigin?: string | null): string {
-  const fromWeb = String(webOrigin ?? '')
-    .trim()
-    .replace(/\/$/, '');
-  const fromEnv = String(process.env.EXPO_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  const safeOrigin = (value: string | null | undefined) => {
+    try {
+      const url = new URL(value ?? '');
+      return url.protocol === 'https:' ||
+        (url.protocol === 'http:' && isLoopbackOrigin(url.origin))
+        ? url.origin
+        : '';
+    } catch {
+      return '';
+    }
+  };
+  const fromWeb = safeOrigin(webOrigin);
+  const fromEnv = safeOrigin(process.env.EXPO_PUBLIC_APP_URL);
 
   if (fromWeb && !isLoopbackOrigin(fromWeb)) {
     return fromWeb;
@@ -25,10 +34,10 @@ function resolveResetOrigin(webOrigin?: string | null): string {
   if (fromWeb) {
     return fromWeb;
   }
-  return resolveAppOrigin(null);
+  return safeOrigin(resolveAppOrigin(null)) || 'https://rift.solace.onl';
 }
 
-/** HTTPS page Better Auth redirects to after validating the reset token; include email for immediate sign-in. */
+/** HTTPS page Better Auth redirects to after validating the reset token; include email to identify the reset request. */
 export function resolvePasswordResetRedirectTo(
   webOrigin?: string | null,
   email?: string
@@ -42,17 +51,6 @@ export function resolvePasswordResetRedirectTo(
   return query.length > 0
     ? `${origin}/reset-password?${query}`
     : `${origin}/reset-password`;
-}
-
-export function buildPasswordResetDeepLink(input: {
-  token: string;
-  email?: string;
-}): string {
-  const params = new URLSearchParams({ token: input.token.trim() });
-  if (input.email) {
-    params.set('email', normalizeVerificationEmail(input.email));
-  }
-  return `astral-grove://reset-password?${params.toString()}`;
 }
 
 export function parsePasswordResetSearchParams(params: {

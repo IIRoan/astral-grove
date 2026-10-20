@@ -202,7 +202,6 @@ pub async fn upsert(
     user: &str,
     incoming: Value,
     trusted: bool,
-    skip_sync: bool,
     deduplicate: Option<&str>,
 ) -> Result<Value> {
     let deck_id = db::string(&incoming, "id").to_owned();
@@ -210,16 +209,11 @@ pub async fn upsert(
     if initial.is_none() && upstream::get_stored(state, &deck_id).await.is_some() {
         return Err(readonly());
     }
-    let base = persist(
+    let candidate = persist(
         incoming.clone(),
         initial.as_ref().map(|row| &row["payload"]),
         trusted,
     );
-    let candidate = if skip_sync {
-        base
-    } else {
-        upstream::sync_owned(state, &base).await
-    };
     let tx = lock(state, user).await?;
     if let Some(source) = deduplicate
         && let Some(existing)=db::rows(&tx,"SELECT payload FROM user_decks WHERE user_id=$1 AND (payload->>'importedFromId'=$2 OR payload->>'upstreamId'=$2 OR id=$2) LIMIT 1",vec![user.into(),source.into()]).await?.first(){return Ok(owned(existing["payload"].clone()));}
@@ -267,7 +261,7 @@ pub async fn import(state: &AppState, user: &str, source: &str) -> Result<Value>
     payload["updatedAt"] = json!(timestamp);
     payload["upstreamId"] = json!(source);
     payload["importedFromId"] = json!(source);
-    upsert(state, user, payload, true, true, Some(source)).await
+    upsert(state, user, payload, true, Some(source)).await
 }
 pub enum VersionAction {
     Create(String),
@@ -284,13 +278,9 @@ pub async fn version(
 ) -> Result<Value> {
     let initial = assert_editable(state, user, deck, true).await?;
     let prepared = match &action {
-        VersionAction::Save(id, incoming) => {
+        VersionAction::Save(_, incoming) => {
             let next = persist(incoming.clone(), Some(&initial["payload"]), false);
-            Some(if initial["active"] == *id {
-                upstream::sync_owned(state, &next).await
-            } else {
-                next
-            })
+            Some(next)
         }
         _ => None,
     };
@@ -401,22 +391,17 @@ pub async fn version(
 }
 pub async fn delete(state: &AppState, user: &str, id: &str) -> Result<Value> {
     let owned = assert_editable(state, user, id, false).await?;
-    let payload = &owned["payload"];
-    if let Some(upstream) = payload["upstreamId"]
+    if let Some(upstream) = owned["payload"]["upstreamId"]
         .as_str()
-        .filter(|value| !value.is_empty())
-        && payload["importedFromId"] != upstream
+        .filter(|id| !id.is_empty())
+        && owned["payload"]["importedFromId"] != upstream
     {
-        let _ = crate::upstream::request(
-            state,
-            reqwest::Method::DELETE,
-            &format!("/v1/decks/{}", crate::auth::cookies::encode(upstream)),
-            &Value::Null,
-            None,
-            None,
-            true,
+        db::execute(
+            &state.db,
+            "INSERT INTO private_upstream_decks(upstream_id) VALUES($1) ON CONFLICT DO NOTHING",
+            vec![upstream.into()],
         )
-        .await;
+        .await?;
     }
     let tx = lock(state, user).await?;
     let deleted = db::execute(

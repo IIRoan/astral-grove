@@ -34,6 +34,7 @@ const env = {
   BETTER_AUTH_SECRET: 'synthetic-container-auth-secret-more-than-32-characters',
   BETTER_AUTH_URL: origin,
   PUBLIC_APP_URL: origin,
+  TRUSTED_PROXY_CIDRS: '127.0.0.1/32',
   CATALOG_PROBE_DISABLED: 'true',
 };
 function container(...args: string[]) {

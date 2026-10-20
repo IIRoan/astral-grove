@@ -190,7 +190,7 @@ export function resolveUrl(key: string): string {
   const url = new URL(objectUrl(publicBaseUrl(), key));
   url.searchParams.set(
     'token',
-    releaseAccessToken(requiredEnv('S3_SECRET_ACCESS_KEY'), key)
+    releaseAccessToken(requiredEnv('RELEASE_LINK_SECRET'), key)
   );
   return url.href;
 }

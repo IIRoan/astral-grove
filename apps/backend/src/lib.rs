@@ -36,8 +36,15 @@ pub struct AppState {
     pub db: DatabaseConnection,
     pub client: reqwest::Client,
     pub images: images::ImageStore,
+    pub release_storage: Option<images::Storage>,
     pub catalog: catalog::query::Cache,
     pub limits: middleware::Limits,
+    pub body_slots: tokio::sync::Semaphore,
+    pub import_slots: tokio::sync::Semaphore,
+    /// Kept apart from client limits so saturated client buckets cannot block upstream work.
+    pub upstream_budget: middleware::Limits,
+    pub upstream_slots: tokio::sync::Semaphore,
+    pub upstream_cache: tokio::sync::Mutex<cache::TtlCache<serde_json::Value>>,
     pub live: Arc<collection::live::Hub>,
     pub shutdown: tokio::sync::watch::Sender<bool>,
     pub probe: Arc<tokio::sync::Mutex<()>>,
@@ -80,13 +87,37 @@ impl AppState {
             .timeout(std::time::Duration::from_secs(30))
             .build()?;
         let images = images::ImageStore::new(&config, client.clone())?;
+        let mut release_config = config.clone();
+        for key in [
+            "S3_ACCESS_KEY_ID",
+            "S3_SECRET_ACCESS_KEY",
+            "S3_BUCKET",
+            "S3_ENDPOINT",
+            "S3_REGION",
+        ] {
+            release_config.values.remove(key);
+            if let Some(value) = config.values.get(&format!("RELEASE_{key}")) {
+                release_config.values.insert(key.into(), value.clone());
+            }
+        }
+        let release_storage = images::Storage::new(&release_config, client.clone())?;
         Ok(Arc::new(Self {
             config,
             db: database,
             client,
             images,
+            release_storage,
             catalog: Default::default(),
             limits: Default::default(),
+            body_slots: tokio::sync::Semaphore::new(64),
+            import_slots: tokio::sync::Semaphore::new(4),
+            upstream_budget: Default::default(),
+            upstream_slots: tokio::sync::Semaphore::new(8),
+            upstream_cache: tokio::sync::Mutex::new(cache::TtlCache::new(
+                std::time::Duration::from_secs(30),
+                128,
+                Some(8 * 1024 * 1024),
+            )),
             live: Default::default(),
             shutdown: tokio::sync::watch::channel(false).0,
             probe: Default::default(),
@@ -147,7 +178,7 @@ pub fn router(state: Arc<AppState>) -> axum::Router {
             auth::pipeline::auth_only,
         ))
         .fallback(|| async { error::AppError::not_found("Not found") })
-        .layer(axum::extract::DefaultBodyLimit::max(128 * 1024 * 1024))
+        .layer(axum::extract::DefaultBodyLimit::max(16 * 1024 * 1024))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             middleware::apply,

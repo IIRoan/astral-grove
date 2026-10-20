@@ -49,7 +49,7 @@ async fn put(
     let input = deck_input(&id, body)?;
     http::respond(
         "DeckDetailResponse",
-        json!({"data":service::upsert(&state,&session.user.id,input,false,false,None).await?}),
+        json!({"data":service::upsert(&state,&session.user.id,input,false,None).await?}),
     )
 }
 #[utoipa::path(delete,path="/api/v1/decks/{id}",operation_id="deleteDeck",responses((status=200,body=IdResponse)))]

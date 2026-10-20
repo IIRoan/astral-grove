@@ -43,7 +43,6 @@ pub async fn resolve(
             &Value::Null,
             Some(&json!({"variantNumbers":batch})),
             Some("PaCardsBatchResponse"),
-            false,
         )
         .await?;
         for number in db::array(&result, "data")

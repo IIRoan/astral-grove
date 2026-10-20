@@ -271,7 +271,34 @@ pub async fn transform(state: &AppState, detail: &Value) -> Result<Value> {
     }
     http::value("StoredDeckPayload", &value)
 }
-pub async fn get_stored(state: &AppState, id: &str) -> Option<Value> {
+async fn private(state: &AppState, id: &str) -> Result<bool> {
+    Ok(private_ids(state, vec![id.to_owned()]).await?.contains(id))
+}
+async fn private_ids(state: &AppState, ids: Vec<String>) -> Result<HashSet<String>> {
+    let rows = db::rows(&state.db, "SELECT upstream_id AS id FROM private_upstream_decks WHERE upstream_id=ANY($1::text[]) UNION SELECT payload->>'upstreamId' AS id FROM user_decks WHERE payload->>'upstreamId'=ANY($1::text[]) AND (payload->>'importedFromId') IS DISTINCT FROM (payload->>'upstreamId')", vec![ids.into()]).await?;
+    Ok(rows
+        .iter()
+        .map(|row| db::string(row, "id").to_owned())
+        .collect())
+}
+// Every legacy mirror was written under the shared key, so its PA author is the service account.
+fn service_authored(state: &AppState, detail: &Value) -> bool {
+    state
+        .config
+        .values
+        .get("UPSTREAM_SERVICE_AUTHOR")
+        .map(|name| name.trim())
+        .filter(|name| !name.is_empty())
+        .is_some_and(|name| {
+            db::string(detail, "authorName")
+                .trim()
+                .eq_ignore_ascii_case(name)
+        })
+}
+async fn community_detail(state: &AppState, id: &str) -> Option<Value> {
+    if private(state, id).await.ok()? {
+        return None;
+    }
     let detail = upstream::request(
         state,
         reqwest::Method::GET,
@@ -279,10 +306,13 @@ pub async fn get_stored(state: &AppState, id: &str) -> Option<Value> {
         &Value::Null,
         None,
         None,
-        false,
     )
     .await
     .ok()?;
+    (!service_authored(state, &detail)).then_some(detail)
+}
+pub async fn get_stored(state: &AppState, id: &str) -> Option<Value> {
+    let detail = community_detail(state, id).await?;
     transform(state, &detail).await.ok()
 }
 fn meta(detail: &Value, is_list: bool) -> Value {
@@ -319,17 +349,7 @@ fn meta(detail: &Value, is_list: bool) -> Value {
     meta
 }
 pub async fn get_item(state: &AppState, id: &str) -> Option<Value> {
-    let detail = upstream::request(
-        state,
-        reqwest::Method::GET,
-        &format!("/v1/decks/{}", crate::auth::cookies::encode(id)),
-        &Value::Null,
-        None,
-        None,
-        false,
-    )
-    .await
-    .ok()?;
+    let detail = community_detail(state, id).await?;
     let detail = checked("UpstreamDeckDetail", &detail).ok()?;
     let mut item = transform(state, &detail).await.ok()?;
     let detail_meta = meta(&detail, false);
@@ -341,7 +361,6 @@ pub async fn get_item(state: &AppState, id: &str) -> Option<Value> {
         &json!({"q":detail["name"],"limit":50}),
         None,
         None,
-        false,
     )
     .await
         && let Ok(response) = checked("UpstreamDeckListResponse", &response)
@@ -401,14 +420,24 @@ pub async fn list_imported(
         &params,
         None,
         None,
-        false,
     )
     .await?;
     let response = checked("UpstreamDeckListResponse", &response)?;
+    let hidden = private_ids(
+        state,
+        db::array(&response, "data")
+            .iter()
+            .map(|entry| db::string(entry, "id").to_owned())
+            .collect(),
+    )
+    .await?;
     let mut items = Vec::new();
     let mut legends = HashMap::<String, Value>::new();
     for entry in db::array(&response, "data") {
-        if skip.contains(db::string(entry, "id")) {
+        if skip.contains(db::string(entry, "id"))
+            || hidden.contains(db::string(entry, "id"))
+            || service_authored(state, entry)
+        {
             continue;
         }
         let mut item = payload(entry);
@@ -472,104 +501,6 @@ pub async fn list_imported(
         result["pagination"] = json!({"total":pagination["total"],"page":page,"limit":pagination["pageSize"],"totalPages":pages,"hasNext":page<pages,"hasPrevious":page>1});
     }
     Ok(result)
-}
-pub async fn sync_owned(state: &AppState, payload: &Value) -> Value {
-    async fn write(state: &AppState, payload: &Value) -> Result<Value> {
-        let mut numbers = Vec::<String>::new();
-        let mut collect = |card: &Value| {
-            let number = db::string(card, "variantNumber");
-            if !number.is_empty() && !numbers.iter().any(|stored| stored == number) {
-                numbers.push(number.into());
-            }
-        };
-        collect(&payload["legend"]);
-        collect(&payload["champion"]);
-        for section in ["mainDeck", "runes", "battlefields", "sideboard"] {
-            for entry in db::array(payload, section) {
-                collect(&entry["card"]);
-            }
-        }
-        let rows=db::rows(&state.db,"SELECT variant_number AS number,id::text AS id FROM variants WHERE variant_number=ANY($1::text[])",vec![numbers.clone().into()]).await?;
-        let ids: HashMap<_, _> = rows
-            .iter()
-            .map(|row| (db::string(row, "number"), db::string(row, "id")))
-            .collect();
-        if numbers
-            .iter()
-            .any(|number| !ids.contains_key(number.as_str()))
-        {
-            return Err(AppError::internal());
-        }
-        let reference = |card: &Value, quantity: Option<&Value>| {
-            let mut value = json!({"cardId":card["cardId"],"variantId":ids.get(db::string(card,"variantNumber")).copied().unwrap_or("")});
-            if let Some(quantity) = quantity {
-                value["quantity"] = quantity.clone();
-            }
-            value
-        };
-        let mut body = json!({"name":payload["name"],"description":db::string(payload, "description"),"legend":if payload["legend"].is_null(){Value::Null}else{reference(&payload["legend"],None)},"champions":if payload["champion"].is_null(){vec![]}else{vec![reference(&payload["champion"],Some(&json!(1)))]}});
-        for (from, to) in [
-            ("mainDeck", "maindeck"),
-            ("runes", "runes"),
-            ("battlefields", "battlefields"),
-            ("sideboard", "sideboard"),
-        ] {
-            body[to] = json!(
-                db::array(payload, from)
-                    .iter()
-                    .map(|entry| reference(
-                        &entry["card"],
-                        if from == "battlefields" {
-                            None
-                        } else {
-                            entry.get("count")
-                        }
-                    ))
-                    .collect::<Vec<_>>()
-            );
-        }
-        if payload.get("upstreamId").is_some()
-            && !(payload.get("importedFromId").is_some()
-                && payload["upstreamId"] == payload["importedFromId"])
-        {
-            body["id"] = payload["upstreamId"].clone();
-        }
-        let response = upstream::request(
-            state,
-            reqwest::Method::POST,
-            "/v1/decks",
-            &Value::Null,
-            Some(&body),
-            None,
-            true,
-        )
-        .await?;
-        let synced = transform(state, &response)
-            .await
-            .unwrap_or_else(|_| payload.clone());
-        let mut result = payload.clone();
-        result["updatedAt"] = json!(
-            payload["updatedAt"]
-                .as_i64()
-                .unwrap_or(0)
-                .max(synced["updatedAt"].as_i64().unwrap_or(0))
-        );
-        let upstream_id = if synced["id"] != payload["id"] {
-            Some(synced["id"].clone())
-        } else {
-            payload
-                .get("upstreamId")
-                .or_else(|| synced.get("upstreamId"))
-                .cloned()
-        };
-        if let Some(id) = upstream_id {
-            result["upstreamId"] = id;
-        }
-        Ok(result)
-    }
-    write(state, payload)
-        .await
-        .unwrap_or_else(|_| payload.clone())
 }
 
 #[cfg(test)]

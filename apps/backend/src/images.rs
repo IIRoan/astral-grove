@@ -412,7 +412,12 @@ fn resize(bytes: Vec<u8>, width: u32) -> Option<Vec<u8>> {
 }
 pub fn safe_key(key: &str) -> bool {
     !key.is_empty()
-        && !key.contains("..")
+        && key.len() <= 1024
+        && !key.contains(['%', '?', '#', '\\'])
+        && !key.chars().any(char::is_control)
+        && key
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != "..")
         && !key.to_ascii_lowercase().ends_with(".svg")
         && (key.starts_with("cards/") || key.starts_with("colors/"))
 }
@@ -483,14 +488,10 @@ async fn get_image(
     }
     let input: astral_grove_api_types::ImageThumbQuery =
         http::parse("ImageThumbQuery", &http::query(query.as_deref()))?;
-    let ip = headers
-        .get("x-real-ip")
-        .and_then(|value| value.to_str().ok())
-        .filter(|value| value.parse::<std::net::IpAddr>().is_ok())
-        .unwrap_or("unknown");
+    let ip = crate::middleware::client_ip(&headers);
     if let Some((image, source)) = state
         .images
-        .serve(&key, input.w.map(|width| width as u32), ip)
+        .serve(&key, input.w.map(|width| width as u32), &ip)
         .await?
     {
         let matched = headers
@@ -538,4 +539,34 @@ async fn get_image(
 }
 pub fn router() -> OpenApiRouter<Arc<AppState>> {
     OpenApiRouter::new().routes(routes!(get_image))
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+    #[test]
+    fn image_paths_cannot_change_the_cdn_path_or_url_parts() {
+        for key in [
+            "cards/.%2e/private.png",
+            "cards/%252e%252e/private.png",
+            "cards/../x.png",
+            "cards/./x.png",
+            "cards/x.png?key=y",
+            "cards/x.png#x",
+            "cards/x\\y.png",
+            "cards//x.png",
+            "cards/x.svg",
+            "other/x.png",
+            "cards/x\n.png",
+        ] {
+            assert!(!safe_key(key), "{key}");
+        }
+        for key in [
+            "cards/OGN/001.webp",
+            "colors/fury.png",
+            "cards/card image.png",
+        ] {
+            assert!(safe_key(key), "{key}");
+        }
+    }
 }

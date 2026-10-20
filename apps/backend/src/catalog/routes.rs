@@ -100,7 +100,6 @@ async fn batch(
             &Value::Null,
             Some(&json!({"variantNumbers":missing})),
             Some("PaCardsBatchResponse"),
-            false,
         )
         .await?;
         for item in crate::db::array(&result, "data") {

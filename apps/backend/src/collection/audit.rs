@@ -51,7 +51,7 @@ pub async fn list(
     .and_then(|row| row["total"].as_i64())
     .unwrap_or(0);
     let limit = input["limit"].as_i64().unwrap_or(50);
-    let mut rows=db::rows(&state.db,&format!("SELECT {FIELDS} FROM collection_audit_events e JOIN \"user\" u ON u.id=e.actor_user_id WHERE {filter} ORDER BY e.created_at DESC,e.id DESC LIMIT {}",limit+1),sql.values).await?;
+    let mut rows=db::rows(&state.db,&format!("SELECT {FIELDS} FROM collection_audit_events e LEFT JOIN \"user\" u ON u.id=e.actor_user_id AND (e.collection_id IS NULL OR EXISTS(SELECT 1 FROM collection_members m WHERE m.collection_id=e.collection_id AND m.user_id=e.actor_user_id)) WHERE {filter} ORDER BY e.created_at DESC,e.id DESC LIMIT {}",limit+1),sql.values).await?;
     let more = rows.len() > limit as usize;
     rows.truncate(limit as usize);
     Ok(json!({"data":rows,"meta":{"total":total,"limit":limit,"hasMore":more}}))
@@ -87,7 +87,7 @@ pub async fn activity(state: &AppState, collection: &str, input: &Value) -> Resu
         let id = sql.bind(id);
         filter.push_str(&format!(" AND (e.created_at<{at}::timestamptz OR(e.created_at={at}::timestamptz AND e.id<{id}::uuid))"));
     }
-    let mut rows=db::rows(&state.db,&format!("SELECT {FIELDS},to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS cursor FROM collection_audit_events e JOIN \"user\" u ON u.id=e.actor_user_id WHERE {filter} ORDER BY e.created_at DESC,e.id DESC LIMIT {}",limit+1),sql.values).await?;
+    let mut rows=db::rows(&state.db,&format!("SELECT {FIELDS},to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS cursor FROM collection_audit_events e LEFT JOIN \"user\" u ON u.id=e.actor_user_id AND (e.collection_id IS NULL OR EXISTS(SELECT 1 FROM collection_members m WHERE m.collection_id=e.collection_id AND m.user_id=e.actor_user_id)) WHERE {filter} ORDER BY e.created_at DESC,e.id DESC LIMIT {}",limit+1),sql.values).await?;
     let more = rows.len() > limit as usize;
     rows.truncate(limit as usize);
     let cursor = if more {

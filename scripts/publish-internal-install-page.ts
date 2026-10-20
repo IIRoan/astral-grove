@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import QRCode from 'qrcode';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -66,14 +67,7 @@ async function main(): Promise<void> {
 
   const pageUrl = resolveUrl(keys.page);
   const qrPath = join(args.outDir, `${args.profile}-qr.png`);
-  const qrProc = Bun.spawn(['bunx', 'qrcode', '-o', qrPath, '-w', '512', pageUrl], {
-    stdout: 'inherit',
-    stderr: 'inherit',
-  });
-  const qrCode = await qrProc.exited;
-  if (qrCode !== 0) {
-    throw new Error(`qrcode exited ${String(qrCode)}`);
-  }
+  writeFileSync(qrPath, await QRCode.toBuffer(pageUrl, { width: 512 }));
 
   await client.write(keys.qr, Bun.file(qrPath), { type: 'image/png' });
 

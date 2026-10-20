@@ -58,6 +58,13 @@ impl IntoResponse for Reply {
 fn field<'a>(value: &'a Value, name: &str) -> &'a str {
     value[name].as_str().unwrap_or("")
 }
+// Anonymous resends hide issuance limits because only existing unverified accounts reach them.
+fn quiet_limit<T>(result: Result<T>) -> Result<()> {
+    match result {
+        Err(err) if err.status != StatusCode::TOO_MANY_REQUESTS => Err(err),
+        _ => Ok(()),
+    }
+}
 fn success() -> Value {
     json!({"status":true})
 }
@@ -86,8 +93,13 @@ async fn token_reply(
     remember: bool,
     signup: bool,
     callback: Option<&str>,
+    verified_hash: Option<&str>,
 ) -> Result<Reply> {
-    let token = service::create_session(state, &user.id, headers, remember).await?;
+    let token = if let Some(hash) = verified_hash {
+        service::password_session(state, &user.id, hash, headers, remember).await?
+    } else {
+        service::create_session(state, &user.id, headers, remember).await?
+    };
     let mut body = json!({"token":token,"user":user});
     if !signup {
         body["redirect"] = json!(callback.is_some());
@@ -110,12 +122,19 @@ pub async fn set_password(
     user_id: &str,
     plain: &str,
     revoke: bool,
-) -> Result<()> {
+    current: Option<(&str, &str, &HeaderMap)>,
+) -> Result<Option<String>> {
     let hash = password::hash(plain)
         .await
         .map_err(|_| AppError::internal())?;
     let tx = state.db.begin().await?;
     otp::lock(&tx, &format!("credential:{user_id}")).await?;
+    // A change verified against an old hash or a revoked session must not override a concurrent reset.
+    if let Some((verified, token, _)) = current
+        && db::rows(&tx,"SELECT 1 FROM account a JOIN session s ON s.user_id=a.user_id WHERE a.user_id=$1 AND a.provider_id='credential' AND a.password=$2 AND s.token=$3 AND s.expires_at>now()",vec![user_id.into(),verified.into(),token.into()]).await?.is_empty()
+    {
+        return Err(error(400, "INVALID_PASSWORD", "Invalid password"));
+    }
     let rows = db::rows(
         &tx,
         "SELECT id FROM account WHERE user_id=$1 AND provider_id='credential'",
@@ -127,6 +146,7 @@ pub async fn set_password(
     } else {
         db::execute(&tx,"UPDATE account SET password=$2,updated_at=date_trunc('milliseconds',now()) WHERE user_id=$1 AND provider_id='credential'",vec![user_id.into(),hash.into()]).await?;
     }
+    let mut renewed = None;
     if revoke {
         db::execute(
             &tx,
@@ -134,16 +154,19 @@ pub async fn set_password(
             vec![user_id.into()],
         )
         .await?;
+        if let Some((_, _, headers)) = current {
+            renewed = Some(service::create_session_on(&tx, user_id, headers, true).await?);
+        }
     }
     tx.commit().await?;
-    Ok(())
+    Ok(renewed)
 }
 async fn verify_password(
     state: &AppState,
     user_id: &str,
     plain: &str,
     required: bool,
-) -> Result<()> {
+) -> Result<String> {
     let accounts = db::rows(
         &state.db,
         "SELECT password FROM account WHERE user_id=$1 AND provider_id='credential'",
@@ -164,7 +187,7 @@ async fn verify_password(
     {
         return Err(error(400, "INVALID_PASSWORD", "Invalid password"));
     }
-    Ok(())
+    Ok(hash.unwrap_or("").to_owned())
 }
 pub async fn dispatch(
     name: &str,
@@ -200,7 +223,7 @@ pub async fn dispatch(
             .await?;
             if state.config.email_enabled() {
                 if created {
-                    otp::send(state, &user.email, "email-verification", None).await?;
+                    otp::send(state, &user.email, "email-verification").await?;
                 }
                 Reply::json(json!({"token":null,"user":user}))
             } else {
@@ -211,13 +234,14 @@ pub async fn dispatch(
                     input["rememberMe"] != false,
                     true,
                     None,
+                    None,
                 )
                 .await?
             }
         }
         "signInEmail" => {
             pipeline::form_csrf(state, headers)?;
-            let user = match service::sign_in(
+            let (user, hash) = match service::sign_in(
                 state,
                 field(input, "email"),
                 field(input, "password"),
@@ -227,7 +251,9 @@ pub async fn dispatch(
                 Ok(user) => user,
                 Err(err) => {
                     if err.body["code"] == "EMAIL_NOT_VERIFIED" {
-                        otp::send(state, field(input, "email"), "email-verification", None).await?;
+                        quiet_limit(
+                            otp::send(state, field(input, "email"), "email-verification").await,
+                        )?;
                     }
                     return Err(err);
                 }
@@ -239,6 +265,7 @@ pub async fn dispatch(
                 input["rememberMe"] != false,
                 false,
                 input["callbackURL"].as_str(),
+                Some(&hash),
             )
             .await?
         }
@@ -292,15 +319,17 @@ pub async fn dispatch(
         }
         "sendVerificationOTP" => {
             pipeline::form_csrf(state, headers)?;
-            Reply::json(otp::send(state, field(input, "email"), field(input, "type"), None).await?)
+            Reply::json(otp::send(state, field(input, "email"), field(input, "type")).await?)
         }
         "checkVerificationOTP" => {
+            otp::public_kind(field(input, "type"))?;
             let email = otp::validate_email(field(input, "email"))?;
             otp::check(
                 state,
                 &format!("{}-otp-{email}", field(input, "type")),
                 field(input, "otp"),
                 false,
+                None,
             )
             .await?;
             if service::find_user(state, &email).await?.is_none() {
@@ -311,11 +340,6 @@ pub async fn dispatch(
         "verifyEmailOTP" => {
             otp::verify_email(state, field(input, "email"), field(input, "otp"), headers).await?
         }
-        "signInEmailOTP" => otp::sign_in(state, input, headers).await?,
-        "requestPasswordResetEmailOTP" | "forgetPasswordEmailOTP" => {
-            Reply::json(otp::send(state, field(input, "email"), "forget-password", None).await?)
-        }
-        "resetPasswordEmailOTP" => Reply::json(otp::reset(state, input).await?),
         "requestEmailChangeEmailOTP" | "changeEmailEmailOTP" => {
             otp::change(state, input, headers, name == "requestEmailChangeEmailOTP").await?
         }
@@ -330,18 +354,23 @@ pub async fn dispatch(
             if field(input, "currentPassword").encode_utf16().count() > 128 {
                 return Err(error(400, "PASSWORD_TOO_LONG", "Password too long"));
             }
-            verify_password(
+            let verified = verify_password(
                 state,
                 &session.user.id,
                 field(input, "currentPassword"),
                 true,
             )
             .await?;
-            let revoke = input["revokeOtherSessions"] == true;
-            set_password(state, &session.user.id, field(input, "newPassword"), revoke).await?;
+            let renewed = set_password(
+                state,
+                &session.user.id,
+                field(input, "newPassword"),
+                input["revokeOtherSessions"] == true,
+                Some((&verified, &session.session.token, headers)),
+            )
+            .await?;
             let mut reply = Reply::json(json!({"token":null,"user":session.user}));
-            if revoke {
-                let token = service::create_session(state, &session.user.id, headers, true).await?;
+            if let Some(token) = renewed {
                 reply.headers = service::signed_headers(state, &token, true)?;
                 reply.body["token"] = json!(token)
             }
@@ -498,6 +527,14 @@ pub async fn dispatch(
             ));
         }
         "requestPasswordReset" => {
+            let redirect = field(input, "redirectTo");
+            if !redirect.is_empty() && !pipeline::trusted_web(state, redirect) {
+                return Err(error(
+                    403,
+                    "INVALID_REDIRECT_URL",
+                    "A trusted HTTPS reset URL is required",
+                ));
+            }
             if !state.config.email_enabled() {
                 return Err(error(
                     400,
@@ -542,7 +579,7 @@ pub async fn dispatch(
                 .ok_or_else(|| error(400, "INVALID_TOKEN", "Invalid token"))?
                 .to_owned();
             tx.commit().await?;
-            set_password(state, &user, field(input, "newPassword"), true).await?;
+            set_password(state, &user, field(input, "newPassword"), true, None).await?;
             Reply::json(success())
         }
         "requestPasswordResetCallback" => {
@@ -555,7 +592,7 @@ pub async fn dispatch(
             .await?
             .is_empty();
             let callback = field(&query, "callbackURL");
-            if !pipeline::trusted(state, callback) {
+            if !pipeline::trusted_web(state, callback) {
                 return Err(error(403, "INVALID_CALLBACK_URL", "Invalid callbackURL"));
             }
             Reply::redirect(&with_query(
@@ -586,11 +623,11 @@ pub async fn dispatch(
                         "Email already verified",
                     ));
                 }
-                otp::send(state, &address, "email-verification", None).await?;
+                otp::send(state, &address, "email-verification").await?;
             } else if let Some(user) = service::find_user(state, &address).await?
                 && !user.email_verified
             {
-                otp::send(state, &address, "email-verification", None).await?;
+                quiet_limit(otp::send(state, &address, "email-verification").await)?;
             }
             if let Some(remaining) =
                 std::time::Duration::from_millis(500).checked_sub(start.elapsed())

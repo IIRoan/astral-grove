@@ -241,7 +241,10 @@ pub fn csv(content: &str) -> Value {
             )
         })();
         match parsed {
-            Ok(item) => items.push(item),
+            Ok(item) => match crate::http::schemas::collection_import_item().parse(Some(&item)) {
+                Ok(Some(item)) => items.push(item),
+                _ => errors.push(json!({"row":row_number+2,"message":"Invalid collection item: check field lengths and quantity"})),
+            },
             Err(message) => errors.push(json!({"row":row_number+2,"message":message})),
         }
     }
@@ -294,4 +297,37 @@ pub fn export(rows: &[Value]) -> String {
         );
     }
     lines.join("\n")
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    #[test]
+    fn csv_items_use_the_same_limits_as_json_imports() {
+        for (field, limit) in [
+            ("Language", 16),
+            ("Notes", 2000),
+            ("Grading Company", 64),
+            ("Grading Value", 32),
+        ] {
+            let mut fields = vec![String::new(); HEADERS.len()];
+            fields[0] = "OGN-001".into();
+            fields[8] = "1".into();
+            fields[10] = "Near Mint".into();
+            let index = HEADERS.iter().position(|value| *value == field).unwrap();
+            fields[index] = "a".repeat(limit);
+            assert_eq!(
+                csv(&format!("{}\n{}", HEADERS.join(","), fields.join(",")))["items"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                1
+            );
+            fields[index].push('a');
+            let parsed = csv(&format!("{}\n{}", HEADERS.join(","), fields.join(",")));
+            assert_eq!(parsed["items"], json!([]));
+            assert_eq!(parsed["errors"][0]["row"], 2);
+        }
+    }
 }

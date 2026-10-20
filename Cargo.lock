@@ -269,6 +269,7 @@ dependencies = [
  "hmac",
  "icu_collator",
  "image",
+ "ipnet",
  "jiff",
  "percent-encoding",
  "rand 0.10.3",

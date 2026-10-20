@@ -49,16 +49,25 @@ async fn serve(state: &AppState, filename: &str, query: Option<&str>, head: bool
     let Some((key, profile, kind, content_type)) = file(filename) else {
         return unavailable();
     };
-    let Some(storage) = &state.images.storage else {
+    let Some(storage) = state
+        .release_storage
+        .as_ref()
+        .or(state.images.storage.as_deref())
+    else {
         return unavailable();
     };
-    let Some(secret) = state.config.values.get("S3_SECRET_ACCESS_KEY") else {
+    // Links signed with the old storage key verify only through an explicit RELEASE_LINK_LEGACY_SECRET.
+    let Some(secret) = state.config.values.get("RELEASE_LINK_SECRET") else {
         return unavailable();
     };
     let token = url::form_urlencoded::parse(query.unwrap_or("").as_bytes())
         .find(|(key, _)| key == "token")
         .map(|(_, value)| value.into_owned());
-    if !authorized(secret, &key, token.as_deref()) || !storage.exists(&key).await {
+    let legacy = state.config.values.get("RELEASE_LINK_LEGACY_SECRET");
+    if !(authorized(secret, &key, token.as_deref())
+        || legacy.is_some_and(|secret| authorized(secret, &key, token.as_deref())))
+        || !storage.exists(&key).await
+    {
         return unavailable();
     }
     if matches!(kind, "page" | "plist") {
@@ -75,6 +84,7 @@ async fn serve(state: &AppState, filename: &str, query: Option<&str>, head: bool
                 (header::CONTENT_TYPE, content_type),
                 (header::CACHE_CONTROL, "no-store"),
                 (header::REFERRER_POLICY, "no-referrer"),
+                (header::CONTENT_SECURITY_POLICY, "default-src 'none'; style-src 'unsafe-inline'; sandbox allow-downloads allow-top-navigation-by-user-activation"),
             ],
             content,
         )

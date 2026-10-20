@@ -61,10 +61,6 @@ auth_routes! {
     send_verification_o_t_p_post post "/api/auth/email-otp/send-verification-otp" "sendVerificationOTP" "sendVerificationOTP";
     check_verification_o_t_p_post post "/api/auth/email-otp/check-verification-otp" "checkVerificationOTP" "checkVerificationOTP";
     verify_email_o_t_p_post post "/api/auth/email-otp/verify-email" "verifyEmailOTP" "verifyEmailOTP";
-    sign_in_email_o_t_p_post post "/api/auth/sign-in/email-otp" "signInEmailOTP" "signInEmailOTP";
-    request_password_reset_email_o_t_p_post post "/api/auth/email-otp/request-password-reset" "requestPasswordResetEmailOTP" "requestPasswordResetEmailOTP";
-    forget_password_email_o_t_p_post post "/api/auth/forget-password/email-otp" "forgetPasswordEmailOTP" "forgetPasswordEmailOTP";
-    reset_password_email_o_t_p_post post "/api/auth/email-otp/reset-password" "resetPasswordEmailOTP" "resetPasswordEmailOTP";
     request_email_change_email_o_t_p_post post "/api/auth/email-otp/request-email-change" "requestEmailChangeEmailOTP" "requestEmailChangeEmailOTP";
     change_email_email_o_t_p_post post "/api/auth/email-otp/change-email" "changeEmailEmailOTP" "changeEmailEmailOTP";
     ok_get get "/api/auth/ok" "ok" "ok";

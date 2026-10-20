@@ -4,12 +4,25 @@ use crate::{
     http,
 };
 use serde_json::Value;
+use sha2::{Digest, Sha256};
+use std::time::Duration;
+tokio::task_local! {
+    /// Client identity for work done inside an HTTP request; background jobs run outside this scope.
+    pub static CLIENT: String;
+}
 #[derive(Debug)]
 pub struct PaError {
     pub status: u16,
 }
 impl From<PaError> for AppError {
-    fn from(_: PaError) -> Self {
+    fn from(error: PaError) -> Self {
+        if error.status == 429 {
+            return AppError::new(
+                503,
+                "UPSTREAM_BUSY",
+                "Upstream capacity reached. Please retry shortly",
+            );
+        }
         AppError::internal()
     }
 }
@@ -20,8 +33,57 @@ pub async fn request(
     params: &Value,
     body: Option<&Value>,
     schema: Option<&str>,
-    write: bool,
 ) -> std::result::Result<Value, PaError> {
+    let cacheable = (path.starts_with("/v1/cards")
+        || path.starts_with("/v1/filters")
+        || path.starts_with("/v1/decks"))
+        && !path.contains("hash");
+    let cache_key = hex::encode(Sha256::digest(
+        format!("{method}:{path}:{params}:{body:?}:{schema:?}").as_bytes(),
+    ));
+    if cacheable && let Some(value) = state.upstream_cache.lock().await.get(&cache_key).cloned() {
+        return Ok(value);
+    }
+    let maximum = state
+        .config
+        .values
+        .get("UPSTREAM_REQUESTS_PER_MINUTE")
+        .and_then(|value| value.parse::<u32>().ok())
+        .unwrap_or(600);
+    let client = CLIENT.try_with(Clone::clone).ok();
+    // Each client gets a share and interactive work leaves a quarter for background sync.
+    if let Some(client) = &client
+        && (state
+            .upstream_budget
+            .check(format!("client:{client}"), maximum.div_ceil(4), 60)
+            .await
+            .is_some()
+            || state
+                .upstream_budget
+                .check("interactive".into(), maximum - maximum / 4, 60)
+                .await
+                .is_some())
+    {
+        return Err(PaError { status: 429 });
+    }
+    let mut waited = 0;
+    while let Some(retry) = state
+        .upstream_budget
+        .check("global".into(), maximum, 60)
+        .await
+    {
+        // Background jobs wait for the window instead of failing a whole sync.
+        if client.is_some() || waited >= 120 {
+            return Err(PaError { status: 429 });
+        }
+        let pause = retry.clamp(1, 5);
+        tokio::time::sleep(Duration::from_secs(pause)).await;
+        waited += pause;
+    }
+    let _permit = tokio::time::timeout(Duration::from_secs(10), state.upstream_slots.acquire())
+        .await
+        .map_err(|_| PaError { status: 429 })?
+        .map_err(|_| PaError { status: 429 })?;
     let mut request = state
         .client
         .request(method, format!("{}{}", state.config.pa_url, path))
@@ -43,20 +105,6 @@ pub async fn request(
             .collect();
         request = request.query(&params);
     }
-    if write
-        && let (Some(name), Some(value)) = (
-            state
-                .config
-                .values
-                .get("UPSTREAM_DECK_WRITE_EXTRA_HEADER_NAME"),
-            state
-                .config
-                .values
-                .get("UPSTREAM_DECK_WRITE_EXTRA_HEADER_VALUE"),
-        )
-    {
-        request = request.header(name, value);
-    }
     if let Some(body) = body {
         request = request.json(body);
     }
@@ -68,17 +116,25 @@ pub async fn request(
     if status == 204 {
         return Ok(Value::Null);
     }
-    let bytes = crate::images::capped(response, 50 * 1024 * 1024)
+    let bytes = crate::images::capped(response, 16 * 1024 * 1024)
         .await
         .ok_or(PaError { status: 502 })?;
     let value: Value = serde_json::from_slice(&bytes).map_err(|_| PaError { status: 502 })?;
-    match schema {
+    let result = match schema {
         Some(schema) => http::schemas::schema(schema)
             .parse(Some(&value))
             .map_err(|_| PaError { status: 502 })?
             .ok_or(PaError { status: 502 }),
         None => Ok(value),
+    }?;
+    if cacheable {
+        state.upstream_cache.lock().await.insert(
+            cache_key,
+            result.clone(),
+            bytes.len().saturating_mul(4),
+        );
     }
+    Ok(result)
 }
 pub async fn list_cards(state: &AppState, params: &Value) -> Result<Value> {
     Ok(request(
@@ -88,11 +144,13 @@ pub async fn list_cards(state: &AppState, params: &Value) -> Result<Value> {
         params,
         None,
         Some("PaCardsListResponse"),
-        false,
     )
     .await?)
 }
 pub async fn card(state: &AppState, number: &str) -> std::result::Result<Value, PaError> {
+    if number.is_empty() || number.chars().all(|c| c == '.') {
+        return Err(PaError { status: 404 });
+    }
     request(
         state,
         reqwest::Method::GET,
@@ -100,7 +158,6 @@ pub async fn card(state: &AppState, number: &str) -> std::result::Result<Value, 
         &Value::Null,
         None,
         Some("PaLogicalCard"),
-        false,
     )
     .await
 }

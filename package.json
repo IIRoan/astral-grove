@@ -21,6 +21,7 @@
     "dupes": "jscpd --config .jscpd.json .",
     "test": "bun scripts/test.mjs",
     "test:ui-e2e": "bun run --cwd apps/mobile test:ui-e2e",
+    "test:security-ui": "bun --no-env-file test scripts/security-ui.test.ts",
     "db": "exec bun scripts/db.mjs",
     "db:up": "bun run db -d",
     "db:down": "docker compose down",
@@ -33,10 +34,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
+    "@types/qrcode": "1.5.6",
     "eslint": "^9.28.0",
     "jscpd": "^5.0.16",
     "knip": "^6.33.0",
     "prettier": "^3.5.3",
+    "qrcode": "1.5.4",
     "railway": "^3.11.0",
     "turbo": "^2.5.4",
     "typescript": "6.0.3",
@@ -55,11 +58,11 @@
     "@xmldom/xmldom": "0.9.12",
     "uuid": "11.1.1",
     "minimatch@3": {
-      "brace-expansion": "1.1.18"
+      "brace-expansion": "1.1.21"
     },
     "minimatch@10": {
       ".": "10.2.6",
-      "brace-expansion": "5.0.9"
+      "brace-expansion": "5.0.12"
     },
     "browserslist": "4.28.9",
     "js-yaml@3": "3.15.2",
@@ -68,6 +71,9 @@
     "baseline-browser-mapping": "2.11.23",
     "decode-uri-component": "0.5.0",
     "compression": "1.8.2",
+    "shell-quote": "1.11.0",
+    "smol-toml": "1.9.0",
+    "source-map-js": "1.2.2",
     "@expo/plist": {
       "@xmldom/xmldom": "0.8.15"
     }

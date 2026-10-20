@@ -49,6 +49,7 @@ beforeAll(async () => {
     S3_BUCKET: 'workflow-fixture',
     S3_ACCESS_KEY_ID: 'fixture-access',
     S3_SECRET_ACCESS_KEY: 'fixture-secret',
+    RELEASE_LINK_SECRET: 'fixture-link-secret',
   });
   await seedOfflineCatalog(sql);
 });
@@ -206,7 +207,7 @@ test('signed release downloads preserve GET, HEAD, MIME and private-cache behavi
       body: new TextEncoder().encode('synthetic release content'),
       type: 'application/octet-stream',
     });
-    const token = releaseAccessToken('fixture-secret', key);
+    const token = releaseAccessToken('fixture-link-secret', key);
     const path = '/api/v1/releases/' + filename + '?token=' + token;
     const response = await app.fetch(path, { redirect: 'manual' });
     expect(response.status).toBe(filename.endsWith('.apk') ? 302 : 200);

@@ -13,6 +13,7 @@ async-stream = "0.3"
 futures-util = "0.3"
 jiff = "0.2"
 axum = { version = "0.8", features = ["macros"] }
+ipnet = "2.12.2"
 base64 = "0.22"
 hex = "0.4"
 hmac = "0.13"

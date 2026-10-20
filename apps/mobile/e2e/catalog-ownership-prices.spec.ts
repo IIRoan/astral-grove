@@ -38,10 +38,22 @@ test.describe('catalog ownership on list + detail', () => {
   test('grid tile swaps Add for owned stepper immediately after add', async ({
     page,
   }) => {
-    await page.getByLabel('Grid view', { exact: true }).click();
+    await page.goto('/settings');
+    const gridLayout = page.getByRole('button', { name: 'grid layout', exact: true });
+    await expect(gridLayout).toBeVisible();
+    const saved = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/v1/settings/desktop' &&
+        response.request().method() === 'PUT' &&
+        response.request().postDataJSON()?.defaultLayout === 'grid'
+    );
+    await gridLayout.click();
+    expect((await saved).status()).toBe(200);
+    await page.goto('/search');
     await searchForCard(page, FOIL_CARD.query, FOIL_CARD.name);
 
     const tile = cardTile(page, FOIL_CARD.name, FOIL_CARD.standardId);
+    await expect(tile.getByText('Not owned')).toHaveCount(0);
     await expect(
       addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
     ).toBeVisible();
@@ -57,7 +69,7 @@ test.describe('catalog ownership on list + detail', () => {
     await expect(
       addToCollectionButton(page, FOIL_CARD.name, FOIL_CARD.standardId)
     ).toHaveCount(0);
-    await expect(tile.getByText('1', { exact: true })).toBeVisible();
+    await expect(tile.locator('..').getByText('1', { exact: true })).toBeVisible();
   });
 
   test('detail owned qty updates when incrementing from the list stepper', async ({
@@ -81,7 +93,13 @@ test.describe('catalog ownership on list + detail', () => {
     await expect(
       cardTile(page, FOIL_CARD.name, FOIL_CARD.standardId).getByText('Owned ×2')
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: /Wishlist/ })).toBeVisible();
+    const detailStepper = page
+      .getByRole('button', {
+        name: `Remove one ${FOIL_CARD.name} Standard`,
+        exact: true,
+      })
+      .locator('..');
+    await expect(detailStepper.getByText('2', { exact: true })).toBeVisible();
   });
 
   test('opening detail keeps collection controls for the active printing', async ({
@@ -132,15 +150,24 @@ test.describe('catalog price scoping', () => {
     await cardTile(page, MULTI_FAMILY_CARD.name, MULTI_FAMILY_CARD.standardId).click();
 
     await expect(detailWishlistButton(page)).toBeVisible({ timeout: 30_000 });
+    const detailHeader = page
+      .getByRole('button', { name: `View ${MULTI_FAMILY_CARD.name} full size` })
+      .locator('xpath=../..');
     await expect(
-      page.getByRole('button', { name: `View ${MULTI_FAMILY_CARD.name} full size` })
-    ).toContainText(MULTI_FAMILY_CARD.standardId);
+      detailHeader.getByText(MULTI_FAMILY_CARD.standardId, { exact: true })
+    ).toBeVisible();
+    await expect(
+      detailHeader.getByText(MULTI_FAMILY_CARD.promoId, { exact: true })
+    ).toHaveCount(0);
 
     // Separate search rows: selecting the promo printing updates the detail panel.
     await cardTile(page, MULTI_FAMILY_CARD.name, MULTI_FAMILY_CARD.promoId).click();
     await expect(
-      page.getByRole('button', { name: `View ${MULTI_FAMILY_CARD.name} full size` })
-    ).toContainText(MULTI_FAMILY_CARD.promoId, { timeout: 15_000 });
+      detailHeader.getByText(MULTI_FAMILY_CARD.promoId, { exact: true })
+    ).toBeVisible();
+    await expect(
+      detailHeader.getByText(MULTI_FAMILY_CARD.standardId, { exact: true })
+    ).toHaveCount(0);
     await expect(page.getByText(MULTI_FAMILY_CARD.promoLabel).first()).toBeVisible();
   });
 

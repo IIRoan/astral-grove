@@ -91,26 +91,58 @@ async fn main() -> anyhow::Result<()> {
             }
         });
     }
+    if state.config.production && state.release_storage.is_none() {
+        tracing::warn!(
+            category = "config",
+            "RELEASE_S3_* is unset; release downloads use image storage credentials"
+        );
+    }
+    {
+        let state = state.clone();
+        tokio::spawn(async move {
+            let mut tick = tokio::time::interval(std::time::Duration::from_secs(3600));
+            loop {
+                tick.tick().await;
+                if *state.shutdown.borrow() {
+                    break;
+                }
+                // Attempt budgets also exist for unknown addresses, so expired rows are pruned.
+                if astral_grove_server::db::execute(
+                    &state.db,
+                    "DELETE FROM verification WHERE expires_at < now() - interval '1 day'",
+                    vec![],
+                )
+                .await
+                .is_err()
+                {
+                    tracing::warn!(category = "verification-cleanup", "Cleanup failed");
+                }
+            }
+        });
+    }
     let database = state.db.clone();
     tracing::info!("The Astral Grove API is listening");
     let shutdown = state.shutdown.clone();
-    let result = axum::serve(listener, router(state.clone()))
-        .with_graceful_shutdown(async move {
-            #[cfg(unix)]
+    let result = axum::serve(
+        listener,
+        router(state.clone()).into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(async move {
+        #[cfg(unix)]
+        {
+            if let Ok(mut terminate) =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
             {
-                if let Ok(mut terminate) =
-                    tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                {
-                    tokio::select! { _ = tokio::signal::ctrl_c() => {}, _ = terminate.recv() => {} }
-                }
+                tokio::select! { _ = tokio::signal::ctrl_c() => {}, _ = terminate.recv() => {} }
             }
-            #[cfg(not(unix))]
-            {
-                let _ = tokio::signal::ctrl_c().await;
-            }
-            shutdown.send_replace(true);
-        })
-        .await;
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = tokio::signal::ctrl_c().await;
+        }
+        shutdown.send_replace(true);
+    })
+    .await;
     state.drain().await;
     database.close().await?;
     result?;

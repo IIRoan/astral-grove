@@ -7,6 +7,13 @@ pub mod pipeline;
 pub mod routes;
 pub mod service;
 
+const DISABLED_ENDPOINTS: &[&str] = &[
+    "signInEmailOTP",
+    "requestPasswordResetEmailOTP",
+    "forgetPasswordEmailOTP",
+    "resetPasswordEmailOTP",
+];
+
 use crate::{
     AppState,
     error::{AppError, Result},
@@ -40,6 +47,9 @@ pub fn document(document: &mut serde_json::Value) {
     let definitions: serde_json::Value =
         serde_json::from_str(include_str!("auth/request-schemas.json")).expect("auth schemas");
     for (name, endpoint) in definitions.as_object().expect("auth definitions") {
+        if DISABLED_ENDPOINTS.contains(&name.as_str()) {
+            continue;
+        }
         let Some(path) = endpoint["path"].as_str() else {
             continue;
         };

@@ -17,6 +17,7 @@ hex.workspace = true
 hmac.workspace = true
 icu_collator.workspace = true
 image.workspace = true
+ipnet.workspace = true
 webp.workspace = true
 rusty-s3.workspace = true
 percent-encoding.workspace = true

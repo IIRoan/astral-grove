@@ -20,16 +20,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.4.2
-      - uses: dtolnay/rust-toolchain@1.98.1
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
+          toolchain: 1.98.1
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: bun install --frozen-lockfile
       - run: bun run check
 
@@ -38,14 +39,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.98.1
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: 1.98.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo test --workspace --locked
       - run: cargo build --package astral-grove-server --bins --locked
       # Debug info makes the binary ~400 MB; tests only need the executable.
       - run: strip -o "$RUNNER_TEMP/astral-grove-server" target/debug/astral-grove-server
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: backend-debug
           path: ${{ runner.temp }}/astral-grove-server
@@ -56,14 +59,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/contracts build
       - run: |
-          bun test scripts/lib/internal-release.test.ts
+          bun --no-env-file test scripts/lib/*.test.ts
           bun run --cwd packages/contracts test
           bun run --cwd apps/mobile test
 
@@ -89,13 +92,13 @@ jobs:
     env:
       ASTRAL_BACKEND_BIN: ${{ github.workspace }}/.ci/astral-grove-server
     steps: &backend-steps
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/contracts build
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: ${{ env.BINARY_ARTIFACT || 'backend-debug' }}
           path: .ci
@@ -108,9 +111,16 @@ jobs:
         env:
           ASTRAL_PERF_REPORT: ${{ runner.temp }}/backend-performance.json
         run: bun run --cwd apps/backend test:perf
+      - name: Install browser test runtime
+        if: matrix.suite == 'ui'
+        working-directory: apps/mobile
+        run: bun x --no-install playwright install --with-deps chromium
+      - name: Browser security and core flow regressions
+        if: matrix.suite == 'ui'
+        run: bun run test:security-ui
       - name: Upload backend performance report and SQL plans
         if: always() && matrix.suite == 'perf'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: backend-performance
           path: ${{ runner.temp }}/backend-performance*.json
@@ -126,12 +136,12 @@ jobs:
     services:
       postgres: *postgres
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
       - name: Build production Rust image without publishing
         uses: docker/build-push-action@v6
         with:
@@ -155,7 +165,7 @@ jobs:
           sha256sum "$RUNNER_TEMP/astral-grove-server"
       - name: Production container health, secure auth, SSE and SIGTERM drain
         run: bun --no-env-file apps/backend/test/container-smoke.ts astral-grove-backend:ci
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: backend-release
           path: ${{ runner.temp }}/astral-grove-server
@@ -168,11 +178,11 @@ jobs:
     name: Release binary · ${{ matrix.suite }}
     needs: image
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        suite: [http, perf]
+        suite: [http, perf, ui]
     services:
       postgres: *postgres
     env:

@@ -150,6 +150,7 @@ async fn publish(state: &AppState, count: i64, at: &str) -> Result<String> {
 }
 pub async fn catalog_sync(state: &Arc<AppState>, force: bool) -> Result<serde_json::Value> {
     let _lock = state.catalog_sync.lock().await;
+    state.upstream_cache.lock().await.clear();
     let at = db::iso(time::OffsetDateTime::now_utc());
     set_status(state, "catalog", "running", None, None, None).await?;
     let result=async{
