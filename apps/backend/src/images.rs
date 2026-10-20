@@ -24,7 +24,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 const MAX_IMAGE: usize = 5 * 1024 * 1024;
 const MAX_MEMORY: usize = 128 * 1024 * 1024;
-const BODY_CACHE: &str = "public, max-age=604800, immutable";
+const BODY_CACHE: &str = "public, max-age=31536000, immutable";
 #[derive(Clone)]
 struct Cached {
     bytes: axum::body::Bytes,

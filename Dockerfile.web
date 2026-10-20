@@ -7,7 +7,7 @@ RUN bun install --frozen-lockfile
 ARG EXPO_PUBLIC_API_URL
 ARG EXPO_PUBLIC_SENTRY_DSN
 RUN bun run --filter @riftbound/contracts build && bun run --cwd apps/mobile build:web
-RUN find apps/mobile/dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.json' -o -name '*.svg' \) -exec gzip -k -9 {} +
+RUN find apps/mobile/dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.json' -o -name '*.svg' -o -name '*.ttf' -o -name '*.otf' \) -exec gzip -k -9 {} +
 
 FROM nginxinc/nginx-unprivileged:stable-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03 AS runtime
 COPY --from=build /app/apps/mobile/dist /usr/share/nginx/html

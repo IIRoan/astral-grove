@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "description": "Bypass CORS image requests so cached image headers cannot break them",
+      "priority": 10,
+      "enabled": true,
+      "if": {
+        "and": [
+          {
+            "attr": "http.path",
+            "op": "matches",
+            "value": "/api/v1/images/*"
+          },
+          {
+            "attr": "http.header",
+            "key": "origin",
+            "op": "matches",
+            "value": "*"
+          }
+        ]
+      },
+      "then": {
+        "action": "cache_override",
+        "params": {
+          "bypass": true
+        }
+      }
+    },
+    {
+      "description": "Cache public catalog and search for the production web origin",
+      "priority": 20,
+      "enabled": true,
+      "if": {
+        "and": [
+          {
+            "or": [
+              {
+                "attr": "http.path",
+                "op": "eq",
+                "value": "/api/v1/cards"
+              },
+              {
+                "attr": "http.path",
+                "op": "eq",
+                "value": "/api/v1/cards/index"
+              },
+              {
+                "attr": "http.path",
+                "op": "eq",
+                "value": "/api/v1/search"
+              }
+            ]
+          },
+          {
+            "attr": "http.header",
+            "key": "origin",
+            "op": "eq",
+            "value": "https://rift.solace.onl"
+          }
+        ]
+      },
+      "then": {
+        "action": "allow"
+      }
+    },
+    {
+      "description": "Bypass API data outside the public catalog exception",
+      "priority": 30,
+      "enabled": true,
+      "if": {
+        "and": [
+          {
+            "attr": "http.path",
+            "op": "matches",
+            "value": "/api/*"
+          },
+          {
+            "not": {
+              "attr": "http.path",
+              "op": "matches",
+              "value": "/api/v1/images/*"
+            }
+          }
+        ]
+      },
+      "then": {
+        "action": "cache_override",
+        "params": {
+          "bypass": true
+        }
+      }
+    }
+  ]
+}

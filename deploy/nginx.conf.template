@@ -1,3 +1,10 @@
+map $uri $web_cache_control {
+    default '';
+    ~^/api/ '';
+    "~^/(assets|_expo/static)/.+[.-][a-f0-9]{32}\.[^/]+$" 'public, max-age=31536000, immutable';
+    ~\.html$ 'public, max-age=0, s-maxage=60, stale-while-revalidate=30';
+}
+
 server {
     listen ${PORT};
     listen [::]:${PORT};
@@ -7,6 +14,7 @@ server {
     index index.html;
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy no-referrer always;
+    add_header Cache-Control $web_cache_control;
     client_max_body_size 16m;
     client_body_timeout 10s;
 
@@ -15,7 +23,7 @@ server {
     gzip_static on;
     gzip on;
     gzip_min_length 1024;
-    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_types text/css application/javascript application/json image/svg+xml font/ttf font/otf;
     gzip_vary on;
 
     location = /health {
@@ -38,6 +46,24 @@ server {
 
     location ~ /\. {
         deny all;
+    }
+
+    location ~* ^/assets/.*\.(ttf|otf|woff|woff2)$ {
+        types {
+            font/ttf ttf;
+            font/otf otf;
+            font/woff woff;
+            font/woff2 woff2;
+        }
+        try_files $uri =404;
+    }
+
+    location /assets/ {
+        try_files $uri =404;
+    }
+
+    location /_expo/static/ {
+        try_files $uri =404;
     }
 
     location / {

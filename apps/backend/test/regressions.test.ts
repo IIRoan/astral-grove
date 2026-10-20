@@ -334,6 +334,9 @@ test.each(['original', 'thumbnail'] as const)(
       expect(delivered).toBeDefined();
       if (!delivered) throw new Error('Image delivery waited for the S3 upload');
       expect(delivered.status).toBe(200);
+      expect(delivered.headers.get('cache-control')).toBe(
+        'public, max-age=31536000, immutable'
+      );
       const bytes = new Uint8Array(await delivered.arrayBuffer());
       if (width) {
         const metadata = await sharp(bytes).metadata();
@@ -344,6 +347,9 @@ test.each(['original', 'thumbnail'] as const)(
         headers: { 'if-none-match': delivered.headers.get('etag')! },
       });
       expect(cached.status).toBe(304);
+      expect(cached.headers.get('cache-control')).toBe(
+        'public, max-age=31536000, immutable'
+      );
       expect(cached.headers.get('x-image-source')).toBe('memory');
       await waitFor(() => uploads - initialUploads === (width ? 2 : 1));
       current.release.resolve();
@@ -355,6 +361,9 @@ test.each(['original', 'thumbnail'] as const)(
         const server = await other.startServer(overrides);
         const persisted = await server.fetch(path);
         expect(persisted.status).toBe(200);
+        expect(persisted.headers.get('cache-control')).toBe(
+          'public, max-age=31536000, immutable'
+        );
         expect(persisted.headers.get('x-image-source')).toBe('s3');
         expect(new Uint8Array(await persisted.arrayBuffer())).toEqual(bytes);
         expect(cdnReads).toBe(reads);
