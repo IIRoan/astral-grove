@@ -1,0 +1,8 @@
+overrides:
+  hono: 4.13.11
+  next: 16.4.2
+  sharp: 0.35.5
+  postcss: 8.5.31
+
+patchedDependencies:
+  braces@3.0.3: ../patches/braces@3.0.3.patch
