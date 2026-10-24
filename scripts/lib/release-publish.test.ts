@@ -74,6 +74,8 @@ test('the release publisher builds and uploads HTML and a PNG using installed de
       pageUrl: `https://app.example/api/v1/releases/preview.html?token=${releaseAccessToken('link-key', 'releases/preview.html')}`,
     });
     expect(stdout).not.toContain('fixture-secret');
+    expect(stdout + stderr).not.toContain(metadata.pageUrl);
+    expect(stdout + stderr).not.toContain('?token=');
     const html = new TextDecoder().decode(objects.get('/releases/preview.html')!.body);
     expect(html).toContain('Download for Android');
     expect(html).toContain(releaseAccessToken('link-key', 'releases/preview.apk'));

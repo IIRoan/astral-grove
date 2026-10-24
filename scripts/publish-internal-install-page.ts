@@ -85,7 +85,19 @@ async function main(): Promise<void> {
     join(args.outDir, 'publish-page.json'),
     JSON.stringify(result, null, 2)
   );
-  console.log(JSON.stringify(result, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        profile: result.profile,
+        pageKey: result.pageKey,
+        qrKey: result.qrKey,
+        ios: result.ios,
+        android: result.android,
+      },
+      null,
+      2
+    )
+  );
 }
 
 if (import.meta.main) {
