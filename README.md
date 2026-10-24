@@ -5,7 +5,7 @@ card data, prices, and community decks from Piltover Archive.
 
 ## Local database setup
 
-Install Bun 1.4.2, Rust (the pinned 1.98.1 toolchain is selected automatically),
+Install Bun 1.4.4, Node 22.23.4 (`.node-version`), Rust (the pinned 1.98.1 toolchain is selected automatically),
 and Docker with Compose. The backend is a Rust/Axum service; the app is Expo
 and TypeScript. Install workspace tooling from the repo root:
 

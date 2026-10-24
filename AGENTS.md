@@ -144,7 +144,8 @@ bun run --cwd packages/contracts build
 
 | Tool           | Version / notes                                                        |
 | -------------- | ---------------------------------------------------------------------- |
-| **Runtime**    | [Bun](https://bun.sh) 1.4.2 (`packageManager` in root `package.json`)  |
+| **Runtime**    | [Bun](https://bun.sh) 1.4.4 (`packageManager` in root `package.json`)  |
+| **Node.js**    | 22.23.4 (`.node-version`, CI and EAS builds)                           |
 | **Monorepo**   | Turborepo — tasks in `turbo.json`                                      |
 | **Language**   | Rust 1.98.1 backend; strict TypeScript frontend/tooling                |
 | **Validation** | Rust validators/Serde; shared Zod 3; generated OpenAPI type assertions |
