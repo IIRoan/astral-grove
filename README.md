@@ -77,9 +77,10 @@ and creates the separate `riftbound_test` database if needed.
 
 ## Backend contracts and verification
 
-Rust request validators and DTOs generate OpenAPI and TypeScript types. Shared
-Zod schemas still validate every Expo response, with compile-time assertions for
-all 135 shared schema outputs.
+Rust validators in `apps/backend/src/http/schemas.rs` generate OpenAPI and
+TypeScript types. Shared Zod schemas still validate every Expo response, with
+generated compile-time assertions for every Rust-validated schema's output and
+request input (see [backend contracts](apps/backend/README.md#contracts)).
 
 ```bash
 bun run api:contracts          # regenerate after backend contract changes
@@ -97,8 +98,8 @@ See [backend development](apps/backend/README.md). Production builds use
 GitHub CI runs on pull requests and pushes to `main`, split across parallel jobs:
 lint/typecheck, Rust unit tests, shared and mobile unit tests, HTTP tests against
 the development binary, and a production image build whose release binary runs the
-HTTP and performance suites plus a container smoke test for production-mode auth,
-SSE and shutdown. CI uses synthetic credentials and local service fixtures.
+HTTP, performance and browser UI suites plus a container smoke test for
+production-mode auth, SSE and shutdown. CI uses synthetic credentials and local service fixtures.
 
 ## Internal mobile downloads
 

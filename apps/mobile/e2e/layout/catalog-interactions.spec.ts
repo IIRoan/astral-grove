@@ -9,6 +9,66 @@ const headers = {
   'access-control-allow-methods': 'GET,POST,OPTIONS',
 };
 
+test('keeps the catalog usable when search results shrink and grow', async ({
+  context,
+  page,
+}) => {
+  const layoutErrors: string[] = [];
+  page.on('pageerror', (error) => layoutErrors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') layoutErrors.push(message.text());
+  });
+  await installMockApi(context);
+  await context.route(`${MOCK_API_ORIGIN}/api/v1/cards?*`, async (route) => {
+    const url = new URL(route.request().url());
+    const query = url.searchParams.get('q');
+    if (query === null) return route.fallback();
+    const data = Array.from({ length: 48 }, (_, index) => mockCard(index)).filter(
+      (card) => card.name.toLowerCase().includes(query.toLowerCase())
+    );
+    await route.fulfill({
+      json: {
+        data,
+        meta: {
+          pagination: {
+            total: data.length,
+            page: 1,
+            limit: 100,
+            totalPages: 1,
+            hasNext: false,
+            hasPrevious: false,
+          },
+          source: 'cache',
+          catalogHash: 'layout-hash',
+        },
+      },
+      headers,
+    });
+  });
+  await page.goto('/search');
+  const ahri = page.getByRole('button', { name: 'Ahri, Nine-Tailed Fox', exact: true });
+  await expect(ahri.first()).toBeVisible();
+  const search = page.getByPlaceholder(/Search cards/);
+  for (let cycle = 0; cycle < 2; cycle++) {
+    await search.fill('Ahri');
+    await expect(ahri.first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Jinx', exact: true })).toHaveCount(
+      0
+    );
+    await search.fill('no-matching-card');
+    await expect(ahri).toHaveCount(0);
+    await search.fill('Jinx');
+    await expect(
+      page.getByRole('button', { name: 'Jinx', exact: true }).first()
+    ).toBeVisible();
+    await search.fill('');
+    await expect(ahri.first()).toBeVisible();
+  }
+  expect(layoutErrors.filter((message) => /not enough layouts/.test(message))).toEqual(
+    []
+  );
+});
+
 test('searches colored Legends from the cache before the server responds', async ({
   context,
   page,

@@ -340,6 +340,12 @@ impl Schema {
             kind: Kind::Annotated(Box::new(self), None, schema),
         }
     }
+    pub fn with_input_schema(self, schema: Value) -> Self {
+        let output = self.json_schema(true);
+        Self {
+            kind: Kind::Annotated(Box::new(self), Some(schema), output),
+        }
+    }
 
     fn with_string_check(mut self, check: StringCheck) -> Self {
         if let Kind::String(checks) = &mut self.kind {

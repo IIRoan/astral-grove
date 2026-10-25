@@ -3033,7 +3033,7 @@
             "in": "query",
             "name": "w",
             "required": false,
-            "schema": { "type": "integer" }
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
           }
         ]
       }
@@ -13239,7 +13239,9 @@
       },
       "ImageThumbQueryInput": {
         "type": "object",
-        "properties": { "w": { "type": "integer" } },
+        "properties": {
+          "w": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+        },
         "required": []
       },
       "IsoDateString": { "type": "string" },
@@ -13279,7 +13281,7 @@
                 "variantTypes": { "type": "array", "items": { "type": "string" } },
                 "showInLibrary": { "type": "boolean" },
                 "isCollectible": { "type": "boolean" },
-                "variantLabel": { "type": "string" },
+                "variantLabel": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                 "flavorText": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                 "artist": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                 "releaseDate": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
@@ -13337,7 +13339,7 @@
                 "variantTypes": { "type": "array", "items": { "type": "string" } },
                 "showInLibrary": { "type": "boolean" },
                 "isCollectible": { "type": "boolean" },
-                "variantLabel": { "type": "string" },
+                "variantLabel": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                 "flavorText": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                 "artist": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                 "releaseDate": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
@@ -13413,11 +13415,16 @@
           "name": { "type": "string" },
           "type": { "type": "string" },
           "super": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-          "description": { "type": "string" },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "energy": { "type": "integer" },
           "might": { "type": "integer" },
           "power": { "type": "integer" },
-          "tags": { "type": "array", "items": { "type": "string" } },
+          "tags": {
+            "anyOf": [
+              { "type": "array", "items": { "type": "string" } },
+              { "type": "null" }
+            ]
+          },
           "attachText": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "effect": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "mightBonus": { "type": "number" },
@@ -13450,7 +13457,7 @@
                 "variantTypes": { "type": "array", "items": { "type": "string" } },
                 "showInLibrary": { "type": "boolean" },
                 "isCollectible": { "type": "boolean" },
-                "variantLabel": { "type": "string" },
+                "variantLabel": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                 "flavorText": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                 "artist": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                 "releaseDate": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
@@ -13601,7 +13608,7 @@
           "variantTypes": { "type": "array", "items": { "type": "string" } },
           "showInLibrary": { "type": "boolean" },
           "isCollectible": { "type": "boolean" },
-          "variantLabel": { "type": "string" },
+          "variantLabel": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "flavorText": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "artist": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "releaseDate": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
@@ -13644,7 +13651,7 @@
           "variantTypes": { "type": "array", "items": { "type": "string" } },
           "showInLibrary": { "type": "boolean" },
           "isCollectible": { "type": "boolean" },
-          "variantLabel": { "type": "string" },
+          "variantLabel": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "flavorText": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "artist": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "releaseDate": { "anyOf": [{ "type": "string" }, { "type": "null" }] },

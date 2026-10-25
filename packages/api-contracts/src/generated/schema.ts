@@ -4421,7 +4421,7 @@ export interface components {
        * @default all
        * @enum {string}
        */
-      colorMode: 'all' | 'within';
+      colorMode?: 'all' | 'within';
       types?: string;
       super?: string;
       variants?: string;
@@ -4433,19 +4433,19 @@ export interface components {
       mightMin?: number;
       mightMax?: number;
       /** @default 1 */
-      page: number;
+      page?: number;
       /** @default 50 */
-      limit: number;
+      limit?: number;
       /**
        * @default name
        * @enum {string}
        */
-      sortBy: 'name' | 'energy' | 'variantNumber' | 'releaseDate' | 'price';
+      sortBy?: 'name' | 'energy' | 'variantNumber' | 'releaseDate' | 'price';
       /**
        * @default asc
        * @enum {string}
        */
-      dir: 'asc' | 'desc';
+      dir?: 'asc' | 'desc';
       refresh?: 'true' | 'false';
       excludeTokens?: 'true' | 'false';
       excludeBanned?: 'true' | 'false';
@@ -4589,7 +4589,7 @@ export interface components {
     CollectionActivityHistoryRequestInput: {
       variantNumbers: string[];
       /** @default 20 */
-      limit: number;
+      limit?: number;
       cursor?: {
         /** Format: date-time */
         at: string;
@@ -4633,12 +4633,12 @@ export interface components {
     };
     CollectionAdjustRequestInput: {
       /** @default 1 */
-      delta: number;
+      delta?: number;
       /**
        * @default near_mint
        * @enum {string}
        */
-      condition:
+      condition?:
         | 'mint'
         | 'near_mint'
         | 'lightly_played'
@@ -4647,7 +4647,7 @@ export interface components {
         | 'damaged'
         | 'unspecified';
       /** @default en */
-      language: string;
+      language?: string;
       isFoil?: boolean;
     };
     /** @enum {string} */
@@ -4712,7 +4712,7 @@ export interface components {
     };
     CollectionAuditListQueryInput: {
       /** @default 50 */
-      limit: number;
+      limit?: number;
       /** Format: date-time */
       before?: string;
       beforeId?: string;
@@ -4786,12 +4786,12 @@ export interface components {
       items: {
         variantNumber: string;
         /** @default 1 */
-        quantity: number;
+        quantity?: number;
         /**
          * @default near_mint
          * @enum {string}
          */
-        condition:
+        condition?:
           | 'mint'
           | 'near_mint'
           | 'lightly_played'
@@ -4800,7 +4800,7 @@ export interface components {
           | 'damaged'
           | 'unspecified';
         /** @default en */
-        language: string;
+        language?: string;
         isFoil?: boolean;
         notes?: string | null;
         isGraded?: boolean;
@@ -4820,7 +4820,7 @@ export interface components {
        * @default near_mint
        * @enum {string}
        */
-      condition:
+      condition?:
         | 'mint'
         | 'near_mint'
         | 'lightly_played'
@@ -4829,7 +4829,7 @@ export interface components {
         | 'damaged'
         | 'unspecified';
       /** @default en */
-      language: string;
+      language?: string;
       isFoil?: 'true' | 'false';
     };
     /** @enum {string} */
@@ -4852,7 +4852,7 @@ export interface components {
        * @default near_mint
        * @enum {string}
        */
-      condition:
+      condition?:
         | 'mint'
         | 'near_mint'
         | 'lightly_played'
@@ -4861,7 +4861,7 @@ export interface components {
         | 'damaged'
         | 'unspecified';
       /** @default en */
-      language: string;
+      language?: string;
       isFoil?: boolean;
     };
     CollectionImportPreviewRequestInput:
@@ -4876,7 +4876,7 @@ export interface components {
              * @default near_mint
              * @enum {string}
              */
-            condition:
+            condition?:
               | 'mint'
               | 'near_mint'
               | 'lightly_played'
@@ -4885,7 +4885,7 @@ export interface components {
               | 'damaged'
               | 'unspecified';
             /** @default en */
-            language: string;
+            language?: string;
             isFoil?: boolean;
           }[];
         };
@@ -4921,7 +4921,7 @@ export interface components {
            * @default near_mint
            * @enum {string}
            */
-          condition:
+          condition?:
             | 'mint'
             | 'near_mint'
             | 'lightly_played'
@@ -4930,7 +4930,7 @@ export interface components {
             | 'damaged'
             | 'unspecified';
           /** @default en */
-          language: string;
+          language?: string;
           isFoil?: boolean;
         }[];
       };
@@ -4944,7 +4944,7 @@ export interface components {
        * @default set
        * @enum {string}
        */
-      mode: 'set' | 'add';
+      mode?: 'set' | 'add';
       items?: {
         variantNumber: string;
         quantity: number;
@@ -4952,7 +4952,7 @@ export interface components {
          * @default near_mint
          * @enum {string}
          */
-        condition:
+        condition?:
           | 'mint'
           | 'near_mint'
           | 'lightly_played'
@@ -4961,7 +4961,7 @@ export interface components {
           | 'damaged'
           | 'unspecified';
         /** @default en */
-        language: string;
+        language?: string;
         isFoil?: boolean;
         notes?: string | null;
         isGraded?: boolean;
@@ -5333,12 +5333,12 @@ export interface components {
     CollectionUpsertRequestInput: {
       variantNumber: string;
       /** @default 1 */
-      quantity: number;
+      quantity?: number;
       /**
        * @default near_mint
        * @enum {string}
        */
-      condition:
+      condition?:
         | 'mint'
         | 'near_mint'
         | 'lightly_played'
@@ -5347,7 +5347,7 @@ export interface components {
         | 'damaged'
         | 'unspecified';
       /** @default en */
-      language: string;
+      language?: string;
       isFoil?: boolean;
       notes?: string | null;
       isGraded?: boolean;
@@ -5398,7 +5398,7 @@ export interface components {
          * @default constructed
          * @enum {string}
          */
-        format: 'constructed' | 'pre-rift';
+        format?: 'constructed' | 'pre-rift';
         createdAt: number;
         updatedAt: number;
         legend: {
@@ -5572,7 +5572,7 @@ export interface components {
        * @default constructed
        * @enum {string}
        */
-      format: 'constructed' | 'pre-rift';
+      format?: 'constructed' | 'pre-rift';
       createdAt: number;
       updatedAt: number;
       legend: {
@@ -5724,7 +5724,7 @@ export interface components {
          * @default constructed
          * @enum {string}
          */
-        format: 'constructed' | 'pre-rift';
+        format?: 'constructed' | 'pre-rift';
         createdAt: number;
         updatedAt: number;
         legend: {
@@ -5893,7 +5893,7 @@ export interface components {
        * @default constructed
        * @enum {string}
        */
-      format: 'constructed' | 'pre-rift';
+      format?: 'constructed' | 'pre-rift';
       createdAt: number;
       updatedAt: number;
       legend: {
@@ -6032,24 +6032,24 @@ export interface components {
       hasVideo?: 'true' | 'false';
       hasMatchups?: 'true' | 'false';
       /** @default 1 */
-      page: number;
+      page?: number;
       /** @default 25 */
-      limit: number;
+      limit?: number;
       /**
        * @default trending
        * @enum {string}
        */
-      sort: 'trending' | 'likes' | 'views' | 'createdAt' | 'editedAt';
+      sort?: 'trending' | 'likes' | 'views' | 'createdAt' | 'editedAt';
       /**
        * @default desc
        * @enum {string}
        */
-      dir: 'asc' | 'desc';
+      dir?: 'asc' | 'desc';
       /**
        * @default all
        * @enum {string}
        */
-      source: 'owned' | 'imported' | 'all';
+      source?: 'owned' | 'imported' | 'all';
       preview?: 'true' | 'false';
     };
     FilterSnapshotInput: {
@@ -6137,9 +6137,9 @@ export interface components {
       q: string;
       types?: string;
       /** @default 10 */
-      limit: number;
+      limit?: number;
       /** @default 1 */
-      page: number;
+      page?: number;
     };
     GlobalSearchResponseInput: {
       data: {
@@ -6195,7 +6195,7 @@ export interface components {
       };
     };
     ImageThumbQueryInput: {
-      w?: number;
+      w?: string | number;
     };
     IsoDateString: string;
     IsoDateStringInput: string;
@@ -6224,7 +6224,7 @@ export interface components {
         variantTypes: string[];
         showInLibrary: boolean;
         isCollectible: boolean;
-        variantLabel?: string;
+        variantLabel?: string | null;
         flavorText?: string | null;
         artist?: string | null;
         releaseDate?: string | null;
@@ -6252,7 +6252,7 @@ export interface components {
         variantTypes: string[];
         showInLibrary: boolean;
         isCollectible: boolean;
-        variantLabel?: string;
+        variantLabel?: string | null;
         flavorText?: string | null;
         artist?: string | null;
         releaseDate?: string | null;
@@ -6293,11 +6293,11 @@ export interface components {
       name: string;
       type: string;
       super?: string | null;
-      description?: string;
+      description?: string | null;
       energy: number;
       might: number;
       power: number;
-      tags?: string[];
+      tags?: string[] | null;
       attachText?: string | null;
       effect?: string | null;
       mightBonus?: number;
@@ -6320,7 +6320,7 @@ export interface components {
         variantTypes: string[];
         showInLibrary: boolean;
         isCollectible: boolean;
-        variantLabel?: string;
+        variantLabel?: string | null;
         flavorText?: string | null;
         artist?: string | null;
         releaseDate?: string | null;
@@ -6387,7 +6387,7 @@ export interface components {
       variantTypes: string[];
       showInLibrary: boolean;
       isCollectible: boolean;
-      variantLabel?: string;
+      variantLabel?: string | null;
       flavorText?: string | null;
       artist?: string | null;
       releaseDate?: string | null;
@@ -6411,7 +6411,7 @@ export interface components {
       variantTypes: string[];
       showInLibrary: boolean;
       isCollectible: boolean;
-      variantLabel?: string;
+      variantLabel?: string | null;
       flavorText?: string | null;
       artist?: string | null;
       releaseDate?: string | null;
@@ -6452,7 +6452,7 @@ export interface components {
       variantNumber?: string;
       isFoil?: 'true' | 'false';
       /** @default 30 */
-      days: number;
+      days?: number;
     };
     PriceHistoryResponseInput: {
       data: {
@@ -6534,7 +6534,7 @@ export interface components {
         targetPriceCents?: number | null;
       }[];
       /** @default 30 */
-      days: number;
+      days?: number;
     };
     PriceStatsBatchResponseInput: {
       data: {
@@ -6781,7 +6781,7 @@ export interface components {
        * @default constructed
        * @enum {string}
        */
-      format: 'constructed' | 'pre-rift';
+      format?: 'constructed' | 'pre-rift';
       createdAt: number;
       updatedAt: number;
       legend: {
@@ -7085,7 +7085,7 @@ export interface components {
     WishlistUpsertRequestInput: {
       variantNumber: string;
       /** @default 0 */
-      priority: number;
+      priority?: number;
       targetPriceCents?: number | null;
       notes?: string | null;
     };
@@ -9508,7 +9508,7 @@ export interface operations {
   getImage: {
     parameters: {
       query?: {
-        w?: number;
+        w?: string | number;
       };
       header?: never;
       path: {

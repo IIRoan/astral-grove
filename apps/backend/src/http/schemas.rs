@@ -1320,7 +1320,8 @@ fn make_image_thumb_query() -> z::Schema {
     z::object([(
         "w",
         z::preprocess(super::thumb_width, z::number().int().optional())
-            .with_output_schema(serde_json::json!({"type":"integer","enum":[96,160,240,320]})),
+            .with_output_schema(serde_json::json!({"type":"integer","enum":[96,160,240,320]}))
+            .with_input_schema(serde_json::json!({"anyOf":[{"type":"string"},{"type":"number"}]})),
     )])
 }
 
@@ -1419,7 +1420,8 @@ fn make_pa_logical_card() -> z::Schema {
                     )
                 },
                 z::string(),
-            ),
+            )
+            .with_input_schema(serde_json::json!({"anyOf":[{"type":"string"},{"type":"null"}]})),
         ),
         ("energy", z::number().int()),
         ("might", z::number().int()),
@@ -1436,7 +1438,10 @@ fn make_pa_logical_card() -> z::Schema {
                     )
                 },
                 z::array(z::string()),
-            ),
+            )
+            .with_input_schema(serde_json::json!({
+                "anyOf":[{"type":"array","items":{"type":"string"}},{"type":"null"}]
+            })),
         ),
         ("attachText", z::string().nullable().optional()),
         ("effect", z::string().nullable().optional()),
@@ -1525,7 +1530,8 @@ fn make_pa_variant() -> z::Schema {
                     )
                 },
                 z::string(),
-            ),
+            )
+            .with_input_schema(serde_json::json!({"anyOf":[{"type":"string"},{"type":"null"}]})),
         ),
         ("flavorText", z::string().nullable().optional()),
         ("artist", z::string().nullable().optional()),
@@ -1577,7 +1583,8 @@ fn make_pa_variant_list_item() -> z::Schema {
                     )
                 },
                 z::string(),
-            ),
+            )
+            .with_input_schema(serde_json::json!({"anyOf":[{"type":"string"},{"type":"null"}]})),
         ),
         ("flavorText", z::string().nullable().optional()),
         ("artist", z::string().nullable().optional()),

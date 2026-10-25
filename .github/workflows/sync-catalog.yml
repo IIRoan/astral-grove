@@ -138,14 +138,22 @@ jobs:
             expected="$(printf '%s' "$expected" | tr -d '[:space:]')"
             [ "${expected:-0}" -gt 0 ] || continue
 
-            # List responses put pagination under meta; total is the grouped list size.
-            page_json="$(
-              curl -sS --connect-timeout 30 --max-time 60 \
-                "${API_BASE_URL}/api/v1/cards?sets=$(printf '%s' "$code" | jq -sRr @uri)&limit=1&page=1"
+            # Upstream counts printings while list rows group them (e.g. foil alt arts), so count distinct printings.
+            encoded="$(printf '%s' "$code" | jq -sRr @uri)"
+            got="$(
+              page=1
+              while :; do
+                page_json="$(
+                  curl -sS --connect-timeout 30 --max-time 60 \
+                    "${API_BASE_URL}/api/v1/cards?sets=${encoded}&limit=100&page=${page}"
+                )"
+                echo "$page_json" | jq -r '.data[].printings[].variantNumber'
+                [ "$(echo "$page_json" | jq -r '.meta.pagination.hasNext')" = "true" ] && [ "$page" -lt 50 ] || break
+                page=$((page + 1))
+              done | sort -u | wc -l | tr -d ' '
             )"
-            got="$(echo "$page_json" | jq -r '.meta.pagination.total // .pagination.total // (.data | length) // 0')"
 
-            echo "set ${code}: local=${got} expected>=${expected}"
+            echo "set ${code}: printings=${got} expected>=${expected}"
             if [ "$got" -lt "$expected" ]; then
               echo "::error::Set ${code} is short (${got} < ${expected})"
               shortfalls=$((shortfalls + 1))

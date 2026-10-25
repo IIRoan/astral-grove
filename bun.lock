@@ -143,6 +143,7 @@
     "uniwind@1.10.0": "patches/uniwind@1.10.0.patch",
     "image-size@1.2.1": "patches/image-size@1.2.1.patch",
     "braces@3.0.3": "patches/braces@3.0.3.patch",
+    "@shopify/flash-list@2.0.2": "patches/@shopify%2Fflash-list@2.0.2.patch",
   },
   "overrides": {
     "@expo/plist": {

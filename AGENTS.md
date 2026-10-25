@@ -30,7 +30,7 @@ PA remains source of truth for data we do not invent:
 - Community decks — public deck lists and detail payloads on piltoverarchive.com
 - The **PiltoverArchive text format** for deck import/export (section headers like `Main Deck`, `Runes`, etc.)
 
-Our API syncs this data into PostgreSQL (`sync-engine`, `card-cache`, `price-cache`) and re-serves it quickly. The mobile app **never** calls `piltoverarchive.com` directly.
+Our API syncs this data into PostgreSQL (`src/sync.rs`, `src/catalog/`, `src/prices.rs`, `src/cardmarket/`) and re-serves it quickly. The mobile app **never** calls `piltoverarchive.com` directly.
 
 ### What The Astral Grove owns (our product)
 
@@ -102,7 +102,7 @@ Agents **must** verify changes before marking a task complete. Run the narrowest
 
 ```bash
 # Full monorepo check (preferred before hand-off)
-bun run check          # typecheck + lint + format:check
+bun run check          # generated contracts + typecheck + lint + format + cargo fmt/clippy
 bun run test           # all package tests (starts Postgres if needed)
 
 # Individual steps
@@ -199,7 +199,7 @@ bun run typecheck    # turbo: builds ^dependencies first, then tsc --noEmit
 - After changing Uniwind/Tailwind tokens: `bun run --cwd apps/mobile uniwind:types`
 - Test files are excluded from mobile `tsc` — they are still run by `bun test`
 
-**Contracts:** changing a schema requires `bun run --cwd packages/contracts build` (or `turbo build`) so `dist/` types update for API/mobile imports.
+**Contracts:** changing a schema requires `bun run --cwd packages/contracts build` (or `turbo build`) so `dist/` types update for mobile and backend HTTP test imports.
 
 ---
 
@@ -209,32 +209,35 @@ Zod is the **contract layer** between API, mobile, and upstream payloads. Do not
 
 ### Where schemas live
 
-| Domain                           | File(s) in `packages/contracts/src/`                       |
-| -------------------------------- | ---------------------------------------------------------- |
-| HTTP responses / errors          | `api.ts`                                                   |
-| Cards, catalog, pagination       | `cards.ts`                                                 |
-| Prices                           | `prices.ts`                                                |
-| Filters snapshot                 | `filters.ts`                                               |
-| Collection + CSV                 | `collection.ts`, `collection-csv.ts`                       |
-| Deck rules & validation          | `deck-rules.ts`                                            |
-| Deck CRUD / list queries         | `decks.ts`                                                 |
-| Upstream Piltover Archive shapes | `upstream.ts`                                              |
-| Legality, variants, tags         | `card-legality.ts`, `variant-utils.ts`, `champion-tags.ts` |
+| Domain                           | File(s) in `packages/contracts/src/`                               |
+| -------------------------------- | ------------------------------------------------------------------ |
+| HTTP responses / errors          | `api.ts`                                                           |
+| Cards, catalog, pagination       | `cards.ts`                                                         |
+| Prices                           | `prices.ts`                                                        |
+| Filters snapshot                 | `filters.ts`                                                       |
+| Collection + CSV                 | `collection.ts`, `collection-csv.ts`                               |
+| Deck rules & validation          | `deck-rules.ts`                                                    |
+| Deck CRUD / list queries         | `decks.ts`                                                         |
+| Upstream Piltover Archive shapes | `upstream.ts`                                                      |
+| Legality, variants, tags         | `card-legality.ts`, `variant-utils.ts`, `champion-tags.ts`         |
+| Settings, search, images         | `settings.ts`, `search.ts`, `images.ts`, `price-stats.ts`          |
+| Sharing, live updates, audit     | `collection-share.ts`, `collection-live.ts`, `collection-audit.ts` |
+| Rust alignment (generated)       | `rust-type-alignment.ts`                                           |
 
 Export new schemas from `packages/contracts/src/index.ts`.
 
 ### Patterns to follow
 
-Rust owns backend wire DTOs and validators. Shared Zod owns frontend/upstream runtime validation. Keep them aligned; never infer correctness from generated types alone.
+Each wire type exists three times on purpose: the Zod schema (mobile parsing), the Rust validator in `apps/backend/src/http/schemas.rs` (runtime validation and the OpenAPI source), and the serde DTO in `crates/astral-grove-api-types`. Generated checks keep them aligned — see [backend contracts](apps/backend/README.md#contracts) for how they work and how to read a failure.
 
-1. Update the Rust schema/DTO and shared Zod schema for a wire change.
-2. Use `http::parse` / `http::value` on requests and `http::respond` on responses.
-3. Run `cargo xtask openapi`, then `bun run --cwd packages/contracts build`.
-4. Keep the bidirectional assertions in `rust-type-alignment.ts` passing.
+1. Add or change the Zod schema and export it from `index.ts`.
+2. Add or change the same-named validator in `http/schemas.rs` (`make_*`, `schema()` arm, `NAMES` entry) and the DTO (listed in `ContractSchemas`).
+3. Use `http::parse` / `http::value` on requests and `http::respond` on responses; register handlers with `routes!` and a unique `operation_id`.
+4. Run `cargo xtask openapi`, then `bun run --cwd packages/contracts build`. This regenerates `rust-type-alignment.ts`, which must typecheck.
 5. Extend HTTP tests for coercion, defaults and boundaries.
 6. Mobile clients must keep parsing every response with the contract schema.
 
-Do not hand-edit generated `packages/api-contracts/src/schema.ts`, duplicate wire types, or bypass external JSON validation with casts. The generated checker must not edit files, read environment files, or connect to a database.
+Do not hand-edit generated `packages/api-contracts/src/generated/schema.ts` or `rust-type-alignment.ts`, duplicate wire types, or bypass external JSON validation with casts. The generated checker must not edit files, read environment files, or connect to a database.
 
 ## Testing
 
@@ -344,19 +347,19 @@ flowchart LR
 
 ## Do not
 
-| Avoid                                                                                           | Do instead                                                                                      |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Skip `bun run typecheck` / `lint` / tests                                                       | Run scoped checks at minimum                                                                    |
-| Duplicate Zod shapes outside `contracts`                                                        | Use generated Rust types and shared Zod validation                                              |
-| `any` or unchecked `as` on JSON                                                                 | `.parse()` / `.safeParse()`                                                                     |
-| Call piltoverarchive.com from mobile                                                            | Use our API client                                                                              |
-| Treat The Astral Grove as a PA fork or mirror                                                   | We are our own product; PA is upstream data only                                                |
-| Edit imported/upstream decks in place                                                           | Import into an owned copy first                                                                 |
-| `StyleSheet.create` / legacy theme in mobile                                                    | tetra-ui + Uniwind (see mobile AGENTS.md)                                                       |
-| Edit generated contract output or an applied SQL migration                                      | Regenerate from source                                                                          |
-| Force-push `main` or amend pushed commits                                                       | New commits unless user requests                                                                |
-| Large unrelated formatting diffs                                                                | Keep PRs focused                                                                                |
-| Destructive DB commands (`db:reset`, `DROP`, `TRUNCATE`, unscoped `DELETE`, `drizzle-kit drop`) | Forward migrations (`db:migrate`), scoped test cleanup only; ask user before prod-impacting ops |
+| Avoid                                                                          | Do instead                                                                                      |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Skip `bun run typecheck` / `lint` / tests                                      | Run scoped checks at minimum                                                                    |
+| Hand-written TypeScript wire interfaces                                        | Zod in `contracts` plus generated `@riftbound/api-contracts` types                              |
+| `any` or unchecked `as` on JSON                                                | `.parse()` / `.safeParse()`                                                                     |
+| Call piltoverarchive.com from mobile                                           | Use our API client                                                                              |
+| Treat The Astral Grove as a PA fork or mirror                                  | We are our own product; PA is upstream data only                                                |
+| Edit imported/upstream decks in place                                          | Import into an owned copy first                                                                 |
+| `StyleSheet.create` / legacy theme in mobile                                   | tetra-ui + Uniwind (see mobile AGENTS.md)                                                       |
+| Edit generated contract output or an applied SQL migration                     | Regenerate from source                                                                          |
+| Force-push `main` or amend pushed commits                                      | New commits unless user requests                                                                |
+| Large unrelated formatting diffs                                               | Keep PRs focused                                                                                |
+| Destructive DB commands (reset scripts, `DROP`, `TRUNCATE`, unscoped `DELETE`) | Forward migrations (`db:migrate`), scoped test cleanup only; ask user before prod-impacting ops |
 
 ---
 

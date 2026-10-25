@@ -1455,12 +1455,7 @@ pub struct PaVariantListItem {
     pub variant_types: Vec<String>,
     pub show_in_library: bool,
     pub is_collectible: bool,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        with = "serde_with::rust::double_option"
-    )]
-    pub variant_label: Option<Option<String>>,
+    pub variant_label: String,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
