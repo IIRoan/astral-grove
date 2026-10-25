@@ -54,7 +54,7 @@ The CLI uses the same validation and services as HTTP.
 | `src/catalog/`, `src/search.rs`, `src/sync.rs`, `src/upstream.rs` | Cached PA catalog, search, metadata and synchronization         |
 | `src/prices.rs`, `src/cardmarket/`                                | Price snapshots, daily history, mapping and product backfill    |
 | `src/collection/`                                                 | Membership, stacks, CSV/TTS, audit, sharing and SSE             |
-| `src/decks/`, `src/deck_rules.rs`                                 | Owned/community decks, versions, upstream writes and legality   |
+| `src/decks/`                                                      | Owned/community decks, versions and PA deck imports             |
 | `src/user_data.rs`                                                | Wishlist and device settings                                    |
 | `src/{images,releases}.rs`                                        | Bounded image caching/resize/S3 and private release downloads   |
 | `src/db.rs`, `src/migrations.rs`, `migrations/`                   | Transactions and forward migration history                      |
@@ -63,16 +63,40 @@ The CLI uses the same validation and services as HTTP.
 
 ## Contracts
 
-The `http::schemas` definitions own normalization, defaults and unknown-key
-behavior. `http::parse`, `value` and `respond` validate inbound and outbound JSON.
-Do not bypass response validation or add handwritten TypeScript wire interfaces.
+Each wire type exists three times, kept in lockstep by generated checks:
 
-After a wire change, update the Rust schema/DTO and the shared Zod schema together.
-Run `cargo xtask openapi`, then build `packages/contracts`. The generated
-`packages/api-contracts` exports OpenAPI operations and schemas. The bidirectional
-assertions in `packages/contracts/src/rust-type-alignment.ts` reject type drift.
-`cargo xtask openapi --check`
-compares generated content without editing files or connecting to PostgreSQL.
+| Copy      | Location                                                        | Role                                                                                                                                                                                                         |
+| --------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Zod       | `packages/contracts/src/*.ts`                                   | Expo parses every response with it                                                                                                                                                                           |
+| Validator | `src/http/schemas.rs` on the Zod 3.25 port in `src/http/zod.rs` | `http::parse`, `value` and `respond` validate inbound and outbound JSON; owns normalization, defaults and unknown-key behavior; emits OpenAPI schema `X` (normalized output) and `XInput` (accepted request) |
+| Serde DTO | `crates/astral-grove-api-types`                                 | Typed `Json<T>` the validated value deserializes into                                                                                                                                                        |
+
+`cargo xtask openapi` writes `packages/api-contracts/openapi.json`, then
+`packages/api-contracts/scripts/generate.mjs` (openapi-typescript) writes
+`src/generated/schema.ts` and `packages/contracts/src/rust-type-alignment.ts`.
+The alignment file asserts at compile time that `z.output` of every Zod schema
+equals `X` and `z.input` equals `XInput`, optional keys included.
+`tests/schema_dto_alignment.rs` checks every DTO against its validator.
+`cargo xtask openapi --check` (part of `bun run check`) fails when generated
+files are stale, without editing files or connecting to PostgreSQL.
+
+### Adding a wire type or endpoint
+
+1. Add the Zod schema in `packages/contracts/src/` and export it from `index.ts`.
+2. Add a same-named validator to `src/http/schemas.rs`: a `make_*` function, a
+   `schema()` match arm and a `NAMES` entry.
+3. Add the serde DTO to `crates/astral-grove-api-types` and list it in
+   `ContractSchemas`.
+4. Write the handler with `#[utoipa::path(..., operation_id = "...")]`, register
+   it with `routes!`, and validate with `http::parse`, `value` and `respond`.
+5. Run `cargo xtask openapi`, then `bun run --cwd packages/contracts build`.
+6. Run `bun run check`, and add HTTP tests in `test/` for coercion, defaults and
+   boundaries.
+
+Reading failures: `Type 'false' does not satisfy the constraint 'true'` means the
+types differ; `Type '{ drift: "a.b" }'` means key `a.b` exists on one side only.
+The error names the `XAlignment` or `XInputAlignment` type to inspect. Auth
+payloads under `/api/auth/*` and route parameters are not covered by these checks.
 
 ## Migrations
 
