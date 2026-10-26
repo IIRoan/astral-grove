@@ -9,6 +9,11 @@ use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::RngExt;
 use sea_orm::{ConnectionTrait, TransactionTrait};
 
+// Remembered sessions roll forward on use, so a device stays signed in until it sits unused this long.
+pub const SESSION_SECONDS: i64 = 90 * 86400;
+const SHORT_SESSION_SECONDS: i64 = 86400;
+const UPDATE_AGE_SECONDS: i64 = 86400;
+
 pub const USER_COLUMNS: &str = "id, name, email, email_verified AS \"emailVerified\", image, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"";
 
 pub fn id() -> String {
@@ -32,36 +37,44 @@ pub async fn find_user(state: &AppState, email: &str) -> Result<Option<User>> {
         .map_err(AppError::from)
 }
 pub async fn get_session(state: &AppState, headers: &HeaderMap) -> Result<Option<SessionResponse>> {
-    Ok(session_with_refresh(state, headers, true).await?.0)
+    session_with_refresh(state, headers, true).await
 }
 
 pub async fn session_with_refresh(
     state: &AppState,
     headers: &HeaderMap,
     refresh: bool,
-) -> Result<(Option<SessionResponse>, bool)> {
+) -> Result<Option<SessionResponse>> {
     let Some(mut session) = find_session(state, headers).await? else {
-        return Ok((None, false));
+        return Ok(None);
     };
     if !refresh
         || cookies::dont_remember(&state.config, headers)
         || !needs_refresh(&session.session.expires_at, time::OffsetDateTime::now_utc())
     {
-        return Ok((Some(session), false));
+        return Ok(Some(session));
     }
-    let renewed = db::rows(&state.db,"UPDATE session SET expires_at=date_trunc('milliseconds',now())+interval '7 days',updated_at=date_trunc('milliseconds',now()) WHERE token=$1 AND expires_at>now() AND expires_at<=now()+interval '6 days' RETURNING to_char(expires_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS expires,to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS updated",vec![session.session.token.clone().into()]).await?;
+    let renewed = db::rows(&state.db,"UPDATE session SET expires_at=date_trunc('milliseconds',now())+($2::text||' seconds')::interval,updated_at=date_trunc('milliseconds',now()) WHERE token=$1 AND expires_at>now() AND expires_at<=now()+($3::text||' seconds')::interval RETURNING to_char(expires_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS expires,to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS updated",vec![session.session.token.clone().into(),SESSION_SECONDS.into(),(SESSION_SECONDS-UPDATE_AGE_SECONDS).into()]).await?;
     if let Some(row) = renewed.first() {
         session.session.expires_at = db::string(row, "expires").into();
         session.session.updated_at = db::string(row, "updated").into();
-        Ok((Some(session), true))
+        Ok(Some(session))
     } else {
-        Ok((find_session(state, headers).await?, false))
+        find_session(state, headers).await
     }
 }
 
 fn needs_refresh(expires: &str, now: time::OffsetDateTime) -> bool {
+    time::OffsetDateTime::parse(expires, &time::format_description::well_known::Rfc3339).is_ok_and(
+        |expires| expires - time::Duration::seconds(SESSION_SECONDS - UPDATE_AGE_SECONDS) <= now,
+    )
+}
+
+pub fn seconds_left(expires: &str) -> Option<i64> {
     time::OffsetDateTime::parse(expires, &time::format_description::well_known::Rfc3339)
-        .is_ok_and(|expires| expires - time::Duration::days(6) <= now)
+        .ok()
+        .map(|expires| (expires - time::OffsetDateTime::now_utc()).whole_seconds())
+        .filter(|seconds| *seconds > 0)
 }
 
 async fn find_session(state: &AppState, headers: &HeaderMap) -> Result<Option<SessionResponse>> {
@@ -98,7 +111,7 @@ pub async fn create_session_on<C: ConnectionTrait>(
         .chars()
         .take(1024)
         .collect::<String>();
-    db::execute(connection, "INSERT INTO session(id,user_id,token,expires_at,ip_address,user_agent) VALUES($1,$2,$3,now()+($4::text||' seconds')::interval,$5,$6)", vec![id().into(), user_id.into(), token.clone().into(), (if remember { 604800_i64 } else { 86400_i64 }).into(), ip.into(), agent.into()]).await?;
+    db::execute(connection, "INSERT INTO session(id,user_id,token,expires_at,ip_address,user_agent) VALUES($1,$2,$3,now()+($4::text||' seconds')::interval,$5,$6)", vec![id().into(), user_id.into(), token.clone().into(), (if remember { SESSION_SECONDS } else { SHORT_SESSION_SECONDS }).into(), ip.into(), agent.into()]).await?;
     Ok(token)
 }
 pub async fn password_session(
@@ -277,22 +290,21 @@ pub async fn sign_out(state: &AppState, headers: &HeaderMap) -> Result<()> {
     Ok(())
 }
 pub fn signed_headers(state: &AppState, token: &str, remember: bool) -> Result<HeaderMap> {
+    session_cookies(state, token, remember.then_some(SESSION_SECONDS))
+}
+/// `age: None` issues a browser-session cookie marked dont_remember.
+pub fn session_cookies(state: &AppState, token: &str, age: Option<i64>) -> Result<HeaderMap> {
     let value = cookies::sign(&state.config.auth_secret, token).ok_or_else(AppError::internal)?;
     let encoded = cookies::encode(&value);
     let mut headers = HeaderMap::new();
     headers.insert(
         "set-cookie",
-        cookies::cookie_kind(
-            &state.config,
-            "session_token",
-            &encoded,
-            remember.then_some(604800),
-        )
-        .parse()
-        .map_err(|_| AppError::internal())?,
+        cookies::cookie_kind(&state.config, "session_token", &encoded, age)
+            .parse()
+            .map_err(|_| AppError::internal())?,
     );
     // A remembered login clears any dont_remember left by an earlier short session.
-    let dont_remember = if remember {
+    let dont_remember = if age.is_some() {
         cookies::cookie_kind(&state.config, "dont_remember", "", Some(0))
     } else {
         let value = cookies::encode(
@@ -355,9 +367,9 @@ mod tests {
     #[test]
     fn session_renewal_starts_at_the_daily_update_boundary() {
         let now = time::macros::datetime!(2026-10-19 12:00 UTC);
-        assert!(!needs_refresh("2026-10-26T12:00:00.000Z", now));
-        assert!(!needs_refresh("2026-10-25T12:00:00.001Z", now));
-        assert!(needs_refresh("2026-10-25T12:00:00.000Z", now));
+        assert!(!needs_refresh("2027-01-17T12:00:00.000Z", now));
+        assert!(!needs_refresh("2027-01-16T12:00:00.001Z", now));
+        assert!(needs_refresh("2027-01-16T12:00:00.000Z", now));
         assert!(needs_refresh("2026-10-20T12:00:00.000Z", now));
         assert!(!needs_refresh("invalid", now));
     }

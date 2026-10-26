@@ -293,7 +293,7 @@ pub async fn dispatch(
                     "POST method requires deferSessionRefresh to be enabled in session config",
                 ));
             }
-            let (session, renewed) =
+            let session =
                 service::session_with_refresh(state, headers, query["disableRefresh"] != true)
                     .await?;
             let mut response_headers = HeaderMap::new();
@@ -303,11 +303,14 @@ pub async fn dispatch(
             );
             response_headers.insert("pragma", axum::http::HeaderValue::from_static("no-cache"));
             if let Some(current) = &session {
-                if renewed {
-                    response_headers.extend(service::signed_headers(
+                // API routes renew silently, so every read re-aligns the stored cookie with the session expiry.
+                if !cookies::dont_remember(&state.config, headers)
+                    && let Some(age) = service::seconds_left(&current.session.expires_at)
+                {
+                    response_headers.extend(service::session_cookies(
                         state,
                         &current.session.token,
-                        true,
+                        Some(age),
                     )?);
                 }
             } else if let Some(token) = cookies::token(&state.config, headers) {

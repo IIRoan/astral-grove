@@ -111,16 +111,26 @@ describe('authentication', () => {
     });
     const first = await noRefresh.json();
     expect(Date.parse(first.session.expiresAt) - Date.now()).toBeLessThan(6 * 86400000);
+    const maxAge = (response: Response) =>
+      Number(
+        /Max-Age=(\d+)/.exec(
+          response.headers
+            .getSetCookie()
+            .find((v) => v.startsWith('better-auth.session_token='))!
+        )?.[1]
+      );
+    // Unrenewed reads still re-issue the cookie, aligned to the stored expiry.
+    expect(maxAge(noRefresh)).toBeGreaterThan(5 * 86400 - 60);
+    expect(maxAge(noRefresh)).toBeLessThanOrEqual(5 * 86400);
     const refreshed = await app.fetch('/api/auth/get-session', {
       headers: { cookie: user.cookie },
     });
     const next = await refreshed.json();
     expect(Date.parse(next.session.expiresAt) - Date.now()).toBeGreaterThan(
-      6 * 86400000
+      89 * 86400000
     );
-    expect(
-      refreshed.headers.getSetCookie().some((v) => v.includes('Max-Age=604800'))
-    ).toBe(true);
+    expect(maxAge(refreshed)).toBeGreaterThan(90 * 86400 - 60);
+    expect(maxAge(refreshed)).toBeLessThanOrEqual(90 * 86400);
     const short = await app.fetch(
       '/api/auth/sign-in/email',
       json({ email: user.email, password, rememberMe: false })
@@ -167,7 +177,7 @@ describe('authentication', () => {
           .getSetCookie()
           .find((value) => value.startsWith('better-auth.session_token='));
         expect(sessionCookie).toBeDefined();
-        expect(sessionCookie!.includes('Max-Age=604800')).toBe(rememberMe);
+        expect(sessionCookie!.includes('Max-Age=7776000')).toBe(rememberMe);
         if (!rememberMe) {
           expect(sessionCookie).not.toMatch(/Max-Age=|Expires=/i);
           expect(cookie(response)).toContain('better-auth.dont_remember=');
@@ -180,8 +190,8 @@ describe('authentication', () => {
       expect(session.status).toBe(200);
       const remaining =
         Date.parse((await session.json()).session.expiresAt) - Date.now();
-      expect(remaining).toBeGreaterThan((rememberMe ? 6 : 0.9) * 86400000);
-      expect(remaining).toBeLessThanOrEqual((rememberMe ? 7 : 1) * 86400000);
+      expect(remaining).toBeGreaterThan((rememberMe ? 89 : 0.9) * 86400000);
+      expect(remaining).toBeLessThanOrEqual((rememberMe ? 90 : 1) * 86400000);
       expect(renewed.token).not.toBeNull();
       expect(
         (await sql`SELECT token FROM session WHERE user_id=${user.user.id}`).map(
@@ -201,7 +211,7 @@ describe('authentication', () => {
     const remembered = (await signIn(true)).headers.getSetCookie();
     expect(
       remembered.find((value) => value.startsWith('better-auth.session_token='))
-    ).toContain('Max-Age=604800');
+    ).toContain('Max-Age=7776000');
     expect(
       remembered.find((value) => value.startsWith('better-auth.dont_remember='))
     ).toMatch(/^better-auth\.dont_remember=;.*Max-Age=0/);
@@ -217,7 +227,7 @@ describe('authentication', () => {
       expect((await app.fetch('/api/v1/collection', { headers })).status).toBe(200);
       const rows =
         await sql`SELECT extract(epoch FROM expires_at-now())::integer AS remaining FROM session WHERE token=${user.token}`;
-      expect(rows[0]!.remaining).toBeGreaterThan(6 * 86400);
+      expect(rows[0]!.remaining).toBeGreaterThan(89 * 86400);
     }
     const short = await app.fetch(
       '/api/auth/sign-in/email',
@@ -230,6 +240,58 @@ describe('authentication', () => {
     const rows =
       await sql`SELECT extract(epoch FROM expires_at-now())::integer AS remaining FROM session WHERE token=${login.token}`;
     expect(rows[0]!.remaining).toBeLessThan(86400);
+  });
+  test('a native client stays signed in through months of use and expires after 90 idle days', async () => {
+    const user = await signup('months');
+    // Mirrors @better-auth/expo: a stored cookie expires at receipt + Max-Age and is no longer sent.
+    let clock = Date.now();
+    const jar = new Map<string, { value: string; expires: number }>();
+    const store = (response: Response) => {
+      for (const header of response.headers.getSetCookie()) {
+        const [pair, ...attributes] = header.split(';');
+        const name = pair!.slice(0, pair!.indexOf('='));
+        const age = attributes
+          .map((attribute) => /^max-age=(-?\d+)$/i.exec(attribute.trim())?.[1])
+          .find((value) => value !== undefined);
+        if (age === undefined || Number(age) <= 0) jar.delete(name);
+        else
+          jar.set(name, {
+            value: pair!.slice(name.length + 1),
+            expires: clock + Number(age) * 1000,
+          });
+      }
+    };
+    const headers = () => ({
+      cookie: [...jar]
+        .filter(([, stored]) => stored.expires > clock)
+        .map(([name, stored]) => `${name}=${stored.value}`)
+        .join('; '),
+    });
+    const elapse = async (days: number) => {
+      clock += days * 86400000;
+      const shift = `${days} days`;
+      await sql`UPDATE session SET expires_at=expires_at-${shift}::interval,updated_at=updated_at-${shift}::interval WHERE user_id=${user.user.id}`;
+    };
+    store(
+      await app.fetch('/api/auth/sign-in/email', json({ email: user.email, password }))
+    );
+    for (const days of [1, 2, 3, 7, 14, 30, 60, 89, 1, 1]) {
+      await elapse(days);
+      // API routes renew before get-session runs on launch; the stored cookie must still follow.
+      expect(
+        (await app.fetch('/api/v1/collection', { headers: headers() })).status
+      ).toBe(200);
+      const session = await app.fetch('/api/auth/get-session', { headers: headers() });
+      store(session);
+      expect((await session.json())?.user.id).toBe(user.user.id);
+    }
+    await elapse(90);
+    expect(headers().cookie).toBe('');
+    expect(
+      (
+        await sql`SELECT bool_and(expires_at<=now()) AS expired FROM session WHERE user_id=${user.user.id}`
+      )[0]!.expired
+    ).toBe(true);
   });
   test('concurrent protected requests renew once and expired sessions stay expired', async () => {
     const user = await signup('concurrent-renewal');
@@ -244,7 +306,7 @@ describe('authentication', () => {
       await sql`SELECT expires_at,updated_at FROM session WHERE token=${user.token}`
     )[0]!;
     expect(new Date(refreshed.expires_at).getTime() - Date.now()).toBeGreaterThan(
-      6 * 86400000
+      89 * 86400000
     );
     expect(
       (await app.fetch('/api/v1/collection', { headers: { cookie: user.cookie } }))
