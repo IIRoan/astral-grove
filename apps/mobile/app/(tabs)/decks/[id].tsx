@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { AppLoadingScreen } from '@/components/ui/app-loader';
 import { DeckBuilderCanvas } from '@/components/deck/DeckBuilderCanvas';
@@ -32,9 +32,13 @@ type IoMode = 'import';
 export default function DeckEditorScreen() {
   const router = useRouter();
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
-  const { deck, isLoading, persist, flushSave } = useDeckDetail(id);
+  const shared = usePathname().startsWith('/shared/decks/');
+  const { deck, error, isLoading, persist, flushSave, refetch } = useDeckDetail(
+    id,
+    shared
+  );
   const { importDeck, duplicateOwnedDeck, removeDeck } = useDeckMutations();
-  const permanentReadOnly = deck?.readOnly === true;
+  const permanentReadOnly = shared || deck?.readOnly === true;
   const editing = !permanentReadOnly && isDeckEditMode(mode);
   const [ioMode, setIoMode] = useState<IoMode | null>(null);
   const [pickingLegend, setPickingLegend] = useState(false);
@@ -104,7 +108,18 @@ export default function DeckEditorScreen() {
     return (
       <ScreenLayout>
         <ScreenLayoutBody>
-          <Text className="text-muted-foreground">Deck not found.</Text>
+          <Text className="text-muted-foreground">
+            {shared
+              ? error
+                ? 'Could not load this deck. Please try again.'
+                : 'This deck is no longer shared.'
+              : 'Deck not found.'}
+          </Text>
+          {shared && error ? (
+            <Button className="mt-4" onPress={() => void refetch()}>
+              <ButtonText>Try again</ButtonText>
+            </Button>
+          ) : null}
           <Button className="mt-4" onPress={() => router.replace('/decks')}>
             <ButtonText>Back to decks</ButtonText>
           </Button>
@@ -168,6 +183,11 @@ export default function DeckEditorScreen() {
       />
       <ScreenLayout mode="flex" contentClassName="min-h-0 flex-1">
         <ScreenLayoutBody className="min-h-0 flex-1">
+          {shared ? (
+            <Text className="pb-3 text-xs text-muted-foreground">
+              Shared via The Astral Grove · View only
+            </Text>
+          ) : null}
           <DeckBuilderCanvas
             deck={deck}
             permanentReadOnly={permanentReadOnly}
@@ -180,7 +200,7 @@ export default function DeckEditorScreen() {
             onDuplicate={permanentReadOnly ? undefined : handleDuplicate}
             onDelete={permanentReadOnly ? undefined : handleDelete}
             duplicateBusy={duplicateOwnedDeck.isPending}
-            onImportToMyDecks={permanentReadOnly ? handleImport : undefined}
+            onImportToMyDecks={permanentReadOnly && !shared ? handleImport : undefined}
             importBusy={importDeck.isPending}
             onBack={handleBack}
           />

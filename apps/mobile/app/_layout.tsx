@@ -186,6 +186,10 @@ function RootNav() {
           }}
         />
         <Stack.Screen
+          name="shared/decks/[id]"
+          options={{ title: 'Shared deck', headerShown: false }}
+        />
+        <Stack.Screen
           name="reset-password"
           options={{
             title: 'Reset password',

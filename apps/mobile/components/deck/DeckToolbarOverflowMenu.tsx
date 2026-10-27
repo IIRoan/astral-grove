@@ -10,7 +10,10 @@ import {
   LinkIcon,
   TrashIcon,
 } from '@/components/icons';
-import { useDeckShareCopy } from '@/components/deck/DeckShareMenu';
+import {
+  DeckLinkAccessOption,
+  useDeckShareCopy,
+} from '@/components/deck/DeckShareMenu';
 import {
   Popover,
   PopoverClose,
@@ -44,7 +47,7 @@ export function DeckToolbarOverflowMenu({
   duplicateBusy = false,
 }: DeckToolbarOverflowMenuProps) {
   const [open, setOpen] = useState(false);
-  const copy = useDeckShareCopy(deck);
+  const { copy, sharing, linkDisabled } = useDeckShareCopy(deck);
 
   return (
     <View className="relative shrink-0">
@@ -75,6 +78,11 @@ export function DeckToolbarOverflowMenu({
             sideOffset={4}
             className="z-50 min-w-[11.5rem] overflow-hidden rounded-[3px] border border-border bg-popover p-1 shadow-none"
           >
+            <DeckLinkAccessOption
+              deck={deck}
+              busy={sharing.isPending}
+              onToggle={sharing.mutate}
+            />
             {onImport ? (
               <OverflowItem
                 icon={DownloadIcon}
@@ -87,12 +95,13 @@ export function DeckToolbarOverflowMenu({
             ) : null}
 
             <Text className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-              Copy
+              Share
             </Text>
             <OverflowItem
               icon={LinkIcon}
               label="The Astral Grove link"
               accessibilityLabel="Copy The Astral Grove link"
+              disabled={linkDisabled}
               onPress={() => copy('link')}
             />
             <OverflowItem

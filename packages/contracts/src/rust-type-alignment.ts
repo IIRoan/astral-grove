@@ -885,6 +885,15 @@ export type ThemePreferenceAlignment = Assert<
 export type ThemePreferenceInputAlignment = Assert<
   Matches<z.input<typeof C.ThemePreference>, S['ThemePreferenceInput']>
 >;
+export type UpdateDeckSharingRequestAlignment = Assert<
+  Matches<z.output<typeof C.UpdateDeckSharingRequest>, S['UpdateDeckSharingRequest']>
+>;
+export type UpdateDeckSharingRequestInputAlignment = Assert<
+  Matches<
+    z.input<typeof C.UpdateDeckSharingRequest>,
+    S['UpdateDeckSharingRequestInput']
+  >
+>;
 export type UserSettingsAlignment = Assert<
   Matches<z.output<typeof C.UserSettings>, S['UserSettings']>
 >;

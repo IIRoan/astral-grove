@@ -85,7 +85,9 @@ export function DeckBuilderCanvas({
   const [middlePanel, setMiddlePanel] = useState<DeckBuilderMiddlePanel>('catalog');
   const [catalogSection, setCatalogSection] = useState<CatalogSection>('mainDeck');
 
-  const { data: collection = [] } = useCollection();
+  const { data: collection = [] } = useCollection({
+    enabled: !(deck.readOnly && deck.shareToken),
+  });
   const validation = useMemo(() => validateDeck(deck), [deck]);
 
   const { data: runeCards, isPending: runeCardsLoading } = useDeckRuneCards(deck);
@@ -197,7 +199,7 @@ export function DeckBuilderCanvas({
   return (
     <>
       <View className="relative min-h-0 flex-1">
-        {permanentReadOnly ? (
+        {permanentReadOnly && deck.source === 'imported' ? (
           <View className="shrink-0">
             <DeckBuilderImportedBanner
               importBusy={importBusy}

@@ -938,6 +938,9 @@ pub struct DeckListItem {
     pub source: DeckSource,
     pub read_only: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(nullable = true)]
+    pub share_token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub author_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub views: Option<i64>,
@@ -995,6 +998,11 @@ pub enum DeckSortField {
 pub enum DeckSource {
     Owned,
     Imported,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
+pub struct UpdateDeckSharingRequest {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
@@ -2058,6 +2066,7 @@ pub type VariantNumber = String;
     DeckListResponseMeta,
     DeckSortField,
     DeckSource,
+    UpdateDeckSharingRequest,
     DeckUpsertRequest,
     DeckVersionSummary,
     DecksListQuery,

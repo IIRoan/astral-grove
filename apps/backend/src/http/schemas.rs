@@ -73,6 +73,7 @@ pub fn schema(name: &str) -> z::Schema {
         "DeckListResponse" => make_deck_list_response(),
         "DeckSortField" => make_deck_sort_field(),
         "DeckSource" => make_deck_source(),
+        "UpdateDeckSharingRequest" => make_update_deck_sharing_request(),
         "DeckUpsertRequest" => make_deck_upsert_request(),
         "DeckVersionName" => make_deck_version_name(),
         "DeckVersionSummary" => make_deck_version_summary(),
@@ -1037,6 +1038,7 @@ fn make_deck_list_item() -> z::Schema {
         ("syncWarnings", z::array(z::string()).optional()),
         ("source", schema("DeckSource")),
         ("readOnly", z::boolean()),
+        ("shareToken", z::string().min(1).nullable().optional()),
         ("authorName", z::string().optional()),
         ("views", z::number().int().gte(0.0).optional()),
         ("likes", z::number().int().gte(0.0).optional()),
@@ -1077,6 +1079,10 @@ fn make_deck_sort_field() -> z::Schema {
 
 fn make_deck_source() -> z::Schema {
     z::enumeration(&["owned", "imported"])
+}
+
+fn make_update_deck_sharing_request() -> z::Schema {
+    z::object([("enabled", z::boolean())])
 }
 
 fn make_deck_upsert_request() -> z::Schema {
@@ -2201,6 +2207,7 @@ pub const NAMES: &[&str] = &[
     "DeckListResponse",
     "DeckSortField",
     "DeckSource",
+    "UpdateDeckSharingRequest",
     "DeckUpsertRequest",
     "DeckVersionName",
     "DeckVersionSummary",

@@ -3,6 +3,7 @@ import {
   DeckDetailResponse,
   DeckListResponse,
   RenameDeckVersionRequest,
+  UpdateDeckSharingRequest,
   type DeckListItem,
   type DecksListQuery,
   type StoredDeckPayload,
@@ -19,6 +20,14 @@ type DeckListPagination = {
 };
 
 export { RemoteApiError };
+
+export async function updateDeckSharing(deckId: string, enabled: boolean) {
+  const response = await authedFetch<unknown>(
+    `/api/v1/decks/${encodeURIComponent(deckId)}/sharing`,
+    { method: 'PATCH', body: UpdateDeckSharingRequest.parse({ enabled }) }
+  );
+  return DeckDetailResponse.parse(response).data;
+}
 
 export async function fetchRemoteDecks(
   options?: Partial<DecksListQuery>

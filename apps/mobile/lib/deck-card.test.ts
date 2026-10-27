@@ -34,6 +34,7 @@ describe('deck version serialize', () => {
       ...createEmptyDeck('Annie'),
       versionId: 'dver_1',
       versionName: 'Current',
+      shareToken: 'dshare_original',
       versions: [
         {
           id: 'dver_1',
@@ -47,11 +48,13 @@ describe('deck version serialize', () => {
     const roundtrip = deserializeDeck(serializeDeck(deck));
     expect(roundtrip.versionId).toBe('dver_1');
     expect(roundtrip.versionName).toBe('Current');
+    expect(roundtrip.shareToken).toBe('dshare_original');
     expect(roundtrip.versions).toHaveLength(1);
 
     const copy = cloneDeck(deck);
     expect(copy.versionId).toBeUndefined();
     expect(copy.versionName).toBeUndefined();
+    expect(copy.shareToken).toBeUndefined();
     expect(copy.versions).toBeUndefined();
     expect(copy.id).not.toBe(deck.id);
   });

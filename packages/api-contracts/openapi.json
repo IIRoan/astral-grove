@@ -2430,6 +2430,37 @@
         "security": [{ "sessionCookie": [] }, { "sessionBearer": [] }]
       }
     },
+    "/api/v1/decks/{id}/sharing": {
+      "patch": {
+        "operationId": "updateDeckSharing",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateDeckSharingRequestInput" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DeckDetailResponse" }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "security": [{ "sessionCookie": [] }, { "sessionBearer": [] }]
+      }
+    },
     "/api/v1/decks/{id}/versions": {
       "post": {
         "operationId": "createDeckVersion",
@@ -2940,6 +2971,28 @@
           }
         ],
         "security": [{ "sessionCookie": [] }, { "sessionBearer": [] }]
+      }
+    },
+    "/api/v1/shared/decks/{token}": {
+      "get": {
+        "operationId": "getSharedDeck",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DeckDetailResponse" }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ]
       }
     },
     "/api/v1/sync/catalog": {
@@ -5881,6 +5934,9 @@
               "syncWarnings": { "type": "array", "items": { "type": "string" } },
               "source": { "type": "string", "enum": ["owned", "imported"] },
               "readOnly": { "type": "boolean" },
+              "shareToken": {
+                "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+              },
               "authorName": { "type": "string" },
               "views": { "type": "integer", "minimum": 0 },
               "likes": { "type": "integer", "minimum": 0 },
@@ -6281,6 +6337,9 @@
           "syncWarnings": { "type": "array", "items": { "type": "string" } },
           "source": { "type": "string", "enum": ["owned", "imported"] },
           "readOnly": { "type": "boolean" },
+          "shareToken": {
+            "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+          },
           "authorName": { "type": "string" },
           "views": { "type": "integer", "minimum": 0 },
           "likes": { "type": "integer", "minimum": 0 },
@@ -6655,6 +6714,9 @@
                 "syncWarnings": { "type": "array", "items": { "type": "string" } },
                 "source": { "type": "string", "enum": ["owned", "imported"] },
                 "readOnly": { "type": "boolean" },
+                "shareToken": {
+                  "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+                },
                 "authorName": { "type": "string" },
                 "views": { "type": "integer", "minimum": 0 },
                 "likes": { "type": "integer", "minimum": 0 },
@@ -8712,6 +8774,11 @@
         "enum": ["idle", "running", "failed"]
       },
       "ThemePreference": { "type": "string", "enum": ["light", "dark", "system"] },
+      "UpdateDeckSharingRequest": {
+        "type": "object",
+        "properties": { "enabled": { "type": "boolean" } },
+        "required": ["enabled"]
+      },
       "User": {
         "type": "object",
         "required": [
@@ -11691,6 +11758,9 @@
               "syncWarnings": { "type": "array", "items": { "type": "string" } },
               "source": { "type": "string", "enum": ["owned", "imported"] },
               "readOnly": { "type": "boolean" },
+              "shareToken": {
+                "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+              },
               "authorName": { "type": "string" },
               "views": { "type": "integer", "minimum": 0 },
               "likes": { "type": "integer", "minimum": 0 },
@@ -12090,6 +12160,9 @@
           "syncWarnings": { "type": "array", "items": { "type": "string" } },
           "source": { "type": "string", "enum": ["owned", "imported"] },
           "readOnly": { "type": "boolean" },
+          "shareToken": {
+            "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+          },
           "authorName": { "type": "string" },
           "views": { "type": "integer", "minimum": 0 },
           "likes": { "type": "integer", "minimum": 0 },
@@ -12463,6 +12536,9 @@
                 "syncWarnings": { "type": "array", "items": { "type": "string" } },
                 "source": { "type": "string", "enum": ["owned", "imported"] },
                 "readOnly": { "type": "boolean" },
+                "shareToken": {
+                  "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+                },
                 "authorName": { "type": "string" },
                 "views": { "type": "integer", "minimum": 0 },
                 "likes": { "type": "integer", "minimum": 0 },
@@ -12535,6 +12611,11 @@
         "enum": ["trending", "likes", "views", "createdAt", "editedAt"]
       },
       "DeckSourceInput": { "type": "string", "enum": ["owned", "imported"] },
+      "UpdateDeckSharingRequestInput": {
+        "type": "object",
+        "properties": { "enabled": { "type": "boolean" } },
+        "required": ["enabled"]
+      },
       "DeckUpsertRequestInput": {
         "type": "object",
         "properties": {

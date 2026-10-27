@@ -28,7 +28,7 @@ fn id(prefix: &str) -> String {
 pub async fn row(db: &impl ConnectionTrait, user: &str, id: &str) -> Result<Option<Value>> {
     Ok(db::rows(
         db,
-        "SELECT payload,active_version_id AS active FROM user_decks WHERE user_id=$1 AND id=$2",
+        "SELECT payload,active_version_id AS active,share_token FROM user_decks WHERE user_id=$1 AND id=$2",
         vec![user.into(), id.into()],
     )
     .await?
@@ -48,6 +48,7 @@ async fn detail(
     user: &str,
     payload: Value,
     active: Option<&str>,
+    share_token: Option<&str>,
 ) -> Result<Value> {
     let records = versions(db, user, db::string(&payload, "id")).await?;
     let active = records
@@ -55,6 +56,7 @@ async fn detail(
         .find(|row| Some(db::string(row, "id")) == active)
         .or_else(|| records.first());
     let mut payload = owned(payload);
+    payload["shareToken"] = json!(share_token);
     if let Some(active) = active {
         payload["versionId"] = active["id"].clone();
         payload["versionName"] = active["name"].clone();
@@ -123,7 +125,7 @@ fn merge(family: &Value, version: &Value) -> Value {
     result
 }
 pub async fn list(state: &AppState, user: &str, query: &Value) -> Result<Value> {
-    let rows=db::rows(&state.db,"SELECT d.payload,d.active_version_id AS active,v.name AS \"versionName\" FROM user_decks d LEFT JOIN user_deck_versions v ON v.user_id=d.user_id AND v.id=d.active_version_id WHERE d.user_id=$1 ORDER BY d.updated_at DESC",vec![user.into()]).await?;
+    let rows=db::rows(&state.db,"SELECT d.payload,d.active_version_id AS active,d.share_token,v.name AS \"versionName\" FROM user_decks d LEFT JOIN user_deck_versions v ON v.user_id=d.user_id AND v.id=d.active_version_id WHERE d.user_id=$1 ORDER BY d.updated_at DESC",vec![user.into()]).await?;
     let needle = db::string(query, "q").trim().to_lowercase();
     let mut owned_items = Vec::new();
     let mut skip = HashSet::new();
@@ -154,6 +156,7 @@ pub async fn list(state: &AppState, user: &str, query: &Value) -> Result<Value> 
             continue;
         }
         let mut item = owned(payload.clone());
+        item["shareToken"] = row["share_token"].clone();
         if let (Some(active), Some(name)) = (
             row["active"].as_str().filter(|value| !value.is_empty()),
             row["versionName"]
@@ -190,12 +193,60 @@ pub async fn get(state: &AppState, user: &str, id: &str) -> Result<Value> {
             user,
             row["payload"].clone(),
             row["active"].as_str(),
+            row["share_token"].as_str(),
         )
         .await;
     }
     upstream::get_item(state, id)
         .await
         .ok_or_else(|| missing(false))
+}
+
+pub async fn set_sharing(state: &AppState, user: &str, deck: &str, enabled: bool) -> Result<Value> {
+    let tx = lock(state, user).await?;
+    let token = enabled.then(|| id("dshare"));
+    let records = db::rows(
+        &tx,
+        "UPDATE user_decks SET share_token=CASE WHEN $3::text IS NULL THEN NULL ELSE COALESCE(share_token,$3) END WHERE user_id=$1 AND id=$2 RETURNING payload,active_version_id AS active,share_token",
+        vec![user.into(), deck.into(), token.into()],
+    )
+    .await?;
+    let record = records.first().ok_or_else(|| missing(false))?;
+    let result = detail(
+        &tx,
+        user,
+        record["payload"].clone(),
+        record["active"].as_str(),
+        record["share_token"].as_str(),
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(result)
+}
+
+fn shared_payload(payload: &Value, token: &str) -> Result<Value> {
+    let mut public = crate::http::value("DeckUpsertRequest", payload)?;
+    if let Some(fields) = public.as_object_mut() {
+        for key in ["upstreamId", "importedFromId", "syncWarnings"] {
+            fields.remove(key);
+        }
+    }
+    public["id"] = json!(token);
+    public["source"] = json!("owned");
+    public["readOnly"] = json!(true);
+    public["shareToken"] = json!(token);
+    Ok(public)
+}
+
+pub async fn get_shared(state: &AppState, token: &str) -> Result<Value> {
+    let records = db::rows(
+        &state.db,
+        "SELECT payload FROM user_decks WHERE share_token=$1",
+        vec![token.into()],
+    )
+    .await?;
+    let record = records.first().ok_or_else(|| missing(false))?;
+    shared_payload(&record["payload"], token)
 }
 pub async fn upsert(
     state: &AppState,
@@ -236,7 +287,16 @@ pub async fn upsert(
     } else {
         db::execute(&tx,"UPDATE user_deck_versions SET payload=$3,updated_at=to_timestamp($4::double precision/1000.0) WHERE user_id=$1 AND id=$2",vec![user.into(),version.clone().into(),next.clone().into(),timestamp.into()]).await?;
     }
-    let result = detail(&tx, user, next, Some(&version)).await?;
+    let result = detail(
+        &tx,
+        user,
+        next,
+        Some(&version),
+        existing
+            .as_ref()
+            .and_then(|row| row["share_token"].as_str()),
+    )
+    .await?;
     tx.commit().await?;
     Ok(result)
 }
@@ -366,7 +426,14 @@ pub async fn version(
             }
         }
     }
-    let result = detail(&tx, user, payload, Some(&active_id)).await?;
+    let result = detail(
+        &tx,
+        user,
+        payload,
+        Some(&active_id),
+        family["share_token"].as_str(),
+    )
+    .await?;
     tx.commit().await?;
     Ok(result)
 }
@@ -401,6 +468,35 @@ pub async fn delete(state: &AppState, user: &str, id: &str) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_deck_only_exposes_the_active_list() -> Result<()> {
+        let public = shared_payload(
+            &json!({
+                "id":"private-id", "name":"Deck", "createdAt":1, "updatedAt":2,
+                "legend":null, "champion":null, "mainDeck":[], "runes":[], "battlefields":[], "sideboard":[],
+                "upstreamId":"private-upstream", "importedFromId":"private-source", "syncWarnings":["private warning"],
+                "userId":"private-owner", "versions":[{"name":"Private version"}], "share_token":"private-token"
+            }),
+            "public-token",
+        )?;
+        assert_eq!(public["id"], "public-token");
+        assert_eq!(public["source"], "owned");
+        assert_eq!(public["shareToken"], "public-token");
+        assert_eq!(public["readOnly"], true);
+        assert_eq!(public["format"], "constructed");
+        for key in [
+            "upstreamId",
+            "importedFromId",
+            "syncWarnings",
+            "userId",
+            "versions",
+            "share_token",
+        ] {
+            assert!(public.get(key).is_none(), "{key} must stay private");
+        }
+        Ok(())
+    }
 
     #[test]
     fn persistence_preserves_stored_provenance_and_only_trusts_server_imports() {

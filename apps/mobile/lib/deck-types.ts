@@ -54,6 +54,7 @@ export interface DeckState {
   /** Present when loaded from the API. */
   source?: 'owned' | 'imported';
   readOnly?: boolean;
+  shareToken?: string | null;
   upstreamId?: string;
   /** Warnings from upstream deck sync (missing catalog cards, etc.). */
   syncWarnings?: string[];
@@ -94,6 +95,7 @@ export interface SerializedDeck {
   upstreamId?: string;
   source?: 'owned' | 'imported';
   readOnly?: boolean;
+  shareToken?: string | null;
   syncWarnings?: string[];
   authorName?: string;
   views?: number;

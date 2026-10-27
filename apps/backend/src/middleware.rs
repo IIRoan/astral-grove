@@ -305,6 +305,14 @@ pub async fn apply(
         response = AppError::validation().into_response();
     }
     let headers = response.headers_mut();
+    if path.starts_with("/api/v1/shared/decks/")
+        || (path.starts_with("/api/v1/decks/") && path.ends_with("/sharing"))
+    {
+        headers.insert(
+            header::CACHE_CONTROL,
+            axum::http::HeaderValue::from_static("no-store"),
+        );
+    }
     for (key, value) in [
         ("x-content-type-options", "nosniff"),
         ("x-frame-options", "DENY"),

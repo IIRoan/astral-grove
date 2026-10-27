@@ -1,5 +1,5 @@
 import { exportDeckCode } from '@/lib/deck-codes';
-import { buildDeckShareUrl } from '@/lib/deck-share-url';
+import { buildDeckShareUrl, buildSharedDeckShareUrl } from '@/lib/deck-share-url';
 import { exportDeckTts } from '@/lib/deck-tts';
 import type { DeckState } from '@/lib/deck-types';
 
@@ -11,6 +11,15 @@ export function resolveDeckSharePayload(
   webOrigin?: string | null
 ): { ok: true; value: string } | { ok: false; error: string } {
   if (format === 'link') {
+    if (deck.shareToken) {
+      return { ok: true, value: buildSharedDeckShareUrl(deck.shareToken, webOrigin) };
+    }
+    if (!deck.readOnly) {
+      return {
+        ok: false,
+        error: 'Enable link access before copying a deck link.',
+      };
+    }
     return { ok: true, value: buildDeckShareUrl(deck.id, webOrigin) };
   }
   if (format === 'tts') {

@@ -2,7 +2,7 @@ use super::service::{self, VersionAction};
 use crate::{AppState, auth::RouteUser, error::Result, http};
 use astral_grove_api_types::{
     CreateDeckVersionRequest, DeckDetailResponse, DeckListResponse, DeckUpsertRequest, IdResponse,
-    RenameDeckVersionRequest,
+    RenameDeckVersionRequest, UpdateDeckSharingRequest,
 };
 use axum::{
     Json,
@@ -37,6 +37,29 @@ async fn get(
     http::respond(
         "DeckDetailResponse",
         json!({"data":service::get(&state,&session.user.id,&id).await?}),
+    )
+}
+#[utoipa::path(patch,path="/api/v1/decks/{id}/sharing",operation_id="updateDeckSharing",request_body=UpdateDeckSharingRequest,responses((status=200,body=DeckDetailResponse)))]
+async fn set_sharing(
+    RouteUser(session): RouteUser,
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    crate::http::BodyJson(body): crate::http::BodyJson,
+) -> Result<Json<DeckDetailResponse>> {
+    let input: UpdateDeckSharingRequest = http::parse("UpdateDeckSharingRequest", &body)?;
+    http::respond(
+        "DeckDetailResponse",
+        json!({"data":service::set_sharing(&state,&session.user.id,&id,input.enabled).await?}),
+    )
+}
+#[utoipa::path(get,path="/api/v1/shared/decks/{token}",operation_id="getSharedDeck",responses((status=200,body=DeckDetailResponse)))]
+async fn get_shared(
+    State(state): State<Arc<AppState>>,
+    Path(token): Path<String>,
+) -> Result<Json<DeckDetailResponse>> {
+    http::respond(
+        "DeckDetailResponse",
+        json!({"data":service::get_shared(&state,&token).await?}),
     )
 }
 #[utoipa::path(put,path="/api/v1/decks/{id}",operation_id="saveDeck",request_body=DeckUpsertRequest,responses((status=200,body=DeckDetailResponse)))]
@@ -139,6 +162,8 @@ pub fn router() -> OpenApiRouter<Arc<AppState>> {
     OpenApiRouter::new()
         .routes(routes!(list))
         .routes(routes!(get))
+        .routes(routes!(set_sharing))
+        .routes(routes!(get_shared))
         .routes(routes!(put))
         .routes(routes!(delete))
         .routes(routes!(import))

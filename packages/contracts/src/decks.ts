@@ -73,9 +73,14 @@ export const RenameDeckVersionRequest = z.object({
 
 export const DeckSource = z.enum(['owned', 'imported']);
 
+export const UpdateDeckSharingRequest = z.object({
+  enabled: z.boolean(),
+});
+
 export const DeckListItem = StoredDeckPayload.extend({
   source: DeckSource,
   readOnly: z.boolean(),
+  shareToken: z.string().min(1).nullable().optional(),
   authorName: z.string().optional(),
   views: z.number().int().nonnegative().optional(),
   likes: z.number().int().nonnegative().optional(),
@@ -114,3 +119,4 @@ export type DeckUpsertRequest = z.infer<typeof DeckUpsertRequest>;
 export type DeckVersionSummary = z.infer<typeof DeckVersionSummary>;
 export type CreateDeckVersionRequest = z.infer<typeof CreateDeckVersionRequest>;
 export type RenameDeckVersionRequest = z.infer<typeof RenameDeckVersionRequest>;
+export type UpdateDeckSharingRequest = z.infer<typeof UpdateDeckSharingRequest>;

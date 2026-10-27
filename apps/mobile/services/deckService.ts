@@ -9,6 +9,7 @@ import {
 import { deckVersionSaveKey, isSaveKeyForDeck } from '@/lib/deck-version';
 import type { DeckState } from '@/lib/deck-types';
 import { logActionFailure } from '@/lib/logger';
+import { api, ApiError } from '@/src/api/client';
 import {
   fetchRemoteDeck,
   fetchRemoteDecks,
@@ -39,8 +40,14 @@ export async function listDecksPage(options?: Partial<DecksListQuery>): Promise<
   };
 }
 
-export async function getDeck(id: string): Promise<DeckState | null> {
-  const remote = await fetchRemoteDeck(id);
+export async function getDeck(id: string, shared = false): Promise<DeckState | null> {
+  let remote;
+  try {
+    remote = shared ? (await api.getSharedDeck(id)).data : await fetchRemoteDeck(id);
+  } catch (error) {
+    if (shared && error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
   if (!remote) return null;
   const deck = deserializeDeck(remote);
   return refreshDeckLegality(deck);

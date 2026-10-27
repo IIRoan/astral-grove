@@ -152,7 +152,7 @@ function deckCard(card: ReturnType<typeof mockCard>) {
   };
 }
 
-function deck(i: number) {
+export function mockDeck(i: number) {
   const legend = deckCard(CARDS[3]!);
   return {
     id: `deck-${i}`,
@@ -272,10 +272,10 @@ function resolve(method: string, path: string, url: URL): Json | undefined {
     return method === 'GET' ? { data: [], meta: { total: 0 } } : { data: { ok: true } };
   }
   if (path.startsWith('/api/v1/decks/')) {
-    return { data: deck(0) };
+    return { data: mockDeck(0) };
   }
   if (path === '/api/v1/decks') {
-    const data = Array.from({ length: 8 }, (_, i) => deck(i));
+    const data = Array.from({ length: 8 }, (_, i) => mockDeck(i));
     return { data, meta: { total: data.length, owned: data.length, imported: 0 } };
   }
   if (path.startsWith('/api/v1/settings')) {
@@ -348,7 +348,7 @@ export async function installMockApi(context: BrowserContext): Promise<MockApi> 
   return state;
 }
 
-function corsHeaders() {
+export function corsHeaders() {
   return {
     'access-control-allow-origin': 'http://localhost:7011',
     'access-control-allow-credentials': 'true',

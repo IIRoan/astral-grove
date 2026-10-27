@@ -1007,6 +1007,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/decks/{id}/sharing': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch: operations['updateDeckSharing'];
+    trace?: never;
+  };
   '/api/v1/decks/{id}/versions': {
     parameters: {
       query?: never;
@@ -1192,6 +1208,22 @@ export interface paths {
     };
     get: operations['getUserSettings'];
     put: operations['setUserSettings'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/shared/decks/{token}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getSharedDeck'];
+    put?: never;
     post?: never;
     delete?: never;
     options?: never;
@@ -2709,6 +2741,7 @@ export interface components {
         /** @enum {string} */
         source: 'owned' | 'imported';
         readOnly: boolean;
+        shareToken?: string | null;
         authorName?: string;
         views?: number;
         likes?: number;
@@ -2883,6 +2916,7 @@ export interface components {
       /** @enum {string} */
       source: 'owned' | 'imported';
       readOnly: boolean;
+      shareToken?: string | null;
       authorName?: string;
       views?: number;
       likes?: number;
@@ -3035,6 +3069,7 @@ export interface components {
         /** @enum {string} */
         source: 'owned' | 'imported';
         readOnly: boolean;
+        shareToken?: string | null;
         authorName?: string;
         views?: number;
         likes?: number;
@@ -4066,6 +4101,9 @@ export interface components {
     SyncStatusResponseDataPricesStatus: 'idle' | 'running' | 'failed';
     /** @enum {string} */
     ThemePreference: 'light' | 'dark' | 'system';
+    UpdateDeckSharingRequest: {
+      enabled: boolean;
+    };
     User: {
       createdAt: string;
       email: string;
@@ -5521,6 +5559,7 @@ export interface components {
         /** @enum {string} */
         source: 'owned' | 'imported';
         readOnly: boolean;
+        shareToken?: string | null;
         authorName?: string;
         views?: number;
         likes?: number;
@@ -5695,6 +5734,7 @@ export interface components {
       /** @enum {string} */
       source: 'owned' | 'imported';
       readOnly: boolean;
+      shareToken?: string | null;
       authorName?: string;
       views?: number;
       likes?: number;
@@ -5847,6 +5887,7 @@ export interface components {
         /** @enum {string} */
         source: 'owned' | 'imported';
         readOnly: boolean;
+        shareToken?: string | null;
         authorName?: string;
         views?: number;
         likes?: number;
@@ -5885,6 +5926,9 @@ export interface components {
     DeckSortFieldInput: 'trending' | 'likes' | 'views' | 'createdAt' | 'editedAt';
     /** @enum {string} */
     DeckSourceInput: 'owned' | 'imported';
+    UpdateDeckSharingRequestInput: {
+      enabled: boolean;
+    };
     DeckUpsertRequestInput: {
       id: string;
       name: string;
@@ -9009,6 +9053,31 @@ export interface operations {
       };
     };
   };
+  updateDeckSharing: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateDeckSharingRequestInput'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DeckDetailResponse'];
+        };
+      };
+    };
+  };
   createDeckVersion: {
     parameters: {
       query?: never;
@@ -9423,6 +9492,27 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['UserSettingsResponse'];
+        };
+      };
+    };
+  };
+  getSharedDeck: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DeckDetailResponse'];
         };
       };
     };

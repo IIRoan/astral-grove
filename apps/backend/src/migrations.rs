@@ -89,4 +89,9 @@ pub const MIGRATIONS: &[(&str, i64, &str)] = &[
         1792400100000,
         include_str!("../migrations/0017_private_legacy_deck_ids.sql"),
     ),
+    (
+        "0018_deck_link_sharing",
+        1793100000000,
+        include_str!("../migrations/0018_deck_link_sharing.sql"),
+    ),
 ];

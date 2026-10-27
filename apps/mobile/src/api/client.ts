@@ -14,6 +14,7 @@ import {
   FiltersResponse,
   GlobalSearchResponse,
   HealthResponse,
+  DeckDetailResponse,
   PriceHistoryResponse,
   PriceStatsBatchResponse,
   PricesListResponse,
@@ -22,7 +23,7 @@ import type { z } from 'zod';
 import { apiErrorMessage, fetchWithApiWake } from '@/lib/api-fetch';
 import { getApiUrl } from '@/lib/api-url';
 
-// Unauthenticated JSON client for catalog/prices/filters; user data uses authedClient.ts.
+// Public JSON reads; private user data uses authedClient.ts.
 
 const API_URL = getApiUrl();
 
@@ -38,10 +39,10 @@ export class ApiError extends Error {
 
 async function apiFetch<T>(
   path: string,
-  schema: z.ZodType<T>,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   init?: Pick<RequestInit, 'method' | 'body'>
 ): Promise<T> {
-  // Every route here is a catalog/price read, including the batch POSTs.
+  // Every route here reads public data, including the batch POSTs.
   const res = await fetchWithApiWake(
     `${API_URL}${path}`,
     {
@@ -63,6 +64,9 @@ async function apiFetch<T>(
 
 export const api = {
   health: () => apiFetch('/api/v1/health', HealthResponse),
+
+  getSharedDeck: (token: string) =>
+    apiFetch(`/api/v1/shared/decks/${encodeURIComponent(token)}`, DeckDetailResponse),
 
   listCards: (query: Partial<CardsListQuery>) => {
     const params = new URLSearchParams();

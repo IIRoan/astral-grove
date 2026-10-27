@@ -22,7 +22,7 @@ function card(variantNumber: string, overrides: Partial<DeckCard> = {}): DeckCar
 }
 
 describe('resolveDeckSharePayload', () => {
-  test('builds an Astral Grove link for the deck id', () => {
+  test('requires an owner to configure link access before copying a link', () => {
     const deck = createEmptyDeck('Test');
     deck.id = 'deck_abc';
     const result = resolveDeckSharePayload(
@@ -31,8 +31,35 @@ describe('resolveDeckSharePayload', () => {
       'https://riftbounddev.roan.dev'
     );
     expect(result).toEqual({
+      ok: false,
+      error: 'Enable link access before copying a deck link.',
+    });
+  });
+
+  test('copies a shared deck link that opens outside the sign-in gate', () => {
+    const deck = {
+      ...createEmptyDeck('Shared'),
+      id: 'dshare_abc',
+      source: 'owned' as const,
+      shareToken: 'dshare_abc',
+      readOnly: true,
+    };
+    expect(resolveDeckSharePayload(deck, 'link', 'https://astral-grove.com')).toEqual({
       ok: true,
-      value: 'https://riftbounddev.roan.dev/decks/deck_abc',
+      value: 'https://astral-grove.com/shared/decks/dshare_abc',
+    });
+  });
+
+  test('preserves community deck links', () => {
+    const deck = {
+      ...createEmptyDeck('Community'),
+      id: 'pa_abc',
+      source: 'imported' as const,
+      readOnly: true,
+    };
+    expect(resolveDeckSharePayload(deck, 'link', 'https://astral-grove.com')).toEqual({
+      ok: true,
+      value: 'https://astral-grove.com/decks/pa_abc',
     });
   });
 

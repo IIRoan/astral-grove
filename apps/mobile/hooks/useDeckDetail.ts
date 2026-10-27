@@ -21,18 +21,19 @@ type PersistOptions = {
 };
 
 /** Shared deck detail — single source of truth for editor and add screens. */
-export function useDeckDetail(deckId: string | undefined) {
+export function useDeckDetail(deckId: string | undefined, shared = false) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: deckQueryKeys.detail(deckId ?? ''),
-    queryFn: () => getDeck(deckId!),
+    queryKey: shared ? ['shared-deck', deckId] : deckQueryKeys.detail(deckId ?? ''),
+    queryFn: () => getDeck(deckId!, shared),
     enabled: Boolean(deckId),
-    staleTime: 5_000,
+    staleTime: shared ? 0 : 5_000,
+    ...(shared ? { gcTime: 0 } : {}),
     refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
     initialData: () => {
-      if (!deckId) return undefined;
+      if (shared || !deckId) return undefined;
       return (
         queryClient.getQueryData<DeckState | null>(deckQueryKeys.detail(deckId)) ??
         undefined
@@ -45,17 +46,21 @@ export function useDeckDetail(deckId: string | undefined) {
 
   useFocusEffect(
     useCallback(() => {
+      if (shared) {
+        void query.refetch();
+        return;
+      }
       if (!deckId || hasPendingDeckSave(deckId)) return;
       void getDeck(deckId).then((loaded) => {
         if (hasPendingDeckSave(deckId)) return;
         applyDeckStateIfNewerToCache(queryClient, deckId, loaded);
       });
-    }, [deckId, queryClient])
+    }, [deckId, queryClient, shared, query.refetch])
   );
 
   const persist = useCallback(
     (input: PersistInput, options?: PersistOptions) => {
-      if (!deckId) return;
+      if (shared || !deckId) return;
       const previous =
         queryClient.getQueryData<DeckState | null>(deckQueryKeys.detail(deckId)) ??
         null;
@@ -82,11 +87,11 @@ export function useDeckDetail(deckId: string | undefined) {
       }
       scheduleRemoteDeckSave(next);
     },
-    [deckId, queryClient]
+    [deckId, queryClient, shared]
   );
 
   const flushSave = useCallback(async () => {
-    if (!deckId) return null;
+    if (shared || !deckId) return null;
     const latest =
       queryClient.getQueryData<DeckState | null>(deckQueryKeys.detail(deckId)) ?? null;
     if (!latest || latest.readOnly) return null;
@@ -104,10 +109,11 @@ export function useDeckDetail(deckId: string | undefined) {
     }
     setDeckDetailCache(queryClient, saved);
     return saved;
-  }, [deckId, queryClient]);
+  }, [deckId, queryClient, shared]);
 
   return {
     deck: deckWithLegality ?? query.data ?? null,
+    error: query.error,
     isLoading: query.isLoading,
     isRefreshingLegality,
     persist,

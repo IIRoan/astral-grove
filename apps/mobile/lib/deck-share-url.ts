@@ -24,3 +24,10 @@ export function deckSharePath(deckId: string): `/decks/${string}` {
 export function buildDeckShareUrl(deckId: string, webOrigin?: string | null): string {
   return `${resolveAppOrigin(webOrigin)}${deckSharePath(deckId)}`;
 }
+
+export function buildSharedDeckShareUrl(
+  token: string,
+  webOrigin?: string | null
+): string {
+  return `${resolveAppOrigin(webOrigin)}/shared/decks/${encodeURIComponent(token)}`;
+}
