@@ -12,6 +12,17 @@ use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 const UNRESOLVED: &str = "Could not resolve variant: ";
 const UNAVAILABLE: &str = "Card lookup unavailable, retry shortly: ";
+
+fn canonical_item(mut item: Value, variant: &Value) -> Value {
+    item["variantNumber"] = variant["variantNumber"].clone();
+    item["isFoil"] = json!(
+        item["isFoil"]
+            .as_bool()
+            .unwrap_or_else(|| catalog::mapper::foil(variant))
+    );
+    item
+}
+
 pub async fn resolve(
     state: &AppState,
     input: Vec<Value>,
@@ -26,14 +37,13 @@ pub async fn resolve(
     }
     let before = db::rows(
         &state.db,
-        "SELECT variant_number AS number FROM variants WHERE variant_number=ANY($1::text[])",
-        vec![numbers.clone().into()],
+        "SELECT variant_number AS \"variantNumber\",foil_mode AS \"foilMode\",variant_label AS \"variantLabel\",variant_type AS \"variantType\" FROM variants WHERE lower(variant_number)=ANY($1::text[])",
+        vec![numbers.iter().map(|number| number.to_lowercase()).collect::<Vec<_>>().into()],
     )
     .await?;
-    let mut known = HashMap::<String, String>::new();
-    for row in &before {
-        let number = db::string(row, "number");
-        known.insert(number.to_lowercase(), number.into());
+    let mut known = HashMap::<String, Value>::new();
+    for row in before {
+        known.insert(db::string(&row, "variantNumber").to_lowercase(), row);
     }
     let local: HashSet<String> = known.keys().cloned().collect();
     let missing: Vec<_> = numbers
@@ -70,7 +80,7 @@ pub async fn resolve(
                     catalog::store::upsert(state, &card).await?;
                     for variant in db::array(&card, "variants") {
                         let number = db::string(variant, "variantNumber");
-                        known.insert(number.to_lowercase(), number.into());
+                        known.insert(number.to_lowercase(), variant.clone());
                     }
                 }
                 Err(error) if error.status == 404 => {}
@@ -86,12 +96,11 @@ pub async fn resolve(
     }
     let mut errors = Vec::new();
     let mut valid = Vec::new();
-    for mut item in input {
+    for item in input {
         let number = db::string(&item, "variantNumber").trim();
         let key = number.to_lowercase();
         if let Some(canonical) = known.get(&key) {
-            item["variantNumber"] = json!(canonical);
-            valid.push(item);
+            valid.push(canonical_item(item, canonical));
         } else {
             let reason = if settled.contains(&key) {
                 UNRESOLVED
@@ -247,4 +256,38 @@ pub async fn preview(state: &AppState, collection: &str, input: &Value) -> Resul
 pub async fn export(state: &AppState, collection: &str) -> Result<String> {
     let rows=db::rows(&state.db,"SELECT i.variant_number AS \"variantNumber\",i.quantity,i.condition,i.language,i.is_foil AS \"isFoil\",i.notes,i.grade_company AS \"gradeCompany\",i.grade_score AS \"gradeScore\",c.name,v.rarity,v.variant_type AS \"variantType\",v.variant_label AS \"variantLabel\",s.name AS \"setName\",s.code AS \"setCode\" FROM collection_items i JOIN variants v ON v.variant_number=i.variant_number JOIN cards c ON c.id=v.card_id JOIN sets s ON s.id=v.set_id WHERE i.collection_id=$1::uuid ORDER BY s.code,i.variant_number,i.condition",vec![collection.into()]).await?;
     Ok(formats::export(&rows))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_items_merge_equivalent_finishes_and_preserve_other_stacks() {
+        for (mode, foil) in [("both", false), ("foil_only", true)] {
+            let variant = json!({"variantNumber":"OGN-001","foilMode":mode,"variantLabel":"Standard","variantType":"Standard"});
+            let items = [
+                json!({"variantNumber":" ogn-001 ","quantity":2,"condition":"near_mint","language":"en","notes":"First purchase"}),
+                json!({"variantNumber":"OGN-001","quantity":3,"condition":"near_mint","language":"en","isFoil":foil}),
+                json!({"variantNumber":"OGN-001","quantity":4,"condition":"near_mint","language":"en","isFoil":!foil}),
+                json!({"variantNumber":"OGN-001","quantity":1,"condition":"mint","language":"en"}),
+                json!({"variantNumber":"OGN-001","quantity":1,"condition":"near_mint","language":"fr"}),
+            ];
+            let merged = formats::aggregate(
+                items
+                    .into_iter()
+                    .map(|item| canonical_item(item, &variant))
+                    .collect(),
+            );
+            assert_eq!(merged.len(), 4);
+            assert_eq!(merged[0]["variantNumber"], "OGN-001");
+            assert_eq!(merged[0]["quantity"], 5);
+            assert_eq!(merged[0]["isFoil"], foil);
+            assert_eq!(merged[0]["notes"], "First purchase");
+            assert_eq!(merged[1]["quantity"], 4);
+            assert_eq!(merged[1]["isFoil"], !foil);
+            assert_eq!(merged[2]["condition"], "mint");
+            assert_eq!(merged[3]["language"], "fr");
+        }
+    }
 }

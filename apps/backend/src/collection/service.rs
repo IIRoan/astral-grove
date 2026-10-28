@@ -135,7 +135,7 @@ pub async fn mutate_in<C: ConnectionTrait>(
     }
     if after <= 0 {
         db::execute(tx,"DELETE FROM collection_items WHERE collection_id=$1::uuid AND variant_number=$2 AND condition=$3 AND language=$4 AND is_foil=$5",keys.clone()).await?;
-    } else if matches!(mutation, Mutation::Set) {
+    } else if matches!(mutation, Mutation::Set) || existing.is_empty() {
         let mut values = keys.clone();
         values.extend([
             after.into(),
