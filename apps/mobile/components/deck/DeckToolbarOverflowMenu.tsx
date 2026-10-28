@@ -76,6 +76,7 @@ export function DeckToolbarOverflowMenu({
             side="bottom"
             align="end"
             sideOffset={4}
+            width={256}
             className="z-50 min-w-[11.5rem] overflow-hidden rounded-[3px] border border-border bg-popover p-1 shadow-none"
           >
             <DeckLinkAccessOption

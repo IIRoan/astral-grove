@@ -17,6 +17,7 @@ import {
   PopoverPortal,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { toast } from '@/components/ui/toast.api';
 import { resolveDeckSharePayload, type DeckShareFormat } from '@/lib/deck-share';
@@ -103,27 +104,42 @@ export function DeckLinkAccessOption({
   onToggle: (enabled: boolean) => void;
 }) {
   if (deck.readOnly) return null;
+  const enabled = Boolean(deck.shareToken);
   return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityLabel="Anyone with the link"
-      aria-checked={Boolean(deck.shareToken)}
-      accessibilityState={{ checked: Boolean(deck.shareToken), disabled: busy, busy }}
-      disabled={busy}
-      className="rounded-[3px] border-b border-border px-2 py-2 active:bg-card-panel"
-      onPress={() => onToggle(!deck.shareToken)}
-    >
-      <Text className="text-sm text-popover-foreground">
-        {deck.shareToken ? '✓ ' : ''}Anyone with the link
-      </Text>
-      <Text className="text-xs text-muted-foreground">
-        {busy
-          ? 'Updating access…'
-          : deck.shareToken
-            ? 'View only · No sign-in needed'
-            : 'Private · Only you can view'}
-      </Text>
-    </Pressable>
+    <View className="flex-row items-center gap-3 border-b border-border px-2 py-2">
+      <View className="flex-1">
+        <Text className="text-sm text-popover-foreground">Anyone with the link</Text>
+        <Text className="text-xs text-muted-foreground">
+          {busy
+            ? 'Updating access…'
+            : enabled
+              ? 'View only · No sign-in needed'
+              : 'Private · Only you can view'}
+        </Text>
+      </View>
+      <Button
+        accessibilityRole="switch"
+        accessibilityLabel="Anyone with the link"
+        aria-checked={enabled}
+        accessibilityState={{ checked: enabled, disabled: busy, busy }}
+        disabled={busy}
+        variant={enabled ? 'default' : 'secondary'}
+        size="icon-sm"
+        hitSlop={12}
+        className={cn(
+          'h-6 min-h-0 w-11 rounded-full border px-1',
+          enabled ? 'justify-end border-cta' : 'justify-start border-border'
+        )}
+        onPress={() => onToggle(!enabled)}
+      >
+        <View
+          className={cn(
+            'size-4 rounded-full',
+            enabled ? 'bg-cta-foreground' : 'bg-muted-foreground'
+          )}
+        />
+      </Button>
+    </View>
   );
 }
 
@@ -162,6 +178,7 @@ export function DeckShareMenu({
             side="bottom"
             align="end"
             sideOffset={4}
+            width={256}
             className="z-50 min-w-[11rem] overflow-hidden rounded-[3px] border border-border bg-popover p-1 shadow-none"
           >
             <DeckLinkAccessOption

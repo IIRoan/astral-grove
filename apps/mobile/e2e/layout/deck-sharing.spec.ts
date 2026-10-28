@@ -34,7 +34,7 @@ test('share menu enables, copies and revokes a public link without saving a stal
     .getByRole('button', { name: /^(Share deck|Deck options)$/ })
     .first();
   await menu.click();
-  const access = page.getByRole('checkbox', {
+  const access = page.getByRole('switch', {
     name: 'Anyone with the link',
     exact: true,
   });
@@ -46,7 +46,15 @@ test('share menu enables, copies and revokes a public link without saving a stal
   await expect(copy).toBeDisabled();
   await access.click();
   await expect(access).toBeChecked();
+  await expect(access).toBeInViewport({ ratio: 1 });
+  await expect(page.getByText('Anyone with the link', { exact: true })).toBeInViewport({
+    ratio: 1,
+  });
   await expect(copy).toBeEnabled();
+  await page
+    .getByText('Share', { exact: true })
+    .locator('..')
+    .screenshot({ path: testInfo.outputPath('share-menu.png') });
   await page.screenshot({ path: testInfo.outputPath('link-access.png') });
   await copy.click();
   await expect
