@@ -19,10 +19,15 @@ import { CameraIcon, XIcon } from '@/components/icons';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { CARD_ART_RADIUS_CLASS } from '@/constants/CardArt';
-import { useCollectionMutations } from '@/hooks/useCollection';
+import { useCollectionMutations, useCollectionOwnership } from '@/hooks/useCollection';
 import { useScanSession } from '@/hooks/useScanSession';
 import { useScannerEngine } from '@/hooks/useScannerEngine';
-import { scanAddInput, scanFinishOptions } from '@/lib/scan-confirmation';
+import {
+  scanAddInput,
+  scanFinishOptions,
+  scanOwnedLine,
+  scanPrintings,
+} from '@/lib/scan-confirmation';
 import { cn } from '@/lib/utils';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
 import { PREVIEW_ASPECT } from '@/utils/scanCrop';
@@ -180,6 +185,10 @@ function ConfirmCard({
   const artWidth = Math.min(260, width * 0.6, height * 0.32);
   const finishOptions = scanFinishOptions(card, simpleAdd);
   const adding = finishOptions ? null : scanAddInput(card, { simpleAdd });
+  const printings = scanPrintings(card);
+  const { collectionByVariant } = useCollectionOwnership(
+    printings.map((printing) => printing.variantNumber)
+  );
   return (
     <View className="flex-1 gap-4 px-4 pt-4">
       <View className="flex-row items-center justify-between gap-2">
@@ -228,6 +237,9 @@ function ConfirmCard({
               : adding?.isFoil
                 ? 'Adds 1 foil copy'
                 : 'Adds 1 copy'}
+          </Text>
+          <Text className="text-center text-sm font-medium text-foreground">
+            {scanOwnedLine(printings, collectionByVariant)}
           </Text>
         </View>
         {error ? (

@@ -1,11 +1,13 @@
-import type { CardListItem } from '@riftbound/contracts';
+import type { CardListItem, CardListPrinting } from '@riftbound/contracts';
 import type { MatchKind } from '@/lib/card-scan';
+import type { CollectionOwnershipMap } from '@/utils/collectionOwnership';
 import type { PrintingPickerOption } from '@/utils/collectionPrintingPicker';
 import {
   resolvePrintingPickerState,
   resolveQuickAddPrintings,
   resolveQuickAddSelection,
 } from '@/utils/collectionPrintingPicker';
+import { formatPrintingLabel, ownedQuantityForPrinting } from '@/utils/variants';
 
 export type ScanOutcome =
   | { kind: 'card'; card: CardListItem; via: MatchKind; sure: boolean }
@@ -25,8 +27,26 @@ type ConfirmationState = {
   justAdded: string | null;
 };
 
-function scanPrintings(card: CardListItem) {
+export function scanPrintings(card: CardListItem) {
   return resolveQuickAddPrintings(card, card.variantNumber);
+}
+
+export function scanOwnedLine(
+  printings: readonly CardListPrinting[],
+  collectionByVariant: CollectionOwnershipMap
+): string {
+  const rows = printings.map((printing) => ({
+    label: formatPrintingLabel(
+      printing.variantLabel,
+      printing.isFoil,
+      printing.variantNumber
+    ),
+    quantity: ownedQuantityForPrinting(collectionByVariant, printing),
+  }));
+  const total = rows.reduce((sum, row) => sum + row.quantity, 0);
+  if (total === 0) return 'Not in your collection yet';
+  if (rows.length === 1) return `You own ${total.toLocaleString()}`;
+  return `You own ${rows.map((row) => `${row.quantity.toLocaleString()} ${row.label}`).join(' · ')}`;
 }
 
 export function scanFinishOptions(

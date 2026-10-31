@@ -4,6 +4,8 @@ import {
   createScanConfirmation,
   scanAddInput,
   scanFinishOptions,
+  scanOwnedLine,
+  scanPrintings,
 } from './scan-confirmation';
 
 const card: CardListItem = {
@@ -167,5 +169,27 @@ describe('scan finish', () => {
     expect(
       scanAddInput(card, { simpleAdd: false, selectionId: 'OGN-001::foil' })
     ).toMatchObject({ variantNumber: 'OGN-001', isFoil: true });
+  });
+});
+
+describe('scan owned line', () => {
+  const printings = scanPrintings(card);
+  const owned = (record: Record<string, number>) =>
+    new Map(Object.entries(record).map(([key, quantity]) => [key, { quantity }]));
+
+  test('shows owned copies per finish so quick add knows what it is adding to', () => {
+    expect(
+      scanOwnedLine(printings, owned({ 'OGN-001::std': 2, 'OGN-001::foil': 1 }))
+    ).toBe('You own 2 Standard · 1 Foil');
+    expect(scanOwnedLine(printings, owned({ 'OGN-001::foil': 1 }))).toBe(
+      'You own 0 Standard · 1 Foil'
+    );
+  });
+
+  test('a single printing shows just the count, and none says so', () => {
+    expect(scanOwnedLine(printings.slice(0, 1), owned({ 'OGN-001::std': 3 }))).toBe(
+      'You own 3'
+    );
+    expect(scanOwnedLine(printings, owned({}))).toBe('Not in your collection yet');
   });
 });
