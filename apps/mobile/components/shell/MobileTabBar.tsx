@@ -13,7 +13,11 @@ import { Layout } from '@/constants/Layout';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 import { MOTION, TAB_SCENE } from '@/lib/motion';
 import { mobileTabBarWidth } from '@/lib/mobile-chrome';
-import { tabIdFromPathname, type AppTabId } from '@/lib/tab-route';
+import {
+  mobileTabIdFromPathname,
+  tabIdFromPathname,
+  type AppTabId,
+} from '@/lib/tab-route';
 import { cn } from '@/lib/utils';
 import { hapticPress } from '@/utils/haptics';
 import { usePathname } from 'expo-router';
@@ -149,7 +153,8 @@ export function MobileTabBar({ state, descriptors, navigation }: MobileTabBarPro
     state.routes.some((route) => route.name === item.routeName)
   );
   // Pathname is the source of truth — state.index can lag during tab fade transitions.
-  const activeRoute = tabIdFromPathname(pathname);
+  const activeRoute = mobileTabIdFromPathname(pathname);
+  const currentRoute = tabIdFromPathname(pathname);
   const activeVisibleIndex = Math.max(
     0,
     visibleItems.findIndex((item) => item.routeName === activeRoute)
@@ -217,7 +222,8 @@ export function MobileTabBar({ state, descriptors, navigation }: MobileTabBarPro
               target: route.key,
               canPreventDefault: true,
             });
-            if (!isFocused && !event.defaultPrevented) {
+            // On /fun the Settings tab is highlighted, but tapping it must still navigate.
+            if (item.routeName !== currentRoute && !event.defaultPrevented) {
               navigation.navigate(route.name, route.params);
             }
           };

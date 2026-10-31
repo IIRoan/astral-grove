@@ -51,6 +51,7 @@ export default function TabLayout() {
             <Tabs.Screen name="wishlist" options={{ title: 'Wishlist' }} />
             <Tabs.Screen name="decks" options={{ title: 'Decks' }} />
             <Tabs.Screen name="play" options={{ title: 'Play' }} />
+            <Tabs.Screen name="fun" options={{ title: 'Fun' }} />
             <Tabs.Screen
               name="settings"
               options={{
