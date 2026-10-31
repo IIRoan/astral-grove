@@ -29,6 +29,7 @@ import {
   CloudArrowUpIcon as PhosphorCloudArrowUp,
   CloudSlashIcon as PhosphorCloudSlash,
   CompassIcon as PhosphorCompass,
+  DiceFiveIcon as PhosphorDiceFive,
   DotsThreeVerticalIcon as PhosphorDotsThreeVertical,
   DownloadSimpleIcon as PhosphorDownloadSimple,
   EyeIcon as PhosphorEye,
@@ -89,6 +90,7 @@ export const ClockIcon = createStyledSvg(PhosphorClock);
 export const CloudOffIcon = createStyledSvg(PhosphorCloudSlash);
 export const CloudUploadIcon = createStyledSvg(PhosphorCloudArrowUp);
 export const CompassIcon = createStyledSvg(PhosphorCompass);
+export const DiceIcon = createStyledSvg(PhosphorDiceFive);
 export const DownloadIcon = createStyledSvg(PhosphorDownloadSimple);
 export const EllipsisVerticalIcon = createStyledSvg(PhosphorDotsThreeVertical);
 export const EyeIcon = createStyledSvg(PhosphorEye);

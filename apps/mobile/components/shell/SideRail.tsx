@@ -2,6 +2,7 @@ import {
   BookmarkIcon,
   CardsThreeIcon,
   CompassIcon,
+  DiceIcon,
   LayersIcon,
   LayoutGridIcon,
   LogOutIcon,
@@ -82,6 +83,13 @@ const NAV_ITEMS: {
     label: 'Play',
     description: 'Table scoreboard for victory points and XP',
     icon: CompassIcon,
+  },
+  {
+    id: 'fun',
+    href: '/(tabs)/fun',
+    label: 'Fun',
+    description: 'Roll a random legal deck',
+    icon: DiceIcon,
   },
 ];
 

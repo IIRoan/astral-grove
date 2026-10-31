@@ -43,16 +43,18 @@ function DesignPreviewRow({
   path,
   onPress,
   divider,
+  label = `Open ${title} preview`,
 }: {
   title: string;
   path: string;
   onPress: () => void;
   divider?: boolean;
+  label?: string;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open ${title} preview`}
+      accessibilityLabel={label}
       onPress={onPress}
       className={cn(
         'h-11 flex-row items-stretch active:bg-card-panel sm:h-12',
@@ -123,6 +125,19 @@ export default function SettingsScreen() {
             <CredentialsSection />
           </SettingsSection>
         ) : null}
+
+        {showRail ? null : (
+          <SettingsSection label="Fun">
+            <View className="overflow-hidden rounded-[10px] border border-border bg-card">
+              <DesignPreviewRow
+                title="Deck randomizer"
+                path="/fun"
+                label="Open deck randomizer"
+                onPress={() => router.push('/fun')}
+              />
+            </View>
+          </SettingsSection>
+        )}
 
         <SettingsSection label="Display">
           <AppearanceSpecimens />
