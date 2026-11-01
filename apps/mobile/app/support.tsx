@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router';
-import { Linking, View } from 'react-native';
+import { View } from 'react-native';
 import { LegalPage, type LegalSection } from '@/components/settings/LegalPage';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { RIOT_DISCLAIMER, SUPPORT_EMAIL, supportMailto } from '@/constants/legal';
+import { emailSupport, RIOT_DISCLAIMER, SUPPORT_EMAIL } from '@/constants/legal';
 
 const SECTIONS: LegalSection[] = [
   {
@@ -21,7 +21,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: 'Report a problem or offensive content',
     paragraphs: [
-      `Email ${SUPPORT_EMAIL} with a description and, for a deck, its link. We review reports and remove content that breaks the rules within 24 hours.`,
+      `Use Report on any community or shared deck, or email ${SUPPORT_EMAIL} with a description and the deck's link. Block author hides that author's decks. We review reports and remove content that breaks the terms of use within 24 hours.`,
     ],
   },
   {
@@ -43,15 +43,14 @@ export default function SupportScreen() {
           back to you.
         </Text>
         <View className="gap-3">
-          <Button
-            onPress={() => {
-              void Linking.openURL(supportMailto('The Astral Grove support'));
-            }}
-          >
+          <Button onPress={() => emailSupport('The Astral Grove support')}>
             <ButtonText>Email support</ButtonText>
           </Button>
           <Button variant="outline" onPress={() => router.push('/privacy')}>
             <ButtonText>Privacy policy</ButtonText>
+          </Button>
+          <Button variant="outline" onPress={() => router.push('/terms')}>
+            <ButtonText>Terms of use</ButtonText>
           </Button>
         </View>
       </View>

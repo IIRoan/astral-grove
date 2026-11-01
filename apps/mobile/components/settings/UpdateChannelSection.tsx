@@ -50,6 +50,8 @@ export function UpdateChannelSection() {
   const updateId = formatUpdateId(Updates.updateId);
   const label = actionLabel(enabled, action);
   const busy = action === 'downloading' || action === 'restarting';
+  // Store builds (main channel) hide this diagnostics control.
+  const showTestError = __DEV__ || Updates.channel === 'preview';
 
   const onAction = () => {
     if (busy) return;
@@ -135,20 +137,22 @@ export function UpdateChannelSection() {
         </Text>
       </Pressable>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Send test error event"
-        onPress={onSendTestError}
-        className="h-11 flex-row items-center justify-between border-t border-border px-4 active:bg-card-panel sm:h-12"
-      >
-        <Text
-          className="text-sm font-medium leading-5 text-foreground"
-          numberOfLines={1}
+      {showTestError ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Send test error event"
+          onPress={onSendTestError}
+          className="h-11 flex-row items-center justify-between border-t border-border px-4 active:bg-card-panel sm:h-12"
         >
-          Send test error
-        </Text>
-        <Text className="font-mono text-xs font-normal text-foreground">↗</Text>
-      </Pressable>
+          <Text
+            className="text-sm font-medium leading-5 text-foreground"
+            numberOfLines={1}
+          >
+            Send test error
+          </Text>
+          <Text className="font-mono text-xs font-normal text-foreground">↗</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

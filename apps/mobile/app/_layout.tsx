@@ -204,6 +204,10 @@ function RootNav() {
           name="support"
           options={{ title: 'Support', headerShown: false }}
         />
+        <Stack.Screen
+          name="terms"
+          options={{ title: 'Terms of use', headerShown: false }}
+        />
       </Stack>
     </NavThemeProvider>
   );

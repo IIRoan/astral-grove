@@ -385,6 +385,7 @@ pub async fn get_item(state: &AppState, id: &str) -> Option<Value> {
     item.as_object_mut()?.extend(merged);
     item["source"] = json!("imported");
     item["readOnly"] = json!(true);
+    super::moderation::mask_deck(&mut item);
     Some(item)
 }
 pub async fn list_imported(
@@ -478,6 +479,7 @@ pub async fn list_imported(
                     .collect::<Vec<_>>()
             );
         }
+        super::moderation::mask_deck(&mut item);
         items.push(item);
     }
     if query["preview"] == true {

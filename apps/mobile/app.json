@@ -30,7 +30,12 @@
     "plugins": [
       "expo-router",
       "expo-dev-client",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-asset",
       "expo-font",
       [
@@ -45,7 +50,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Scan the collector code on your cards to add them to your collection. Photos are read on-device and never uploaded."
+          "cameraPermission": "Scan the collector code on your cards to add them to your collection. Photos are read on-device and never uploaded.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       "expo-web-browser",

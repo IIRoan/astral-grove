@@ -15,6 +15,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import type {
   AuthPanelVariant,
   AuthScreenLayout,
@@ -296,6 +297,7 @@ export function AuthPanel({
   onPendingVerificationEmailChange,
   className,
 }: AuthPanelProps) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const sessionQuery = authClient.useSession();
   const { data: session, isPending, isRefetching } = sessionQuery;
@@ -708,6 +710,28 @@ export function AuthPanel({
         >
           <ButtonText>{mode === 'sign-in' ? 'Sign in' : 'Create account'}</ButtonText>
         </Button>
+
+        {mode === 'sign-up' ? (
+          <Text className="text-xs leading-5 text-muted-foreground">
+            By creating an account you agree to the{' '}
+            <Text
+              accessibilityRole="link"
+              className="text-xs font-medium text-foreground underline"
+              onPress={() => router.push('/terms')}
+            >
+              Terms of use
+            </Text>{' '}
+            and{' '}
+            <Text
+              accessibilityRole="link"
+              className="text-xs font-medium text-foreground underline"
+              onPress={() => router.push('/privacy')}
+            >
+              Privacy policy
+            </Text>
+            .
+          </Text>
+        ) : null}
 
         {mode === 'sign-in' && verificationRequired ? (
           <Button
