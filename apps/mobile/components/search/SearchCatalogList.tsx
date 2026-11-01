@@ -20,6 +20,7 @@ import { cardListItemMatchesVariant } from '@/utils/variants';
 import type { CollectionOwnershipMap } from '@/utils/collectionOwnership';
 import { cn } from '@/lib/utils';
 import { FACTORY_RADIUS_CARD_CLASS } from '@/constants/factoryShape';
+import { authClient } from '@/src/lib/auth-client';
 
 interface SearchCatalogListProps {
   catalogListRef: React.RefObject<FlashListRef<CardListItem> | null>;
@@ -77,6 +78,7 @@ export function SearchCatalogList({
   onEndReachedThreshold = 1.75,
 }: SearchCatalogListProps) {
   const gridCellStyle = useMemo(() => catalogGridCellStyle(), []);
+  const signedIn = Boolean(authClient.useSession().data?.user);
 
   const listStyle = useMemo(
     () => (isList ? { flex: 1 } : catalogGridListStyle()),
@@ -104,7 +106,7 @@ export function SearchCatalogList({
                 layout="list"
                 mode="search"
                 compact={compact}
-                enableQuickAdd
+                enableQuickAdd={signedIn}
                 simpleAdd={catalogFiltersSimpleAdd}
                 selected={showSelected}
                 collectionByVariant={collectionByVariant}
@@ -122,7 +124,7 @@ export function SearchCatalogList({
               layout="grid"
               mode="search"
               compact={compact}
-              enableQuickAdd
+              enableQuickAdd={signedIn}
               simpleAdd={catalogFiltersSimpleAdd}
               selected={showSelected}
               collectionByVariant={collectionByVariant}
@@ -142,6 +144,7 @@ export function SearchCatalogList({
       collectionByVariant,
       catalogFiltersSimpleAdd,
       displayItems.length,
+      signedIn,
     ]
   );
 

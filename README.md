@@ -125,3 +125,14 @@ Discord links containing an expired signature remain expired.
 The workflow defaults `S3_PUBLIC_BASE_URL` to `https://riftapi.solace.onl/api/v1`.
 An existing public download host can override it with that GitHub secret. Local
 publishing scripts require an explicit permanent HTTPS base and reject signed URLs.
+
+## TestFlight
+
+Run the **iOS App Store build** workflow from `main` and pick a profile:
+`testflight` builds on the `preview` channel and environment, `main` on the
+production `main` channel. `eas build --local` signs the `.ipa` on a GitHub macOS
+runner with App Store credentials and an auto-incremented build number from EAS,
+then `eas submit` uploads that file to App Store Connect (`submit.production.ios.ascAppId`
+in `apps/mobile/eas.json`) with the account's App Store Connect API key. Internal
+testers get each build once Apple finishes processing. With submit off, any branch
+can dry-run the build.

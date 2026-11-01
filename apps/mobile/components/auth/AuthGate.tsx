@@ -11,7 +11,14 @@ import { useEmailVerificationRequired } from '@/hooks/useEmailVerificationRequir
 import { normalizeVerificationEmail } from '@/lib/email-verification';
 import { authClient } from '@/src/lib/auth-client';
 
-export function AuthGate({ children }: { children: React.ReactNode }) {
+export function AuthGate({
+  children,
+  allowGuest = false,
+}: {
+  children: React.ReactNode;
+  /** Signed-out visitors pass straight through; signed-in users still wait for bootstrap. */
+  allowGuest?: boolean;
+}) {
   const insets = useSafeAreaInsets();
   const wide = useAuthWideLayout();
   const [mode, setMode] = useState<Mode>('sign-in');
@@ -61,6 +68,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   const holdForVerification = Boolean(pendingVerificationEmail) || unverifiedSession;
+
+  if (allowGuest && !session?.user && !holdForVerification) {
+    return <>{children}</>;
+  }
 
   if (!session?.user || holdForVerification) {
     return (

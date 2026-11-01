@@ -14,6 +14,7 @@ import {
   preferCollectionOwnership,
 } from '@/utils/collectionOwnership';
 import { useCollectionRemove } from '@/hooks/useCollectionRemove';
+import { useRequireAccount } from '@/hooks/useRequireAccount';
 import { cardListItemToDetailResponse } from '@/lib/cardDetailPlaceholder';
 import { formatCardPrice } from '@/utils/cardFormat';
 import {
@@ -144,6 +145,7 @@ export function useCardDetail(
     };
   }, [activeVariant, ownedQuantity, finishPrintingsForActive, collectionByVariant]);
   const { addFromDetail, adjustQuantity } = useCollectionMutations();
+  const requireAccount = useRequireAccount();
   const { sheet, closeSheet, promptRemove, onSheetRemovePrinting, onSheetRemoveAll } =
     useCollectionRemove();
 
@@ -202,17 +204,17 @@ export function useCardDetail(
 
   const onAddToCollection = useCallback(
     (targetVariantNumber: string, isFoil?: boolean) => {
-      if (!card) return;
+      if (!card || !requireAccount()) return;
       void hapticPress();
       // Optimistic cache updates in onMutate — never await the network here.
       addFromDetail.mutate({ card, variantNumber: targetVariantNumber, isFoil });
       setPickedVariant(targetVariantNumber);
     },
-    [card, addFromDetail]
+    [card, addFromDetail, requireAccount]
   );
 
   const onAddPress = useCallback(() => {
-    if (!card || !activeVariant) return;
+    if (!card || !activeVariant || !requireAccount()) return;
     void hapticPress();
     if (needsPrintingPicker) {
       setPickerVisible(true);
@@ -220,7 +222,14 @@ export function useCardDetail(
     }
     const finish = finishPrintings[0];
     onAddToCollection(activeVariant.variantNumber, finish?.isFoil);
-  }, [card, activeVariant, needsPrintingPicker, onAddToCollection, finishPrintings]);
+  }, [
+    card,
+    activeVariant,
+    needsPrintingPicker,
+    onAddToCollection,
+    finishPrintings,
+    requireAccount,
+  ]);
 
   const onRemovePress = useCallback(() => {
     if (!card) return;

@@ -116,6 +116,7 @@ export function prefetchCollection(queryClient: QueryClient): Promise<void> {
 
 export function useCollection(options?: { enabled?: boolean }) {
   const queryClient = useQueryClient();
+  const signedIn = Boolean(authClient.useSession().data?.user);
   const shareStatus = useCollectionShareStatus(options?.enabled ?? true);
   const isShared = shareStatus.data?.shared === true;
 
@@ -126,7 +127,7 @@ export function useCollection(options?: { enabled?: boolean }) {
     refetchOnWindowFocus: isShared,
     refetchOnReconnect: isShared,
     refetchOnMount: isShared,
-    enabled: options?.enabled ?? true,
+    enabled: (options?.enabled ?? true) && signedIn,
   });
 }
 
@@ -135,6 +136,7 @@ export function useCollectionOwnership(variantNumbers: readonly string[]): {
   isLoading: boolean;
 } {
   const queryClient = useQueryClient();
+  const signedIn = Boolean(authClient.useSession().data?.user);
   const shareStatus = useCollectionShareStatus();
   const isShared = shareStatus.data?.shared === true;
   const normalized = useMemo(
@@ -186,7 +188,7 @@ export function useCollectionOwnership(variantNumbers: readonly string[]): {
       );
       return hasAll ? cached : undefined;
     },
-    enabled: normalized.length > 0,
+    enabled: normalized.length > 0 && signedIn,
     staleTime: isShared ? SHARED_COLLECTION_STALE_MS : OWNERSHIP_STALE_MS,
     refetchOnWindowFocus: isShared,
     refetchOnReconnect: isShared,
