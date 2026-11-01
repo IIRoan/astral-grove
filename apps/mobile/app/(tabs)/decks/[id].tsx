@@ -1,6 +1,6 @@
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { AppLoadingScreen } from '@/components/ui/app-loader';
 import { DeckBuilderCanvas } from '@/components/deck/DeckBuilderCanvas';
 import { DeckFormatPickerSheet } from '@/components/deck/DeckFormatPickerSheet';
@@ -14,7 +14,8 @@ import {
 import { Text } from '@/components/ui/text';
 import { Button, ButtonText } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { supportMailto } from '@/constants/legal';
+import { emailSupport } from '@/constants/legal';
+import { blockAuthor } from '@/lib/blocked-authors';
 import { useDeckAutoSave } from '@/hooks/useDeckAutoSave';
 import { useDeckDetail } from '@/hooks/useDeckDetail';
 import { useDeckMutations } from '@/hooks/useDecks';
@@ -46,6 +47,7 @@ export default function DeckEditorScreen() {
   const [pickingLegend, setPickingLegend] = useState(false);
   const [archiveImportOpen, setArchiveImportOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [blockOpen, setBlockOpen] = useState(false);
   useDeckAutoSave(editing ? deck : null);
 
   const handleLegendSelect = useCallback(
@@ -183,6 +185,19 @@ export default function DeckEditorScreen() {
           leaveDeckEditor(router);
         }}
       />
+      <ConfirmDialog
+        open={blockOpen}
+        onOpenChange={setBlockOpen}
+        title="Block author"
+        description={`Hide every community deck by “${deck.authorName ?? ''}” on this device? Report the deck too if it breaks the rules.`}
+        confirmLabel="Block"
+        cancelLabel="Cancel"
+        tone="destructive"
+        onConfirm={() => {
+          if (deck.authorName) blockAuthor(deck.authorName);
+          leaveDeckEditor(router);
+        }}
+      />
       <ScreenLayout mode="flex" contentClassName="min-h-0 flex-1">
         <ScreenLayoutBody className="min-h-0 flex-1">
           {permanentReadOnly ? (
@@ -192,23 +207,35 @@ export default function DeckEditorScreen() {
                   ? 'Shared via The Astral Grove · View only'
                   : 'Community deck · View only'}
               </Text>
-              <Pressable
-                accessibilityRole="link"
-                accessibilityLabel="Report this deck"
-                hitSlop={8}
-                onPress={() => {
-                  void Linking.openURL(
-                    supportMailto(
+              <View className="flex-row items-center gap-4">
+                {!shared && deck.authorName ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Block ${deck.authorName}`}
+                    hitSlop={8}
+                    onPress={() => setBlockOpen(true)}
+                  >
+                    <Text className="text-xs font-medium text-foreground underline">
+                      Block author
+                    </Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel="Report this deck"
+                  hitSlop={8}
+                  onPress={() => {
+                    emailSupport(
                       'Report a deck',
-                      `Deck: ${deck.name}\nID: ${id}\n\nWhat is wrong with it:\n`
-                    )
-                  );
-                }}
-              >
-                <Text className="text-xs font-medium text-foreground underline">
-                  Report
-                </Text>
-              </Pressable>
+                      `Deck: ${deck.name}\nAuthor: ${deck.authorName ?? 'unknown'}\nID: ${id}\n\nWhat is wrong with it:\n`
+                    );
+                  }}
+                >
+                  <Text className="text-xs font-medium text-foreground underline">
+                    Report
+                  </Text>
+                </Pressable>
+              </View>
             </View>
           ) : null}
           <DeckBuilderCanvas

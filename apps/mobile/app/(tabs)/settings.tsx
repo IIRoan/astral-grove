@@ -167,6 +167,13 @@ export default function SettingsScreen() {
               onPress={() => router.push('/privacy')}
               divider
             />
+            <DesignPreviewRow
+              title="Terms of use"
+              path="/terms"
+              label="Open terms of use"
+              onPress={() => router.push('/terms')}
+              divider
+            />
           </View>
           <Text className="text-xs leading-5 text-muted-foreground">
             {RIOT_DISCLAIMER}

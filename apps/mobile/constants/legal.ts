@@ -1,3 +1,6 @@
+import { Linking } from 'react-native';
+import { toast } from '@/components/ui/toast.api';
+
 export const SUPPORT_EMAIL = 'support@solace.onl';
 
 /** Riot Games' required notice for unofficial fan projects. */
@@ -6,4 +9,11 @@ export const RIOT_DISCLAIMER =
 
 export function supportMailto(subject: string, body = ''): string {
   return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/** Opens a pre-filled support email, or shows the address when no mail app is set up. */
+export function emailSupport(subject: string, body = ''): void {
+  Linking.openURL(supportMailto(subject, body)).catch(() => {
+    toast(`Email ${SUPPORT_EMAIL} — no mail app is set up on this device`);
+  });
 }

@@ -235,6 +235,7 @@ fn shared_payload(payload: &Value, token: &str) -> Result<Value> {
     public["source"] = json!("owned");
     public["readOnly"] = json!(true);
     public["shareToken"] = json!(token);
+    super::moderation::mask_deck(&mut public);
     Ok(public)
 }
 

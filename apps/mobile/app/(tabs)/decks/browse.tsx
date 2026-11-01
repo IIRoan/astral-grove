@@ -20,6 +20,7 @@ import { useDeckBrowseFilters } from '@/hooks/useDeckBrowseFilters';
 import { useMobileLayout } from '@/hooks/useBreakpoint';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useImportedDecksBrowse } from '@/hooks/useDecks';
+import { useBlockedAuthors, withoutBlockedAuthors } from '@/lib/blocked-authors';
 
 export default function BrowseDecksScreen() {
   const isMobile = useMobileLayout();
@@ -36,9 +37,14 @@ export default function BrowseDecksScreen() {
     filters,
   });
 
+  const blockedAuthors = useBlockedAuthors();
   const decks = useMemo(
-    () => browseQuery.data?.pages.flatMap((page) => page.data) ?? [],
-    [browseQuery.data?.pages]
+    () =>
+      withoutBlockedAuthors(
+        browseQuery.data?.pages.flatMap((page) => page.data) ?? [],
+        blockedAuthors
+      ),
+    [browseQuery.data?.pages, blockedAuthors]
   );
 
   const hasActiveFilters =
