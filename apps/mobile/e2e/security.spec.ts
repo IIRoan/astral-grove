@@ -71,7 +71,7 @@ test('signup verifies email then signs in with the entered password', async ({
 }) => {
   await mailOverride(context);
   const user = uniqueTestUser('security-ui-signup');
-  await page.goto('/search');
+  await page.goto('/collection');
   await page.getByRole('tab', { name: 'Sign up', exact: true }).click();
   await page.getByLabel('Email', { exact: true }).fill(user.email);
   await page.getByLabel('Password', { exact: true }).fill(user.password);
@@ -81,9 +81,8 @@ test('signup verifies email then signs in with the entered password', async ({
   expect(otp).toBeTruthy();
   await page.getByLabel('Verification code', { exact: true }).fill(otp!);
   await page.getByRole('button', { name: 'Verify and continue', exact: true }).click();
-  await expect(
-    page.getByPlaceholder('Search cards, artists, tags, or set numbers')
-  ).toBeVisible();
+  // A fresh account lands on its empty collection once the gate opens.
+  await expect(page.getByRole('button', { name: 'Search cards' })).toBeVisible();
   const session = await context.request.get(mailApi + '/api/auth/get-session');
   expect(Signup.parse(await session.json()).user.email).toBe(user.email);
 });
