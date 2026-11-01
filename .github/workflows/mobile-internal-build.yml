@@ -186,13 +186,7 @@ jobs:
             --profile "$PROFILE" \
             --local \
             --non-interactive \
-            --output "$RUNNER_TEMP/astral-grove.ipa" 2>&1 | sed -E \
-              -e 's/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}/[redacted udid]/g' \
-              -e 's/\b[0-9A-Fa-f]{40}\b/[redacted udid]/g' \
-              -e 's/(Apple Team( ID)?[[:space:]]*[:=]?[[:space:]]*)[^[:space:])]+/\1[redacted]/g' \
-              -e 's/^([[:space:]]*(Serial Number|Developer Portal ID)[[:space:]]+).*/\1[redacted]/' \
-              -e 's/^([[:space:]]*-[[:space:]]+).*\(UDID:.*/\1[redacted device]/' \
-              -e 's/^([[:space:]]*Provisioned devices[[:space:]]+).*/\1[redacted]/'
+            --output "$RUNNER_TEMP/astral-grove.ipa" 2>&1 | sed -E -f "$GITHUB_WORKSPACE/scripts/eas-build-log.sed"
 
       - name: Inspect .ipa
         id: artifact

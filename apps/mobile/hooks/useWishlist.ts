@@ -5,6 +5,7 @@ import {
   readPersistedWishlist,
 } from '@/services/wishlistCacheService';
 import { wishlistQueryKeys } from '@/src/api/queryKeys';
+import { authClient } from '@/src/lib/auth-client';
 
 const WISHLIST_STALE_MS = 60_000;
 
@@ -31,9 +32,11 @@ export function prefetchWishlist(queryClient: QueryClient): Promise<void> {
 }
 
 export function useWishlist() {
+  const signedIn = Boolean(authClient.useSession().data?.user);
   return useQuery({
     queryKey: wishlistQueryKeys.all,
     queryFn: fetchAndPersistWishlist,
     staleTime: WISHLIST_STALE_MS,
+    enabled: signedIn,
   });
 }

@@ -23,6 +23,7 @@ import {
 } from '@/lib/email-verification';
 import { resolvePasswordResetRedirectTo } from '@/lib/password-reset';
 import { cn } from '@/lib/utils';
+import { clearLocalAccountData } from '@/services/accountCleanupService';
 import { invalidateUserDataQueries } from '@/src/api/queryClient';
 import { authClient } from '@/src/lib/auth-client';
 
@@ -30,7 +31,7 @@ type CredentialsSectionProps = {
   className?: string;
 };
 
-type Editor = 'email' | 'password' | null;
+type Editor = 'email' | 'password' | 'delete' | null;
 
 const TRIGGER_CLASS =
   'h-12 flex-row items-center justify-between px-6 active:bg-card-panel';
@@ -83,6 +84,7 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
   const currentId = useId();
   const nextId = useId();
   const confirmId = useId();
+  const deletePasswordId = useId();
 
   const [newEmail, setNewEmail] = useState('');
   const [emailOtp, setEmailOtp] = useState('');
@@ -100,6 +102,10 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
 
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
   if (!user) {
     return null;
   }
@@ -116,6 +122,10 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
   };
 
   const toggleEditor = (next: Editor) => {
+    if (editor === 'delete') {
+      setDeletePassword('');
+      setDeleteError(null);
+    }
     if (editor === next) {
       if (next === 'email') resetEmailForm();
       setEditor(null);
@@ -255,6 +265,32 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
       );
     } finally {
       setPasswordBusy(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    Keyboard.dismiss();
+    setDeleteError(null);
+    if (deletePassword.length === 0) {
+      setDeleteError('Enter your password to confirm');
+      return;
+    }
+    setDeleteBusy(true);
+    try {
+      const result = await authClient.deleteUser({ password: deletePassword });
+      if (result.error) {
+        setDeleteError(result.error.message ?? 'Could not delete account');
+        return;
+      }
+      // The server already ended the session; this clears the stored token on device.
+      await authClient.signOut().catch(() => undefined);
+      await sessionQuery.refetch();
+      await clearLocalAccountData(queryClient);
+      toast.success('Account deleted');
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete account');
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
@@ -631,6 +667,66 @@ export function CredentialsSection({ className }: CredentialsSectionProps) {
                 <ButtonText>Email me a reset link</ButtonText>
               </Button>
             ) : null}
+          </View>
+        </CredentialsExpand>
+
+        <CredentialsExpand
+          title="Delete account"
+          open={editor === 'delete'}
+          onToggle={() => {
+            toggleEditor('delete');
+          }}
+          divider
+        >
+          <View className="gap-4">
+            <Text className="text-sm leading-5 text-muted-foreground">
+              Permanently deletes your account, collection, wishlist and decks, and
+              turns off any deck links you shared. A shared collection stays with its
+              other member. This cannot be undone.
+            </Text>
+
+            <View className="gap-2">
+              <Label nativeID={deletePasswordId}>Password</Label>
+              <TextInput
+                value={deletePassword}
+                onChangeText={(value) => {
+                  setDeletePassword(value);
+                  setDeleteError(null);
+                }}
+                disabled={deleteBusy}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
+                autoComplete={Platform.OS === 'web' ? 'current-password' : 'password'}
+                textContentType="password"
+                accessibilityLabel="Password to confirm account deletion"
+                accessibilityLabelledBy={deletePasswordId}
+              />
+            </View>
+
+            {deleteError ? (
+              <View className="rounded-[3px] border border-destructive/30 bg-destructive/10 px-3 py-2.5">
+                <Text
+                  className="text-sm text-destructive"
+                  accessibilityLiveRegion="polite"
+                  accessibilityRole="alert"
+                >
+                  {deleteError}
+                </Text>
+              </View>
+            ) : null}
+
+            <Button
+              variant="destructive"
+              onPress={() => {
+                void deleteAccount();
+              }}
+              disabled={deleteBusy}
+              busy={deleteBusy}
+            >
+              <ButtonText>Delete account permanently</ButtonText>
+            </Button>
           </View>
         </CredentialsExpand>
       </View>

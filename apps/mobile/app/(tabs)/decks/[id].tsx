@@ -1,5 +1,6 @@
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { Linking, Pressable, View } from 'react-native';
 import { AppLoadingScreen } from '@/components/ui/app-loader';
 import { DeckBuilderCanvas } from '@/components/deck/DeckBuilderCanvas';
 import { DeckFormatPickerSheet } from '@/components/deck/DeckFormatPickerSheet';
@@ -13,6 +14,7 @@ import {
 import { Text } from '@/components/ui/text';
 import { Button, ButtonText } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { supportMailto } from '@/constants/legal';
 import { useDeckAutoSave } from '@/hooks/useDeckAutoSave';
 import { useDeckDetail } from '@/hooks/useDeckDetail';
 import { useDeckMutations } from '@/hooks/useDecks';
@@ -183,10 +185,31 @@ export default function DeckEditorScreen() {
       />
       <ScreenLayout mode="flex" contentClassName="min-h-0 flex-1">
         <ScreenLayoutBody className="min-h-0 flex-1">
-          {shared ? (
-            <Text className="pb-3 text-xs text-muted-foreground">
-              Shared via The Astral Grove · View only
-            </Text>
+          {permanentReadOnly ? (
+            <View className="flex-row items-center justify-between gap-3 pb-3">
+              <Text className="min-w-0 shrink text-xs text-muted-foreground">
+                {shared
+                  ? 'Shared via The Astral Grove · View only'
+                  : 'Community deck · View only'}
+              </Text>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Report this deck"
+                hitSlop={8}
+                onPress={() => {
+                  void Linking.openURL(
+                    supportMailto(
+                      'Report a deck',
+                      `Deck: ${deck.name}\nID: ${id}\n\nWhat is wrong with it:\n`
+                    )
+                  );
+                }}
+              >
+                <Text className="text-xs font-medium text-foreground underline">
+                  Report
+                </Text>
+              </Pressable>
+            </View>
           ) : null}
           <DeckBuilderCanvas
             deck={deck}

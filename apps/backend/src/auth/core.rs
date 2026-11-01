@@ -176,6 +176,38 @@ async fn change_password(
     tx.commit().await?;
     Ok(renewed)
 }
+async fn delete_user(state: &AppState, user_id: &str) -> Result<()> {
+    let tx = state.db.begin().await?;
+    // Same lock as collection share/leave, so membership cannot change mid-delete.
+    db::execute(&tx, "SELECT pg_advisory_xact_lock(1280472986)", vec![]).await?;
+    let collection = db::rows(
+        &tx,
+        "SELECT collection_id::text AS id FROM collection_members WHERE user_id=$1",
+        vec![user_id.into()],
+    )
+    .await?
+    .first()
+    .map(|row| db::string(row, "id").to_owned());
+    db::execute(
+        &tx,
+        "DELETE FROM \"user\" WHERE id=$1",
+        vec![user_id.into()],
+    )
+    .await?;
+    db::execute(
+        &tx,
+        "DELETE FROM verification WHERE identifier LIKE 'reset-password:%' AND value=$1",
+        vec![user_id.into()],
+    )
+    .await?;
+    if let Some(collection) = collection {
+        // Items go with the last member; a shared collection stays with the longest-standing member.
+        db::execute(&tx,"DELETE FROM collections WHERE id=$1::uuid AND NOT EXISTS(SELECT 1 FROM collection_members WHERE collection_id=$1::uuid)",vec![collection.clone().into()]).await?;
+        db::execute(&tx,"UPDATE collection_members SET role='owner' WHERE id=(SELECT id FROM collection_members WHERE collection_id=$1::uuid ORDER BY joined_at,id LIMIT 1) AND NOT EXISTS(SELECT 1 FROM collection_members WHERE collection_id=$1::uuid AND role='owner')",vec![collection.into()]).await?;
+    }
+    tx.commit().await?;
+    Ok(())
+}
 async fn verify_password(
     state: &AppState,
     user_id: &str,
@@ -707,8 +739,16 @@ pub async fn dispatch(
             ));
         }
         "deleteUser" => {
-            service::require_session(state, headers).await?;
-            return Err(pipeline::message(404, "Not Found"));
+            let session = service::require_session(state, headers).await?;
+            if field(input, "password").encode_utf16().count() > 128 {
+                return Err(error(400, "PASSWORD_TOO_LONG", "Password too long"));
+            }
+            // Every account has a credential, so deletion always re-checks the password.
+            verify_password(state, &session.user.id, field(input, "password"), true).await?;
+            delete_user(state, &session.user.id).await?;
+            let mut reply = Reply::json(json!({"success":true,"message":"User deleted"}));
+            reply.headers = cleared(state)?;
+            reply
         }
         "deleteUserCallback" => {
             return Err(error(

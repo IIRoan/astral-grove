@@ -7,6 +7,10 @@ import {
   setDefaultTimeout,
 } from 'bun:test';
 import { z } from 'zod';
+import {
+  CollectionShareInviteCreateResponse,
+  CollectionShareStatusResponse,
+} from '@riftbound/contracts';
 import { createHmac, scryptSync } from 'node:crypto';
 import { startJmapFixture } from './fixtures/jmap';
 import { createHarness, json, cookie, Login, password, waitFor } from './support';
@@ -500,6 +504,86 @@ describe('authentication', () => {
           )
         ).status
       ).toBe(404);
+  });
+  test('account deletion re-checks the password and erases the account and its collection', async () => {
+    const user = await signup('delete');
+    expect(
+      (await app.fetch('/api/v1/collection/OGN-001/add', json({}, user.cookie))).status
+    ).toBe(200);
+    const [membership] =
+      await sql`SELECT collection_id FROM collection_members WHERE user_id=${user.user.id}`;
+    if (!membership) throw new Error('Missing collection fixture');
+    expect((await app.fetch('/api/auth/delete-user', json({ password }))).status).toBe(
+      401
+    );
+    const wrong = await app.fetch(
+      '/api/auth/delete-user',
+      json({ password: 'not-the-password-123' }, user.cookie)
+    );
+    expect(wrong.status).toBe(400);
+    expect((await wrong.json()).code).toBe('INVALID_PASSWORD');
+    const deleted = await app.fetch(
+      '/api/auth/delete-user',
+      json({ password }, user.cookie)
+    );
+    expect(deleted.status).toBe(200);
+    expect(await deleted.json()).toEqual({ success: true, message: 'User deleted' });
+    expect(
+      await (
+        await app.fetch('/api/auth/get-session', { headers: { cookie: user.cookie } })
+      ).json()
+    ).toBeNull();
+    expect(
+      (
+        await app.fetch(
+          '/api/auth/sign-in/email',
+          json({ email: user.email, password })
+        )
+      ).status
+    ).toBe(401);
+    expect(await sql`SELECT 1 FROM "user" WHERE id=${user.user.id}`).toHaveLength(0);
+    expect(
+      await sql`SELECT 1 FROM collection_items WHERE collection_id=${membership.collection_id}`
+    ).toHaveLength(0);
+    expect(
+      await sql`SELECT 1 FROM collections WHERE id=${membership.collection_id}`
+    ).toHaveLength(0);
+  });
+  test('deleting a shared collection owner leaves the collection with the remaining member', async () => {
+    const owner = await signup('delete-owner'),
+      member = await signup('delete-member');
+    const invitation = CollectionShareInviteCreateResponse.parse(
+      await (
+        await app.fetch('/api/v1/collection/share/invite', json({}, owner.cookie))
+      ).json()
+    );
+    expect(
+      (
+        await app.fetch(
+          `/api/v1/collection/share/invite/${invitation.data.token}/accept`,
+          json({ mode: 'use_theirs' }, member.cookie)
+        )
+      ).status
+    ).toBe(200);
+    expect(
+      (await app.fetch('/api/v1/collection/OGN-001/add', json({}, owner.cookie))).status
+    ).toBe(200);
+    expect(
+      (await app.fetch('/api/auth/delete-user', json({ password }, owner.cookie)))
+        .status
+    ).toBe(200);
+    const status = CollectionShareStatusResponse.parse(
+      await (
+        await app.fetch('/api/v1/collection/share', {
+          headers: { cookie: member.cookie },
+        })
+      ).json()
+    );
+    expect(status.data.role).toBe('owner');
+    expect(status.data.shared).toBe(false);
+    expect(
+      await sql`SELECT 1 FROM collection_items WHERE collection_id=${status.data.collectionId}`
+    ).toHaveLength(1);
   });
   test('JMAP signup, verify, password reset and email change work through HTTP', async () => {
     const mail = startJmapFixture();

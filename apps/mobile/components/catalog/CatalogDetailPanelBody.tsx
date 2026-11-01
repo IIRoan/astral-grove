@@ -17,6 +17,7 @@ import { useCollectionMutations } from '@/hooks/useCollection';
 import { useCollectionRecentAdds } from '@/hooks/useCollectionRecentAdds';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useWishlistMutations } from '@/hooks/useWishlistMutations';
+import { useRequireAccount } from '@/hooks/useRequireAccount';
 import type { WishlistPriceItem } from '@/hooks/useWishlistPrices';
 import type { useVariantPriceHistory } from '@/hooks/useVariantPriceHistory';
 import { buildCatalogDetailListItem } from '@/components/catalog/catalogDetailListItem';
@@ -63,6 +64,7 @@ export function CatalogDetailPanelBody({
   priceHistory,
 }: CatalogDetailPanelBodyProps) {
   const { adjustQuantity } = useCollectionMutations();
+  const requireAccount = useRequireAccount();
   const [fullscreen, setFullscreen] = useState(false);
   const [wishlistPickerVisible, setWishlistPickerVisible] = useState(false);
   const variantChanged = useValueChangeFlag(activeVariant.variantNumber);
@@ -166,6 +168,7 @@ export function CatalogDetailPanelBody({
   ).length;
 
   const handleWatchPress = async () => {
+    if (!requireAccount()) return;
     await hapticPress();
     if (isWatchingActive) {
       setWatchBusy(true);

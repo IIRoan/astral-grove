@@ -20,13 +20,7 @@ import { tabIdFromPathname, type AppTabId } from '@/lib/tab-route';
 import { cn } from '@/lib/utils';
 import { authClient } from '@/src/lib/auth-client';
 import { useQueryClient } from '@tanstack/react-query';
-import { removeUserDataQueries } from '@/src/api/queryClient';
-import { clearPersistedQueryClient } from '@/src/api/queryPersist';
-import { clearPersistedCollection } from '@/services/collectionCacheService';
-import { clearPersistedOwnedDecks } from '@/services/deckCacheService';
-import { clearPersistedWishlist } from '@/services/wishlistCacheService';
-import { clearPersistedCatalogIndex } from '@/services/catalogIndexService';
-import { clearLastCachedUserId } from '@/services/userCacheScope';
+import { clearLocalAccountData } from '@/services/accountCleanupService';
 import { hapticPress } from '@/utils/haptics';
 import { Image } from 'expo-image';
 import { usePathname, useRouter } from 'expo-router';
@@ -136,13 +130,7 @@ export function SideRail() {
   const handleSignOut = async () => {
     await authClient.signOut();
     await sessionQuery.refetch();
-    await clearPersistedCollection();
-    await clearPersistedOwnedDecks();
-    await clearPersistedWishlist();
-    await clearPersistedCatalogIndex();
-    await clearPersistedQueryClient();
-    await clearLastCachedUserId();
-    removeUserDataQueries(queryClient);
+    await clearLocalAccountData(queryClient);
   };
 
   const userName = session?.user?.name ?? '';
@@ -266,26 +254,28 @@ export function SideRail() {
               )}
             </PressableScale>
           </HoverTooltip>
-          <HoverTooltip
-            label="Sign out"
-            description="Sign out of The Astral Grove"
-            side="right"
-          >
-            <PressableScale
-              accessibilityLabel="Sign out"
-              className={cn(
-                'size-9 items-center justify-center',
-                FACTORY_RADIUS_CONTROL_CLASS
-              )}
-              contentClassName="items-center justify-center"
-              onPress={() => {
-                void hapticPress();
-                void handleSignOut();
-              }}
+          {userId ? (
+            <HoverTooltip
+              label="Sign out"
+              description="Sign out of The Astral Grove"
+              side="right"
             >
-              <LogOutIcon className="size-4 text-muted-foreground" />
-            </PressableScale>
-          </HoverTooltip>
+              <PressableScale
+                accessibilityLabel="Sign out"
+                className={cn(
+                  'size-9 items-center justify-center',
+                  FACTORY_RADIUS_CONTROL_CLASS
+                )}
+                contentClassName="items-center justify-center"
+                onPress={() => {
+                  void hapticPress();
+                  void handleSignOut();
+                }}
+              >
+                <LogOutIcon className="size-4 text-muted-foreground" />
+              </PressableScale>
+            </HoverTooltip>
+          ) : null}
         </View>
       </View>
     </View>

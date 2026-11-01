@@ -12,6 +12,7 @@ import { ScreenLayout } from '@/components/shell/ScreenLayout';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Text } from '@/components/ui/text';
+import { RIOT_DISCLAIMER, SUPPORT_EMAIL } from '@/constants/legal';
 import { useShowSideRail } from '@/hooks/useBreakpoint';
 import { useEmailVerificationRequired } from '@/hooks/useEmailVerificationRequired';
 import { authClient } from '@/src/lib/auth-client';
@@ -149,6 +150,27 @@ export default function SettingsScreen() {
 
         <SettingsSection label="App version">
           <UpdateChannelSection />
+        </SettingsSection>
+
+        <SettingsSection label="About">
+          <View className="overflow-hidden rounded-[10px] border border-border bg-card">
+            <DesignPreviewRow
+              title="Support"
+              path={SUPPORT_EMAIL}
+              label="Open support"
+              onPress={() => router.push('/support')}
+            />
+            <DesignPreviewRow
+              title="Privacy policy"
+              path="/privacy"
+              label="Open privacy policy"
+              onPress={() => router.push('/privacy')}
+              divider
+            />
+          </View>
+          <Text className="text-xs leading-5 text-muted-foreground">
+            {RIOT_DISCLAIMER}
+          </Text>
         </SettingsSection>
 
         {showDesign ? (

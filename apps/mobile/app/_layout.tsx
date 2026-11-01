@@ -196,6 +196,14 @@ function RootNav() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="privacy"
+          options={{ title: 'Privacy policy', headerShown: false }}
+        />
+        <Stack.Screen
+          name="support"
+          options={{ title: 'Support', headerShown: false }}
+        />
       </Stack>
     </NavThemeProvider>
   );
