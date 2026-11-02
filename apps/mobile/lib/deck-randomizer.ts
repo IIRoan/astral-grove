@@ -31,12 +31,15 @@ export type RandomizerSettings = {
   /** Non-rune cards come only from these set codes; empty = any. */
   sets: string[];
   copies: RandomizerCopies;
+  /** Ignore deckbuilding rules: any-domain cards and champion, one rune per played domain plus random runes. */
+  illegal: boolean;
 };
 
 export const DEFAULT_RANDOMIZER_SETTINGS: RandomizerSettings = {
   domains: [],
   sets: [],
   copies: 'random',
+  illegal: false,
 };
 
 type Rng = () => number;
@@ -81,6 +84,7 @@ function randomizerPool(items: readonly CardListItem[]): DeckCard[] {
 /**
  * Random Constructed deck: legend, matching champion, 39 main, 12 runes, 3 battlefields.
  * Every pick goes through the deck builder's eligibility rules; throws unless the result validates.
+ * With `illegal`, only the section sizes are kept.
  */
 export async function generateRandomDeck(
   items: readonly CardListItem[],
@@ -125,6 +129,7 @@ export async function generateRandomDeck(
     legend: hydrate(listLegend),
   };
   const eligible = (section: DeckSectionKey, candidateCard: DeckCard) =>
+    settings.illegal ||
     isCardEligibleForSection({ deck, section, candidateCard }).eligible;
 
   const champion = pick(
@@ -153,8 +158,23 @@ export async function generateRandomDeck(
   const runeFor = (domain: string) =>
     cards.find((card) => cardHasType(card, 'rune') && card.colors.includes(domain));
   const runeDomains = getLegendRuneDomains(deck.legend!);
-  for (let i = 0; i < rules.sections.runes.target; i++) {
-    const rune = runeFor(pick(runeDomains, rng)!);
+  const anyRune = cards.filter((card) => cardHasType(card, 'rune'));
+  if (settings.illegal) {
+    // Rules are off, but every domain the deck plays still gets at least one rune.
+    const played = [
+      deck.legend!,
+      champion,
+      ...[...deck.mainDeck.values()].map((e) => e.card),
+    ];
+    for (const domain of new Set(played.flatMap((card) => card.colors))) {
+      const rune = runeFor(domain);
+      if (rune) deck = addCardToDeck(deck, rune, { section: 'runes' });
+    }
+  }
+  for (let i = getSectionCount(deck, 'runes'); i < rules.sections.runes.target; i++) {
+    const rune = settings.illegal
+      ? pick(anyRune, rng)
+      : runeFor(pick(runeDomains, rng)!);
     if (rune) deck = addCardToDeck(deck, rune, { section: 'runes' });
   }
 
@@ -169,6 +189,7 @@ export async function generateRandomDeck(
     }
   }
 
+  if (settings.illegal) return deck;
   const messages = validateDeck(deck);
   if (!deckValidationIsValid(messages)) {
     throw new Error(messages[0]?.message ?? 'Could not build a valid deck.');
