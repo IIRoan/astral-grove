@@ -15,6 +15,7 @@ import {
   mergeHydratedLegend,
   pickDeckAddDisplayListItems,
   searchLocalDeckAddCatalog,
+  variantsNeedingCardDetail,
   type DeckAddCatalogStatus,
 } from '@/lib/deck-add-catalog';
 import {
@@ -117,15 +118,25 @@ export function useDeckAddCatalog(
     );
   }, [displayListItems, filters, collectionByVariant]);
 
+  // ponytail: tiles read Unavailable until details load; put tags on CardListItem to drop this fetch.
+  const detailVariants = variantsNeedingCardDetail(filteredListItems);
+  const detailsQuery = useQuery({
+    queryKey: ['deck-add-card-details', detailVariants.join(',')],
+    queryFn: () => api.batchCards(detailVariants),
+    enabled: detailVariants.length > 0,
+    staleTime: DECK_ADD_CATALOG_STALE_MS,
+    placeholderData: (previous) => previous,
+  });
+
   const candidateCards = useMemo(
     () =>
       buildDeckAddCandidates({
         section,
         listItems: filteredListItems,
-        details: [],
+        details: detailsQuery.data?.data ?? [],
         deck: resolvedDeck,
       }),
-    [section, filteredListItems, resolvedDeck]
+    [section, filteredListItems, detailsQuery.data?.data, resolvedDeck]
   );
 
   const displayCards = useMemo(

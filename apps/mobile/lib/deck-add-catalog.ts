@@ -3,6 +3,7 @@ import {
   cardPrimaryNameToken,
   deckFormatRestrictsPicker,
   isMainDeckCardType,
+  isSignatureCard,
   isTokenVariantNumber,
   legendChampionTags,
 } from '@riftbound/contracts';
@@ -297,6 +298,13 @@ export function mergeHydratedLegend(deck: DeckState, detail: CardDetail): DeckSt
     ...deck,
     legend: deckCardFromDetail(detail, deck.legend.variantNumber),
   };
+}
+
+/** Catalog rows carry no tags; champion and signature matching needs them. */
+export function variantsNeedingCardDetail(items: readonly CardListItem[]): string[] {
+  return items
+    .filter((item) => isChampionUnit(item) || isSignatureCard(item))
+    .map((item) => item.variantNumber);
 }
 
 function pickPrimaryListItems(items: CardListItem[]): CardListItem[] {

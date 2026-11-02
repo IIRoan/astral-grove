@@ -77,7 +77,7 @@ export function mockCard(i: number) {
 
 const CARDS = Array.from({ length: 48 }, (_, i) => mockCard(i));
 
-function cardDetail(card: ReturnType<typeof mockCard>) {
+export function cardDetail(card: ReturnType<typeof mockCard>) {
   return {
     id: card.cardId,
     name: card.name,
