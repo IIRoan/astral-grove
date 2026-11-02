@@ -16,6 +16,7 @@ import {
   uniqueCardListItems,
   searchLocalDeckAddCatalog,
   pickDeckAddDisplayListItems,
+  variantsNeedingCardDetail,
 } from './deck-add-catalog';
 import { DEFAULT_CATALOG_FILTERS } from '@/constants/catalogFilters';
 import { api } from '@/src/api/client';
@@ -616,4 +617,23 @@ describe('deck-add-catalog', () => {
 
     expect(candidates).toHaveLength(0);
   });
+});
+
+test('only signature and champion rows need a detail fetch', () => {
+  const row = (variantNumber: string, overrides: Partial<CardListItem> = {}) =>
+    ({
+      variantNumber,
+      type: 'Unit',
+      super: null,
+      rarity: 'Common',
+      ...overrides,
+    }) as CardListItem;
+
+  expect(
+    variantsNeedingCardDetail([
+      row('RAD-154', { type: 'Spell', super: 'Signature' }),
+      row('OGN-200', { super: 'Champion' }),
+      row('OGN-010'),
+    ])
+  ).toEqual(['RAD-154', 'OGN-200']);
 });

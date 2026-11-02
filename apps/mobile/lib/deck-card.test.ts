@@ -8,8 +8,51 @@ import {
   createEmptyDeck,
   deckCardFromListItem,
   deserializeDeck,
+  replaceDeckLegend,
   serializeDeck,
 } from './deck-card';
+import type { DeckCard } from './deck-types';
+
+describe('replaceDeckLegend', () => {
+  const card = (name: string, tags: string[] = [], isSignature = false) =>
+    ({ name, tags, isSignature, type: 'Spell', colors: [] }) as unknown as DeckCard;
+  const section = (...cards: DeckCard[]) =>
+    new Map(cards.map((entry) => [entry.name, { card: entry, count: 3 }]));
+  const teemoDeck = (format: 'constructed' | 'pre-rift') => ({
+    ...createEmptyDeck('Spiderlings', '', format),
+    legend: card('Teemo, Swift Scout', ['Teemo']),
+    champion: card('Teemo, Strategist', ['Teemo']),
+    runes: section(card('Mind Rune')),
+    mainDeck: section(
+      card('Guerilla Warfare', ['Teemo'], true),
+      card('Spiderling'),
+      card('Last Caress', ['Evelynn'], true)
+    ),
+    sideboard: section(card('Guerilla Warfare', ['Teemo'], true), card('Spiderling')),
+  });
+  const evelynn = card("Evelynn, Agony's Embrace", ['Evelynn']);
+
+  test('removes what was built for the old Legend', () => {
+    const next = replaceDeckLegend(teemoDeck('constructed'), evelynn);
+
+    expect(next.legend).toBe(evelynn);
+    expect(next.champion).toBeNull();
+    expect(next.runes.size).toBe(0);
+    expect([...next.mainDeck.keys()]).toEqual(['Spiderling', 'Last Caress']);
+    expect([...next.sideboard.keys()]).toEqual(['Spiderling']);
+  });
+
+  test('Pre-Rift has no Legend-specific cards, so nothing else changes', () => {
+    const deck = teemoDeck('pre-rift');
+    const next = replaceDeckLegend(deck, evelynn);
+
+    expect(next.legend).toBe(evelynn);
+    expect(next.champion).toBe(deck.champion);
+    expect(next.runes).toBe(deck.runes);
+    expect(next.mainDeck).toBe(deck.mainDeck);
+    expect(next.sideboard).toBe(deck.sideboard);
+  });
+});
 
 describe('card type tokens', () => {
   test('splits dual types like Unit Gear', () => {

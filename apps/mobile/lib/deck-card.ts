@@ -4,6 +4,7 @@ import {
   getDeckRules,
   isSignatureCard,
   isUnresolvedDeckVariant,
+  sharesLegendChampionTag,
   sideboardMaximum,
 } from '@riftbound/contracts';
 import { resolveImageUrl } from '@/utils/resolveImageUrl';
@@ -240,6 +241,28 @@ export function addCardToDeck(
   }
 
   return { ...deck, [targetSection]: map, updatedAt };
+}
+
+/** Constructed drops what was chosen for the old Legend: champion, runes, and its signature cards. */
+export function replaceDeckLegend(deck: DeckState, legend: DeckCard): DeckState {
+  const updatedAt = Date.now();
+  if (deck.format === 'pre-rift') return { ...deck, legend, updatedAt };
+  const keep = (section: Map<string, DeckEntry>) =>
+    new Map(
+      [...section].filter(
+        ([, { card }]) =>
+          !isSignatureCard(card) || sharesLegendChampionTag(legend, card)
+      )
+    );
+  return {
+    ...deck,
+    legend,
+    champion: null,
+    runes: new Map(),
+    mainDeck: keep(deck.mainDeck),
+    sideboard: keep(deck.sideboard),
+    updatedAt,
+  };
 }
 
 function resolveAddSection(deck: DeckState, card: DeckCard): DeckSectionKey {

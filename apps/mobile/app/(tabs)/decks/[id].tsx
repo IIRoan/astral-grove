@@ -19,7 +19,7 @@ import { blockAuthor } from '@/lib/blocked-authors';
 import { useDeckAutoSave } from '@/hooks/useDeckAutoSave';
 import { useDeckDetail } from '@/hooks/useDeckDetail';
 import { useDeckMutations } from '@/hooks/useDecks';
-import { addCardToDeck } from '@/lib/deck-card';
+import { replaceDeckLegend } from '@/lib/deck-card';
 import {
   deckEditHref,
   deckViewHref,
@@ -53,11 +53,7 @@ export default function DeckEditorScreen() {
   const handleLegendSelect = useCallback(
     (legend: DeckCard) => {
       if (!deck) return;
-      const base =
-        deck.format === 'pre-rift'
-          ? deck
-          : { ...deck, legend: null, champion: null, runes: new Map() };
-      const next = addCardToDeck(base, legend, { section: 'legend' });
+      const next = replaceDeckLegend(deck, legend);
       setPickingLegend(false);
       persist(next);
       if (!isDeckEditMode(mode)) {
