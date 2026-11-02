@@ -41,6 +41,14 @@ const COPIES_OPTIONS: { id: RandomizerCopies; label: string }[] = [
   { id: 'playset', label: 'Playsets' },
 ];
 
+const MINIMUM_UNITS_OPTIONS = [
+  { value: 0, label: 'Any' },
+  { value: 10, label: '10+' },
+  { value: 14, label: '14+ (recommended)' },
+  { value: 20, label: '20+' },
+  { value: 24, label: '24+' },
+];
+
 const SET_OPTIONS = SET_DIRECTORY.filter((set) => !set.special);
 
 type ExportFormat = 'code' | 'tts' | 'text';
@@ -66,6 +74,7 @@ function toggle(values: string[], value: string): string[] {
 function settingsSummary(settings: RandomizerSettings): string {
   const sets = SET_OPTIONS.filter((set) => settings.sets.includes(set.code));
   return [
+    settings.minimumUnits ? `${settings.minimumUnits}+ units` : 'Any unit count',
     settings.domains.length ? settings.domains.join(', ') : 'Any domain',
     sets.length ? sets.map((set) => set.name).join(', ') : 'All sets',
     COPIES_OPTIONS.find((option) => option.id === settings.copies)?.label,
@@ -267,6 +276,24 @@ export default function FunScreen() {
                       />
                     ))}
                   </View>
+                </Section>
+
+                <Section label="Minimum units">
+                  <View className="flex-row flex-wrap gap-2">
+                    {MINIMUM_UNITS_OPTIONS.map((option) => (
+                      <FilterStatChip
+                        key={option.value}
+                        label={option.label}
+                        active={settings.minimumUnits === option.value}
+                        onPress={() =>
+                          setSettings((s) => ({ ...s, minimumUnits: option.value }))
+                        }
+                      />
+                    ))}
+                  </View>
+                  <Text className="text-xs text-muted-foreground">
+                    Main-deck units only. Your chosen champion is extra.
+                  </Text>
                 </Section>
 
                 <Section label="Rules">

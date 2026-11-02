@@ -31,6 +31,8 @@ export type RandomizerSettings = {
   /** Non-rune cards come only from these set codes; empty = any. */
   sets: string[];
   copies: RandomizerCopies;
+  /** Minimum unit copies in the Main Deck, excluding the chosen champion; 0 = any. */
+  minimumUnits: number;
   /** Ignore deckbuilding rules: any-domain cards and champion, one rune per played domain plus random runes. */
   illegal: boolean;
 };
@@ -39,6 +41,7 @@ export const DEFAULT_RANDOMIZER_SETTINGS: RandomizerSettings = {
   domains: [],
   sets: [],
   copies: 'random',
+  minimumUnits: 14,
   illegal: false,
 };
 
@@ -84,7 +87,7 @@ function randomizerPool(items: readonly CardListItem[]): DeckCard[] {
 /**
  * Random Constructed deck: legend, matching champion, 39 main, 12 runes, 3 battlefields.
  * Every pick goes through the deck builder's eligibility rules; throws unless the result validates.
- * With `illegal`, only the section sizes are kept.
+ * With `illegal`, only the section sizes and unit minimum are kept.
  */
 export async function generateRandomDeck(
   items: readonly CardListItem[],
@@ -92,6 +95,17 @@ export async function generateRandomDeck(
   fetchDetails: (variantNumbers: string[]) => Promise<Map<string, CardDetail>>,
   rng: Rng = Math.random
 ): Promise<DeckState> {
+  const rules = getDeckRules('constructed');
+  const { minimumUnits } = settings;
+  if (
+    !Number.isInteger(minimumUnits) ||
+    minimumUnits < 0 ||
+    minimumUnits > rules.sections.mainDeck.minimum
+  ) {
+    throw new Error(
+      `Minimum units must be a whole number between 0 and ${rules.sections.mainDeck.minimum}.`
+    );
+  }
   const pool = randomizerPool(items);
   const inSets = (card: DeckCard) =>
     settings.sets.length === 0 || settings.sets.includes(card.setCode);
@@ -122,8 +136,6 @@ export async function generateRandomDeck(
     return detail ? deckCardFromDetail(detail, card.variantNumber) : card;
   };
   const cards = pool.map(hydrate);
-  const rules = getDeckRules('constructed');
-
   let deck: DeckState = {
     ...createEmptyDeck('Random deck'),
     legend: hydrate(listLegend),
@@ -142,18 +154,44 @@ export async function generateRandomDeck(
     throw new Error(`No champion unit matches ${listLegend.name} in these sets.`);
   deck = { ...deck, champion };
 
-  const mainTarget = rules.sections.mainDeck.minimum;
-  for (const card of shuffle(
+  const mainCards = shuffle(
     cards.filter((c) => inSets(c) && isMainDeckCardType(c)),
     rng
-  )) {
-    const wanted = copiesPerPick(settings.copies, rng);
-    for (let i = 0; i < wanted && getSectionCount(deck, 'mainDeck') < mainTarget; i++) {
-      if (!eligible('mainDeck', card)) break;
-      deck = addCardToDeck(deck, card, { section: 'mainDeck' });
+  );
+  const fillMainDeck = (
+    candidates: readonly DeckCard[],
+    target: number,
+    copies = settings.copies
+  ) => {
+    for (const card of candidates) {
+      if (getSectionCount(deck, 'mainDeck') >= target) break;
+      const wanted = copiesPerPick(copies, rng);
+      for (
+        let i = deck.mainDeck.get(card.name)?.count ?? 0;
+        i < wanted && getSectionCount(deck, 'mainDeck') < target;
+        i++
+      ) {
+        if (!eligible('mainDeck', card)) break;
+        deck = addCardToDeck(deck, card, { section: 'mainDeck' });
+      }
     }
-    if (getSectionCount(deck, 'mainDeck') >= mainTarget) break;
+  };
+
+  const units = mainCards.filter((card) => cardHasType(card, 'unit'));
+  fillMainDeck(units, minimumUnits);
+  if (
+    getSectionCount(deck, 'mainDeck') < minimumUnits &&
+    settings.copies === 'random'
+  ) {
+    // Use spare legal copies when random copy counts leave a small unit pool short.
+    fillMainDeck(units, minimumUnits, 'playset');
   }
+  if (getSectionCount(deck, 'mainDeck') < minimumUnits) {
+    throw new Error(
+      `Not enough eligible units for these settings (need at least ${minimumUnits} in the Main Deck).`
+    );
+  }
+  fillMainDeck(mainCards, rules.sections.mainDeck.minimum);
 
   const runeFor = (domain: string) =>
     cards.find((card) => cardHasType(card, 'rune') && card.colors.includes(domain));
