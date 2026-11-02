@@ -1,28 +1,17 @@
 import { useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import type { DeckState } from '@/lib/deck-types';
-import { deckQueryKeys } from '@/src/api/queryKeys';
-import { flushRemoteDeckSave, scheduleRemoteDeckSave } from '@/services/deckService';
+import { flushRemoteDeckSave } from '@/services/deckService';
 
-/** Debounced account save while editing a deck. */
+/** Flush unsaved edits on leave; edits schedule their own saves, so a loaded deck is never written back. */
 export function useDeckAutoSave(deck: DeckState | null) {
-  const queryClient = useQueryClient();
+  const deckId = deck && !deck.readOnly ? deck.id : null;
 
   useEffect(() => {
-    if (!deck?.id || deck.readOnly) return;
-    const latest =
-      queryClient.getQueryData<DeckState | null>(deckQueryKeys.detail(deck.id)) ?? deck;
-    if (latest.readOnly) return;
-    scheduleRemoteDeckSave(latest);
-  }, [deck, queryClient]);
-
-  useEffect(() => {
-    if (!deck?.id || deck.readOnly) return;
-    const deckId = deck.id;
+    if (!deckId) return;
     return () => {
       void flushRemoteDeckSave(deckId);
     };
-  }, [deck?.id, deck?.readOnly]);
+  }, [deckId]);
 }
 
 export { DECK_AUTO_SAVE_MS } from '@/services/deckService';
