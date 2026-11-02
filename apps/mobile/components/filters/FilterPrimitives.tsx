@@ -110,6 +110,7 @@ export function FilterStatChip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
+      aria-pressed={Platform.OS === 'web' ? active : undefined}
     >
       <Text
         className={cn(

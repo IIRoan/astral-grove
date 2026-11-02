@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { CardDetail, CardListItem } from '@riftbound/contracts';
 import { isSignatureCard } from '@riftbound/contracts';
-import { getSectionCount } from '@/lib/deck-card';
+import { cardHasType, getSectionCount } from '@/lib/deck-card';
 import {
   DEFAULT_RANDOMIZER_SETTINGS,
   generateRandomDeck,
@@ -155,9 +155,20 @@ function allCards(deck: DeckState) {
   ]);
 }
 
-function generate(seed: number, settings: Partial<RandomizerSettings> = {}) {
+function mainDeckUnitCount(deck: DeckState): number {
+  return [...deck.mainDeck.values()].reduce(
+    (count, entry) => count + (cardHasType(entry.card, 'unit') ? entry.count : 0),
+    0
+  );
+}
+
+function generate(
+  seed: number,
+  settings: Partial<RandomizerSettings> = {},
+  catalog: readonly CardListItem[] = CATALOG
+) {
   return generateRandomDeck(
-    CATALOG,
+    catalog,
     { ...DEFAULT_RANDOMIZER_SETTINGS, ...settings },
     fetchDetails,
     seeded(seed)
@@ -165,6 +176,86 @@ function generate(seed: number, settings: Partial<RandomizerSettings> = {}) {
 }
 
 describe('generateRandomDeck', () => {
+  test('defaults to the recommended minimum of 14 units', () => {
+    expect(DEFAULT_RANDOMIZER_SETTINGS.minimumUnits).toBe(14);
+  });
+
+  test('honors the selected unit minimum across copy modes and rules', async () => {
+    const catalog = [
+      ...CATALOG,
+      ...many('Extra Unit', 'Unit', ['Fury'], 24),
+      ...many('Extra Spell', 'Spell', ['Chaos'], 80),
+    ];
+    for (const minimumUnits of [10, 20, 24, 39]) {
+      for (const copies of ['singleton', 'random', 'playset'] as const) {
+        for (const illegal of [false, true]) {
+          for (let seed = 1; seed <= 5; seed++) {
+            const deck = await generate(
+              seed,
+              { minimumUnits, copies, illegal, domains: ['Fury', 'Chaos'] },
+              catalog
+            );
+            expect(mainDeckUnitCount(deck)).toBeGreaterThanOrEqual(minimumUnits);
+            expect(getSectionCount(deck, 'mainDeck')).toBe(39);
+            if (!illegal) {
+              expect(validateDeck(deck).map((message) => message.type)).toEqual([
+                'valid',
+              ]);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  test('allows no unit minimum when Any is selected', async () => {
+    const fewUnits = [
+      ...CATALOG.filter(
+        (card) => !cardHasType(card, 'unit') || card.name === 'Jinx, Demolitionist'
+      ),
+      ...many('Extra Spell', 'Spell', ['Fury'], 50),
+    ];
+    for (const copies of ['singleton', 'random', 'playset'] as const) {
+      for (const illegal of [false, true]) {
+        const deck = await generate(
+          1,
+          { minimumUnits: 0, copies, illegal, domains: ['Fury', 'Chaos'] },
+          fewUnits
+        );
+        expect(mainDeckUnitCount(deck)).toBeLessThanOrEqual(3);
+        expect(getSectionCount(deck, 'mainDeck')).toBe(39);
+        if (!illegal) {
+          expect(validateDeck(deck).map((message) => message.type)).toEqual(['valid']);
+        }
+      }
+    }
+  });
+
+  test('explains when the selected unit minimum is unavailable', async () => {
+    const fewUnits = CATALOG.filter(
+      (card) =>
+        !cardHasType(card, 'unit') ||
+        [
+          'Jinx, Demolitionist',
+          'Darius, Trifarian',
+          'Fury Unit 1',
+          'Fury Unit 2',
+          'Fury Unit 3',
+        ].includes(card.name)
+    );
+    await expect(
+      generate(1, { minimumUnits: 20, domains: ['Fury', 'Chaos'] }, fewUnits)
+    ).rejects.toThrow('at least 20');
+  });
+
+  test('rejects unit minimums outside the main-deck range', async () => {
+    for (const minimumUnits of [-1, 1.5, 40, NaN, Infinity]) {
+      await expect(generate(1, { minimumUnits })).rejects.toThrow(
+        'Minimum units must be a whole number between 0 and 39.'
+      );
+    }
+  });
+
   test('always builds a deck that passes Constructed validation', async () => {
     for (let seed = 1; seed <= 40; seed++) {
       const deck = await generate(seed);
@@ -207,6 +298,114 @@ describe('generateRandomDeck', () => {
     expect(Math.max(...counts)).toBe(3);
     expect(counts.filter((count) => count === 3).length).toBeGreaterThanOrEqual(11);
   });
+
+  for (const copies of ['singleton', 'random', 'playset'] as const) {
+    for (const illegal of [false, true]) {
+      test(`reserves at least 14 main-deck units with ${copies} copies and rules ${illegal ? 'off' : 'on'}`, async () => {
+        const spellHeavy = [
+          ...CATALOG,
+          ...many('Extra Spell', 'Spell', ['Fury'], 80),
+          ...many('Extra Gear', 'Gear', ['Chaos'], 80),
+        ];
+        for (let seed = 1; seed <= 40; seed++) {
+          const deck = await generate(
+            seed,
+            { copies, illegal, domains: ['Fury', 'Chaos'], sets: ['OGN'] },
+            spellHeavy
+          );
+          expect(mainDeckUnitCount(deck)).toBeGreaterThanOrEqual(14);
+          expect(getSectionCount(deck, 'mainDeck')).toBe(39);
+          expect(getSectionCount(deck, 'runes')).toBe(12);
+          expect(getSectionCount(deck, 'battlefields')).toBe(3);
+          expect(
+            [...deck.mainDeck.values()].every((entry) =>
+              copies === 'singleton' ? entry.count === 1 : entry.count <= 3
+            )
+          ).toBe(true);
+          if (!illegal) {
+            expect(validateDeck(deck).map((message) => message.type)).toEqual([
+              'valid',
+            ]);
+          }
+        }
+      });
+    }
+  }
+
+  test('uses available unit copies when exactly 14 can legally fit', async () => {
+    const scarceUnits = CATALOG.filter(
+      (card) =>
+        !cardHasType(card, 'unit') ||
+        [
+          'Jinx, Demolitionist',
+          'Darius, Trifarian',
+          'Fury Unit 1',
+          'Fury Unit 2',
+          'Fury Unit 3',
+        ].includes(card.name)
+    );
+    for (const copies of ['random', 'playset'] as const) {
+      for (let seed = 1; seed <= 20; seed++) {
+        const deck = await generate(
+          seed,
+          { copies, domains: ['Fury', 'Chaos'], sets: ['OGN'] },
+          scarceUnits
+        );
+        expect(mainDeckUnitCount(deck)).toBe(14);
+        expect(deck.mainDeck.get(deck.champion!.name)?.count).toBe(2);
+        expect(getSectionCount(deck, 'mainDeck')).toBe(39);
+        expect(validateDeck(deck).map((message) => message.type)).toEqual(['valid']);
+      }
+    }
+    await expect(
+      generate(
+        1,
+        { copies: 'singleton', domains: ['Fury', 'Chaos'], sets: ['OGN'] },
+        scarceUnits
+      )
+    ).rejects.toThrow('at least 14');
+  });
+
+  test('counts dual-type units toward the minimum', async () => {
+    const dualTypeUnits = CATALOG.map((card) =>
+      card.name.startsWith('Fury Unit') ? { ...card, type: 'Unit Gear' } : card
+    );
+    const deck = await generate(
+      1,
+      { domains: ['Fury', 'Chaos'], copies: 'singleton' },
+      dualTypeUnits
+    );
+    expect(
+      [...deck.mainDeck.values()]
+        .filter((entry) => entry.card.type === 'Unit Gear')
+        .reduce((count, entry) => count + entry.count, 0)
+    ).toBeGreaterThanOrEqual(12);
+    expect(mainDeckUnitCount(deck)).toBeGreaterThanOrEqual(14);
+  });
+
+  for (const copies of ['singleton', 'random', 'playset'] as const) {
+    for (const illegal of [false, true]) {
+      test(`explains a unit shortage with ${copies} copies and rules ${illegal ? 'off' : 'on'}`, async () => {
+        const tooFewUnits = CATALOG.filter(
+          (card) =>
+            !cardHasType(card, 'unit') ||
+            [
+              'Jinx, Demolitionist',
+              'Fury Unit 1',
+              'Fury Unit 2',
+              'Fury Unit 3',
+            ].includes(card.name)
+        );
+        await expect(
+          generate(
+            1,
+            { copies, illegal, domains: ['Fury', 'Chaos'], sets: ['OGN'] },
+            tooFewUnits
+          )
+        ).rejects.toThrow('at least 14');
+      });
+    }
+  }
 
   test('domains setting keeps the legend inside the chosen domains', async () => {
     for (let seed = 1; seed <= 10; seed++) {
@@ -256,11 +455,15 @@ describe('generateRandomDeck', () => {
     expect(generate(1, { domains: ['Order'] })).rejects.toThrow(
       'No legend matches these settings.'
     );
-    const thin = CATALOG.filter((card) => !/^(Fury Unit|Chaos Spell)/.test(card.name));
+    const thin = CATALOG.filter((card) => !card.name.startsWith('Chaos Spell'));
     expect(
       generateRandomDeck(
         thin,
-        { ...DEFAULT_RANDOMIZER_SETTINGS, domains: ['Fury', 'Chaos'] },
+        {
+          ...DEFAULT_RANDOMIZER_SETTINGS,
+          domains: ['Fury', 'Chaos'],
+          copies: 'singleton',
+        },
         fetchDetails,
         seeded(1)
       )
