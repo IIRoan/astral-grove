@@ -69,6 +69,7 @@ function settingsSummary(settings: RandomizerSettings): string {
     settings.domains.length ? settings.domains.join(', ') : 'Any domain',
     sets.length ? sets.map((set) => set.name).join(', ') : 'All sets',
     COPIES_OPTIONS.find((option) => option.id === settings.copies)?.label,
+    settings.illegal ? 'Illegal' : 'Legal',
   ].join(' · ');
 }
 
@@ -181,7 +182,7 @@ export default function FunScreen() {
       <ScreenHeader title="Fun" subtitle="Deck randomizer" />
       <Text className="text-sm text-muted-foreground">
         Rolls a random legend, a matching champion, 39 random cards, runes and
-        battlefields. Every deck follows Constructed rules.
+        battlefields. Decks follow Constructed rules unless you pick Illegal.
       </Text>
 
       <View className={cn('mt-6 gap-6', wide && 'flex-row items-start')}>
@@ -266,6 +267,24 @@ export default function FunScreen() {
                       />
                     ))}
                   </View>
+                </Section>
+
+                <Section label="Rules">
+                  <View className="flex-row flex-wrap gap-2">
+                    {[false, true].map((illegal) => (
+                      <FilterStatChip
+                        key={String(illegal)}
+                        label={illegal ? 'Illegal' : 'Legal'}
+                        active={settings.illegal === illegal}
+                        onPress={() => setSettings((s) => ({ ...s, illegal }))}
+                      />
+                    ))}
+                  </View>
+                  <Text className="text-xs text-muted-foreground">
+                    {settings.illegal
+                      ? 'Any-domain cards and random runes, with at least one rune per domain played.'
+                      : 'Follows Constructed rules.'}
+                  </Text>
                 </Section>
               </View>
             </SmoothCollapse>

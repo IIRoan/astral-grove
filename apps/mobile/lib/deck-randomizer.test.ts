@@ -229,6 +229,29 @@ describe('generateRandomDeck', () => {
     expect(deck.runes.get('Fury Rune')?.card.variantNumber).toBe('OGN-007');
   });
 
+  test('illegal mode mixes domains but gives every played domain a rune', async () => {
+    let offLegendCards = false;
+    for (let seed = 1; seed <= 20; seed++) {
+      const deck = await generate(seed, { illegal: true, domains: ['Fury', 'Chaos'] });
+      expect(getSectionCount(deck, 'mainDeck')).toBe(39);
+      expect(getSectionCount(deck, 'runes')).toBe(12);
+      expect(getSectionCount(deck, 'battlefields')).toBe(3);
+      const played = [
+        deck.legend!,
+        deck.champion!,
+        ...allCards(deck).map((e) => e.card),
+      ];
+      const runeDomains = [...deck.runes.values()].flatMap((e) => e.card.colors);
+      for (const domain of played.flatMap((card) => card.colors)) {
+        expect(runeDomains).toContain(domain);
+      }
+      offLegendCards ||= played.some((card) =>
+        card.colors.some((c) => !deck.legend!.colors.includes(c))
+      );
+    }
+    expect(offLegendCards).toBe(true);
+  });
+
   test('explains why settings cannot produce a deck', async () => {
     expect(generate(1, { domains: ['Order'] })).rejects.toThrow(
       'No legend matches these settings.'
